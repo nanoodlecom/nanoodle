@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="nanoodle-build" content="dev" /><!-- stamped with the deploy commit sha7 by scripts/stamp-sw.mjs; read by scripts/smoke-live.mjs -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>nanoodle — turn NanoGPT prompts into reusable apps</title>
 <meta name="description" content="Turn your NanoGPT prompts into reusable AI apps. Sign in with NanoGPT, connect text, image, video and audio models, then share a link or export one HTML file. Runs use your NanoGPT balance. No analytics; your key stays in your browser." />
@@ -89,6 +90,7 @@
     --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
     --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
     --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97; --model3d-port:#a78bfa;
+    --ws-h:34px;
   }
   *{box-sizing:border-box}
   .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
@@ -460,14 +462,39 @@
              padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
   .sub-copy.ok{ background:var(--good) }
   /* toast — a clearly-visible transient confirmation */
-  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal — Share toast feedback must show over them; pointer-events:none keeps it click-through */
+  #toast{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal — Share toast feedback must show over them; pointer-events:none keeps it click-through */
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
           background:var(--panel); border:1px solid var(--good); color:var(--ink);
           padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
           opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease }
   #toast.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1) }
+  /* The workspace menu opens in the same band as the toast. While it is open, park the toast at the bottom so it doesn't cover the rename field or the tab list. */
+  body:has(#wsdropmenu:not([hidden])) #toast,
+  body:has(#wschooser:not([hidden])) #toast{
+    top:auto; bottom:1.1rem; transform:translateX(-50%) translateY(14px) scale(.98); }
+  body:has(#wsdropmenu:not([hidden])) #toast.show,
+  body:has(#wschooser:not([hidden])) #toast.show{
+    transform:translateX(-50%) translateY(0) scale(1); }
   #toast.err{ border-color:var(--bad) }
   #toast.warn{ border-color:var(--warn) }
+  #wscloseundo{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:241;
+    display:flex; align-items:center; gap:.8rem; max-width:min(92vw,620px); padding:.65rem .75rem .65rem 1rem;
+    background:var(--panel); color:var(--ink); border:1px solid var(--accent); border-radius:.8rem;
+    box-shadow:0 16px 44px #0009; font-size:.9rem; }
+  #wscloseundo[hidden]{ display:none }
+  #wscloseundo-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #wscloseundo-action{ display:flex; align-items:center; gap:.6rem; flex:none; border-color:transparent;
+    background:linear-gradient(110deg,var(--accent),var(--accent2)); color:#10131b; font-weight:750; }
+  #wscloseundo kbd{ border:1px solid #10131b55; border-radius:.3rem; padding:.08rem .3rem; font:600 .72rem system-ui; white-space:nowrap; }
+  #wscloseundo-dismiss{ flex:none; border:0; background:transparent; color:var(--dim); padding:.35rem; }
+  #wscloseundo button{ min-height:44px; } #wscloseundo-dismiss{ min-width:44px; }
+  #wscloseundo button:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+  body:has(#wscloseundo:not([hidden])) #toast{ top:calc(126px + var(--ws-h)); }
+  body:has(#wsdropmenu:not([hidden])) #wscloseundo,
+  body:has(#wschooser:not([hidden])) #wscloseundo{ top:auto; bottom:max(calc(var(--db-h,3rem) + .75rem),var(--ws-persistence-space,0px)); }
+  body:has(#wsdropmenu:not([hidden])):has(#wscloseundo:not([hidden])) #toast,
+  body:has(#wschooser:not([hidden])):has(#wscloseundo:not([hidden])) #toast{ top:auto; }
+  @media(max-width:540px){ #wscloseundo{ gap:.55rem; padding-left:.75rem; } #wscloseundo kbd{ display:none } }
   /* ⛽ Refuel — scan-to-top-up panel; opens ONLY at the out-of-balance dead-end (nowhere else) */
   #refuelmodal[hidden]{ display:none }
   #refuelmodal{ position:fixed; inset:0; z-index:214; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
@@ -617,7 +644,7 @@
                  font-size:.72rem; line-height:1.28; padding:.4rem .4rem .4rem .65rem; gap:.3rem; }
     #canvashint #hintx{ font-size:.95rem; align-self:flex-start; }
   }
-  #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
+  #editor{ position:fixed; inset:calc(52px + var(--ws-h)) 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
            background-size:22px 22px;
@@ -643,7 +670,7 @@
   @media (hover:none){ #fit:not([disabled]){ opacity:.6; pointer-events:auto } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6; pointer-events:auto } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
   /* Screen-space delete for the selected node — the in-header ✕ shrinks with zoom and sits next to the
      paid ▶ run, so touch gets a big fixed target that can't mis-fire. Coarse pointers only. */
-  #delnode{ position:fixed; top:58px; right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
+  #delnode{ position:fixed; top:calc(58px + var(--ws-h)); right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
             padding:.55rem .75rem; font:inherit; font-size:.82rem; font-weight:600; border-radius:.6rem; cursor:pointer;
             background:var(--panel2); border:1px solid var(--bad); color:var(--bad); box-shadow:0 6px 18px #0006; }
   #delnode:active{ filter:brightness(1.15) }
@@ -942,7 +969,7 @@
   .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
 
   /* key entry */
-  #keyrow{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
+  #keyrow{ position:fixed; top:calc(60px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
            max-width:calc(100vw - .5rem);
            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.6rem; align-items:center; box-shadow:0 12px 40px #0008}
   #keyrow.open{display:flex}
@@ -956,7 +983,7 @@
   .dim{ color:var(--dim) }
 
   /* ---------- sample-run pill (signed-out Run) — same shelf as #keyrow ---------- */
-  #demopop{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:49; display:flex; flex-direction:column; gap:.55rem;
+  #demopop{ position:fixed; top:calc(60px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:49; display:flex; flex-direction:column; gap:.55rem;
             max-width:min(480px, calc(100vw - .5rem));
             background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.65rem 2.2rem .65rem .8rem; box-shadow:0 12px 40px #0008 }
   #demopop[hidden]{ display:none }
@@ -990,7 +1017,7 @@
   /* ---------- model picker ---------- */
   #mpickback{ position:fixed; inset:0; z-index:55; background:#0008; display:none }
   #mpickback.show{ display:block }
-  #mpick{ position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:60; display:none;
+  #mpick{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:60; display:none;
           width:min(560px,92vw); max-height:74vh; flex-direction:column; background:var(--panel);
           border:1px solid var(--line); border-radius:.8rem; box-shadow:0 18px 60px #000a; overflow:hidden }
   #mpick.open{ display:flex }
@@ -1082,8 +1109,8 @@
   body.narrowbar #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
   body.narrowbar #moremenu{ display:block }            /* reveal the overflow trigger */
   /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
-  body.narrowbar #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
-  body.narrowbar #appblock{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none }
+  body.narrowbar #appnudge{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
+  body.narrowbar #appblock{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none }
   body.narrowbar #top .sep{ display:none }
   body.narrowbar #cost{ display:none }                 /* balance is non-essential chrome when the bar is tight */
   body.narrowbar #authmenu{ display:none }             /* its sign-in/paste-key buttons move into ⋯ (RELOC); only the empty caret shell stays behind */
@@ -1130,7 +1157,7 @@
 
   /* ---------- share popover (ported from play.html's app share) ---------- */
   #shareback{ position:fixed; inset:0; z-index:190; }
-  #sharemenu{ position:fixed; right:.6rem; top:3rem; z-index:191; width:min(360px,94vw);
+  #sharemenu{ position:fixed; right:.6rem; top:calc(52px + var(--ws-h) + .35rem); z-index:191; width:min(360px,94vw);
               max-height:80vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
               border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem; }
   #sharemenu[hidden], #shareback[hidden]{ display:none; }
@@ -1155,6 +1182,114 @@
   .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
   .sm-svc button.sm-primary:hover{ background:#7c8cff33; border-color:var(--accent); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
+
+  /* ---------- workspaces: a document strip under the toolbar, not more pills in #top ---------- */
+  #workspaces{ position:fixed; top:52px; left:0; right:0; height:var(--ws-h); z-index:29;
+    display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
+    background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
+  /* The active tab paints 1px over this bar's border (.wstab.on::after). That
+     pixel has to sit inside the strip, or overflow-x:auto computes a vertical
+     scrollbar between the last tab and +. A visible horizontal bar steals the
+     same height and clips the tabs, so sideways scrolling stays but the bar
+     does not. */
+  #wstabs{ display:flex; align-items:flex-end; gap:.15rem; min-width:0; max-width:calc(100% - 2.2rem);
+    height:calc(100% + 1px); align-self:flex-start; padding-bottom:1px;
+    overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+  #wstabs::-webkit-scrollbar{ height:3px; width:0 }
+  #wstabs::-webkit-scrollbar-thumb{ background:#3a4258; border-radius:3px }
+  #wstabs.fade-l{ -webkit-mask-image:linear-gradient(to right, transparent, #000 14px); mask-image:linear-gradient(to right, transparent, #000 14px); }
+  #wstabs.fade-r{ -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); }
+  #wstabs.fade-l.fade-r{ -webkit-mask-image:linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image:linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
+  .wstab{ position:relative; display:inline-flex; align-items:center; gap:.3rem; flex:0 0 auto;
+    max-width:11.5rem; height:calc(var(--ws-h) - 7px); margin:0; padding:0 .55rem 0 .7rem;
+    border:1px solid transparent; border-bottom:none; border-radius:.45rem .45rem 0 0;
+    background:transparent; color:var(--dim); font-size:.78rem; line-height:1; cursor:pointer; }
+  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .wstab .wsx{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+    width:1.15rem; height:1.15rem; margin:0; padding:0; border:none; background:transparent;
+    border-radius:.3rem; opacity:0; font-size:.85rem; line-height:1; color:var(--dim); }
+  .wstab:hover .wsx, .wstab.on .wsx, .wstab:focus-visible .wsx{ opacity:.8 }
+  .wstab .wsx:hover{ opacity:1; background:#ffffff18; color:var(--ink) }
+  .wstab:hover:not(.on){ color:var(--ink); background:#ffffff0a }
+  .wstab:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; z-index:1; }
+  .wstab.on{ background:var(--bg); color:var(--ink); border-color:var(--line); font-weight:600;
+    box-shadow:inset 0 2px 0 var(--accent); }
+  @keyframes wsflash{ 0%{ box-shadow:inset 0 0 0 2px var(--accent); background:#7c8cff55 } 100%{ box-shadow:inset 0 2px 0 var(--accent) } }
+  .wstab.wsflash{ animation:wsflash .7s ease; }
+  .wstab.on::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--bg) }
+  .wstab .wsx:focus-visible{ opacity:1; outline:2px solid var(--accent); outline-offset:1px; background:#ffffff18; color:var(--ink); }
+  .wstab input.wsrename{ width:7.2rem; min-width:0; flex:1; margin:0; padding:0;
+    background:transparent; border:none; border-radius:0; color:inherit; font:inherit; }
+  #wsdrop{ display:none }
+  #wsaddwrap{ position:relative; flex:none; display:flex; align-items:center; height:100%; }
+  #wsadd{ width:1.7rem; height:1.55rem; margin:0 0 4px; padding:0; border-radius:.4rem;
+    background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
+  #wsadd:hover, #wsadd[aria-expanded="true"]{ color:var(--ink); background:var(--panel2); border-color:var(--line) }
+  #wsadd:focus-visible, #wsdrop:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #wschooser[hidden], #wsdropmenu[hidden]{ display:none }
+  #wschooser:not([hidden]), #wsdropmenu:not([hidden]){ display:flex; flex-direction:column;
+    position:absolute; top:calc(100% + 4px); z-index:6; min-width:220px; padding:.3rem;
+    background:var(--panel); border:1px solid var(--line); border-radius:.6rem; box-shadow:0 14px 40px #000c; }
+  #wschooser:not([hidden]){ left:0 }
+  #wsdropmenu:not([hidden]){ left:.45rem; right:auto; min-width:min(280px, calc(100vw - 1rem)); max-width:calc(100vw - .9rem); }
+  #wschooser .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.3rem .6rem .4rem; pointer-events:none; }
+  #wschooser button, #wsdropmenu button{ text-align:left; border:none; background:none; width:100%;
+    padding:.48rem .6rem; border-radius:.4rem; font-size:.84rem; color:var(--ink); }
+  #wschooser button:hover, #wsdropmenu button:hover, #wsdropmenu button.on{ background:var(--panel2) }
+  #wschooser button:focus-visible, #wsdropmenu button:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; background:var(--panel2); }
+  #wsdropmenu button.on{ background:#7c8cff22 }
+  #wschooser .wssep{ height:1px; background:var(--line); margin:.2rem .35rem }
+  #wsdropmenu:not([hidden]){ max-height:min(70vh, 440px); overflow:auto; }
+  #wsdropmenu .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.35rem .6rem .15rem; }
+  #wsdropmenu .wsrow{ display:flex; align-items:center; gap:.15rem; border-radius:.4rem; }
+  #wsdropmenu .wsrow.on{ background:#7c8cff22; box-shadow:inset 3px 0 0 var(--accent); }
+  #wsdropmenu .wsrow .wsname{ flex:1 1 auto; width:auto; min-width:0; text-align:left;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #wsdropmenu .wsrow input.wsrename{ flex:1 1 auto; width:auto; min-width:0; margin:0;
+    background:transparent; border:none; border-radius:.35rem; padding:.48rem .45rem; font:inherit; color:inherit; }
+  #wsdropmenu .wsrow .wsx{ flex:none; width:2rem; height:2rem; margin:0; padding:0; border:none;
+    background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
+  #wsdropmenu .wsrow .wsx:hover, #wsdropmenu .wsrow .wsx:focus-visible{ color:var(--ink); background:#ffffff18; }
+  #wsdrop .wscount{ display:none }
+  #wspersistence{ position:fixed; left:.75rem; bottom:.75rem; z-index:260; max-width:min(34rem, calc(100vw - 1.5rem));
+    padding:.65rem .8rem; border:1px solid var(--line); border-radius:.6rem; background:var(--panel); color:var(--ink); font-size:.82rem; }
+  #wspersistence[hidden]{ display:none }
+  #wspersistence button{ margin-left:.5rem; font-size:inherit; }
+  #workspaces.wsbusy .wstab:not(.on),
+  #workspaces.wsbusy #wsadd,
+  #workspaces.wsbusy #wsdrop{ opacity:.4; }
+  #workspaces.wsbusy .wstab{ cursor:default; }
+  /* Narrow screens collapse the strip into one control. A row of 44px tabs does not fit at ~375px,
+     and the header already has ＋ Add node, so starters live in this menu. */
+  @media (max-width:720px){
+    :root{ --ws-h:52px }
+    #workspaces{ align-items:center; padding-left:max(.5rem, env(safe-area-inset-left)); padding-right:max(.5rem, env(safe-area-inset-right)); }
+    #wstabs{ display:none }
+    #wsaddwrap{ display:none }
+    #wsdrop{ display:inline-flex; align-items:center; gap:.4rem; flex:1 1 auto; min-width:0; width:100%;
+      height:44px; min-height:44px; margin:0; padding:0 .75rem; white-space:nowrap;
+      background:var(--bg); border:1px solid var(--line); border-radius:.55rem; color:var(--ink); font-size:.92rem;
+      box-shadow:inset 0 2px 0 var(--accent); }
+    #wsdrop .wsdropname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; text-align:left; flex:1 }
+    #wsdrop .wscount{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+      min-width:1.5rem; height:1.5rem; padding:0 .35rem; border-radius:999px;
+      background:#7c8cff33; color:var(--ink); font-size:.72rem; font-weight:700; }
+    #wschooser:not([hidden]){ left:auto; right:0 }
+    #wsdropmenu:not([hidden]){ left:.45rem; right:.45rem; width:auto; max-width:none }
+    /* ws-touch-target: every row, starter, rename field and close control is a 44px touch target */
+    #wsdropmenu .wsrow{ min-height:44px; }
+    #wsdropmenu .wsrow .wsname, #wsdropmenu button[data-ws]{ min-height:44px; }
+    #wsdropmenu .wsrow input.wsrename{ min-height:44px; font-size:16px; padding:.45rem .6rem;
+      border:1px solid var(--accent); background:var(--bg); box-shadow:inset 0 0 0 1px #7c8cff55; }
+    #wsdropmenu .wsrow .wsx{ width:44px; height:44px; min-width:44px; min-height:44px; font-size:1.35rem; }
+  }
+  @media (pointer:coarse) and (min-width:721px){
+    :root{ --ws-h:52px }
+    .wstab{ height:44px; min-height:44px; }
+    .wstab .wsx{ opacity:1; width:44px; height:44px; min-width:44px; min-height:44px; }
+    #wsadd{ width:44px; height:44px; }
+    .wstab input.wsrename{ font-size:16px; }
+  }
 </style>
 </head>
 <body>
@@ -1205,6 +1340,24 @@
   <button id="signout" class="link" style="display:none">sign out</button>
 </header>
 
+<div id="workspaces">
+  <div id="wstabs" role="tablist" aria-label="Workspaces" aria-keyshortcuts="Control+Alt+ArrowRight Control+Alt+ArrowLeft"></div>
+  <button id="wsdrop" type="button" title="Workspaces" aria-haspopup="listbox" aria-expanded="false"><span class="wsdropname">Workflow</span> ▾</button>
+  <div id="wsaddwrap">
+    <button id="wsadd" type="button" title="New workspace" aria-label="New workspace" aria-haspopup="menu" aria-expanded="false">+</button>
+    <div id="wschooser" hidden role="menu" aria-label="New workspace">
+      <div class="wshint">Opens in a new tab — your current workflow stays open.</div>
+      <button type="button" data-ws="blank">Blank canvas</button>
+      <button type="button" data-ws="t2i">Text to image</button>
+      <button type="button" data-ws="ask">Ask a model</button>
+      <div class="wssep"></div>
+      <button type="button" data-ws="examples">Browse Examples</button>
+    </div>
+  </div>
+  <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
+</div>
+<div id="wspersistence" hidden role="status"><span id="wspersistence-text"></span><button id="wspersistence-save" type="button" hidden>Save this workflow</button><button id="wspersistence-retry" type="button" hidden>Retry saving</button></div>
+
 <div id="keyrow">
   <button id="keyx" title="Close" aria-label="Close">×</button>
   <span id="keynote" class="dim">Running calls models on your NanoGPT key.</span>
@@ -1246,6 +1399,11 @@
 </div>
 
 <div id="toast"></div>
+<div id="wscloseundo" hidden role="status" aria-live="polite" aria-atomic="true">
+  <span id="wscloseundo-text"></span>
+  <button id="wscloseundo-action" type="button"><span>Undo</span><kbd id="wscloseundo-key" aria-hidden="true"></kbd></button>
+  <button id="wscloseundo-dismiss" type="button" aria-label="Dismiss undo notification">×</button>
+</div>
 
 <!-- Updates: a tiny changelog (static updates.json, newest first; one line per change) -->
 <div id="updatesmodal" hidden>
@@ -1278,7 +1436,7 @@
       <div id="communitytop" data-no-i18n hidden></div>
       <div id="communitymore" data-no-i18n hidden></div>
     </div>
-    <div id="examplesnote">loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
+    <div id="examplesnote">Opening an example adds a workspace. The one you are on stays put. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
       <!-- second link, second question: the gallery answers "what can I start from", the showcase
            answers "does this make anything real". Same sentence shape as the line above, so the
            text nodes around the (untranslated) repo name stay their own i18n keys. -->
@@ -1463,6 +1621,17 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Undo":"Deshacer",
+    "Closed “{name}”":"Se cerró «{name}»",
+    "Undo closing “{name}”":"Deshacer el cierre de «{name}»",
+    "Dismiss undo notification":"Cerrar aviso de deshacer",
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"No se pudieron restaurar los espacios guardados. Guarda los flujos de esta visita antes de actualizar o reintenta la recuperación.",
+    "Save this workflow":"Guardar este flujo",
+    "Retry saving":"Reintentar guardado",
+    "Saving workspaces in this browser…":"Guardando espacios en este navegador…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Estos espacios solo están disponibles durante esta visita. Guarda cada flujo antes de actualizar.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Guardar incluye el flujo y las entradas subidas. Los resultados generados solo se conservan durante esta visita.",
     "Uses this output":"Usa esta salida",
     "Provides this input":"Proporciona esta entrada",
     "Uses this text":"Usa este texto",
@@ -1852,6 +2021,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo no puede leer imágenes — elige un modelo de visión",
     "morph target — the clip ends on this image":"objetivo de transición — el clip termina en esta imagen",
+    "the character that takes over the performance in the video":"el personaje que asume la actuación del vídeo",
     "subject/style reference — the video keeps this face, object, or style":"referencia de sujeto/estilo — el vídeo conserva esta cara, objeto o estilo",
     "Text → image":"Texto → imagen",
     "Edit":"Editar",
@@ -2006,6 +2176,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ recortado de {from} → {to} caracteres para que quepa",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} admite prompts de como máximo {cap} caracteres — anotado. Ejecuta de nuevo: un prompt más largo se recorta para que quepa, y el nodo lo indica.",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
+    "still loading your saved workspaces — try again in a moment":"todavía cargando tus espacios de trabajo guardados — inténtalo de nuevo en un momento",
     "can’t change the workflow while running — Stop first":"no se puede cambiar el flujo de trabajo mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
@@ -2130,7 +2301,31 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"creado por usuarios de nanoodle — se abre en una pestaña nueva",
     "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"flujos ya preparados, integrados directamente en la página — haz clic en uno para cargarlo, luego pulsa ▶ Ejecutar con tu propia clave.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"cargarlo reemplaza tu flujo actual — se autoguarda, y ↺ Deshacer lo recupera.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Abrir un ejemplo añade un espacio de trabajo. El que tienes abierto se queda.",
+    "Workspaces":"Espacios de trabajo",
+    "New workspace":"Nuevo espacio de trabajo",
+    "Blank canvas":"Lienzo en blanco",
+    "Text to image":"Texto a imagen",
+    "Ask a model":"Preguntar a un modelo",
+    "Browse Examples":"Ver ejemplos",
+    "Opens in a new tab — your current workflow stays open.":"Se abre en una pestaña nueva — tu flujo actual sigue abierto.",
+    "Opened in a new workspace — the one you were on is still here.":"Abierto en un espacio nuevo — el anterior sigue aquí.",
+    "Opened “{name}” in a new workspace.":"“{name}” se abrió en un espacio nuevo.",
+    "Too many workspaces — close one first.":"Hay demasiados espacios — cierra uno primero.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"No se pudo abrir un espacio nuevo — tu flujo actual no cambió.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
+    "Couldn’t save that workspace change.":"No se pudo guardar ese cambio de espacio.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Este navegador no puede guardar espacios ahora, así que estas pestañas duran solo esta visita. No se borró nada. Guarda cada flujo antes de recargar.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"No se pudieron guardar los espacios en este navegador. Esta pestaña sigue abierta en esta visita; no se borró nada.",
+    "Blank canvas is this tab.":"El lienzo en blanco es esta pestaña.",
+    "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
+    "Rename workspace":"Renombrar espacio",
+    "Close workspace":"Cerrar espacio",
+    "“{name}” is already open.":"“{name}” ya está abierto.",
+    "Workflow":"Flujo",
+    "Untitled":"Sin título",
+    "Shared workflow":"Flujo compartido",
+    "Shared app":"App compartida",
     "↺ Undo restores your previous workflow":"↺ Deshacer restaura tu flujo anterior",
     "✓ loaded example":"✓ ejemplo cargado",
     "photo → video":"foto → vídeo",
@@ -2184,6 +2379,17 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Undo":"Annuler",
+    "Closed “{name}”":"« {name} » fermé",
+    "Undo closing “{name}”":"Annuler la fermeture de « {name} »",
+    "Dismiss undo notification":"Masquer la notification d’annulation",
+    "Recovered visit":"Visite récupérée",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Les espaces enregistrés n’ont pas pu être restaurés. Enregistrez les workflows de cette visite avant d’actualiser ou réessayez la récupération.",
+    "Save this workflow":"Enregistrer ce workflow",
+    "Retry saving":"Réessayer l’enregistrement",
+    "Saving workspaces in this browser…":"Enregistrement des espaces dans ce navigateur…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Ces espaces sont disponibles uniquement pour cette visite. Enregistrez chaque workflow avant d’actualiser.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Enregistrer sauvegarde le workflow et les fichiers importés. Les résultats générés sont conservés uniquement pour cette visite.",
     "Uses this output":"Utilise cette sortie",
     "Provides this input":"Fournit cette entrée",
     "Uses this text":"Utilise ce texte",
@@ -2573,6 +2779,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"ce modèle ne peut pas lire les images — choisissez un modèle de vision",
     "morph target — the clip ends on this image":"cible du morphing — le clip se termine sur cette image",
+    "the character that takes over the performance in the video":"le personnage qui reprend la performance de la vidéo",
     "subject/style reference — the video keeps this face, object, or style":"référence de sujet/style — la vidéo conserve ce visage, cet objet ou ce style",
     "Text → image":"Texte → image",
     "Edit":"Modifier",
@@ -2727,6 +2934,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ raccourci de {from} → {to} caractères pour tenir",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} accepte des prompts de {cap} caractères au maximum — noté. Relancez : un prompt plus long est raccourci pour tenir, et le nœud le signale.",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
+    "still loading your saved workspaces — try again in a moment":"chargement de vos espaces de travail enregistrés — réessayez dans un instant",
     "can’t change the workflow while running — Stop first":"impossible de modifier le flux de travail pendant l'exécution — arrêtez d'abord",
     "couldn’t read that file":"impossible de lire ce fichier",
     "stopping…":"arrêt…",
@@ -2851,7 +3059,31 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"créé par des utilisateurs de nanoodle — s'ouvre dans un nouvel onglet",
     "by":"par",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"des workflows prêts à l'emploi, intégrés directement dans la page — cliquez sur l'un d'eux pour le charger, puis appuyez sur ▶ Exécuter avec votre propre clé.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"le chargement remplace votre workflow actuel — il est autosauvegardé, et ↺ Annuler le restaure.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Ouvrir un exemple ajoute un espace de travail. Celui en cours reste en place.",
+    "Workspaces":"Espaces de travail",
+    "New workspace":"Nouvel espace de travail",
+    "Blank canvas":"Canevas vide",
+    "Text to image":"Texte vers image",
+    "Ask a model":"Interroger un modèle",
+    "Browse Examples":"Parcourir les exemples",
+    "Opens in a new tab — your current workflow stays open.":"S’ouvre dans un nouvel onglet — votre workflow en cours reste ouvert.",
+    "Opened in a new workspace — the one you were on is still here.":"Ouvert dans un nouvel espace — le précédent est toujours là.",
+    "Opened “{name}” in a new workspace.":"« {name} » est ouvert dans un nouvel espace.",
+    "Too many workspaces — close one first.":"Trop d’espaces — fermez-en un d’abord.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Impossible d’ouvrir un nouvel espace — votre workflow actuel est inchangé.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
+    "Couldn’t save that workspace change.":"Impossible d’enregistrer cette modification d’espace.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Ce navigateur ne peut pas enregistrer les espaces pour l’instant : ces onglets ne durent que cette visite. Rien n’a été supprimé. Enregistrez chaque flux avant d’actualiser.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Impossible d’enregistrer les espaces dans ce navigateur. Cet onglet reste ouvert pour cette visite ; rien n’a été supprimé.",
+    "Blank canvas is this tab.":"Le canevas vide est cet onglet.",
+    "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
+    "Rename workspace":"Renommer l’espace",
+    "Close workspace":"Fermer l’espace",
+    "“{name}” is already open.":"« {name} » est déjà ouvert.",
+    "Workflow":"Workflow",
+    "Untitled":"Sans titre",
+    "Shared workflow":"Workflow partagé",
+    "Shared app":"App partagée",
     "↺ Undo restores your previous workflow":"↺ Annuler restaure votre workflow précédent",
     "✓ loaded example":"✓ exemple chargé",
     "photo → video":"photo → vidéo",
@@ -2905,6 +3137,17 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Undo":"Rückgängig",
+    "Closed “{name}”":"„{name}“ geschlossen",
+    "Undo closing “{name}”":"Schließen von „{name}“ rückgängig machen",
+    "Dismiss undo notification":"Rückgängig-Hinweis schließen",
+    "Recovered visit":"Wiederhergestellter Besuch",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Gespeicherte Arbeitsbereiche konnten nicht wiederhergestellt werden. Speichere die Workflows dieses Besuchs vor dem Neuladen oder versuche die Wiederherstellung erneut.",
+    "Save this workflow":"Diesen Workflow speichern",
+    "Retry saving":"Speichern erneut versuchen",
+    "Saving workspaces in this browser…":"Arbeitsbereiche werden in diesem Browser gespeichert…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Diese Arbeitsbereiche sind nur für diesen Besuch verfügbar. Speichere jeden Workflow vor dem Neuladen.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Speichern sichert den Workflow und hochgeladene Eingaben. Generierte Ergebnisse bleiben nur für diesen Besuch erhalten.",
     "Uses this output":"Verwendet diese Ausgabe",
     "Provides this input":"Liefert diese Eingabe",
     "Uses this text":"Verwendet diesen Text",
@@ -3294,6 +3537,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"dieses Modell kann keine Bilder lesen — wähle ein Vision-Modell",
     "morph target — the clip ends on this image":"Morph-Ziel — der Clip endet auf diesem Bild",
+    "the character that takes over the performance in the video":"die Figur, die die Performance im Video übernimmt",
     "subject/style reference — the video keeps this face, object, or style":"Motiv-/Stil-Referenz — das Video behält dieses Gesicht, Objekt oder diesen Stil bei",
     "Text → image":"Text → Bild",
     "Edit":"Bearbeiten",
@@ -3448,6 +3692,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ von {from} → {to} Zeichen gekürzt, damit es passt",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} nimmt Prompts von höchstens {cap} Zeichen — notiert. Erneut ausführen: ein längerer Prompt wird passend gekürzt, und der Node sagt es.",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
+    "still loading your saved workspaces — try again in a moment":"gespeicherte Arbeitsbereiche werden noch geladen — gleich noch einmal versuchen",
     "can’t change the workflow while running — Stop first":"Arbeitsablauf kann während der Ausführung nicht geändert werden — zuerst stoppen",
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
     "stopping…":"wird gestoppt…",
@@ -3572,7 +3817,31 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"von nanoodle-Nutzern gebaut — öffnet in einem neuen Tab",
     "by":"von",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fertige Workflows, direkt in die Seite eingebaut — klicke auf einen, um ihn zu laden, und drücke dann ▶ Ausführen mit deinem eigenen Schlüssel.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"das Laden ersetzt deinen aktuellen Workflow — er wird automatisch gespeichert, und ↺ Rückgängig holt ihn zurück.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Ein Beispiel öffnet einen neuen Arbeitsbereich. Der aktuelle bleibt.",
+    "Workspaces":"Arbeitsbereiche",
+    "New workspace":"Neuer Arbeitsbereich",
+    "Blank canvas":"Leere Fläche",
+    "Text to image":"Text zu Bild",
+    "Ask a model":"Ein Modell fragen",
+    "Browse Examples":"Beispiele durchsuchen",
+    "Opens in a new tab — your current workflow stays open.":"Öffnet einen neuen Tab — dein aktueller Workflow bleibt offen.",
+    "Opened in a new workspace — the one you were on is still here.":"In einem neuen Arbeitsbereich geöffnet — der vorherige ist noch da.",
+    "Opened “{name}” in a new workspace.":"„{name}“ wurde in einem neuen Arbeitsbereich geöffnet.",
+    "Too many workspaces — close one first.":"Zu viele Arbeitsbereiche — schließe zuerst einen.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Neuer Arbeitsbereich ließ sich nicht öffnen — dein aktueller Workflow ist unverändert.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
+    "Couldn’t save that workspace change.":"Diese Arbeitsbereich-Änderung ließ sich nicht speichern.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Dieser Browser kann gerade keine Arbeitsbereiche speichern, daher gelten diese Tabs nur für diesen Besuch. Es wurde nichts gelöscht. Speichere jeden Workflow vor dem Neuladen.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Arbeitsbereiche ließen sich in diesem Browser nicht speichern. Dieser Tab bleibt für diesen Besuch offen; es wurde nichts gelöscht.",
+    "Blank canvas is this tab.":"Die leere Fläche ist dieser Tab.",
+    "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
+    "Rename workspace":"Arbeitsbereich umbenennen",
+    "Close workspace":"Arbeitsbereich schließen",
+    "“{name}” is already open.":"„{name}“ ist bereits geöffnet.",
+    "Workflow":"Workflow",
+    "Untitled":"Unbenannt",
+    "Shared workflow":"Geteilter Workflow",
+    "Shared app":"Geteilte App",
     "↺ Undo restores your previous workflow":"↺ Rückgängig stellt deinen vorherigen Workflow wieder her",
     "✓ loaded example":"✓ Beispiel geladen",
     "photo → video":"Foto → Video",
@@ -3626,6 +3895,17 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Undo":"Desfazer",
+    "Closed “{name}”":"«{name}» fechado",
+    "Undo closing “{name}”":"Desfazer o fecho de «{name}»",
+    "Dismiss undo notification":"Fechar aviso de desfazer",
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Não foi possível restaurar os espaços guardados. Guarda os fluxos desta visita antes de atualizar ou tenta recuperar novamente.",
+    "Save this workflow":"Guardar este fluxo",
+    "Retry saving":"Tentar guardar novamente",
+    "Saving workspaces in this browser…":"A guardar espaços neste navegador…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Estes espaços só estão disponíveis durante esta visita. Guarda cada fluxo antes de atualizar.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Guardar inclui o fluxo e as entradas carregadas. Os resultados gerados só são mantidos durante esta visita.",
     "Uses this output":"Usa esta saída",
     "Provides this input":"Fornece esta entrada",
     "Uses this text":"Usa este texto",
@@ -4015,6 +4295,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo não consegue ler imagens — escolha um modelo de visão",
     "morph target — the clip ends on this image":"alvo da transição — o clipe termina nesta imagem",
+    "the character that takes over the performance in the video":"o personagem que assume a atuação do vídeo",
     "subject/style reference — the video keeps this face, object, or style":"referência de sujeito/estilo — o vídeo mantém este rosto, objeto ou estilo",
     "Text → image":"Texto → imagem",
     "Edit":"Editar",
@@ -4169,6 +4450,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ cortado de {from} → {to} caracteres para caber",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} aceita prompts de no máximo {cap} caracteres — anotado. Execute de novo: um prompt maior é cortado para caber, e o node avisa.",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
+    "still loading your saved workspaces — try again in a moment":"ainda carregando seus espaços de trabalho salvos — tente novamente em instantes",
     "can’t change the workflow while running — Stop first":"não é possível alterar o fluxo de trabalho durante a execução — pare primeiro",
     "couldn’t read that file":"não foi possível ler esse arquivo",
     "stopping…":"parando…",
@@ -4293,7 +4575,31 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"criado por usuários do nanoodle — abre em uma nova aba",
     "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fluxos prontos, embutidos direto na página — clique em um para carregá-lo, depois pressione ▶ Executar com sua própria chave.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"carregar substitui seu fluxo atual — ele é autossalvo, e ↺ Desfazer o traz de volta.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Abrir um exemplo adiciona um espaço de trabalho. O atual permanece.",
+    "Workspaces":"Espaços de trabalho",
+    "New workspace":"Novo espaço de trabalho",
+    "Blank canvas":"Tela em branco",
+    "Text to image":"Texto para imagem",
+    "Ask a model":"Perguntar a um modelo",
+    "Browse Examples":"Ver exemplos",
+    "Opens in a new tab — your current workflow stays open.":"Abre em uma nova aba — seu fluxo atual continua aberto.",
+    "Opened in a new workspace — the one you were on is still here.":"Aberto em um espaço novo — o anterior continua aqui.",
+    "Opened “{name}” in a new workspace.":"“{name}” foi aberto em um espaço novo.",
+    "Too many workspaces — close one first.":"Espaços demais — feche um primeiro.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Não foi possível abrir um espaço novo — seu fluxo atual não mudou.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
+    "Couldn’t save that workspace change.":"Não foi possível guardar essa alteração de espaço.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Este navegador não consegue guardar espaços agora, por isso estas abas duram só esta visita. Nada foi apagado. Guarde cada fluxo antes de recarregar.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Não foi possível guardar os espaços neste navegador. Esta aba fica aberta nesta visita; nada foi apagado.",
+    "Blank canvas is this tab.":"A tela em branco é esta aba.",
+    "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
+    "Rename workspace":"Renomear espaço",
+    "Close workspace":"Fechar espaço",
+    "“{name}” is already open.":"“{name}” já está aberto.",
+    "Workflow":"Fluxo",
+    "Untitled":"Sem título",
+    "Shared workflow":"Fluxo compartilhado",
+    "Shared app":"App compartilhado",
     "↺ Undo restores your previous workflow":"↺ Desfazer restaura seu fluxo anterior",
     "✓ loaded example":"✓ exemplo carregado",
     "photo → video":"foto → vídeo",
@@ -4347,6 +4653,17 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Undo":"元に戻す",
+    "Closed “{name}”":"「{name}」を閉じました",
+    "Undo closing “{name}”":"「{name}」を閉じる操作を元に戻す",
+    "Dismiss undo notification":"元に戻す通知を閉じる",
+    "Recovered visit":"復元した訪問",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"保存済みワークスペースを復元できませんでした。再読み込みする前に今回のワークフローを保存するか、復元を再試行してください。",
+    "Save this workflow":"このワークフローを保存",
+    "Retry saving":"保存を再試行",
+    "Saving workspaces in this browser…":"このブラウザにワークスペースを保存中…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"これらのワークスペースは今回の訪問中のみ利用できます。再読み込みする前に各ワークフローを保存してください。",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"保存にはワークフローとアップロードした入力が含まれます。生成結果は今回の訪問中のみ保持されます。",
     "Uses this output":"この出力を使う",
     "Provides this input":"この入力を供給する",
     "Uses this text":"このテキストを使う",
@@ -4736,6 +5053,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"このモデルは画像を読み取れません — ビジョンモデルを選んでください",
     "morph target — the clip ends on this image":"モーフィング先 — クリップはこの画像で終わります",
+    "the character that takes over the performance in the video":"動画の演技を引き継ぐキャラクター",
     "subject/style reference — the video keeps this face, object, or style":"被写体/スタイルの参照 — この顔・オブジェクト・スタイルを動画が保持します",
     "Text → image":"テキスト → 画像",
     "Edit":"編集",
@@ -4890,6 +5208,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ 収めるため{from} → {to}文字に短縮",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model}のプロンプト上限は{cap}文字です — 記録しました。もう一度実行すると、長いプロンプトは収まるよう短縮され、ノードにその旨が表示されます。",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
+    "still loading your saved workspaces — try again in a moment":"保存したワークスペースを読み込み中です — 少し待ってからもう一度お試しください",
     "can’t change the workflow while running — Stop first":"実行中はワークフローを変更できません — 先に停止してください",
     "couldn’t read that file":"そのファイルを読み込めませんでした",
     "stopping…":"停止中…",
@@ -5014,7 +5333,31 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"nanoodleユーザーの作品 — 新しいタブで開きます",
     "by":"作:",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"ページに内蔵されたすぐ使えるワークフロー集 — クリックして読み込み、自分のキーで ▶ 実行 を押してください。",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"読み込むと今のワークフローが置き換わります — 自動保存されているので、↺ 元に戻す で元に戻せます。",
+    "Opening an example adds a workspace. The one you are on stays put.":"例を開くとワークスペースが追加されます。作業中のものは残ります。",
+    "Workspaces":"ワークスペース",
+    "New workspace":"新しいワークスペース",
+    "Blank canvas":"空白のキャンバス",
+    "Text to image":"テキストから画像",
+    "Ask a model":"モデルに聞く",
+    "Browse Examples":"例を見る",
+    "Opens in a new tab — your current workflow stays open.":"新しいタブで開きます — 作業中のワークフローはそのまま残ります。",
+    "Opened in a new workspace — the one you were on is still here.":"新しいワークスペースで開きました — それまでの作業はそのままです。",
+    "Opened “{name}” in a new workspace.":"「{name}」を新しいワークスペースで開きました。",
+    "Too many workspaces — close one first.":"ワークスペースが多すぎます — 先に一つ閉じてください。",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"新しいワークスペースを開けませんでした — 今のワークフローはそのままです。",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
+    "Couldn’t save that workspace change.":"そのワークスペースの変更を保存できませんでした。",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"このブラウザは現在ワークスペースを保存できないため、これらのタブはこの訪問のあいだだけ有効です。何も削除していません。再読み込みの前に各ワークフローを保存してください。",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"このブラウザにワークスペースを保存できませんでした。このタブはこの訪問のあいだ開いたままです。何も削除していません。",
+    "Blank canvas is this tab.":"空白のキャンバスはこのタブです。",
+    "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
+    "Rename workspace":"ワークスペースの名前を変更",
+    "Close workspace":"ワークスペースを閉じる",
+    "“{name}” is already open.":"「{name}」はすでに開いています。",
+    "Workflow":"ワークフロー",
+    "Untitled":"無題",
+    "Shared workflow":"共有ワークフロー",
+    "Shared app":"共有アプリ",
     "↺ Undo restores your previous workflow":"↺ 元に戻す で前のワークフローに戻せます",
     "✓ loaded example":"✓ サンプルを読み込みました",
     "photo → video":"写真 → 動画",
@@ -5297,6 +5640,7 @@ function normVideo(m){
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
+    charImg:!!c.video_to_video && inMods.includes("image") && inMods.includes("video") && !inMods.includes("text"),   // image+video->video (Wan Animate replace, motion control) → vedit grows a character port
     avatar:!!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video")
       && (!!c.image_to_video || (audioOnlyIn && avatarTagged)),  // image+audio, or preset-only audio→video avatar
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
@@ -6047,7 +6391,7 @@ function updateModelWarn(n){
     e.stopPropagation();
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id; syncModelPickUI(n, id);
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -7808,6 +8152,11 @@ const VIDEO_QUOTE_PER_SECOND = {
   "grok-imagine-video-1.5-lite": { default_resolution:"720p", default_duration:6, per_second_by_resolution:{ "480p":0.02, "720p":0.03, "1080p":0.14 } },
   // H3 Max Turbo extend: billed on the new seconds only (2s and 4s sources quote the same).
   "minimax/h3-max-turbo/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.025, "768p":0.04, "1080p":0.08, "2k":0.16 } },
+  // H3 Lite / H3 Highspeed (catalog 2026-10-23): pricing is only {minimum, note}, so the chip sat flat at
+  // ~$0.17 / ~$0.41 for every 4-15s clip. 402 quotes 2026-10-29 (same method), linear in seconds:
+  // Highspeed 768p 4s $0.408, 7s $0.714, 15s $1.53; Lite 480p 5s $0.2125, 15s $0.6375, 768p 5s $0.34, 15s $1.02.
+  "minimax/h3-highspeed": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "768p":0.102 } },
+  "minimax/h3-lite": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.0425, "768p":0.068 } },
   // Measured 2026-10-08 the same way (402 quote, nothing runs; 480p/720p/1080p x 4s/5s/12s x audio
   // on/off, all linear in seconds). The public catalog's raw withAudio/withoutAudio tables for these
   // ids are exactly 1/1.7 of what POST /api/generate-video bills (catalog 720p no-audio 5s $0.0765;
@@ -8337,7 +8686,7 @@ function refreshRunEstimate(){
     + (estimate ? "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.") : "")
     + (range3d ? "\n" + t("3D variants bill differently, so this isn’t an exact price.") : "");
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -9498,6 +9847,7 @@ const NODE_TYPES = {
     modelKind:"video", modelFilter:"v2v",
     inputs:[{name:"video", type:"video"}],
     refInputs:true,   // grows reference-image ports when the model exposes a ref-image array param (seedance-2.0 video-edit family) — see refreshRefInputs
+    charInput:true,   // grows a "character" image port on image+video->video models (Wan 2.2 Animate replace, motion control) — see refreshCharInput
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -9515,7 +9865,8 @@ const NODE_TYPES = {
         if(refs.length > rspec.cap) toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", refs.length-rspec.cap).replace("{max}", rspec.cap), "warn");
         opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
       }
-      const url = await ctx.genVideo(mdl(n), prompt, opts, null,
+      // character still (image+video->video models only — see input gather) rides as imageDataUrl next to the driver
+      const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image || null,
         (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("processing video…", st, ms), meta));
       return { video: url };
     }
@@ -9845,6 +10196,9 @@ function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) s
    NODE CREATION / RENDERING
    ====================================================================== */
 function addNode(type, x, y, fields){
+  // seed() builds the fallback starter with undo muted. A real add on the still-blank
+  // first paint claims the canvas so the late starter cannot replace that node.
+  if(!undoMuted){ try{ claimInitialCanvas(); }catch(_){} }
   pushUndo();
   const t = NODE_TYPES[type];
   const n = { id:"n"+(nid++), type, x, y, fields:Object.assign({}, fields), out:{}, el:null };
@@ -9954,7 +10308,7 @@ function buildNodeEl(n){
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
-        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
+        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
@@ -10003,7 +10357,7 @@ function buildNodeEl(n){
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
   refreshVideoInput(n);              // single video port on video-input chat models (model-gated)
-  refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
+  refreshEndFrameInput(n); refreshCharInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   refreshRefInputs(n);               // growing reference-image ports on the tvideo node (model-gated on a ref-image array param)
   refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
   addFieldPorts(n);
@@ -10143,6 +10497,29 @@ function refreshEndFrameInput(n){
   const row = document.createElement("div");
   row.className = "prow endrow";
   row.innerHTML = `<i class="port image" data-node="${esc(n.id)}" data-port="endframe" data-dir="in" data-ptype="image" title="morph target — the clip ends on this image"></i><span>end frame</span>`;
+  col.appendChild(row);
+  translateTree(row);
+  row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  refreshPortFills();
+}
+// Render the "character" image port on the Video edit node. Shown ONLY when the picked model is an
+// image+video->video model with no text input (Wan 2.2 Animate animate/replace, Kling / PixVerse
+// motion control, P-Video Animate): those REQUIRE a still next to the driver video, so without the
+// port they were dead ends on this node. Text+image+video "unified" models get no port — an image
+// there usually flips the job to image→video and drops the source clip. Lives as a link named
+// "image"; a wire left over after a swap to a plain v2v model is ignored at run (see input gather).
+function modelTakesCharacter(n){
+  const m = catItem("video", n.fields.model);
+  return !!(m && m.charImg);
+}
+function refreshCharInput(n){
+  if(!n.el || !NODE_TYPES[n.type].charInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.charrow").forEach(el=> el.remove());
+  if(!modelTakesCharacter(n)) return;
+  const row = document.createElement("div");
+  row.className = "prow charrow";
+  row.innerHTML = `<i class="port image" data-node="${esc(n.id)}" data-port="image" data-dir="in" data-ptype="image" title="the character that takes over the performance in the video"></i><span>character</span>`;
   col.appendChild(row);
   translateTree(row);
   row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
@@ -12181,6 +12558,7 @@ function ensureModelForInput(n, type){
 }
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // Picking one row creates one connected pair: Undo should remove that whole choice.
+  try{ claimInitialCanvas(); }catch(_){}
   const wasMuted = undoMuted;
   pushUndo(); undoMuted = true;
   try{
@@ -12494,8 +12872,8 @@ window.addEventListener("keydown", e=>{
   if(e.code==="KeyT" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) &&
      typeof geoOn==="function" && geoOn()){ e.preventDefault(); geoTidySelection(); return; }   // Shift+T tidies the multi-selection
-  const typing = /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
-  if((e.ctrlKey||e.metaKey) && !typing && /^[zy]$/i.test(e.key)){
+  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
+  if((e.ctrlKey||e.metaKey) && !e.altKey && !e.isComposing && !e.defaultPrevented && !typing && /^[zy]$/i.test(e.key)){
     e.preventDefault();
     (/y/i.test(e.key) || e.shiftKey) ? redo() : undo();   // Ctrl/Cmd+Z undo · +Shift / Ctrl+Y redo
     return;
@@ -12767,6 +13145,7 @@ function updateRunButtons(){
   const est = $("runest");
   if(est){ if(running || draining) est.hidden = true; else refreshRunEstimate(); }
   paintRunLive();
+  try{ if(typeof syncWorkspaceBusy==="function") syncWorkspaceBusy(); }catch(_){}
 }
 
 /* ---------- live run strip (#runlive) ----------
@@ -13138,6 +13517,9 @@ function njsRunFor(type, rn, inp, n){
         // catalog knobs (MOSS negative prompt / steps / guidance / expansion) — same helper as imgExtra
         const kx = imageKnobExtra(rn.fields, (catItem("image", args.model)||{}).knobs);
         for(const k of Object.keys(kx)) if(!(k in extra)) extra[k] = kx[k];
+        // FLUX.3 Klein t2i is LoRA-capable here, but the generated njs-engine still rejects it (nanoodle-js imageTakesLora, #732). Stamp built-in LoRA keys the engine omitted; never override a key it already set.
+        const lx = loraParams(rn);
+        for(const k of Object.keys(lx)) if(!(k in extra)) extra[k] = lx[k];
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
@@ -13262,6 +13644,11 @@ async function runGroup(seedIds, ctx){
         if(t.endFrame && modelHasImageRole(n,"last")) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="endframe") inp.endframe = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the character port on the vedit node → read by run() as inp.image, but ONLY when the picked model is
+        // image+video->video. Run-time clamp (mirror endframe): a stale wire after a model swap is never sent.
+        if(t.charInput && modelTakesCharacter(n)) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="image") inp.image = byId(l.from.node)?.out?.[l.from.port];
+        }
         // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs(), but
         // ONLY when the picked model still exposes a ref-image param. Run-time role clamp (mirror endframe):
         // a wire left over from a ref model then swapped for one without refs is ignored — never sent/charged.
@@ -13281,6 +13668,7 @@ async function runGroup(seedIds, ctx){
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           if(t.videoInput && l.to.port==="video") continue;            // the video port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
+          if(t.charInput && l.to.port==="image") continue;             // the character port isn't a text-field override
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v==null) continue;
           if(n.type==="endpoint" && (l.to.port==="url" || l.to.port==="mode")){
@@ -13492,7 +13880,8 @@ function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint"
 function imageTakesLora(id){
   id = String(id||"");
   if(/inpaint/i.test(id)) return false;            // flux-lora/inpainting etc. carry no lora_url
-  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog); FLUX.3 klein takes no lora_url
+  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog)
+  if(/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;  // FLUX.3 klein t2i gained lora_url_1..3 in the catalog (2026-10-27)
   if(/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;  // wavespeed H3 image ids (no "lora" in the id)
   return /(^|[-\/])lora($|[-\/])/i.test(id);        // *-lora variants (flux-lora, *-dev-lora, p-image/*-lora)
 }
@@ -16380,6 +16769,9 @@ function spawnFirstSeat(){
 }
 function spawnCenter(type){
   // One menu choice includes placement and its unambiguous automatic wire.
+  // Claim before muting: addNode skips the claim while undo is muted, and this
+  // click is what a blank first paint must not lose to the starter still loading.
+  try{ claimInitialCanvas(); }catch(_){}
   const wasMuted = undoMuted;
   pushUndo(); undoMuted = true;
   try{
@@ -16620,14 +17012,18 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  if(typeof wsRestorePending!=="undefined" && wsRestorePending) return; // nothing on the canvas is the user's yet
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
+  if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
   try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
   if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
   clearTimeout(saveT);
+  if(typeof markWorkspaceDirty==="function") markWorkspaceDirty();
   saveT = setTimeout(()=>{
     try{ stashModel3dOuts(); }catch(_){}
-    try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }
+    try{ (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).setItem("noodle_graph", JSON.stringify(serializeGraph())); }
     catch(e){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
     if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
   }, 250);
@@ -16651,6 +17047,7 @@ function _stashResults(){
 }
 function pushUndo(boundary){      // call BEFORE a structural mutation — records the state to return to
   if(undoMuted) return;
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   // boundary=true marks a WHOLESALE graph swap (📂 Load, example, share link, a foreign app's
   // "edit workflow"): the parked snapshot and the incoming graph are UNRELATED workflows that
   // reuse n1/n2… ids, so _restore must NOT carry results across it (#309 via undo) — instead
@@ -16663,6 +17060,7 @@ function pushUndo(boundary){      // call BEFORE a structural mutation — recor
   syncUndoBtn();
 }
 function _restore(from, to){
+  if(typeof handleWorkspaceCloseHistory==="function" && handleWorkspaceCloseHistory(from)) return;
   if(!from.length) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // an undo/redo mid-run replaces the graph out from under in-flight (already-charged) nodes — their results would write into detached objects and vanish (mirrors the per-node delete guard)
   const entry = from.pop();
@@ -16675,7 +17073,7 @@ function _restore(from, to){
   finally { undoMuted = false; }
   save();
 }
-function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
+function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length && !(typeof visibleWorkspaceCloseUndo==="function" && visibleWorkspaceCloseUndo()); const r=$("redo"); if(r) r.disabled = !redoStack.length && !(typeof closedWorkspaceRedoAvailable==="function" && closedWorkspaceRedoAvailable()); }
 const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
 const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function newModel3dOutKey(){
@@ -16741,7 +17139,7 @@ function restoreModel3dOuts(opts){
   if(any) for(const n of graph.nodes) if(n.type==="model3d" && n.out && n.out.model){ showResult(n); setStatus(n, "done"); }
 }
 function load(){
-  const raw = localStorage.getItem("noodle_graph");
+  const raw = (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).getItem("noodle_graph");
   if(!raw) return false;
   try{ applyGraphData(JSON.parse(raw)); try{ restoreModel3dOuts({legacy:true}); }catch(_){} return true; }catch{ return false; }
 }
@@ -16752,7 +17150,11 @@ async function starterGraphData(){   // the shipped starter's data, or null on f
   return _starterData;
 }
 async function loadDefault(){   // noodle-graph.json shipped alongside the page = the starting point
+  const gen = (typeof bootGeneration==="function") ? bootGeneration() : 0;
   const d = await starterGraphData();
+  // The fetch is the blank-page window. A Blank click or an added node during it
+  // already owns the canvas — painting the starter now would fill that workspace.
+  if(typeof freshGraphStillDue==="function" && !freshGraphStillDue(gen)) return false;
   if(!d) return false;          // e.g. opened via file:// — fall back to the built-in seed
   applyGraphData(JSON.parse(JSON.stringify(d)));   // clone: applyGraphData shares the fields ref and edits would corrupt the cached baseline
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
@@ -16764,18 +17166,51 @@ function saveFile(){
   // (Share links / exported apps still go through shareableGraph() to blank that private media.)
   const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "noodle-graph.json"; a.click();
+  a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   if(!file) return;
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
-  r.onload = ()=>{ try{
-    const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (mirrors loadExample; skip an empty canvas)
-    if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
-    setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
-    if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
-  }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
+  r.onload = ()=>{
+    let parsed = null;
+    try{ parsed = JSON.parse(r.result); }
+    catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); return; }
+    // Reject a bad file before parking undo or clearing the canvas.
+    if(typeof graphPayloadOk==="function" && !graphPayloadOk(parsed)){
+      alert(t("Couldn’t load that file:")+" invalid graph");
+      return;
+    }
+    const had = graph.nodes.length > 0;
+    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null;
+    try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+    try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+    try{ undoLen = undoStack.length; }catch(_){}
+    try{ appId = pendingAppId; appTitle = pendingAppTitle; }catch(_){}
+    try{ if(typeof wsSnapshotKey==="function") editorShot = wsSnapshotKey(EDITOR_APP_KEY); }catch(_){}
+    try{
+      try{ claimInitialCanvas(); }catch(_){}
+      // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
+      // Examples and share links open a new workspace instead — they must not replace the one you are on.
+      if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
+      setPendingApp(null); applyGraphData(parsed); window.resetDescribeVersions?.();
+      if(typeof flushSave==="function"){
+        if(!flushSave()) throw new Error("Couldn’t store the loaded workflow");
+      }else save();
+      try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }
+      catch(_){ if(typeof wsStorageError==="function") wsStorageError("save"); }
+      if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
+      if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
+    }catch(e){
+      try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
+      try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      try{ if(typeof pendingAppId!=="undefined"){ pendingAppId = appId; pendingAppTitle = appTitle; } }catch(_){}
+      try{ if(editorShot && typeof wsRestoreKey==="function") wsRestoreKey(EDITOR_APP_KEY, editorShot); }catch(_){}
+      alert(t("Couldn’t load that file:")+" "+e.message);
+    }
+  };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -17145,13 +17580,17 @@ let pendingAppTitle = null;   // the loaded app's name, for the page title (carr
 // EVERY place that changes which app this workflow targets must go through here — that's
 // what stops a stale id from silently re-targeting an old app on the next "Create app".
 function setPendingApp(id, title){
-  pendingAppId = id || null;
-  pendingAppTitle = pendingAppId ? (title || null) : null;
-  try{
-    if(pendingAppId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:pendingAppId, title:pendingAppTitle }));
-    else localStorage.removeItem(EDITOR_APP_KEY);
-  }catch(_){}
-  updateTitle();
+  const nextId = id || null;
+  const nextTitle = nextId ? (title || null) : null;
+  // Storage first, then memory. A quota miss throws so a workspace switch or
+  // import can put the previous binding back instead of keeping a half-written one.
+  const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
+  if(nextId) storage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
+  else storage.removeItem(EDITOR_APP_KEY);
+  pendingAppId = nextId;
+  pendingAppTitle = nextTitle;
+  if(typeof stampActiveApp==="function") stampActiveApp();
+  try{ updateTitle(); }catch(_){}
 }
 // True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
 // i.e. there is genuinely nothing to Update. appSyncSig = content + node layout: rearranging
@@ -17217,7 +17656,1868 @@ function updateTitle(){
   if(!pendingAppId && !lib) $("apppop").classList.remove("open");
   layoutBar();   // binding swaps "Create app" ↔ "Update <title>" → the bar's width changes, re-measure fit
 }
+/* WORKSPACES-BEGIN
+   Each tab is one autosaved graph. noodle_graph stays the ACTIVE tab, same JSON as before,
+   so a returning visitor's graph becomes tab 1 without a rewrite. Inactive tabs live in
+   noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
+   Paid results and undo stacks are memory-only, same as a reload today. */
+const WS_INDEX_KEY = "noodle_workspaces";
+const WS_CAP = 16;
+// Closed tabs are reversible for the visible notice, in this visit only. Keep
+// them outside per-workspace graph history: switching tabs swaps those stacks.
+var wsClosedUndo=[], wsClosedRedo=[], wsCloseHistoryMute=0, wsCloseSerial=0;
+var wsCloseNoticeToken=null, wsCloseNoticeTimer=null, wsCloseRemaining=0, wsCloseStarted=0;
+function hideWorkspaceCloseNotice(){
+  clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;wsCloseNoticeToken=null;
+  try{const el=$("wscloseundo");if(el)el.hidden=true;}catch(_){}
+  try{syncUndoBtn();}catch(_){}
+}
+function invalidateWorkspaceCloseHistory(){
+  if(wsCloseHistoryMute || !wsClosedUndo) return;
+  wsClosedUndo.length=0;wsClosedRedo.length=0;hideWorkspaceCloseNotice();
+}
+function visibleWorkspaceCloseUndo(){
+  const entry=wsClosedUndo && wsClosedUndo[wsClosedUndo.length-1];
+  if(!entry || entry.token!==wsCloseNoticeToken || entry.epoch!==wsAuthorityEpoch) return false;
+  try{return !!$("wscloseundo") && !$("wscloseundo").hidden;}catch(_){return false;}
+}
+function closedWorkspaceRedoAvailable(){return !!(wsClosedRedo && wsClosedRedo.length);}
+function pauseWorkspaceCloseNotice(){
+  if(wsCloseNoticeTimer!==null){wsCloseRemaining=Math.max(0,wsCloseRemaining-(Date.now()-wsCloseStarted));clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;}
+}
+function placeWorkspaceCloseNotice(){
+  try{
+    const el=$("wscloseundo"),box=$("wspersistence");
+    if(el)el.style.setProperty("--ws-persistence-space",box && !box.hidden ? Math.ceil(innerHeight-box.getBoundingClientRect().top+12)+"px" : "0px");
+  }catch(_){}
+}
+function resumeWorkspaceCloseNotice(){
+  if(!visibleWorkspaceCloseUndo()) return;
+  const el=$("wscloseundo");
+  if(el.contains(document.activeElement) || el.matches(":hover")) return;
+  pauseWorkspaceCloseNotice();wsCloseStarted=Date.now();
+  wsCloseNoticeTimer=setTimeout(()=>invalidateWorkspaceCloseHistory(),wsCloseRemaining);
+}
+function showWorkspaceCloseNotice(){
+  const entry=wsClosedUndo[wsClosedUndo.length-1];
+  if(!entry){hideWorkspaceCloseNotice();return;}
+  wsCloseNoticeToken=entry.token;clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;wsCloseRemaining=8000;
+  try{
+    const el=$("wscloseundo"),button=$("wscloseundo-action");if(!el || !button)return;
+    $("wscloseundo-text").textContent=wsT("Closed “{name}”").replace("{name}",()=>entry.tab.name);
+    const mac=/Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+    $("wscloseundo-key").textContent=mac?"⌘ + Z":"Ctrl + Z";
+    button.setAttribute("aria-keyshortcuts",mac?"Meta+Z":"Control+Z");
+    button.setAttribute("aria-label",wsT("Undo closing “{name}”").replace("{name}",()=>entry.tab.name));
+    button.onclick=()=>{if(wsClosedUndo[wsClosedUndo.length-1]===entry) restoreClosedWorkspace();};
+    el.hidden=false;placeWorkspaceCloseNotice();resumeWorkspaceCloseNotice();
+  }catch(_){}
+  try{syncUndoBtn();}catch(_){}
+}
+function bindWorkspaceCloseNotice(){
+  try{
+    const el=$("wscloseundo");if(!el || el.dataset.bound)return;el.dataset.bound="1";
+    el.addEventListener("pointerenter",pauseWorkspaceCloseNotice);
+    el.addEventListener("pointerleave",resumeWorkspaceCloseNotice);
+    el.addEventListener("focusin",pauseWorkspaceCloseNotice);
+    el.addEventListener("focusout",()=>setTimeout(resumeWorkspaceCloseNotice,0));
+    addEventListener("resize",placeWorkspaceCloseNotice);
+    $("wscloseundo-dismiss").onclick=invalidateWorkspaceCloseHistory;
+    addEventListener("keydown",e=>{if(e.key==="Escape" && !el.hidden)invalidateWorkspaceCloseHistory();});
+  }catch(_){}
+}
+function captureClosedWorkspace(d,tab,raw){
+  const active=d.active===tab.id;
+  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice()}:workspaceHist.get(tab.id);
+  return {tab:copyWorkspaces(tab),index:d.tabs.indexOf(tab),active,last:d.tabs.length===1,
+    graph:raw || JSON.stringify(blankGraph()),results:active?_stashResults():workspaceResults.get(tab.id) || null,
+    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice()}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
+}
+function recordClosedWorkspace(entry,opts){
+  if(!opts || !opts.redo)wsClosedRedo.length=0;
+  wsClosedUndo.push(entry);if(wsClosedUndo.length>25)wsClosedUndo.shift();
+  showWorkspaceCloseNotice();
+}
+function restoreClosedWorkspace(){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  const entry=wsClosedUndo[wsClosedUndo.length-1];if(!entry)return false;
+  if(workspaceBusy()){flash("can’t change the workflow while running — Stop first");return false;}
+  const d=readWorkspaces();if(!d)return false;
+  if(entry.epoch!==wsAuthorityEpoch){invalidateWorkspaceCloseHistory();return false;}
+  const existing=d.tabs.find(t=>t.id===entry.tab.id);
+  // Last-tab close keeps its id. Never replace new work done in its blank slot.
+  if(existing && !(entry.last && d.tabs.length===1 && d.active===entry.tab.id && !graph.nodes.length && !existing.app && existing.name===wsT("Untitled"))){
+    invalidateWorkspaceCloseHistory();return false;
+  }
+  if(!flushSave()){wsStorageError("save");return false;}
+  const shot=workspaceShot(), oldKey=wsSnapshotKey(wsGraphKey(entry.tab.id));
+  const oldResults=captureResults(entry.tab.id),oldHistory=workspaceHist.get(entry.tab.id);
+  let canvasTouched=false;
+  wsCloseHistoryMute++;
+  try{
+    if(existing)d.tabs[d.tabs.indexOf(existing)]=copyWorkspaces(entry.tab);
+    else d.tabs.splice(Math.min(entry.index,d.tabs.length),0,copyWorkspaces(entry.tab));
+    workspaceStorage.setItem(wsGraphKey(entry.tab.id),entry.graph);
+    if(entry.results)workspaceResults.set(entry.tab.id,entry.results);else workspaceResults.delete(entry.tab.id);
+    workspaceHist.set(entry.tab.id,entry.history);
+    if(entry.active){
+      const leaving=d.active;
+      if(leaving!==entry.tab.id){
+        workspaceStorage.setItem(wsGraphKey(leaving),JSON.stringify(serializeGraph()));
+        const results=_stashResults();if(results)workspaceResults.set(leaving,results);else workspaceResults.delete(leaving);
+        parkWorkspaceHistory(leaving);
+      }
+      d.active=entry.tab.id;writeWorkspaces(d);
+      const muted=undoMuted;undoMuted=true;
+      try{
+        canvasTouched=true;applyGraphData(JSON.parse(entry.graph),entry.results?{resultStash:entry.results}:undefined);
+        setPendingApp(entry.tab.app && entry.tab.app.id,entry.tab.app && entry.tab.app.title);
+        window.resetDescribeVersions?.();
+      }finally{undoMuted=muted;}
+      restoreWorkspaceHistory(entry.tab.id);
+      if(!flushSave())throw new Error("store");
+    }else writeWorkspaces(d);
+    wsClosedUndo.pop();wsClosedRedo.push(entry);
+    renderWorkspaces();showWorkspaceCloseNotice();syncUndoBtn();
+    return true;
+  }catch(_){
+    wsRestoreKey(wsGraphKey(entry.tab.id),oldKey);
+    restoreResults(entry.tab.id,oldResults);
+    if(oldHistory)workspaceHist.set(entry.tab.id,oldHistory);else workspaceHist.delete(entry.tab.id);
+    workspaceRollback(shot,{canvas:canvasTouched});wsStorageError("save");return false;
+  }finally{wsCloseHistoryMute--;}
+}
+function handleWorkspaceCloseHistory(from){
+  if(from===undoStack && visibleWorkspaceCloseUndo()){restoreClosedWorkspace();return true;}
+  if(from===redoStack && closedWorkspaceRedoAvailable()){
+    const entry=wsClosedRedo[wsClosedRedo.length-1];
+    if(closeWorkspace(entry.tab.id,{redo:true}))wsClosedRedo.pop();
+    syncUndoBtn();return true;
+  }
+  return false;
+}
+const WS_RECOVERY_KEY = "noodle_workspace_recovery";
+// Normal-sized legacy workspaces keep their existing localStorage format.
+// When a write fails (including the temporary second copy during a tab change),
+// keep a scoped working copy and persist the whole workspace transaction in IDB.
+// Never evict another workflow or remove the legacy durable copy to make room.
+let wsStorageEnabled = false, wsValues = null, wsDatabase = null;
+let wsRevision = 0, wsSavedRevision = 0, wsQueued = false;
+let wsUnloadBound = false;
+let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRecoveryBackup = null;
+let wsKnownRecord = null;
+let wsInitFlight = null, wsAuthorityEpoch = 0;
+let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
+function wsOwnedKey(key){
+  return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
+}
+function workspacePersistence(){
+  return { mode:!wsValues ? "local" : wsSavedRevision===wsRevision ? "browser" : "session",
+    pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure,
+    restoreFailed:wsRestoreFailed, recoveryBackup:wsRecoveryBackup };
+}
+function wsRawStorage(kind){
+  try{ return kind==="local" ? localStorage : sessionStorage; }catch(_){ return null; }
+}
+function wsRecordToken(record){
+  return record ? record.generation || JSON.stringify(record.values||{}) : null;
+}
+function wsCopyValues(values){
+  const result = Object.create(null);
+  for(const [key,value] of Object.entries(values||{})) if(wsOwnedKey(key) && typeof value==="string") result[key]=value;
+  return result;
+}
+function wsReadRecovery(){
+  let newest = null;
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d = storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.v===1 && typeof d.id==="string" && d.values && typeof d.values==="object"
+          && (!newest || (d.updated||0)>(newest.updated||0))) newest=Object.assign({},d,{values:wsCopyValues(d.values)});
+    }catch(_){}
+  }
+  return newest;
+}
+function wsWriteRecovery(values){
+  const previous = wsReadRecovery();
+  const updated = Math.max(Date.now(), (previous && previous.updated || 0)+1);
+  wsRecoveryId = updated.toString(36)+"-"+Math.random().toString(36).slice(2);
+  const json = JSON.stringify({v:1, id:wsRecoveryId, updated, values});
+  wsRecoveryBackup = null;
+  for(const [kind,storage] of [["local",wsRawStorage("local")],["session",wsRawStorage("session")]]){
+    try{ if(storage){ storage.setItem(WS_RECOVERY_KEY,json); wsRecoveryBackup=kind; break; } }catch(_){}
+  }
+}
+function wsClearRecovery(){
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d=storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.id===wsRecoveryId) storage.removeItem(WS_RECOVERY_KEY);
+    }catch(_){}
+  }
+  wsRecoveryActive = false;
+  wsRecoveryBackup = null;
+}
+// A recovery visit is a separate branch of work. Never replace unread IDB tabs
+// with the older local backup or that visit's edits when storage becomes readable.
+function wsVisitHasWork(visit){
+  try{
+    const d = JSON.parse(visit[WS_INDEX_KEY]||"null");
+    if(!d || !Array.isArray(d.tabs)) return graphHasNodes(visit.noodle_graph);
+    return d.tabs.some(t => graphHasNodes(t.id===d.active ? visit.noodle_graph : visit[wsGraphKey(t.id)]));
+  }catch(_){ return false; }
+}
+function wsMergeRecovery(saved, visit){
+  const result = Object.assign(Object.create(null), saved);
+  let d, live;
+  try{ d=JSON.parse(saved[WS_INDEX_KEY]); live=JSON.parse(visit[WS_INDEX_KEY]); }catch(_){}
+  if(!d || !Array.isArray(d.tabs) || !d.tabs.length) return Object.assign(Object.create(null), visit);
+  if(!live || !Array.isArray(live.tabs) || !live.tabs.length) return result;
+  if(saved.noodle_graph!=null) result[wsGraphKey(d.active)]=saved.noodle_graph;
+  const histories = new Map(workspaceHist), results = new Map(workspaceResults);
+  workspaceHist.clear(); workspaceResults.clear();
+  for(const tab of live.tabs){
+    let id;
+    do{ d.seq=(d.seq|0)+1; id="w"+d.seq; }while(d.tabs.some(t=>t.id===id));
+    const recovered = Object.assign({}, tab, {id, name:uniqueWorkspaceName(wsT("Recovered visit")+": "+tab.name,d.tabs)});
+    d.tabs.push(recovered);
+    const json = tab.id===live.active ? visit.noodle_graph : visit[wsGraphKey(tab.id)];
+    if(json!=null) result[wsGraphKey(id)]=json;
+    if(results.has(tab.id)) workspaceResults.set(id,results.get(tab.id));
+    if(histories.has(tab.id)) workspaceHist.set(id,histories.get(tab.id));
+    if(tab.id===live.active){ d.active=id; result.noodle_graph=json || JSON.stringify(blankGraph()); }
+  }
+  if(visit[EDITOR_APP_KEY]!=null) result[EDITOR_APP_KEY]=visit[EDITOR_APP_KEY];
+  else delete result[EDITOR_APP_KEY];
+  result[WS_INDEX_KEY]=JSON.stringify(d);
+  return result;
+}
+function markWorkspaceDirty(){
+  if(wsValues){ wsRevision++; wsPersistenceNotice(true); }
+}
+async function settleWorkspaceStorage(){
+  if(saveT) flushSave();
+  await Promise.resolve();
+  await wsPersistTail;
+  return workspacePersistence();
+}
+function wsPersistenceNotice(saving){
+  try{
+    const box = $("wspersistence"), text = $("wspersistence-text"), backup = $("wspersistence-save"), retry = $("wspersistence-retry");
+    if(!box || !text || !backup || !retry) return;
+    const unsaved = !!wsValues && wsSavedRevision!==wsRevision;
+    box.hidden = !unsaved;
+    backup.hidden = !!saving;
+    retry.hidden = !!saving;
+    retry.disabled = !!wsInitFlight;
+    backup.onclick = ()=> saveFile();
+    retry.onclick = async ()=>{
+      wsPersistenceNotice(true);
+      if(!wsDatabase || wsRestoreFailed) await initWorkspaceStorage();
+      wsQueuePersist();
+    };
+    box.title = wsT("Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.");
+    // A browser that cannot open IndexedDB at all (private mode, blocked
+    // storage, a full disk) has nothing to "restore": say it is session-only.
+    // Only when this visit started with no saved index at all: a returning
+    // visitor whose IndexedDB copy can't be read still hears "could not be restored".
+    const noStore = wsRestoreFailed && wsFreshIndex && /^(BrowserStorageUnavailable|SecurityError|InvalidStateError)$/.test(String(wsPersistFailure||""));
+    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : noStore
+      ? "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing."
+      : wsRestoreFailed
+      ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
+      : "These workspaces are available for this visit only. Save each workflow before refreshing.");
+    placeWorkspaceCloseNotice();
+  }catch(_){}
+}
+function wsBeginOverflow(key, error, operation){
+  if(wsValues) return;
+  const values = Object.create(null);
+  const keys = new Set(["noodle_graph", WS_INDEX_KEY, EDITOR_APP_KEY]);
+  try{ for(let i=0; i<localStorage.length; i++){ const k=localStorage.key(i); if(wsOwnedKey(k)) keys.add(k); } }catch(_){}
+  // The list also works with storage adapters that cannot enumerate keys.
+  try{ const d=JSON.parse(localStorage.getItem(WS_INDEX_KEY)||"null"); for(const tab of d && d.tabs || []) keys.add(wsGraphKey(tab.id)); }catch(_){}
+  for(const k of keys){ try{ const v=localStorage.getItem(k); if(v!==null) values[k]=v; }catch(_){} }
+  wsValues = values;
+  wsSavedRevision = -1;
+  wsStorageFailure = {operation, key, name:error && error.name || "Error"};
+  wsPersistenceNotice(false);
+}
+function wsQueuePersist(){
+  wsRevision++;
+  if(wsQueued) return;
+  wsQueued = true;
+  wsPersistenceNotice(true);
+  // Capture after the synchronous tab transaction (or its rollback), not after
+  // each intermediate graph/index write. The IDB transaction commits them together.
+  Promise.resolve().then(()=>{
+    wsQueued = false;
+    const revision = wsRevision, values = Object.assign({}, wsValues), authority = wsAuthorityEpoch;
+    if(wsRecoveryActive) wsWriteRecovery(values);
+    const recoveryId = wsRecoveryId;
+    wsPersistTail = wsPersistTail.then(()=>new Promise((resolve, reject)=>{
+      const superseded = ()=>{const e=new Error("WorkspaceSuperseded");e.name="WorkspaceSuperseded";return e;};
+      if(authority!==wsAuthorityEpoch){reject(superseded());return;}
+      if(!wsDatabase || wsRestoreFailed){ reject(new Error("BrowserStorageUnavailable")); return; }
+      // Freeze this operation's baseline; a later restore callback cannot make
+      // an older snapshot appear current while the transaction is reading.
+      const expectedRecord=wsKnownRecord;
+      try{
+        const tx = wsDatabase.transaction("workspaces", "readwrite");
+        const timer = setTimeout(()=>{
+          try{ tx.abort(); }catch(_){}
+          reject(new Error("BrowserStorageTimeout"));
+        }, 5000);
+        const fail = ()=>{ clearTimeout(timer); reject(tx.error || new Error("BrowserStorageUnavailable")); };
+        const generation=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
+        let wrote=false;
+        tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ if(authority===wsAuthorityEpoch) wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
+        tx.onerror = tx.onabort = fail;
+        const store=tx.objectStore("workspaces"), current=store.get("state");
+        current.onerror=fail;
+        current.onsuccess=()=>{
+          try{
+            if(authority!==wsAuthorityEpoch){clearTimeout(timer);reject(superseded());tx.abort();return;}
+            if(wsRecordToken(current.result)!==expectedRecord){
+              const error=new Error("WorkspaceConflict");error.name="WorkspaceConflict";
+              clearTimeout(timer);reject(error);tx.abort();return;
+            }
+            store.put({v:1, values, recoveryId, generation}, "state");wrote=true;
+          }catch(error){clearTimeout(timer);reject(error);try{tx.abort();}catch(_){}}
+        };
+      }catch(e){ reject(e); }
+    })).then(()=>{
+      if(authority!==wsAuthorityEpoch) return;
+      wsSavedRevision = revision;
+      wsPersistFailure = null;
+      if(revision===wsRevision){
+        if(wsRecoveryActive && recoveryId===wsRecoveryId) wsClearRecovery();
+        wsPersistenceNotice(false);
+      }
+    }, error=>{
+      if(error && error.name==="WorkspaceSuperseded") return;
+      if(error && error.name==="WorkspaceConflict"){
+        wsRestoreFailed=true;wsRecoveryActive=true;
+        wsStorageFailure={operation:"commit",key:"nanoodle-workspaces",name:"WorkspaceConflict"};
+        if(saveT) flushSave();
+        wsWriteRecovery(wsValues);
+      }
+      wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
+      wsPersistenceNotice(false);
+    });
+  });
+}
+const workspaceStorage = {
+  getItem(key){
+    if(wsValues) return Object.prototype.hasOwnProperty.call(wsValues, key) ? wsValues[key] : null;
+    try{ return localStorage.getItem(key); }
+    catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "read"); return this.getItem(key); }
+  },
+  setItem(key, value){
+    // Backstop for any caller the entry guards miss: never write a partial state mid-restore.
+    if(wsRestorePending && wsOwnedKey(key)){ const e=new Error("WorkspaceRestorePending"); e.name="WorkspaceRestorePending"; throw e; }
+    if(!wsValues){
+      try{ localStorage.setItem(key, String(value)); return; }
+      catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "write"); }
+    }
+    wsValues[key] = String(value);
+    wsQueuePersist();
+  },
+  removeItem(key){
+    if(wsRestorePending && wsOwnedKey(key)){ const e=new Error("WorkspaceRestorePending"); e.name="WorkspaceRestorePending"; throw e; }
+    if(!wsValues){
+      try{ localStorage.removeItem(key); return; }
+      catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "remove"); }
+    }
+    delete wsValues[key];
+    wsQueuePersist();
+  }
+};
+function initWorkspaceStorage(){
+  if(wsInitFlight) return wsInitFlight;
+  wsInitFlight=restoreWorkspaceStorage().finally(()=>{
+    wsInitFlight=null;
+    try{const retry=$("wspersistence-retry");if(retry)retry.disabled=false;}catch(_){}
+  });
+  return wsInitFlight;
+}
+async function restoreWorkspaceStorage(){
+  invalidateWorkspaceCloseHistory();
+  wsAuthorityEpoch++;
+  wsStorageEnabled = true;
+  if(wsRestoreFailed && wsDatabase){ try{wsDatabase.close();}catch(_){} wsDatabase=null; }
+  const recovery = wsReadRecovery();
+  if(!wsUnloadBound && typeof addEventListener==="function"){
+    wsUnloadBound = true;
+    addEventListener("beforeunload", e=>{
+      // A recovery reload must not outrun the 250ms autosave debounce. Journal
+      // the latest live edit synchronously; IDB commits still remain asynchronous.
+      if(wsValues && saveT) flushSave();
+      if(wsRecoveryActive && wsValues) wsWriteRecovery(wsValues);
+      if(wsValues && wsRevision!==wsSavedRevision){ e.preventDefault(); e.returnValue=""; }
+    });
+  }
+  try{
+    if(typeof indexedDB==="undefined"){
+      const error=new Error("BrowserStorageUnavailable");error.name="BrowserStorageUnavailable";throw error;
+    }
+    const record = await new Promise((resolve, reject)=>{
+      let finished = false;
+      const finish = (error, value)=>{
+        if(finished) return;
+        finished = true; clearTimeout(timer);
+        if(error) reject(error); else resolve(value);
+      };
+      let timer = null;
+      timer = setTimeout(()=>finish(new Error("BrowserStorageTimeout")), 2500);
+      const request = indexedDB.open("nanoodle-workspaces", 1);
+      request.onupgradeneeded = ()=>request.result.createObjectStore("workspaces");
+      request.onerror = ()=>finish(request.error || new Error("BrowserStorageUnavailable"));
+      request.onsuccess = ()=>{
+        const db = request.result;
+        if(finished){ db.close(); return; }
+        try{
+          const tx = db.transaction("workspaces", "readonly");
+          const read = tx.objectStore("workspaces").get("state");
+          read.onerror = ()=>{ db.close(); finish(read.error || new Error("BrowserStorageUnavailable")); };
+          read.onsuccess = ()=>{
+            if(finished){ db.close(); return; }
+            wsDatabase=db; finish(null, read.result);
+          };
+        }catch(e){ db.close(); finish(e); }
+      };
+    });
+    wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
+    invalidateWorkspaceCloseHistory(); // a close made during Retry may refer to pre-recovery tab ids
+    const restored = Object.create(null);
+    wsKnownRecord=wsRecordToken(record);
+    if(record && record.v===1 && record.values && typeof record.values==="object"){
+      for(const [key,value] of Object.entries(record.values)) if(wsOwnedKey(key) && typeof value==="string") restored[key]=value;
+      const index = JSON.parse(restored[WS_INDEX_KEY]||"null");
+      if(!index || index.v!==1 || !Array.isArray(index.tabs) || !index.tabs.some(t=>t && t.id===index.active))
+        throw new Error("InvalidWorkspaceRecord");
+    }else if(record){
+      throw new Error("InvalidWorkspaceRecord");
+    }
+    const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
+    if(visit){
+      const wasLive = !!wsValues;
+      wsValues = wsMergeRecovery(restored,visit);
+      wsRecoveryActive=true; wsRestoreFailed=false; wsSavedRevision=-1;
+      if(wasLive){ try{ renderWorkspaces(); }catch(_){} }
+      wsQueuePersist();
+    }else if(!wsValues && Object.keys(restored).length){
+      wsValues=restored; wsRecoveryId=record.recoveryId || null;
+      if(recovery && recovery.id===record.recoveryId) wsClearRecovery();
+    }else if(wsValues && Object.keys(restored).length){
+      // Something wrote this visit's state before the saved record came back
+      // (a full localStorage overflow). Never skip the snapshot: keep every saved
+      // tab, and carry the visit's work over as recovered tabs if it has any.
+      const live = wsValues;
+      wsValues = wsVisitHasWork(live) ? wsMergeRecovery(restored, live) : restored;
+      wsRecoveryId=record.recoveryId || null; wsSavedRevision=-1;
+      try{ renderWorkspaces(); }catch(_){}
+      wsQueuePersist();
+    }
+    wsRestoreFailed=false;
+  }catch(e){
+    if(wsDatabase){ try{ wsDatabase.close(); }catch(_){} wsDatabase=null; }
+    wsPersistFailure=e && e.name || "Error";
+    wsRestoreFailed=true; wsRecoveryActive=true;
+    if(!wsValues){
+      wsBeginOverflow("nanoodle-workspaces",e,"restore");
+      if(recovery){ wsValues=recovery.values; wsRecoveryId=recovery.id; }
+    }
+    wsQueuePersist();
+  }
+}
+// True until the first-visit starter is installed, or the user takes the blank canvas.
+// A chooser click in that window is held, and it moves bootGen. The starter fetch
+// still in flight then does not paint onto the workspace that click just took.
+// If the starter is already on the canvas when the held choice runs, it opens beside it.
+let initialGraphPending = true;
+let deferredWorkspaceKind = null;
+let bootGen = 0;
+function claimInitialCanvas(){ initialGraphPending = false; }
+function initialCanvasUnclaimed(){ return initialGraphPending; }
+function bootGeneration(){ return bootGen; }
+function noteBootChoice(){ bootGen++; }
+function freshGraphStillDue(gen){ return initialGraphPending && gen === bootGen; }
+function finishInitialCanvas(opts){
+  claimInitialCanvas();
+  if(opts && opts.fresh){ try{ noteFreshWorkspaceName(); }catch(_){} }
+  const kind = deferredWorkspaceKind;
+  deferredWorkspaceKind = null;
+  if(!kind) return false;
+  try{ chooseWorkspace(kind); }catch(_){ return false; }
+  return true;
+}
+const workspaceResults = new Map();
+const workspaceHist = new Map();
+function wsGraphKey(id){ return "noodle_ws_"+id; }
+function wsT(s){ return typeof t==="function" ? t(s) : s; }
+function editorAppBinding(){
+  try{
+    const b = JSON.parse(workspaceStorage.getItem("noodle_editor_app") || "null");
+    if(b && b.id) return { id:b.id, title:b.title || null };
+  }catch(_){}
+  return null;
+}
+function graphHasNodes(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    return !!(d && Array.isArray(d.nodes) && d.nodes.length);
+  }catch(_){ return false; }
+}
+function nameFromGraphJson(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    const n = (d && d.nodes || []).find(x => x && x.name && String(x.name).trim());
+    if(n) return String(n.name).trim().replace(/[\r\n]+/g," ").slice(0, 40);
+  }catch(_){}
+  return "";
+}
+// Node labels like "Prompt" describe a field, not the workflow. A tab should say what the graph is for.
+const WS_GENERIC_NAME = /^(prompt|image|text|answer|upload|note|edit|input)$/i;
+function purposeName(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    const nodes = (d && d.nodes) || [];
+    if(!nodes.length) return "";
+    const has = (ty)=> nodes.some(n => n && n.type===ty);
+    const linked = (a, b)=> (d.links||[]).some(l => {
+      const fn = nodes.find(n => n && n.id===l.from.node);
+      const tn = nodes.find(n => n && n.id===l.to.node);
+      return fn && tn && fn.type===a && tn.type===b;
+    });
+    if((linked("text","image") || (nodes.length<=3 && has("text") && has("image"))) && !has("llm") && !has("tvideo") && !has("ivideo"))
+      return "Text to image";
+    if((linked("text","llm") || (nodes.length<=3 && has("text") && has("llm"))) && !has("image"))
+      return "Ask a model";
+  }catch(_){}
+  return "";
+}
+function workspaceLabelForGraph(json, ga){
+  const raw = nameFromGraphJson(json);
+  const specific = raw && !WS_GENERIC_NAME.test(raw) ? raw : "";
+  const purpose = purposeName(json);
+  if(ga){
+    const title = (typeof pendingAppTitle!=="undefined" && pendingAppTitle) || "";
+    return title || specific || purpose || "Shared app";
+  }
+  return specific || purpose || "Shared workflow";
+}
+function workspaceDownloadName(){
+  let name = "noodle-graph";
+  try{
+    const d = readWorkspaces();
+    const cur = d && d.tabs.find(t => t.id===d.active);
+    if(cur && String(cur.name||"").trim()) name = String(cur.name).trim();
+  }catch(_){}
+  name = name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim() || "noodle-graph";
+  if(name.length>60) name = name.slice(0, 60).trim();
+  return name+".json";
+}
+function stampActiveExample(slug){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active);
+  if(!cur) return;
+  if(slug) cur.example = String(slug);
+  else delete cur.example;
+  writeWorkspaces(d);
+}
+// Set when the first index write cannot land. Storage stays untouched; the
+// strip reads this so the page still has a tab for the rest of the visit.
+let workspaceMemory = null;
+// True while boot waits for IndexedDB to hand back the saved workspaces. Any
+// tab change in that window would write a partial index that the restore
+// never merges, and the next save would overwrite the saved tabs. So every
+// workspace mutation is refused until the restore settles.
+let wsRestorePending = false;
+let wsHashHeld = false;
+function wsMutationBlocked(){
+  if(!wsRestorePending) return false;
+  try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  return true;
+}
+// True when this page created the first index (nothing was saved before it).
+let wsFreshIndex = false;
+let workspaceFlashId = null;
+let workspaceFlashT = null;
+function copyWorkspaces(d){
+  try{ return JSON.parse(JSON.stringify(d)); }catch(_){ return null; }
+}
+function readWorkspaces(){
+  try{
+    const d = JSON.parse(workspaceStorage.getItem(WS_INDEX_KEY) || "null");
+    if(d && d.v===1 && Array.isArray(d.tabs) && d.tabs.length){
+      if(!d.tabs.some(t => t && t.id===d.active)) d.active = d.tabs[0].id;
+      return d;
+    }
+  }catch(_){}
+  if(workspaceMemory && workspaceMemory.v===1 && Array.isArray(workspaceMemory.tabs) && workspaceMemory.tabs.length){
+    if(!workspaceMemory.tabs.some(t => t && t.id===workspaceMemory.active)) workspaceMemory.active = workspaceMemory.tabs[0].id;
+    return copyWorkspaces(workspaceMemory);
+  }
+  return null;
+}
+function writeWorkspaces(d){
+  workspaceStorage.setItem(WS_INDEX_KEY, JSON.stringify(d));
+  workspaceMemory = null;
+}
+function wsStorageError(kind){
+  if(wsRestorePending){ try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){} return; }
+  const msg = kind==="switch"
+    ? "Couldn’t switch — this browser couldn’t store the workspace."
+    : kind==="open"
+    ? "Couldn’t open a new workspace — your current workflow is unchanged."
+    : kind==="index"
+    ? "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted."
+    : "Couldn’t save that workspace change.";
+  try{ toast(wsT(msg), kind==="index" ? "warn" : "err"); }catch(_){}
+}
+function wsSnapshotKey(key){
+  try{
+    const value = workspaceStorage.getItem(key);
+    return { present: value!==null, value };
+  }catch(_){ return { present:false, value:null }; }
+}
+function wsReadKey(key){
+  try{ return workspaceStorage.getItem(key); }catch(_){ return null; }
+}
+// Write a snapshot back and read it. A quota throw, or a write that does not
+// land as the same bytes, is a failed restore — callers must not assume it stuck.
+function wsRestoreKey(key, shot){
+  const wantPresent = !!(shot && shot.present);
+  const want = wantPresent ? String(shot.value) : null;
+  // Already the snapshot: a full disk must not be asked to write it again.
+  const cur0 = wsReadKey(key);
+  if(wantPresent ? cur0===want : cur0===null) return true;
+  try{
+    if(!wantPresent) workspaceStorage.removeItem(key);
+    else workspaceStorage.setItem(key, want);
+  }catch(_){ return false; }
+  const cur = wsReadKey(key);
+  if(!wantPresent) return cur===null;
+  return cur===want;
+}
+function wsPutVerified(key, value){
+  const want = String(value);
+  if(wsReadKey(key)===want) return true;
+  try{ workspaceStorage.setItem(key, want); }
+  catch(_){ return false; }
+  return wsReadKey(key)===want;
+}
+function captureResults(id){
+  return { had: !!(id && workspaceResults.has(id)), entry: id ? workspaceResults.get(id) : null };
+}
+function restoreResults(id, shot){
+  if(!id || !shot) return;
+  if(shot.had) workspaceResults.set(id, shot.entry);
+  else workspaceResults.delete(id);
+}
+function captureHist(id){
+  const undo = (typeof undoStack!=="undefined") ? undoStack.slice() : [];
+  const redo = (typeof redoStack!=="undefined") ? redoStack.slice() : [];
+  return { had: !!(id && workspaceHist.has(id)), entry: id ? (workspaceHist.get(id) || null) : null, undo, redo };
+}
+function restoreHist(id, shot){
+  if(!shot) return;
+  if(typeof undoStack!=="undefined"){
+    undoStack.splice(0, undoStack.length, ...(shot.undo||[]));
+    redoStack.splice(0, redoStack.length, ...(shot.redo||[]));
+  }
+  if(id){
+    if(shot.had) workspaceHist.set(id, shot.entry);
+    else workspaceHist.delete(id);
+  }
+  try{ syncUndoBtn(); }catch(_){}
+}
+// Put a graph back on the canvas after a failed switch/import. Same workflow,
+// so this is not a describe-version reset — the caller still has the old chips.
+function reapplyWorkspaceGraph(json, stash){
+  const rolled = typeof json==="string" ? JSON.parse(json) : json;
+  const wasMuted = (typeof undoMuted!=="undefined") ? undoMuted : false;
+  if(typeof undoMuted!=="undefined") undoMuted = true;
+  try{ applyGraphData(rolled, stash ? {resultStash:stash} : undefined); }
+  finally{ if(typeof undoMuted!=="undefined") undoMuted = wasMuted; }
+}
+function workspaceShot(activeId){
+  const id = activeId || ((typeof readWorkspaces==="function" && readWorkspaces()) ? readWorkspaces().active : null);
+  let canvas = null, stash = null;
+  try{ canvas = JSON.stringify(serializeGraph()); }catch(_){}
+  try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+  return {
+    id,
+    graph: wsSnapshotKey("noodle_graph"),
+    index: wsSnapshotKey(WS_INDEX_KEY),
+    editor: wsSnapshotKey(EDITOR_APP_KEY),
+    leaving: id ? wsSnapshotKey(wsGraphKey(id)) : { present:false, value:null },
+    appId: (typeof pendingAppId!=="undefined") ? pendingAppId : null,
+    appTitle: (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null,
+    res: id ? captureResults(id) : null,
+    hist: id ? captureHist(id) : null,
+    canvas, stash,
+    memory: workspaceMemory ? copyWorkspaces(workspaceMemory) : null,
+  };
+}
+function workspaceRollback(shot, extra){
+  if(!shot) return false;
+  extra = extra || {};
+  const leaveKey = shot.id ? wsGraphKey(shot.id) : null;
+  const sourceBytes = shot.graph && shot.graph.present ? String(shot.graph.value) : null;
+  // Free the destination binding and temp keys BEFORE putting a larger graph
+  // back. Doing it the other way round fails under a still-tight quota: the
+  // index reverts, the canvas reverts, and noodle_graph keeps the incoming
+  // workspace. A reload then shows that incoming graph under the original tab.
+  if(extra.removeId){ try{ workspaceStorage.removeItem(wsGraphKey(extra.removeId)); }catch(_){} }
+  const editorWant = shot.editor && shot.editor.present ? String(shot.editor.value) : null;
+  if(wsReadKey(EDITOR_APP_KEY)!==editorWant){ try{ workspaceStorage.removeItem(EDITOR_APP_KEY); }catch(_){} }
+  let graphOk = wsRestoreKey("noodle_graph", shot.graph);
+  // The leaving key is a temp copy of the original once noodle_graph holds the
+  // incoming graph. Drop it only as a retry, and put the original back on that
+  // key if the graph still will not land — never replace it with the incoming bytes.
+  if(!graphOk && leaveKey){
+    const backup = wsReadKey(leaveKey);
+    try{ workspaceStorage.removeItem(leaveKey); }catch(_){}
+    graphOk = wsRestoreKey("noodle_graph", shot.graph);
+    if(!graphOk){
+      const put = sourceBytes!=null ? sourceBytes : backup;
+      if(put!=null) wsPutVerified(leaveKey, put);
+    }
+  }
+  let indexOk = false, leaveOk = true, editorOk = true;
+  if(graphOk){
+    indexOk = wsRestoreKey(WS_INDEX_KEY, shot.index);
+    if(leaveKey) leaveOk = wsRestoreKey(leaveKey, shot.leaving);
+    editorOk = wsRestoreKey(EDITOR_APP_KEY, shot.editor);
+  }
+  // Index and noodle_graph move together. If the original graph did not land,
+  // do not point the index back at the source tab: that pairs the incoming
+  // bytes with the original workspace. Keep the original on its own key, and
+  // if the index still names that tab, point it at whoever actually owns the
+  // bytes now in noodle_graph (a small write) so a reload cannot disagree.
+  if(!graphOk || !indexOk){
+    if(leaveKey && sourceBytes!=null) wsPutVerified(leaveKey, sourceBytes);
+    try{
+      const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null");
+      const live = wsReadKey("noodle_graph");
+      if(idx && sourceBytes!=null && idx.active===shot.id && live!==sourceBytes){
+        const owner = (idx.tabs||[]).find(t => t && t.id!==shot.id && wsReadKey(wsGraphKey(t.id))===live);
+        if(owner){
+          idx.active = owner.id;
+          wsPutVerified(WS_INDEX_KEY, JSON.stringify(idx));
+        }
+      }
+    }catch(_){}
+  }
+  const liveNow = wsReadKey("noodle_graph");
+  let activeNow = null;
+  try{ const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null"); activeNow = idx && idx.active; }catch(_){}
+  const onSource = !!(graphOk && indexOk && activeNow===shot.id && liveNow===sourceBytes);
+  if(shot.id && shot.res) restoreResults(shot.id, shot.res);
+  if(extra.resId) restoreResults(extra.resId, extra.res);
+  if(onSource){
+    if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
+    if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
+    if(typeof pendingAppId!=="undefined"){ pendingAppId = shot.appId; pendingAppTitle = shot.appTitle; }
+  }else{
+    // Disk stayed on the incoming workspace. Park that tab's history on the
+    // live stacks so the next switch does not flush this canvas onto the
+    // original tab's undo, and keep the in-memory app binding with it.
+    if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
+    if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
+    if(typeof pendingAppId!=="undefined"){
+      let app = null;
+      try{
+        const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null");
+        const cur = idx && (idx.tabs||[]).find(t => t && t.id===idx.active);
+        app = cur && cur.app;
+      }catch(_){}
+      pendingAppId = app && app.id ? app.id : null;
+      pendingAppTitle = app && app.title ? app.title : null;
+    }
+  }
+  if(extra.canvas){
+    try{
+      if(onSource && shot.canvas) reapplyWorkspaceGraph(shot.canvas, shot.stash);
+      else if(liveNow) reapplyWorkspaceGraph(liveNow, null);
+    }catch(_){}
+  }
+  try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
+  // Shelving mutates the index it was handed. When that object was the live
+  // in-memory tab list, a failed write left Blank active while disk — and the
+  // canvas — still had the original workspace. Put the snapshot back.
+  workspaceMemory = shot.memory ? copyWorkspaces(shot.memory) : null;
+  try{ renderWorkspaces(); }catch(_){}
+  if(!onSource && sourceBytes!=null && activeNow===shot.id && liveNow!==sourceBytes) wsStorageError("switch");
+  return !!(onSource && leaveOk && editorOk);
+}
+// Every node and every link, before a share link is allowed to touch a tab.
+// A null node used to pass the array check, add a tab, then throw inside apply
+// after the canvas had already been cleared.
+function graphPayloadOk(g){
+  if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
+  if(g.links!=null && !Array.isArray(g.links)) return false;
+  const ids = new Set();
+  for(const n of g.nodes){
+    if(!n || typeof n!=="object" || Array.isArray(n)) return false;
+    if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
+    if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
+    if(ids.has(n.id)) return false;
+    ids.add(n.id);
+  }
+  for(const l of (g.links||[])){
+    if(!l || typeof l!=="object" || Array.isArray(l)) return false;
+    const a = l.from, b = l.to;
+    if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
+    if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
+    if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
+    if(!ids.has(a.node) || !ids.has(b.node)) return false;
+  }
+  return true;
+}
+function ensureWorkspaces(opts){
+  const existing = readWorkspaces();
+  if(existing){
+    // A boot-time index kept only in memory (localStorage full before the IDB
+    // overflow was armed) gets written now that workspaceStorage can overflow.
+    if(workspaceMemory && wsStorageEnabled){ try{ writeWorkspaces(existing); }catch(_){} }
+    return existing;
+  }
+  let raw = null;
+  try{ raw = workspaceStorage.getItem("noodle_graph"); }catch(_){}
+  const named = nameFromGraphJson(raw);
+  const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
+  const app = editorAppBinding();
+  const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
+  if(!wsStorageEnabled) wsFreshIndex = true;
+  try{ writeWorkspaces(d); }
+  catch(_){
+    // QuotaExceededError on this first write used to escape the boot catch,
+    // so the tab strip never rendered and the plus button never got a handler.
+    // Keep the default tab in memory, warn, and delete nothing.
+    workspaceMemory = d;
+    // The pre-restore boot pass is quiet: before initWorkspaceStorage arms the
+    // IndexedDB overflow a full localStorage is expected to throw, and the
+    // post-restore pass retries through the overflow (#762 regression).
+    if(!(opts && opts.quiet)){ try{ wsStorageError("index"); }catch(_){} }
+    return d;
+  }
+  return d;
+}
+function uniqueWorkspaceName(base, tabs){
+  const used = new Set((tabs||[]).map(t => t && t.name));
+  let stem = String(base||"").trim().replace(/[\r\n]+/g," ").replace(/\s+/g," ") || "Workflow";
+  if(stem.length>40) stem = stem.slice(0,40).trim();
+  if(!used.has(stem)) return stem;
+  for(let i=2;i<100;i++){
+    const suffix = " "+i;
+    const c = (stem.slice(0, Math.max(1, 40-suffix.length))+suffix).trim();
+    if(!used.has(c)) return c;
+  }
+  return stem.slice(0, 28)+" "+Date.now().toString(36).slice(-6);
+}
+function stampActiveApp(){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active);
+  if(!cur) return;
+  cur.app = (typeof pendingAppId!=="undefined" && pendingAppId)
+    ? { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null }
+    : null;
+  writeWorkspaces(d);
+}
+// Write the live canvas to noodle_graph now. Returns that JSON, or null when the
+// write did not land — callers that are about to replace the canvas must stop.
+// Swallowing the quota error here is what made a switch store the previous autosave
+// and drop the edit that was only on screen.
+function flushSave(){
+  if(wsRestorePending) return null;
+  try{ clearTimeout(saveT); }catch(_){}
+  saveT = null;
+  try{ if(typeof stashModel3dOuts==="function") stashModel3dOuts(); }catch(_){}
+  let json = null;
+  try{ json = JSON.stringify(serializeGraph()); }
+  catch(_){ return null; }
+  try{ workspaceStorage.setItem("noodle_graph", json); }
+  catch(_){ return null; }
+  return json;
+}
+function parkWorkspaceHistory(id){
+  if(!id || typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
+  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length) });
+  try{ syncUndoBtn(); }catch(_){}
+}
+function restoreWorkspaceHistory(id){
+  if(typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
+  undoStack.splice(0, undoStack.length);
+  redoStack.splice(0, redoStack.length);
+  const h = id && workspaceHist.get(id);
+  if(h){
+    if(h.undo && h.undo.length) undoStack.push(...h.undo);
+    if(h.redo && h.redo.length) redoStack.push(...h.redo);
+  }
+  try{ syncUndoBtn(); }catch(_){}
+}
+function workspaceBusy(){
+  try{ return !!(runningNodes && runningNodes.size); }catch(_){ return false; }
+}
+function blankGraph(){
+  return { v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:40, scale:1 } };
+}
+function textToImageGraph(){
+  return {
+    v:1,
+    nodes:[
+      { id:"n1", type:"text", x:80, y:150, w:280, name:"Prompt", fields:{ text:"a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo" } },
+      { id:"n2", type:"image", x:460, y:120, w:300, name:"Image", fields:{ model:"meta/muse-image/text-to-image", prompt:"", size:"1:1", variations:"1" } }
+    ],
+    links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
+    nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
+  };
+}
+function askModelGraph(){
+  return {
+    v:1,
+    nodes:[
+      { id:"n1", type:"text", x:80, y:160, w:280, name:"Prompt", fields:{ text:"Explain how a node graph runs, in three short sentences." } },
+      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", maxTokens:"400", reasoningEffort:"low" } }
+    ],
+    links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
+    nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
+  };
+}
+function shelvePreviousWorkspace(prevJson, prevApp, newName){
+  if(!graphHasNodes(prevJson)) return false;
+  let d;
+  try{ d = ensureWorkspaces(); }catch(_){ return false; }
+  const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
+  if(!cur) return false;
+  const shot = workspaceShot(cur.id);
+  let newId = null;
+  try{
+    workspaceStorage.setItem(wsGraphKey(cur.id), String(prevJson));
+    try{ if(typeof _stashResults==="function") workspaceResults.set(cur.id, _stashResults()); }catch(_){}
+    cur.app = (prevApp && prevApp.id) ? { id:prevApp.id, title:prevApp.title || null } : null;
+    d.seq = (d.seq|0) + 1;
+    while(d.tabs.some(t => t.id==="w"+d.seq)) d.seq++;
+    newId = "w"+d.seq;
+    const neu = { id:newId, name:uniqueWorkspaceName(newName || wsT("Workflow"), d.tabs), app:null };
+    if(typeof pendingAppId!=="undefined" && pendingAppId)
+      neu.app = { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null };
+    d.tabs.push(neu);
+    d.active = newId;
+    writeWorkspaces(d);
+    parkWorkspaceHistory(cur.id);
+    try{ renderWorkspaces(); }catch(_){}
+    return true;
+  }catch(_){
+    workspaceRollback(shot, { removeId:newId });
+    return false;
+  }
+}
+function openWorkspaceWithGraph(data, name, opts){
+  opts = opts || {};
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
+  // This canvas is the user's now. A starter fetch still in flight must not paint over it.
+  claimInitialCanvas();
+  const had = !!(graph.nodes && graph.nodes.length);
+  if(had){
+    let d0 = readWorkspaces();
+    if(!d0){ try{ d0 = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
+    if(opts.respectCap && d0.tabs.length >= WS_CAP){
+      toast(wsT("Too many workspaces — close one first."), "warn");
+      return false;
+    }
+  }
+  // Shot is the pre-attempt state. A later write that fails puts every key,
+  // the canvas, and the undo stacks back to this — including a flush that
+  // already landed — so the open never leaves the new graph behind.
+  const shot = workspaceShot();
+  let newId = null;
+  let canvasTouched = false;
+  try{
+    if(had){
+      const prev = flushSave();
+      if(!prev){ wsStorageError("open"); return false; }
+      let prevApp = null;
+      try{ prevApp = editorAppBinding(); }catch(_){}
+      if(!shelvePreviousWorkspace(prev, prevApp, name)){ wsStorageError("open"); return false; }
+      const now = readWorkspaces();
+      newId = now && now.active;
+    }
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      canvasTouched = true;
+      setPendingApp(null);
+      applyGraphData(data);
+      window.resetDescribeVersions?.();
+      if(opts.fit && typeof fitView==="function") fitView();
+    }finally{ undoMuted = wasMuted; }
+    if(!had){
+      const d = ensureWorkspaces();
+      const cur = d.tabs.find(t => t.id===d.active);
+      if(cur){
+        cur.name = uniqueWorkspaceName(name || wsT("Untitled"), d.tabs.filter(t => t.id!==cur.id));
+        cur.app = null;
+        writeWorkspaces(d);
+      }
+    }
+    if(!flushSave()) throw new Error("store");
+    stampActiveExample(opts.example || null);
+  }catch(_){
+    workspaceRollback(shot, { removeId:newId, canvas:canvasTouched });
+    wsStorageError("open");
+    return false;
+  }
+  try{ renderWorkspaces(); }catch(_){}
+  invalidateWorkspaceCloseHistory();
+  return true;
+}
+function openExampleWorkspace(graphData, name, slug){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
+  let d = readWorkspaces();
+  if(!d){ try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
+  const existing = slug && d.tabs.find(t => t.example===slug);
+  if(existing){
+    if(d.active!==existing.id) switchWorkspace(existing.id);
+    return "switch";
+  }
+  const had = !!(graph.nodes && graph.nodes.length);
+  const ok = openWorkspaceWithGraph(graphData, name, { respectCap:true, fit:true, example:slug });
+  if(!ok) return false;
+  return had ? "open" : "absorb";
+}
+function switchWorkspace(id){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  const d = readWorkspaces();
+  if(!d || d.active===id){ closeWorkspaceMenus(); return; }
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  const next = d.tabs.find(t => t.id===id);
+  const leaving = d.tabs.find(t => t.id===d.active);
+  if(!next || !leaving) return;
+  // The live canvas, not whatever getItem returns. A quota failure used to be swallowed
+  // by flushSave, and the next lines then copied the stale autosave onto this tab.
+  const snap = flushSave();
+  if(!snap){ wsStorageError("switch"); return; }
+  // Everything after this flush is one transaction. The shot is the source tab
+  // AFTER that flush, so a later miss (the active-pointer write included) puts
+  // noodle_graph, the leaving key, the index, and the canvas back together.
+  const shot = workspaceShot(leaving.id);
+  const destHist = captureHist(id);
+  const destRes = captureResults(id);
+  try{ if(shot.stash) workspaceResults.set(leaving.id, shot.stash); }catch(_){}
+  let raw = null;
+  try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){}
+  let destObj = null;
+  if(raw){ try{ destObj = JSON.parse(raw); }catch(_){ destObj = null; } }
+  if(raw && !destObj){
+    restoreResults(leaving.id, shot.res);
+    wsStorageError("switch");
+    return;
+  }
+  const destJson = destObj ? raw : JSON.stringify(blankGraph());
+  let canvasTouched = false;
+  try{
+    workspaceStorage.setItem(wsGraphKey(leaving.id), snap);
+    workspaceStorage.setItem("noodle_graph", destJson);
+    d.active = id;
+    writeWorkspaces(d);
+    parkWorkspaceHistory(leaving.id);
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      canvasTouched = true;
+      const stash = workspaceResults.get(id) || null;
+      if(destObj) applyGraphData(destObj, stash ? {resultStash:stash} : undefined);
+      else applyGraphData(blankGraph());
+      window.resetDescribeVersions?.();
+      const app = next.app;
+      setPendingApp(app && app.id ? app.id : null, app && app.title);
+    }finally{ undoMuted = wasMuted; }
+    restoreWorkspaceHistory(id);
+    if(!flushSave()) throw new Error("store");
+  }catch(_){
+    workspaceRollback(shot, { canvas:canvasTouched, histId:id, hist:destHist, resId:id, res:destRes });
+    wsStorageError("switch");
+    return;
+  }
+  try{ renderWorkspaces(); }catch(_){}
+  invalidateWorkspaceCloseHistory();
+}
+function closeWorkspace(id,opts){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  wsCloseHistoryMute++;
+  try{return closeWorkspaceNow(id,opts);}finally{wsCloseHistoryMute--;}
+}
+function closeWorkspaceNow(id,opts){
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  let d;
+  try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("save"); return; }
+  const tab = d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  let raw = null;
+  if(d.active===id){ try{ raw = JSON.stringify(serializeGraph()); }catch(_){} }
+  else { try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){wsStorageError("save");return false;} }
+  const occupied = graphHasNodes(raw);
+  if(d.active===id && graph.nodes.length && !raw){wsStorageError("save");return false;}
+  if(raw){try{if(!graphPayloadOk(JSON.parse(raw)))throw new Error("graph");}catch(_){wsStorageError("save");return false;}}
+  const closed=captureClosedWorkspace(d,tab,raw);
+  if(d.tabs.length===1){
+    if(!occupied) return;
+    const shot = workspaceShot(id);
+    const res = captureResults(id);
+    const hist = captureHist(id);
+    let canvasTouched = false;
+    try{
+      tab.name = wsT("Untitled");
+      tab.app = null;
+      delete tab.example;
+      writeWorkspaces(d);
+      workspaceStorage.removeItem(wsGraphKey(id));
+      const wasMuted = undoMuted;
+      undoMuted = true;
+      try{
+        canvasTouched = true;
+        setPendingApp(null);
+        applyGraphData(blankGraph());
+        window.resetDescribeVersions?.();
+      }finally{ undoMuted = wasMuted; }
+      workspaceResults.delete(id);
+      workspaceHist.delete(id);
+      restoreWorkspaceHistory(null);
+      if(!flushSave()) throw new Error("store");
+    }catch(_){
+      workspaceRollback(shot, { canvas:canvasTouched, resId:id, res, histId:id, hist });
+      wsStorageError("save");
+      return;
+    }
+    try{ renderWorkspaces(); }catch(_){}
+    recordClosedWorkspace(closed,opts);return true;
+  }
+  const idx = d.tabs.findIndex(t => t.id===id);
+  if(d.active!==id){
+    const shot = workspaceShot(d.active);
+    const closedKey = wsSnapshotKey(wsGraphKey(id));
+    d.tabs.splice(idx, 1);
+    try{
+      writeWorkspaces(d);
+      workspaceStorage.removeItem(wsGraphKey(id));
+    }catch(_){
+      try{ wsRestoreKey(wsGraphKey(id), closedKey); }catch(_){}
+      workspaceRollback(shot);
+      wsStorageError("save");
+      return;
+    }
+    workspaceResults.delete(id);
+    workspaceHist.delete(id);
+    try{ renderWorkspaces(); }catch(_){}
+    recordClosedWorkspace(closed,opts);return true;
+  }
+  const neighbor = d.tabs[idx===0 ? 1 : idx-1];
+  let nraw = null;
+  try{ nraw = workspaceStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
+  let nobj = null;
+  if(nraw){ try{ nobj = JSON.parse(nraw); }catch(_){ nobj = null; } }
+  const destJson = nobj ? nraw : JSON.stringify(blankGraph());
+  const shot = workspaceShot(id);
+  const closedRes = captureResults(id);
+  const closedHist = captureHist(id);
+  const neighborRes = captureResults(neighbor.id);
+  const neighborHist = captureHist(neighbor.id);
+  let canvasTouched = false;
+  try{
+    d.tabs.splice(idx, 1);
+    d.active = neighbor.id;
+    writeWorkspaces(d);
+    workspaceStorage.setItem("noodle_graph", destJson);
+    workspaceStorage.removeItem(wsGraphKey(id));
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      canvasTouched = true;
+      const stash = workspaceResults.get(neighbor.id) || null;
+      if(nobj) applyGraphData(nobj, stash ? {resultStash:stash} : undefined);
+      else applyGraphData(blankGraph());
+      window.resetDescribeVersions?.();
+      const app = neighbor.app;
+      setPendingApp(app && app.id ? app.id : null, app && app.title);
+    }finally{ undoMuted = wasMuted; }
+    workspaceResults.delete(id);
+    workspaceHist.delete(id);
+    restoreWorkspaceHistory(neighbor.id);
+    if(!flushSave()) throw new Error("store");
+  }catch(_){
+    workspaceRollback(shot, {
+      canvas:canvasTouched,
+      resId:id, res:closedRes,
+      histId:id, hist:closedHist,
+    });
+    restoreResults(neighbor.id, neighborRes);
+    restoreHist(neighbor.id, neighborHist);
+    wsStorageError("save");
+    return;
+  }
+  try{ renderWorkspaces(); }catch(_){}
+  recordClosedWorkspace(closed,opts);return true;
+}
+function renameWorkspace(id, name, opts){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  const d = readWorkspaces();
+  if(!d) return;
+  const tab = d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  let next = String(name||"").trim().replace(/[\r\n]+/g," ").replace(/\s+/g," ");
+  if(next.length>40) next = next.slice(0,40).trim();
+  // An empty commit must restore the label. Leaving the input in place is how a blank rename got stuck.
+  if(!next || next===tab.name){
+    if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
+    return;
+  }
+  next = uniqueWorkspaceName(next, d.tabs.filter(t => t.id!==id));
+  invalidateWorkspaceCloseHistory();
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
+  tab.name = next;
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    wsStorageError("save");
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
+  if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
+}
+function commitReorder(id, toIndex){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  const d = readWorkspaces();
+  if(!d) return;
+  const from = d.tabs.findIndex(t => t.id===id);
+  if(from<0) return;
+  const dest = Math.max(0, Math.min(d.tabs.length-1, toIndex>from ? toIndex-1 : toIndex));
+  if(dest===from) return;
+  invalidateWorkspaceCloseHistory();
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
+  const [tab] = d.tabs.splice(from, 1);
+  d.tabs.splice(dest, 0, tab);
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    wsStorageError("save");
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
+  try{ renderWorkspaces(); }catch(_){}
+}
+function tabOccupied(d, tab){
+  if(tab.id===d.active) return !!(graph.nodes && graph.nodes.length);
+  try{ return graphHasNodes(workspaceStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
+}
+// Only the last tab hides its close button when blank. A Load, first node, or
+// canvas Undo can change that without changing the tab index. Refresh the strip
+// only when that control actually changes, so typing never rebuilds a rename.
+function syncWorkspaceCloseControls(){
+  try{
+    const d=readWorkspaces();if(!d || d.tabs.length!==1)return;
+    const tab=$("wstabs").querySelector(".wstab");
+    if(tab && !!tab.querySelector(".wsx")!==!!graph.nodes.length)renderWorkspaces();
+  }catch(_){}
+}
+function focusWorkspaceTab(id){
+  try{
+    const b = $("wstabs").querySelector('.wstab[data-id="'+id+'"]');
+    if(b) b.focus();
+  }catch(_){}
+}
+// Ctrl/Cmd+Alt+Arrow (or [ / ]) switches tabs from anywhere that isn't a text field.
+// Plain arrows stay with the canvas. Returns "next", "prev", or null.
+function workspaceChord(e){
+  if(!e) return null;
+  const t = e.target;
+  const tag = t && t.tagName;
+  if(tag==="TEXTAREA" || tag==="INPUT" || tag==="SELECT") return null;
+  if(t && t.isContentEditable) return null;
+  if(e.shiftKey || e.repeat) return null;
+  if(!(e.ctrlKey || e.metaKey) || !e.altKey) return null;
+  if(e.key==="ArrowRight" || e.key==="]") return "next";
+  if(e.key==="ArrowLeft" || e.key==="[") return "prev";
+  return null;
+}
+function workspaceOverlayOpen(){
+  try{
+    const ch = $("wschooser"), m = $("wsdropmenu");
+    if(ch && !ch.hidden) return true;
+    if(m && !m.hidden) return true;
+    for(const id of ["examplesmodal","updatesmodal","appmodal","sharemenu","refuelmodal"]){
+      const el = $(id);
+      if(el && !el.hidden) return true;
+    }
+    const pick = $("mpick");
+    if(pick && pick.style.display && pick.style.display!=="none") return true;
+  }catch(_){}
+  return false;
+}
+function stepWorkspace(dir){
+  const d = readWorkspaces();
+  if(!d || !d.tabs.length) return;
+  const i = Math.max(0, d.tabs.findIndex(t => t.id===d.active));
+  const n = d.tabs[(i + (dir==="next" ? 1 : -1) + d.tabs.length) % d.tabs.length];
+  if(!n || n.id===d.active) return;
+  switchWorkspace(n.id);
+  focusWorkspaceTab(n.id);
+}
+function closeWorkspaceMenus(){
+  try{
+    const ch = $("wschooser"); if(ch){ ch.hidden = true; }
+    const add = $("wsadd"); if(add) add.setAttribute("aria-expanded", "false");
+    const m = $("wsdropmenu"); if(m) m.hidden = true;
+    const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded", "false");
+  }catch(_){}
+}
+function placeChooser(){
+  try{
+    const wrap = $("wsaddwrap"), menu = $("wschooser");
+    if(!wrap || !menu || !wrap.getBoundingClientRect) return;
+    const r = wrap.getBoundingClientRect();
+    const flip = r.left > (window.innerWidth || 0) - 260;
+    menu.style.left = flip ? "auto" : "0";
+    menu.style.right = flip ? "0" : "auto";
+  }catch(_){}
+}
+function toggleChooser(){
+  const menu = $("wschooser");
+  if(!menu) return;
+  const open = menu.hidden;
+  closeWorkspaceMenus();
+  if(open){
+    placeChooser();
+    menu.hidden = false;
+    const add = $("wsadd");
+    if(add) add.setAttribute("aria-expanded", "true");
+    const first = menu.querySelector("[data-ws]");
+    if(first) first.focus();
+  }
+}
+function acknowledgeCurrentWorkspace(msg){
+  const d = readWorkspaces();
+  const id = d && d.active;
+  workspaceFlashId = id || null;
+  try{ clearTimeout(workspaceFlashT); }catch(_){}
+  workspaceFlashT = setTimeout(()=>{ workspaceFlashId = null; }, 800);
+  try{ renderWorkspaces(); }catch(_){}
+  try{ if(id) focusWorkspaceTab(id); }catch(_){}
+  try{
+    const tabs = (typeof $==="function") ? $("wstabs") : null;
+    const el = tabs && id && tabs.querySelector('.wstab[data-id="'+id+'"]');
+    if(el){
+      el.classList.remove("wsflash");
+      void el.offsetWidth;
+      el.classList.add("wsflash");
+    }
+  }catch(_){}
+  try{ toast(msg); }catch(_){}
+}
+function chooseWorkspace(kind){
+  closeWorkspaceMenus();
+  if(kind==="examples"){ if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return; if(typeof openExamples==="function") openExamples(); return; }
+  // Plus stays usable while the restore runs: hold the choice, the same way the
+  // first-visit starter does, and open it once the saved tabs are back.
+  if(wsRestorePending){ deferredWorkspaceKind = kind; return "deferred"; }
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  // The blank first paint is already tab 1. Hold the choice, and move bootGen
+  // so the starter still loading cannot paint onto it. If that starter is
+  // already on the canvas when the choice runs, it opens beside this tab.
+  if(initialCanvasUnclaimed()) noteBootChoice();
+  if(initialCanvasUnclaimed() && !(graph.nodes && graph.nodes.length)){
+    deferredWorkspaceKind = kind;
+    return "deferred";
+  }
+  let data, name, fit = true;
+  if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
+  else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
+  else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
+  else return;
+  const had = !!(graph.nodes && graph.nodes.length);
+  if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
+  try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
+  if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
+  // Plus, then Blank, on an empty tab reuses that tab. The canvas does not
+  // change, so flash and name it — otherwise the click looks like it missed.
+  else if(kind==="blank") acknowledgeCurrentWorkspace(wsT("Blank canvas is this tab."));
+}
+function fillDropMenu(d){
+  const menu = $("wsdropmenu");
+  if(!menu) return;
+  menu.textContent = "";
+  const cur = d.tabs.find(t => t.id===d.active);
+  const renamingId = cur && cur.id;
+  let inp = null;
+  for(const tab of d.tabs){
+    const wsRow = document.createElement("div");
+    wsRow.className = "wsrow"+(tab.id===d.active ? " on" : "");
+    wsRow.setAttribute("role", "option");
+    wsRow.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
+    if(tab.id===d.active){
+      inp = document.createElement("input");
+      inp.className = "wsrename";
+      inp.value = tab.name;
+      inp.maxLength = 40;
+      inp.setAttribute("aria-label", wsT("Rename workspace"));
+      inp.setAttribute("data-no-i18n", "");
+      inp.setAttribute("enterkeyhint", "done");
+      inp.autocomplete = "off";
+      inp.spellcheck = false;
+      inp.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter"){
+          e.preventDefault();
+          renameWorkspace(renamingId, inp.value, {render:false});
+          menu.hidden = true;
+          const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+          try{ renderWorkspaces(); }catch(_){}
+        } else if(e.key==="Escape"){
+          e.preventDefault(); e.stopPropagation();
+          menu.hidden = true;
+          const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+        }
+      });
+      inp.addEventListener("blur", ()=>{
+        renameWorkspace(renamingId, inp.value, {render:false});
+        const live = readWorkspaces();
+        const kept = live && live.tabs.find(t => t.id===renamingId);
+        if(kept && inp.isConnected) inp.value = kept.name;
+        const label = document.querySelector("#wsdrop .wsdropname");
+        if(label && kept) label.textContent = kept.name;
+      });
+      wsRow.appendChild(inp);
+    } else {
+      const nameBtn = document.createElement("button");
+      nameBtn.type = "button";
+      nameBtn.className = "wsname";
+      nameBtn.setAttribute("data-no-i18n", "");
+      nameBtn.textContent = tab.name;
+      nameBtn.addEventListener("click", ()=>{
+        if(inp) renameWorkspace(renamingId, inp.value, {render:false});
+        menu.hidden = true;
+        const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+        switchWorkspace(tab.id);
+      });
+      wsRow.appendChild(nameBtn);
+    }
+    const xBtn = document.createElement("button");
+    xBtn.type = "button";
+    xBtn.className = "wsx";
+    xBtn.setAttribute("aria-label", wsT("Close workspace"));
+    xBtn.textContent = "×";
+    xBtn.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(inp) renameWorkspace(renamingId, inp.value, {render:false});
+      closeWorkspace(tab.id);
+    });
+    wsRow.appendChild(xBtn);
+    menu.appendChild(wsRow);
+  }
+  const sep = document.createElement("div");
+  sep.className = "wssep";
+  menu.appendChild(sep);
+  const hint = document.createElement("div");
+  hint.className = "wshint";
+  hint.textContent = wsT("Opens in a new tab — your current workflow stays open.");
+  menu.appendChild(hint);
+  for(const [kind, label] of [["blank","Blank canvas"],["t2i","Text to image"],["ask","Ask a model"],["examples","Browse Examples"]]){
+    const item = document.createElement("button");
+    item.type = "button";
+    item.setAttribute("data-ws", kind);
+    item.textContent = wsT(label);
+    menu.appendChild(item);
+  }
+}
+function renderWorkspaces(){
+  try{
+    if(typeof document==="undefined" || typeof $!=="function") return;
+    const tabsEl = $("wstabs");
+    if(!tabsEl) return;
+    const d = readWorkspaces();
+    if(!d) return;
+    let focusId = null;
+    try{
+      const a = document.activeElement;
+      if(a && a.closest && a.closest("#wstabs")) focusId = d.active;
+    }catch(_){}
+    tabsEl.textContent = "";
+    for(const tab of d.tabs){
+      const tabBtn = document.createElement("div");
+      tabBtn.className = "wstab"+(tab.id===d.active ? " on" : "");
+      tabBtn.setAttribute("role", "tab");
+      tabBtn.setAttribute("data-no-i18n", "");
+      tabBtn.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
+      tabBtn.tabIndex = tab.id===d.active ? 0 : -1;
+      tabBtn.dataset.id = tab.id;
+      tabBtn.title = tab.name;
+      if(tab.id===workspaceFlashId) tabBtn.classList.add("wsflash");
+      const label = document.createElement("span");
+      label.className = "wslabel";
+      label.textContent = tab.name;
+      tabBtn.appendChild(label);
+      if(d.tabs.length>1 || tabOccupied(d, tab)){
+        const x = document.createElement("button");
+        x.type = "button";
+        x.className = "wsx";
+        x.setAttribute("aria-label", wsT("Close workspace"));
+        x.textContent = "×";
+        tabBtn.appendChild(x);
+      }
+      tabsEl.appendChild(tabBtn);
+    }
+    const drop = $("wsdrop");
+    if(drop){
+      const cur = d.tabs.find(t => t.id===d.active);
+      drop.textContent = "";
+      const s = document.createElement("span");
+      s.className = "wsdropname";
+      s.textContent = cur ? cur.name : wsT("Workflow");
+      drop.appendChild(s);
+      if(d.tabs.length>1){
+        const n = document.createElement("span");
+        n.className = "wscount";
+        n.setAttribute("data-no-i18n", "");
+        n.textContent = String(d.tabs.length);
+        drop.appendChild(n);
+      }
+      drop.appendChild(document.createTextNode(" ▾"));
+    }
+    const menu = $("wsdropmenu");
+    if(menu && !menu.hidden) fillDropMenu(d);
+    if(focusId) focusWorkspaceTab(focusId);
+    try{ scrollActiveTabIntoView(); }catch(_){}
+    try{ syncWorkspaceBusy(); }catch(_){}
+  }catch(_){}
+}
+function beginWorkspaceRename(tabEl){
+  const id = tabEl && tabEl.dataset && tabEl.dataset.id;
+  const d = readWorkspaces();
+  const tab = d && d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  const label = tabEl.querySelector(".wslabel");
+  if(!label) return;
+  const inp = document.createElement("input");
+  inp.className = "wsrename";
+  inp.value = tab.name;
+  inp.maxLength = 40;
+  inp.setAttribute("aria-label", wsT("Rename workspace"));
+  inp.setAttribute("data-no-i18n", "");
+  inp.setAttribute("enterkeyhint", "done");
+  inp.autocomplete = "off";
+  inp.spellcheck = false;
+  label.replaceWith(inp);
+  inp.focus();
+  try{ inp.select(); }catch(_){}
+  let closed = false;
+  const finish = (commit)=>{
+    if(closed) return;
+    closed = true;
+    inp.removeEventListener("blur", onBlur);
+    if(commit) renameWorkspace(id, inp.value);
+    else { try{ renderWorkspaces(); }catch(_){} }
+  };
+  const onBlur = ()=> finish(true);
+  inp.addEventListener("blur", onBlur);
+  inp.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); finish(true); }
+    else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  inp.addEventListener("pointerdown", (e)=> e.stopPropagation());
+  inp.addEventListener("click", (e)=> e.stopPropagation());
+}
+let wsDrag = null, wsSuppressClick = false;
+function bindWorkspaceChrome(){
+  try{
+    if(typeof document==="undefined" || typeof $!=="function") return;
+    bindWorkspaceCloseNotice();
+    // Idempotent on its own: the plus handler is one assignment, and the tab
+    // listeners install only once. A second call does not stack either.
+    const add = $("wsadd");
+    if(add) add.onclick = (e)=>{ e.stopPropagation(); toggleChooser(); };
+    const tabs = $("wstabs");
+    if(!tabs || tabs.dataset.wsbound) return;
+    tabs.dataset.wsbound = "1";
+    tabs.addEventListener("click", (e)=>{
+      if(wsSuppressClick){ wsSuppressClick = false; return; }
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b) return;
+      if(e.target.closest(".wsx")){ e.stopPropagation(); closeWorkspace(b.dataset.id); return; }
+      switchWorkspace(b.dataset.id);
+    });
+    tabs.addEventListener("dblclick", (e)=>{
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b || (e.target.closest && e.target.closest(".wsx"))) return;
+      e.preventDefault();
+      beginWorkspaceRename(b);
+    });
+    tabs.addEventListener("keydown", (e)=>{
+      if(e.target && e.target.closest && e.target.closest("input, textarea")) return;
+      if(workspaceChord(e)) return;   // the window listener takes one step; don't also move on the arrow
+      if(e.key==="F2"){
+        const b = e.target.closest && e.target.closest(".wstab");
+        if(!b) return;
+        e.preventDefault();
+        beginWorkspaceRename(b);
+        return;
+      }
+      if((e.key==="Enter" || e.key===" ") && e.target.classList && e.target.classList.contains("wstab")){
+        e.preventDefault();
+        switchWorkspace(e.target.dataset.id);
+        return;
+      }
+      const d = readWorkspaces(); if(!d) return;
+      const i = d.tabs.findIndex(t => t.id===d.active);
+      if(e.key==="ArrowRight" || e.key==="ArrowLeft" || e.key==="Home" || e.key==="End"){
+        e.preventDefault();
+        let n;
+        if(e.key==="Home") n = d.tabs[0];
+        else if(e.key==="End") n = d.tabs[d.tabs.length-1];
+        else n = d.tabs[(i + (e.key==="ArrowRight"?1:-1) + d.tabs.length) % d.tabs.length];
+        if(n){
+          if(n.id!==d.active) switchWorkspace(n.id);
+          focusWorkspaceTab(n.id);
+        }
+      }
+    });
+    tabs.addEventListener("scroll", ()=>{ try{ syncTabOverflow(); }catch(_){} }, {passive:true});
+    let wsHoldTimer = null;
+    const clearWsHold = ()=>{ if(wsHoldTimer){ clearTimeout(wsHoldTimer); wsHoldTimer = null; } };
+    tabs.addEventListener("contextmenu", (e)=>{
+      if(e.target.closest && e.target.closest(".wstab")) e.preventDefault();
+    });
+    tabs.addEventListener("pointerdown", (e)=>{
+      if(e.button!=null && e.button!==0) return;
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b || (e.target.closest && e.target.closest(".wsx")) || (e.target.closest && e.target.closest("input"))) return;
+      const buttons = [...tabs.querySelectorAll(".wstab")];
+      wsDrag = { id:b.dataset.id, x:e.clientX, moved:false, el:b, rects:buttons.map(el=>{
+        const r = el.getBoundingClientRect();
+        return { left:r.left, mid:r.left + r.width/2 };
+      })};
+      try{ b.setPointerCapture(e.pointerId); }catch(_){}
+      // touch-hold renames a tab (double-tap is unreliable, and F2 isn't on a phone keyboard)
+      clearWsHold();
+      if(e.pointerType==="touch" || e.pointerType==="pen"){
+        wsHoldTimer = setTimeout(()=>{
+          wsHoldTimer = null;
+          if(!wsDrag || wsDrag.moved || wsDrag.el!==b) return;
+          wsDrag = null;
+          wsSuppressClick = true;
+          beginWorkspaceRename(b);
+        }, 550);
+      }
+    });
+    tabs.addEventListener("pointermove", (e)=>{
+      if(!wsDrag) return;
+      const dx = e.clientX - wsDrag.x;
+      if(!wsDrag.moved && Math.abs(dx) < 6) return;
+      wsDrag.moved = true;
+      clearWsHold();
+      wsDrag.el.style.transform = "translateX("+dx+"px)";
+      wsDrag.el.style.zIndex = "2";
+    });
+    tabs.addEventListener("pointerup", (e)=>{
+      clearWsHold();
+      if(!wsDrag) return;
+      const drag = wsDrag;
+      wsDrag = null;
+      drag.el.style.transform = "";
+      drag.el.style.zIndex = "";
+      if(!drag.moved) return;
+      wsSuppressClick = true;
+      let target = drag.rects.length;
+      for(let i=0;i<drag.rects.length;i++){ if(e.clientX < drag.rects[i].mid){ target = i; break; } }
+      commitReorder(drag.id, target);
+    });
+    tabs.addEventListener("pointercancel", ()=>{
+      clearWsHold();
+      if(!wsDrag) return;
+      wsDrag.el.style.transform = "";
+      wsDrag.el.style.zIndex = "";
+      wsDrag = null;
+    });
+    const chooser = $("wschooser");
+    if(chooser){
+      chooser.addEventListener("click", (e)=>{
+        const b = e.target.closest && e.target.closest("[data-ws]");
+        if(!b) return;
+        chooseWorkspace(b.getAttribute("data-ws"));
+      });
+      chooser.addEventListener("keydown", (e)=>{
+        const items = [...chooser.querySelectorAll("[data-ws]")];
+        if(!items.length) return;
+        const i = items.indexOf(document.activeElement);
+        if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
+        e.preventDefault();
+        const next = items[(i<0 ? 0 : i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length];
+        if(next) next.focus();
+      });
+    }
+    const dropMenu = $("wsdropmenu");
+    if(dropMenu){
+      dropMenu.addEventListener("click", (e)=>{
+        const b = e.target.closest && e.target.closest("[data-ws]");
+        if(!b) return;
+        chooseWorkspace(b.getAttribute("data-ws"));
+      });
+      dropMenu.addEventListener("keydown", (e)=>{
+        if(e.target && e.target.tagName==="INPUT") return;
+        if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
+        const items = [...dropMenu.querySelectorAll("button.wsname, button[data-ws]")];
+        if(!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement);
+        const next = items[(i<0 ? 0 : i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length];
+        if(next) next.focus();
+      });
+    }
+    const drop = $("wsdrop");
+    if(drop) drop.onclick = (e)=>{
+      e.stopPropagation();
+      const menu = $("wsdropmenu");
+      if(!menu) return;
+      const open = menu.hidden;
+      closeWorkspaceMenus();
+      if(open){
+        const d = readWorkspaces();
+        if(d) fillDropMenu(d);
+        menu.hidden = false;
+        drop.setAttribute("aria-expanded", "true");
+      }
+    };
+    document.addEventListener("click", (e)=>{
+      const ch = $("wschooser"), m = $("wsdropmenu");
+      if(ch && !ch.hidden && !(e.target.closest && e.target.closest("#wschooser,#wsadd"))) ch.hidden = true;
+      if(m && !m.hidden && !(e.target.closest && e.target.closest("#wsdropmenu,#wsdrop"))){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
+      const addBtn = $("wsadd");
+      if(addBtn && ch && ch.hidden) addBtn.setAttribute("aria-expanded", "false");
+    });
+    addEventListener("keydown", (e)=>{
+      if(e.key==="F2" && e.target && e.target.id==="wsdrop"){
+        e.preventDefault();
+        const menu = $("wsdropmenu");
+        if(menu && menu.hidden){
+          const d = readWorkspaces();
+          if(d) fillDropMenu(d);
+          menu.hidden = false;
+          e.target.setAttribute("aria-expanded", "true");
+        }
+        const inp = menu && menu.querySelector("input.wsrename");
+        if(inp){ inp.focus(); try{ inp.select(); }catch(_){} }
+        return;
+      }
+      const chord = workspaceChord(e);
+      if(chord && !workspaceOverlayOpen()){
+        e.preventDefault();
+        stepWorkspace(chord);
+        return;
+      }
+      if(e.key!=="Escape") return;
+      const ch = $("wschooser"), m = $("wsdropmenu");
+      if(m && !m.hidden){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
+      if(ch && !ch.hidden){ ch.hidden = true; const addBtn = $("wsadd"); if(addBtn) addBtn.setAttribute("aria-expanded","false"); }
+    });
+  }catch(_){}
+}
+function scrollActiveTabIntoView(){
+  const tabsEl = (typeof $==="function") ? $("wstabs") : null;
+  if(!tabsEl) return;
+  const on = tabsEl.querySelector(".wstab.on");
+  if(on){
+    const left = on.offsetLeft, right = left + on.offsetWidth;
+    const viewL = tabsEl.scrollLeft, viewR = viewL + tabsEl.clientWidth;
+    if(left < viewL + 18) tabsEl.scrollLeft = Math.max(0, left - 18);
+    else if(right > viewR - 18) tabsEl.scrollLeft = right - tabsEl.clientWidth + 18;
+  }
+  syncTabOverflow();
+}
+function syncTabOverflow(){
+  const el = (typeof $==="function") ? $("wstabs") : null;
+  if(!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  el.classList.toggle("fade-l", el.scrollLeft > 4);
+  el.classList.toggle("fade-r", max - el.scrollLeft > 4);
+}
+function syncWorkspaceBusy(){
+  const busy = typeof workspaceBusy==="function" && workspaceBusy();
+  const strip = (typeof $==="function") ? $("workspaces") : null;
+  if(strip) strip.classList.toggle("wsbusy", !!busy);
+  const add = (typeof $==="function") ? $("wsadd") : null;
+  if(add) add.setAttribute("aria-disabled", busy ? "true" : "false");
+  try{
+    document.querySelectorAll("#wstabs .wstab").forEach(el => {
+      if(busy && !el.classList.contains("on")) el.setAttribute("aria-disabled", "true");
+      else el.removeAttribute("aria-disabled");
+    });
+  }catch(_){}
+}
+function onWorkspaceHash(){
+  const h = (typeof location!=="undefined" && location.hash) || "";
+  if(!/^#(g|j|ga)=/.test(h)) return false;
+  // A shared link that lands mid-restore waits; boot replays it once the saved tabs are back.
+  if(typeof wsRestorePending!=="undefined" && wsRestorePending){ wsHashHeld = true; return false; }
+  if(typeof workspaceBusy==="function" && workspaceBusy()){
+    try{ history.replaceState({}, "", location.pathname + location.search); }catch(_){}
+    try{ flash("can’t change the workflow while running — Stop first"); }catch(_){}
+    return false;
+  }
+  if(typeof importHashOnce==="function") return importHashOnce();
+  if(typeof loadFromHash!=="function") return false;
+  return loadFromHash();
+}
+try{ addEventListener("hashchange", ()=>{ try{ onWorkspaceHash(); }catch(_){} }); }catch(_){}
+function noteFreshWorkspaceName(){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
+  if(!cur) return;
+  if(cur.name!=="Workflow" && cur.name!==wsT("Workflow")) return;
+  const named = (graph.nodes||[]).find(n => n && n.name && String(n.name).trim() && !WS_GENERIC_NAME.test(String(n.name).trim()));
+  if(!named){
+    const purpose = purposeName({ nodes:graph.nodes, links:graph.links });
+    if(!purpose) return;
+    cur.name = uniqueWorkspaceName(wsT(purpose), d.tabs.filter(t => t.id!==cur.id));
+  } else cur.name = uniqueWorkspaceName(String(named.name).trim(), d.tabs.filter(t => t.id!==cur.id));
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    // readWorkspaces hands back a copy. Keep the renamed copy when the index
+    // was never stored, and don't cover the first-write warning.
+    if(!prev.present) workspaceMemory = d;
+    else wsStorageError("save");
+    return;
+  }
+  try{ renderWorkspaces(); }catch(_){}
+}
+/* WORKSPACES-END */
+
+// Single-flight, keyed on the hash: a share link held during restore is
+// replayed AND seen by normal boot; both must resolve to one import.
+let wsHashImport = null;
+function importHashOnce(){
+  const h = (typeof location!=="undefined" && location.hash) || "";
+  if(wsHashImport && wsHashImport.hash===h) return wsHashImport.p;   // in flight only
+  const entry = { hash:h, p:null };
+  const clear = ()=>{ if(wsHashImport===entry) wsHashImport = null; };
+  entry.p = Promise.resolve().then(()=>loadFromHash());
+  entry.p.then(clear, clear);
+  // A shared graph that landed owns the canvas: bump the boot generation so a
+  // starter fetch or seed still in flight (freshGraphStillDue) is dropped.
+  entry.p.then(ok => { if(ok && typeof noteBootChoice==="function") try{ noteBootChoice(); }catch(_){} }, ()=>{});   // settled (ok or failed): the same link can be opened again or retried
+  wsHashImport = entry;
+  return entry.p;
+}
 async function loadFromHash(){
+  const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
   const h = location.hash; let json=null, ga=false;
   try{
     if(h.startsWith("#ga=")){ ga=true; const tag=h.slice(4);
@@ -17226,25 +19526,130 @@ async function loadFromHash(){
     else if(h.startsWith("#j=")) json = new TextDecoder().decode(b64urlToBytes(h.slice(3)));
   }catch{ /* bad link */ }
   if(!json) return false;
-  try{
-    // Both the app-handoff (#ga=) and the share-link (#g=/#j=) paths run at boot BEFORE load(), so the
-    // canvas is empty — pushUndo() would snapshot nothing. Park the STORED graph (same serializeGraph
-    // JSON) instead: the save() below overwrites the noodle someone left on this browser, and Ctrl+Z
-    // must bring it back. (Skip when there's nothing stored — no snapshot of an empty canvas.)
-    let parked = false;
-    try{ const prev = localStorage.getItem("noodle_graph"); if(prev){ undoStack.push({ s:prev, boundary:true, stash:null }); syncUndoBtn(); parked = true; } }catch(_){}   // boundary, no stash: fresh boot — the old session's results were memory-only and are already gone
-    if(ga){
-      const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
+  let incoming = null;
+  try{ incoming = JSON.parse(json); }catch{ return false; }
+  const graphData = ga ? incoming && incoming.graph : incoming;
+  // Shape of every node and every link, before a tab is added or the canvas cleared.
+  // {nodes:[null]} and a link to a missing id used to pass the array check.
+  const payloadOk = (typeof graphPayloadOk==="function") ? graphPayloadOk : function(g){
+    if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
+    if(g.links!=null && !Array.isArray(g.links)) return false;
+    const ids = new Set();
+    for(const n of g.nodes){
+      if(!n || typeof n!=="object" || Array.isArray(n)) return false;
+      if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
+      if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
+      if(ids.has(n.id)) return false;
+      ids.add(n.id);
     }
-    else {
-      setPendingApp(null); applyGraphData(JSON.parse(json));
-      if(parked) toast(t("↺ Undo restores your previous workflow"));   // a share link just replaced your graph — reassure it's one Ctrl+Z away
+    for(const l of (g.links||[])){
+      if(!l || typeof l!=="object" || Array.isArray(l)) return false;
+      const a = l.from, b = l.to;
+      if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
+      if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
+      if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
+      if(!ids.has(a.node) || !ids.has(b.node)) return false;
     }
-    window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
-    history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
-    save();
     return true;
-  }catch{ return false; }
+  };
+  if(!payloadOk(graphData)) return false;
+  const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
+  const keepTitle = (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null;
+  const undoBefore = (typeof undoStack!=="undefined") ? undoStack.slice() : null;
+  const redoBefore = (typeof redoStack!=="undefined") ? redoStack.slice() : null;
+  let canvasJson = null, liveStash = null;
+  try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+  try{ if(typeof _stashResults==="function") liveStash = _stashResults(); }catch(_){}
+  const activeBefore = (typeof readWorkspaces==="function" && readWorkspaces()) ? readWorkspaces().active : null;
+  const useWs = typeof workspaceShot==="function";
+  const shot = useWs ? workspaceShot(activeBefore) : null;
+  let canvasTouched = false, newActive = null;
+  const sayUnchanged = ()=>{
+    try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
+  };
+  let storedGraph;
+  try{ storedGraph = storage.getItem("noodle_graph"); }catch(_){ storedGraph = undefined; }
+  const rollbackImport = ()=>{
+    if(shot) workspaceRollback(shot, { removeId: newActive && newActive!==activeBefore ? newActive : null, canvas: canvasTouched });
+    else {
+      try{
+        if(storedGraph===undefined || storedGraph===null) storage.removeItem("noodle_graph");
+        else storage.setItem("noodle_graph", storedGraph);
+      }catch(_){}
+      if(canvasTouched && canvasJson){
+        try{ applyGraphData(JSON.parse(canvasJson), liveStash ? {resultStash:liveStash} : undefined); }catch(_){}
+      }
+      if(undoBefore && typeof undoStack!=="undefined"){
+        undoStack.splice(0, undoStack.length, ...undoBefore);
+        redoStack.splice(0, redoStack.length, ...redoBefore);
+        try{ syncUndoBtn(); }catch(_){}
+      }
+    }
+    if(typeof pendingAppId!=="undefined"){ pendingAppId = keepId; pendingAppTitle = keepTitle; }
+  };
+  try{
+    // Snapshot the canvas we are leaving BEFORE apply replaces it. An unsaved text edit
+    // and a paid result live only in memory; reading noodle_graph after apply (or instead
+    // of the live graph) stores the previous autosave and drops both.
+    const had = !!(graph.nodes && graph.nodes.length);
+    let prev = null, prevApp = null;
+    if(had && typeof flushSave==="function"){
+      // Live canvas. A quota miss returns null — do not apply the incoming graph over it.
+      prev = flushSave();
+      if(!prev){ sayUnchanged(); return false; }
+    } else {
+      // Empty canvas, or a runtime that has no workspace save (the pre-tab undo park).
+      // Keep the stored bytes — serializing an empty canvas would wipe them.
+      try{ prev = storage.getItem("noodle_graph"); }catch(_){}
+    }
+    try{ if(typeof editorAppBinding==="function") prevApp = editorAppBinding(); }catch(_){}
+    // shelve stamps the new tab from pendingAppId. Point that at the incoming app
+    // without setPendingApp, which would rewrite the tab we are leaving.
+    if(typeof pendingAppId!=="undefined"){
+      if(ga){ pendingAppId = (incoming && incoming.appId) || null; pendingAppTitle = pendingAppId ? ((incoming && incoming.title) || null) : null; }
+      else { pendingAppId = null; pendingAppTitle = null; }
+    }
+    let shelved = false;
+    if(prev && typeof shelvePreviousWorkspace==="function"){
+      const label = (typeof workspaceLabelForGraph==="function")
+        ? workspaceLabelForGraph(json, ga)
+        : (ga ? "Shared app" : "Shared workflow");
+      shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
+    }
+    // shelve is how this page keeps the workflow you were on. If it is here and it
+    // did not take the live graph, stop — applying now would drop that graph.
+    // A runtime without it (the pre-tab undo park) still applies, then parks below.
+    if(had && typeof shelvePreviousWorkspace==="function" && !shelved){
+      if(typeof pendingAppId!=="undefined"){ pendingAppId = keepId; pendingAppTitle = keepTitle; }
+      sayUnchanged();
+      return false;
+    }
+    if(typeof readWorkspaces==="function"){
+      const now = readWorkspaces();
+      if(now && now.active!==activeBefore) newActive = now.active;
+    }
+    canvasTouched = true;
+    if(ga) setPendingApp(incoming.appId, incoming.title);
+    else setPendingApp(null);
+    applyGraphData(graphData);
+    window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
+    if(!shelved && prev){
+      // No workspace list in this runtime, or the stored graph was empty: park it so one
+      // undo brings it back. That is the pre-workspace contract.
+      try{ undoStack.push({ s:prev, boundary:true, stash:null }); syncUndoBtn(); }catch(_){}
+      if(!ga) toast(t("↺ Undo restores your previous workflow"));
+    } else if(shelved && !ga){
+      toast(t("Opened in a new workspace — the one you were on is still here."));
+    }
+    if(typeof flushSave==="function"){ if(!flushSave()) throw new Error("store"); }
+    else save();
+    try{ history.replaceState({}, "", location.pathname + location.search); }catch(_){} // consume the link; edits now win
+    return true;
+  }catch(_){
+    rollbackImport();
+    sayUnchanged();
+    return false;
+  }
 }
 $("share").onclick = ()=> shareUrl().catch(e=> flash(t("share failed")+": "+e.message));
 $("shareback").onclick = closeShareMenu;
@@ -17343,11 +19748,12 @@ function closeAppModal(){
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 // "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
 function openMyApps(){
+  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   $("apppop").classList.remove("open"); $("morepop").classList.remove("open");
   if(appFrameLoaded || appFrameBooting){
     $("appmodal").hidden = false;
@@ -17365,6 +19771,7 @@ function openMyApps(){
 }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
+  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   queuedMyApps = false;   // a Create/Update supersedes a parked menu-open — don't pop the library over the fresh handoff
 
   // Same graph + builder loaded (or still booting off this very graph) → just bring your
@@ -17410,7 +19817,7 @@ async function openCreateApp(){
 $("makeapp").onclick = openCreateApp;
 // "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
-$("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); setPendingApp(null); openCreateApp(); };
+$("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; } openCreateApp(); };
 $("openapps").onclick = openMyApps;
 // Caret next to "Update app": reveal the "Save as a new app" fork (desktop only — phones hide the caret and layoutBar moves the fork into ⋯).
 $("appmore").onclick = (e)=>{ e.stopPropagation(); $("apppop").classList.toggle("open"); };
@@ -17451,6 +19858,7 @@ addEventListener("message", e=>{
   // builder asked to edit the workflow: load that app's graph onto the canvas, remember
   // its id so the next "Create app" updates it, and drop back to the editor.
   else if(e.data.type==="__editflow__"){
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     // Bind the id ONLY if the graph actually applies — otherwise "Update app" would point at
     // one app while the canvas shows another's, and the next save would overwrite the wrong app.
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
@@ -17466,8 +19874,22 @@ addEventListener("message", e=>{
     if(e.data.graph){ try{ sameFlow = (!!e.data.appId && e.data.appId===pendingAppId) || appSyncSig(e.data.graph)===appSyncSig(); }catch(_){} }
     // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z
     // away (a foreign graph is a wholesale swap → boundary entry parks its results too)
-    if(e.data.graph){ try{ pushUndo(!sameFlow); applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined); window.resetDescribeVersions?.(); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
-    if(ok) setPendingApp(e.data.appId, e.data.title);
+    if(e.data.graph && typeof graphPayloadOk==="function" && !graphPayloadOk(e.data.graph)){
+      ok = false;
+    } else if(e.data.graph){
+      let canvasJson = null, stash = null, undoLen = 0;
+      try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+      try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+      try{ undoLen = undoStack.length; }catch(_){}
+      try{
+        pushUndo(!sameFlow); applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined); window.resetDescribeVersions?.(); save(); ok = true;
+      }catch(_){
+        ok = false;
+        try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
+        try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      }
+    }
+    if(ok){ try{ setPendingApp(e.data.appId, e.data.title); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); } }
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
   }
@@ -17477,7 +19899,8 @@ addEventListener("message", e=>{
   // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
   else if(e.data.type==="__appsaved__"){
     const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
-    setPendingApp(e.data.appId, e.data.title);
+    try{ setPendingApp(e.data.appId, e.data.title); }
+    catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); }
     if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
   }
   // builder finished booting → it can hear postMessage now. Flush any handoff parked during
@@ -18149,6 +20572,51 @@ const EXAMPLES = [
            {id:"l3",from:{node:"p-move",port:"text"},to:{node:"plain",port:"prompt"}},
            {id:"l4",from:{node:"plain",port:"video"},to:{node:"fx",port:"video"}},
            {id:"l5",from:{node:"p-fx",port:"text"},to:{node:"fx",port:"prompt"}} ] } },
+ { em:"🧱", slug:"logo-pile", title:"Logo to a 3D pile, cut out", desc:"Turn a flat logo into a messy isometric pile of 3D copies, then cut it out to a transparent PNG.",
+   thumb:"examples/gallery/logo-pile/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-200,w:720,fields:{"text":"Logo to a 3D pile, in three steps. 1) FLUX.3 Klein draws a flat logo so the example runs on its own; swap it for a 📷 Image input with your own logo. 2) Qwen Image 2.1 Edit turns that logo into many thick 3D copies piled up messily, isometric and seen from a high angle, on a plain background. 3) Bria's guided background removal keeps only the pile and returns a PNG with a transparent background, ready to drop onto a slide, a banner or a product page. Inspired by @Manz's ComfyUI + Qwen Image 2.1 logo-pile workflow (https://x.com/Manz/status/2114301636029882437).","color":"yellow"}},
+           {id:"p-logo",type:"text",x:40,y:60,w:320,fields:{"text":"A flat, modern vector logo mark on a plain white background: a rounded square badge with a thick deep-navy outline and a warm tangerine-orange fill, and inside it a simple bold white paper airplane pointing up and to the right, with two short white speed lines behind it. Two flat colors plus white, clean geometric shapes, even line weight, centered with generous margins. No text, no letters, no words, no gradients, no shadows."},name:"Logo · prompt"},
+           {id:"logo",type:"image",x:400,y:40,w:280,fields:{"model":"blackforestlabs/flux-3/klein/text-to-image","size":"1024x1024","variations":"1"},name:"Flat logo · FLUX.3 Klein"},
+           {id:"p-pile",type:"text",x:40,y:420,w:320,fields:{"text":"Turn the logo in image 1 into a physical 3D object and show many copies of it: about twenty thick, solid 3D logo badges with rounded bevelled edges, each one an exact copy of this logo with the same shape, the same colors and the same white paper airplane, piled up in a messy heap. The badges are stacked messily, tilted at different angles, overlapping and leaning on each other, some lying flat and some standing on edge. Isometric view from a high angle. Soft even studio light, gentle contact shadows between the pieces, glossy plastic material. The whole pile is isolated in the center on a plain flat light grey background with nothing else in the scene. No text, no letters, no extra objects."},name:"Pile · instruction"},
+           {id:"pile",type:"edit",x:400,y:420,w:280,fields:{"model":"qwen-image-2.1/edit","size":"1k","prompt":""},name:"3D logo pile · Qwen Image 2.1 Edit"},
+           {id:"p-cut",type:"text",x:40,y:800,w:320,fields:{"text":"the pile of 3D logo badges"},name:"Keep · what to cut out"},
+           {id:"cut",type:"edit",x:400,y:780,w:280,fields:{"model":"bria/remove-background-guided","size":"auto","prompt":""},name:"Transparent PNG · Bria guided cutout"} ],
+   links:[ {id:"l1",from:{node:"p-logo",port:"text"},to:{node:"logo",port:"prompt"}},
+           {id:"l2",from:{node:"logo",port:"image"},to:{node:"pile",port:"image"}},
+           {id:"l3",from:{node:"p-pile",port:"text"},to:{node:"pile",port:"prompt"}},
+           {id:"l4",from:{node:"pile",port:"image"},to:{node:"cut",port:"image"}},
+           {id:"l5",from:{node:"p-cut",port:"text"},to:{node:"cut",port:"prompt"}} ] } },
+ { em:"📻", slug:"radio-play", title:"Radio play: two voices, one Speech node", desc:"One Speech node voices a two-character radio play: an LLM writes the lines and a cast note tells Gemini TTS which voice is which.",
+   thumb:"examples/gallery/radio-play/preview.svg",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-200,w:940,fields:{"text":"Two voices from one Speech node. GLM 5.3 Flash writes a short radio play as \"Name: line\" lines. Join puts a fixed cast note in front: \"TTS the following conversation between Tilly and Rotor\", which voice goes with which character, and \"Do not read the speaker names aloud\". Gemini 3.1 Flash TTS reads the whole thing as a two-person scene. Keep the cast note's wording close to this; when it was rephrased as \"a lively radio play\", every line came back in one voice. Rename the characters in both the idea and the cast note. Inspired by @jeffreyabrick's two-voice radio play (https://x.com/jeffreyabrick/status/2113269680702156843).","color":"yellow"}},
+           {id:"p-idea",type:"text",x:40,y:60,w:320,fields:{"text":"A one-minute radio play. Tilly, a calm old village baker, and Rotor, a jumpy young delivery drone on its very first morning, have to get a three-tier birthday cake up a windy hill to the lighthouse before the party at noon. Rotor is nervous and too literal; Tilly is patient and dry. A small mishap, a clever fix, and a happy landing."},name:"Story idea"},
+           {id:"script",type:"llm",x:400,y:40,w:300,fields:{"model":"z-ai/glm-5.3-flash","system":"Write a short, original, family-friendly radio play from the idea. Only two speakers: Tilly and Rotor. Output only dialogue lines, one per line, each starting with the speaker's name and a colon, for example \"Tilly: ...\". 8 to 10 lines, alternating speakers, 90 to 120 words in total. Give it a clear beginning, a small problem, a fix and a warm ending; no line repeats an earlier beat. No narrator, no sound-effect lines, no stage directions outside the lines, no markdown, no title."},name:"Script · GLM 5.3 Flash"},
+           {id:"p-cast",type:"text",x:40,y:720,w:320,fields:{"text":"TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud."},name:"Cast · voice direction"},
+           {id:"cast",type:"join",x:400,y:740,w:220,fields:{"sep":"\\n"},name:"Direction + script"},
+           {id:"voice",type:"tts",x:760,y:560,w:300,fields:{"model":"gemini-3.1-flash-tts-preview","voice":"Puck","response_format":"wav"},name:"Two-voice radio play · Gemini 3.1 Flash TTS"} ],
+   links:[ {id:"l1",from:{node:"p-idea",port:"text"},to:{node:"script",port:"prompt"}},
+           {id:"l2",from:{node:"p-cast",port:"text"},to:{node:"cast",port:"a"}},
+           {id:"l3",from:{node:"script",port:"text"},to:{node:"cast",port:"b"}},
+           {id:"l4",from:{node:"cast",port:"text"},to:{node:"voice",port:"prompt"}} ] } },
+ { em:"🦊", slug:"swap-the-character", title:"Swap the character, keep the performance", desc:"Swap the person in a clip for a character from one image, keeping their moves, the camera and the scene.",
+   thumb:"examples/gallery/swap-the-character/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-190,w:1180,fields:{"text":"Swap the character, keep the performance. The first nodes just make a 5 s performance clip (a Muse still of an invented cartoon dancer → H3 Max Turbo, 480p) and a Muse still of a new character (a plush fox). The Video edit node sends both to Wan 2.2 Animate in replace mode: the fox takes over the dancer's moves, while the plaza, the camera move and the sound stay. To use your own clip, delete the dancer nodes and wire a 📹 Video input into Video edit; to use your own character, wire a 📷 Image input into its character port. Keep both the same aspect ratio. Inspired by @ComfyUI's OPENjutsu post: https://x.com/ComfyUI/status/2114843030364795231","color":"yellow"}},
+           {id:"p-scene",type:"text",x:40,y:40,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. Scene: a small cobblestone town square at golden hour with a stone fountain, pastel shopfronts and string lights. In the center stands one invented cartoon street dancer, a lanky young man with stylized cartoon proportions, fully clothed in a mustard-yellow raincoat, a green knit beanie, blue jeans and red sneakers. He is seen full body from head to shoes with space around him, facing the camera, arms relaxed at his sides. Wide medium shot at eye level. No text, no logos, no other people."},name:"Dancer · prompt"},
+           {id:"scene",type:"image",x:400,y:20,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Dancer still · Muse"},
+           {id:"p-move",type:"text",x:40,y:360,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors. One continuous shot with no cuts. The camera slowly pushes in and drifts a little to the left. The street dancer stays full body in frame: he steps side to side, raises both arms high and spins around once, then finishes with a big theatrical bow toward the camera. The fountain sprays softly and the string lights glow. No text, no other people."},name:"Performance · motion prompt"},
+           {id:"driver",type:"ivideo",x:760,y:20,w:300,fields:{"model":"minimax/h3-max-turbo","prompt":"","resolution":"480p","duration":"5","loras":[]},name:"Performance clip · H3 Max Turbo 480p"},
+           {id:"p-char",type:"text",x:40,y:680,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. One invented character: a plush fox toy brought to life, standing upright on two legs like a person, with soft orange felt fur, a cream belly and muzzle, black felt paws, a fluffy white-tipped tail, small button eyes, and a mustard-yellow knitted scarf. Full body from ears to feet with space around it, facing the camera, arms relaxed at its sides, centered, against a plain soft warm-gray studio backdrop. Wide medium shot at eye level. No text, no logos."},name:"New character · prompt"},
+           {id:"char",type:"image",x:400,y:660,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"New character · Muse"},
+           {id:"swap",type:"vedit",x:1140,y:300,w:300,fields:{"model":"wan-22-animate","prompt":"","resolution":"480p","modelOpts":{"mode": "replace"},"loras":[]},name:"Swap · Wan 2.2 Animate (replace)"} ],
+   links:[ {id:"l1",from:{node:"p-scene",port:"text"},to:{node:"scene",port:"prompt"}},
+           {id:"l2",from:{node:"scene",port:"image"},to:{node:"driver",port:"image"}},
+           {id:"l3",from:{node:"p-move",port:"text"},to:{node:"driver",port:"prompt"}},
+           {id:"l4",from:{node:"p-char",port:"text"},to:{node:"char",port:"prompt"}},
+           {id:"l5",from:{node:"driver",port:"video"},to:{node:"swap",port:"video"}},
+           {id:"l6",from:{node:"char",port:"image"},to:{node:"swap",port:"image"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"From scene to short clip", desc:"Generate a first frame, then animate it with a separate motion brief.",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -18324,8 +20792,26 @@ function openExamples(){
 function closeExamples(){ $("examplesmodal").hidden=true; }
 function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;   // the gallery can also be open from before boot settled
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
+  const had = graph.nodes.length > 0;
+  if(typeof openExampleWorkspace==="function"){
+    const name = t(ex.title);
+    const how = openExampleWorkspace(JSON.parse(JSON.stringify(ex.graph)), name, ex.slug);
+    dismissHint();
+    if(how==="open") toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
+    else if(how==="switch") toast(t("“{name}” is already open.").replace("{name}", name));
+    else if(how==="absorb") toast(t("✓ loaded example")+": "+name);
+    return;
+  }
+  if(had && typeof openWorkspaceWithGraph==="function"){
+    const name = t(ex.title);
+    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { respectCap:true, fit:true });
+    dismissHint();
+    if(ok) toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
+    return;
+  }
   pushUndo(true);                                // BEFORE the mutation — boundary: an example is an unrelated graph; ↺ Undo restores the prior graph + its paid results
   setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
   applyGraphData(JSON.parse(JSON.stringify(ex.graph)));  // deep-clone: applyGraphData spreads nodes shallowly and mutates them, so a raw template would be corrupted for the next load
@@ -18501,6 +20987,26 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
+  try{ ensureWorkspaces({ quiet:true }); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  try{ bindWorkspaceChrome(); }catch(_){}
+  // Restoring the durable workspace precedes edits. Plus remains available and
+  // its existing deferred choice runs once that restore has settled.
+  const topWasInert = $("top").inert, editorWasInert = editor.inert;
+  $("top").inert = true; editor.inert = true;
+  wsRestorePending = true;
+  try{ await initWorkspaceStorage(); }
+  finally{ wsRestorePending = false; $("top").inert = topWasInert; editor.inert = editorWasInert; }
+  // A link held mid-restore is replayed IN the boot sequence below, at the
+  // shared-link step, so its import owns the initial canvas: load() and the
+  // starter/seed only run if it did not land. (A detached replay raced the slow
+  // starter fetch, which then overwrote the shared graph on a fresh profile.)
+  wsHashHeld = false;
+  // These do not share a catch. A QuotaExceededError from the first
+  // noodle_workspaces write must not skip the plus button.
+  try{ ensureWorkspaces(); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  try{ bindWorkspaceChrome(); }catch(_){}
   document.documentElement.lang = LANG;  // detected (or persisted) UI language
   buildLangMenu();
   translateTree(document.body);           // translate the static chrome once (toolbar, key row, picker header…)
@@ -18531,19 +21037,28 @@ $("signout").onclick = ()=> setKey(null);
         const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra) setPendingApp(ra, sessionStorage.getItem(RESUME_APPTITLE_KEY) || null);   // keep the edit-workflow link across login
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
-  if(!restored && location.hash.length > 3){ restored = await loadFromHash();   // opened a shared link
+  if(!restored && location.hash.length > 3){ restored = await importHashOnce();   // opened a shared link (single-flight with the held replay)
     if(restored) fitView(hintPad());   // always frame the sharer's graph for THIS screen — the visitor hasn't positioned it (same as loadDefault); hintPad() reserves the first-run banner if it's up
   }
   if(!restored && (restored = load())){                          // else last local graph...
     // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
     // (the binding lives outside noodle_graph; without this the next "Create app" would
     // spawn a duplicate of the very app the user was editing).
-    try{ const b = JSON.parse(localStorage.getItem(EDITOR_APP_KEY) || "null");
+    try{ const b = JSON.parse(workspaceStorage.getItem(EDITOR_APP_KEY) || "null");
       if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
   }
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
-  if(!restored) restored = await loadDefault();                   // else noodle-graph.json
-  if(!restored) seed();                                           // else built-in starter
+  const bootGenAtStarter = typeof bootGeneration==="function" ? bootGeneration() : 0;
+  if(!restored && (typeof freshGraphStillDue!=="function" || freshGraphStillDue(bootGenAtStarter))) restored = await loadDefault(); // else noodle-graph.json
+  // A Blank click during that await moves bootGen. Do not seed six nodes onto it.
+  if(!restored && (typeof freshGraphStillDue!=="function" || freshGraphStillDue(bootGenAtStarter))) seed(); // else built-in starter
+  // The default tab already exists (created before this await). Name it from the
+  // graph now on the canvas, still without rewriting noodle_graph, then run a
+  // new-tab choice the user made while the page was blank.
+  try{
+    finishInitialCanvas({fresh:freshStart});
+    renderWorkspaces();
+  }catch(_){}
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
@@ -18562,6 +21077,7 @@ $("signout").onclick = ()=> setKey(null);
     }catch(_){}
   }
   updateTitle();                                                  // reflect whether an app's workflow is loaded
+  try{ renderWorkspaces(); }catch(_){}
   redraw();
   // Reconcile once the fresh catalog lands: resize cards, backfill default models, refresh prices/panels
   // and redraw wires to the new port positions. For a returning visitor this is a no-op-ish nudge; for a
@@ -18708,6 +21224,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.videoInputs) ins.push("clip1:video, clip2:video, …");
       if(t.refInputs) ins.push("ref1:image, ref2:image, … (when model supports reference images)");
       if(t.endFrame) ins.push("endframe:image (when model supports last_image morph)");
+      if(t.charInput) ins.push("image:image (character still — image+video->video models like wan-22-animate)");
       if(t.imageInputs){
         if(t.imageInputs === "vision" || t.imageInputs === true)
           ins.push("img1:image, … (vision models grow ports as needed)");
@@ -18889,6 +21406,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.audioInput && port==="audio") return true;
       if(t.videoInput && port==="video") return true;
       if(t.endFrame  && port==="endframe") return true;
+      if(t.charInput && port==="image") return true;
       if(t.refInputs && REF_PORT_RE.test(port)) return true;
       return textFieldPorts(type).includes(port);
     };
@@ -19067,6 +21585,7 @@ RULES for the diff:
   window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); hideDetail(); };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // a version jump mid-run replaces the graph under in-flight (already-charged) nodes — strand-proof, like the per-node delete guard
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
@@ -19220,6 +21739,7 @@ RULES for the diff:
     if(busy) return;
     const text = input.value.trim();
     if(!text){ input.focus(); return; }
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);
@@ -19519,6 +22039,7 @@ function tryDblclickDanglingAddWire(portEl){
   const undoBefore = undoStack.slice(), redoBefore = redoStack.slice();
   const nidBefore = nid, lidBefore = lid;
   const mutedBefore = undoMuted;
+  try{ claimInitialCanvas(); }catch(_){}
   pushUndo(); undoMuted = true;
   const rollback = ()=>{
     try{

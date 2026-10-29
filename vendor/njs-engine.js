@@ -1,5 +1,5 @@
-/* data-hash=fa9a6c7a9eb0a786 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-93d3d3743635 (19 modules) */
+/* data-hash=1bb26ea68cc7197e */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-ff85ffefd391 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -2017,9 +2017,11 @@ function loraKind(type) { return (type === "image" || type === "edit" || type ==
 function imageTakesLora(id) {
   id = String(id || "");
   if (/inpaint/i.test(id)) return false;
-  // flux-2-klein-* only (lora-capable per catalog); FLUX.3 Klein (blackforestlabs/flux-3/klein/…)
-  // takes no lora_url — twin of the app's imageTakesLora (nanoodle #732)
+  // twin of the app's imageTakesLora (nanoodle #732, #764): flux-2-klein-* is lora-capable;
+  // FLUX.3 Klein text-to-image (base + distilled) gained lora_url_1..3 in the catalog on
+  // 2026-10-27, but FLUX.3 Klein edit-image still takes no lora_url
   if (/flux-2-klein/i.test(id)) return true;
+  if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
@@ -2553,7 +2555,12 @@ const RUNNERS = {
     const prompt = promptOf(n, inp);
     const opts = { ...videoSourceOpts(inp.video), ...videoDims(n, ctx), lora: loraParams(n), extra: n.fields.modelOpts || {} };
     applyRefs(opts, collectPorts(inp, REF_PORT_RE), n, ctx); // ref wires (seedance video-edit family) — same key/cap resolution as tvideo
-    return { video: await ctx.video(mdl(n), prompt, opts, null) };
+    // Character image (image+video->video motion-control / replace models, e.g. Wan 2.2 Animate):
+    // the wired still rides as imageDataUrl next to the driver video. Gated on the catalog so a
+    // stale wire left after a swap to a plain v2v model is never sent; catalog miss → send (the
+    // wire was authored deliberately, same permissive-ON stance as ivideo's endframe).
+    const image = inp.image && vEditTakesImage(ctx && ctx.catalog, n.fields.model) ? await fitImage(inp.image, ctx, "character image") : null;
+    return { video: await ctx.video(mdl(n), prompt, opts, image) };
   },
 
   async lipsync(n, inp, ctx) {
@@ -2685,6 +2692,18 @@ const RUNNERS = {
  * HeyGen Avatar V). Catalog miss → true (the long-standing portrait requirement).
  * Mirrors play's built-in lipsync runner: raw `capabilities.image_to_video` or a normalized `i2v`.
  */
+// Video-edit models that take a character/reference still AND a driver video but no text prompt
+// (architecture image+video->video: Wan 2.2 Animate replace/animate, Kling / PixVerse motion
+// control, P-Video Animate). Text+image+video "unified" models are excluded: for them an image
+// usually switches the job to image→video and drops the source clip. Catalog miss → true.
+function vEditTakesImage(catalog, model) {
+  const m = catItem(catalog, "video", model);
+  if (!m) return true;
+  const a = m.architecture || {};
+  const mods = Array.isArray(a.input_modalities) ? a.input_modalities : String(a.modality || "").split("->")[0].split("+");
+  return mods.includes("image") && mods.includes("video") && !mods.includes("text");
+}
+
 function avatarNeedsPortrait(catalog, model) {
   const m = catItem(catalog, "video", model);
   return !m || !!((m.capabilities || {}).image_to_video) || !!m.i2v;
@@ -2710,7 +2729,7 @@ function model3dInputMods(catalog, id) {
   return { image: true, text: true };
 }
 
-__x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS;
+__x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS; __x.vEditTakesImage = vEditTakesImage;
 });
 __def("catalog.mjs", function (__x, __req) {
 /**
@@ -6198,5 +6217,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-93d3d3743635";
+  window.NanoodleEngine.version = "src-ff85ffefd391";
 })();

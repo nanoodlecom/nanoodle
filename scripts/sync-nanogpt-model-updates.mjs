@@ -19,6 +19,8 @@
 //   retired/deprecated/removed  → "Retired: …"
 //   now use / default / upgraded / returns → "Updated: …" (not "New LLM models")
 //   price/pricing/cheaper/discount → "Pricing: …"
+//   a /provider/ link or "provider selector" in the body → "NanoGPT provider update: …"
+//     (a new NanoGPT inference provider for existing models, never "New … models")
 //   else → "New LLM/image/video/audio model(s): …" matching the link kind
 //
 // Source of truth is GET https://nano-gpt.com/api/updates (public JSON, paginated
@@ -55,11 +57,34 @@ import {
   fetchApiUpdates,
   groupPending,
   selectPending,
+  catalogCreatedMap,
   shouldStopFetching,
 } from "./lib/nanogpt-updates.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SEEN_FILE = join(root, "scripts", "nanogpt-model-updates-seen.json");
+// Test hooks (used by scripts/check-sync-nanogpt-model-updates.mjs with --dry-run):
+// NANOGPT_SEEN_FILE swaps the seen file, NANOGPT_UPDATES_FIXTURE replaces the
+// network fetch with a JSON array of cards. Neither is set in production.
+const SEEN_FILE = process.env.NANOGPT_SEEN_FILE || join(root, "scripts", "nanogpt-model-updates-seen.json");
+const FIXTURE_FILE = process.env.NANOGPT_UPDATES_FIXTURE || "";
+const CATALOG_FIXTURE = process.env.NANOGPT_CATALOG_FIXTURE || "";
+const CATALOG_URL = "https://nano-gpt.com/api/v1/models";
+
+// Known models for the provider-only check: NanoGPT's public catalog with
+// each model's `created` date. No key is sent. On failure we fall back to the
+// feed + seen file only, which errs toward "new models" (never hides a launch).
+async function loadCatalogCreated() {
+  try {
+    const json = CATALOG_FIXTURE ? JSON.parse(readFileSync(CATALOG_FIXTURE, "utf8"))
+      : await (await fetch(CATALOG_URL, { signal: AbortSignal.timeout(20000) })).json();
+    const map = catalogCreatedMap(json);
+    log(`catalog: ${map.size} model(s) with created dates`);
+    return map;
+  } catch (e) {
+    log(`catalog unavailable (${e.message}) — provider check uses feed + seen only`);
+    return null;
+  }
+}
 const UPDATES_URL = "https://nano-gpt.com/updates";
 const API_URL = "https://nano-gpt.com/api/updates";
 
@@ -105,6 +130,11 @@ function renderUpdatesPage() {
 }
 
 async function loadCards(seen) {
+  if (FIXTURE_FILE) {
+    const cards = JSON.parse(readFileSync(FIXTURE_FILE, "utf8"));
+    log(`loaded ${cards.length} card(s) from fixture`);
+    return { source: "fixture", cards };
+  }
   try {
     const cards = await fetchApiUpdates(fetch, {
       url: API_URL,
@@ -158,7 +188,7 @@ async function main() {
     process.exit(0);
   }
 
-  const pending = selectPending(cards, seen);
+  const pending = selectPending(cards, seen, { catalogCreated: await loadCatalogCreated() });
   if (!pending.length) {
     log("no new model / retirement / pricing cards since the last check. Nothing to do.");
     process.exit(0);

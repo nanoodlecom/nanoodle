@@ -126,8 +126,10 @@ const MIN_LEN = 40;
 const DRIFT_SIMILARITY = 0.72;
 
 // If the baseline is this far out of date, per-line classification is noise. Report the totals and
-// send the developer to the refresh instead.
-const MAX_CLASSIFY = 200;
+// send the developer to the refresh instead. Must stay above the shared lines a whole-resolver
+// extraction removes (check-twin-drift-cases row 5): that block grows with every quote-table
+// row, and at 200 it was exactly full (2026-10-29, H3 Lite/Highspeed rates made it 205).
+const MAX_CLASSIFY = 250;
 
 const failures = [];
 const notes = [];

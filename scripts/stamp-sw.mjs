@@ -20,6 +20,16 @@ try {
   if (next === src) { console.log("[stamp-sw] CACHE line not found — sw.js unchanged"); process.exit(0); }
   writeFileSync(path, next);
   console.log(`[stamp-sw] CACHE -> ${tag}`);
+  // Same sha7 on the editor page itself, so the post-deploy smoke (scripts/smoke-live.mjs) can
+  // prove the HTML it tested is this deploy, not just the service worker. Separate try: a miss
+  // here must never undo or block the sw.js stamp.
+  try {
+    const ipath = new URL("../index.html", import.meta.url);
+    const html = readFileSync(ipath, "utf8");
+    const inext = html.replace(/<meta name="nanoodle-build" content="[^"]*" \/>/, `<meta name="nanoodle-build" content="${sha.slice(0, 7)}" />`);
+    if (inext === html) console.log("[stamp-sw] nanoodle-build meta not found — index.html unchanged");
+    else { writeFileSync(ipath, inext); console.log(`[stamp-sw] index.html build -> ${sha.slice(0, 7)}`); }
+  } catch (e) { console.log("[stamp-sw] non-fatal, index.html build stamp skipped:", (e && e.message) || e); }
 } catch (e) {
   console.log("[stamp-sw] non-fatal, leaving sw.js as-is:", (e && e.message) || e);
 }

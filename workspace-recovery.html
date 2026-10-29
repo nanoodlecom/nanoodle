@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex">
+<title>Recover saved workspaces — nanoodle</title>
+<style>
+  :root{color-scheme:dark;font:16px/1.5 system-ui;background:#10131b;color:#eef0f8}
+  body{max-width:48rem;margin:3rem auto;padding:0 1.25rem} h1{font-size:1.8rem} h2{font-size:1.1rem;margin:2rem 0 .5rem}
+  button,a{color:inherit} button{border:1px solid #626b87;border-radius:.5rem;background:#252c40;padding:.65rem .9rem;cursor:pointer}
+  li{margin:.6rem 0;display:flex;gap:.75rem;align-items:center;justify-content:space-between} ul{padding:0;list-style:none}
+  #notice{padding:.8rem;border:1px solid #626b87;border-radius:.5rem} small{display:block;color:#b9c0d3}
+</style>
+<h1>Recover saved workspaces</h1>
+<p>This page only reads backups from this browser. It never changes or deletes them and sends nothing to a server.</p>
+<p>Download a workflow, then open it with <b>Load</b> in the editor. Workflow files include uploaded inputs. Generated results and unsaved in-memory edits are not included.</p>
+<p id="notice" role="status">Reading saved workspaces…</p>
+<p><button id="retry" type="button">Read backups again</button> <button id="archive" type="button" disabled>Download full recovery archive</button></p>
+<small>The full archive preserves storage records for recovery; use the individual workflow files with Load.</small>
+<main id="backups"></main>
+<p><a href="/">Return to the editor</a></p>
+<script>
+const RECOVERY_KEY="noodle_workspace_recovery";
+const owned=k=>k==="noodle_graph" || k==="noodle_workspaces" || k==="noodle_editor_app" || /^noodle_ws_/.test(k);
+function rawStorage(kind){try{return kind==="local"?localStorage:sessionStorage;}catch{return null;}}
+function scoped(values){return Object.fromEntries(Object.entries(values||{}).filter(([k,v])=>owned(k)&&typeof v==="string"));}
+function download(text,name){
+  const url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  const a=document.createElement("a"); a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function readSaved(){
+  return new Promise(resolve=>{
+    let done=false, db=null;
+    const finish=value=>{if(done)return;done=true;clearTimeout(timer);try{db?.close();}catch{}resolve(value);};
+    const timer=setTimeout(()=>finish({error:"timeout"}),5000);
+    try{
+      const request=indexedDB.open("nanoodle-workspaces");
+      request.onupgradeneeded=()=>request.transaction.abort(); // never create or upgrade a database here
+      request.onerror=()=>finish({error:request.error?.name||"unavailable"});
+      request.onsuccess=()=>{
+        db=request.result;if(done){db.close();return;}
+        try{
+          const read=db.transaction("workspaces","readonly").objectStore("workspaces").get("state");
+          read.onsuccess=()=>finish({record:read.result||null});
+          read.onerror=()=>finish({error:read.error?.name||"unavailable"});
+        }catch{finish({error:"unavailable"});}
+      };
+    }catch{finish({error:"unavailable"});}
+  });
+}
+function show(values,label,source){
+  values=scoped(values);
+  let index=null;try{index=JSON.parse(values.noodle_workspaces||"null");}catch{}
+  const tabs=Array.isArray(index?.tabs)?index.tabs:values.noodle_graph?[{id:"w1",name:"Workflow"}]:[];
+  if(!tabs.length)return;
+  const title=document.createElement("h2");title.textContent=label;
+  const list=document.createElement("ul");
+  for(const tab of tabs){
+    const json=tab.id===index?.active || !index?values.noodle_graph:values["noodle_ws_"+tab.id];
+    const row=document.createElement("li"),name=document.createElement("span"),button=document.createElement("button");
+    name.textContent=String(tab.name||"Workflow");button.type="button";button.textContent="Download workflow";
+    button.dataset.source=source;button.dataset.id=String(tab.id);button.disabled=typeof json!=="string";
+    button.onclick=()=>download(json,(String(tab.name||"workflow").replace(/[^a-z0-9_-]/gi,"-").slice(0,64)||"workflow")+".json");
+    row.append(name,button);list.append(row);
+  }
+  document.getElementById("backups").append(title,list);
+}
+async function refresh(){
+  const retry=document.getElementById("retry");retry.disabled=true;
+  document.getElementById("archive").disabled=true;
+  document.getElementById("backups").replaceChildren();
+  document.getElementById("notice").textContent="Reading saved workspaces…";
+  const local=rawStorage("local"),legacy=Object.create(null),visits=[];
+  try{for(let i=0;i<local.length;i++){const key=local.key(i);if(owned(key))legacy[key]=local.getItem(key);}}catch{}
+  for(const [kind,storage] of [["local",local],["session",rawStorage("session")]]){
+    try{const d=JSON.parse(storage?.getItem(RECOVERY_KEY)||"null");if(d?.values)visits.push({kind,v:d.v,id:d.id,updated:d.updated,values:scoped(d.values)});}catch{}
+  }
+  const saved=await readSaved();
+  if(saved.record?.values)show(saved.record.values,"Saved browser tabs","browser");
+  for(const visit of visits)show(visit.values,"Recovery visit ("+visit.kind+")","recovery");
+  show(legacy,"Legacy local backup","legacy");
+  const archive={format:"nanoodle-workspace-recovery-v1",browser:saved.record?{v:saved.record.v,recoveryId:saved.record.recoveryId,values:scoped(saved.record.values)}:null,visits,legacy,error:saved.error||null};
+  const exportButton=document.getElementById("archive");exportButton.disabled=false;
+  exportButton.onclick=()=>download(JSON.stringify(archive,null,2),"nanoodle-workspace-recovery.json");
+  document.getElementById("notice").textContent=saved.error
+    ? "Browser-saved tabs could not be read. Nothing was changed. Available local backups are listed below; retry when storage is available."
+    : "Backups are ready. Download the workflows you need; nothing has been changed.";
+  retry.disabled=false;
+}
+document.getElementById("retry").onclick=refresh;
+refresh();
+</script>
+</html>

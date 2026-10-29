@@ -1348,5 +1348,167 @@
     "preview": "add-snow-to-a-clip/preview.webp",
     "workflow": "add-snow-to-a-clip/workflow.json",
     "workflowSha256": "9e3d953f5693662da9075ffa74adab5cb43c7d9f9515b9d0b3c71c3867c555ad"
+  },
+  {
+    "slug": "logo-pile",
+    "title": "Logo to a 3D pile, cut out",
+    "date": "2026-10-26",
+    "review": "A flat paper-airplane badge becomes a heap of 3D copies on a transparent background",
+    "note": "FLUX.3 Klein draws a flat two-color logo: a rounded square badge with a navy outline, a tangerine fill and a white paper airplane with two speed lines. Qwen Image 2.1 Edit gets that logo as image 1 and an instruction to make about twenty thick 3D copies, piled up messily, tilted and overlapping, isometric from a high angle, on a plain light grey background. It returns a heap of about two dozen glossy badges that all keep the navy rim, the orange face and the white airplane. Bria's guided background removal is told to keep \"the pile of 3D logo badges\" and returns a 1024\u00d71024 PNG where the grey background is fully transparent and the pile edges are clean, so it can go straight onto a slide or a banner. Flaws: the Klein logo has slightly soft, uneven edges, the kind you get from a raster model, not true vector. In the pile, every badge lies flat or tilted; none stands on its edge as the instruction asked. The badges are thinner than \"thick\", and a few airplanes are simplified or mirrored copies of the original. The cutout drops the contact shadows, so the pile floats when placed on a new background. Swap the FLUX.3 Klein node for a \ud83d\udcf7 Image input to pile up your own logo. Every image was checked and is SFW (an invented logo shape only; no people, no text, no real brands). Inspired by @Manz's ComfyUI + Qwen Image 2.1 logo-pile workflow (https://x.com/Manz/status/2114301636029882437). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.069,
+    "costExact": true,
+    "models": [
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "qwen-image-2.1/edit",
+      "bria/remove-background-guided"
+    ],
+    "graphSha256": "8cbfbdddb78f8978afb254f6cce7d43f77d05fe32eb17e937148bfbb7f2cab80",
+    "inputs": [
+      {
+        "label": "Logo \u00b7 prompt",
+        "text": "A flat, modern vector logo mark on a plain white background: a rounded square badge with a thick deep-navy outline and a warm tangerine-orange fill, and inside it a simple bold white paper airplane pointing up and to the right, with two short white speed lines behind it. Two flat colors plus white, clean geometric shapes, even line weight, centered with generous margins. No text, no letters, no words, no gradients, no shadows."
+      },
+      {
+        "label": "Pile \u00b7 instruction",
+        "text": "Turn the logo in image 1 into a physical 3D object and show many copies of it: about twenty thick, solid 3D logo badges with rounded bevelled edges, each one an exact copy of this logo with the same shape, the same colors and the same white paper airplane, piled up in a messy heap. The badges are stacked messily, tilted at different angles, overlapping and leaning on each other, some lying flat and some standing on edge. Isometric view from a high angle. Soft even studio light, gentle contact shadows between the pieces, glossy plastic material. The whole pile is isolated in the center on a plain flat light grey background with nothing else in the scene. No text, no letters, no extra objects."
+      },
+      {
+        "label": "Keep \u00b7 what to cut out",
+        "text": "the pile of 3D logo badges"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "logo-pile/logo.webp",
+        "kind": "image",
+        "label": "1. Flat logo: FLUX.3 Klein 1024\u00b2 \u00b7 reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "869b45ab02cbd2ddc39fc880ea68531fafaee8af0f32ef627c1eeb0ab126e99d"
+      },
+      {
+        "src": "logo-pile/pile.webp",
+        "kind": "image",
+        "label": "2. 3D pile: Qwen Image 2.1 Edit 1k \u00b7 reported $0.03",
+        "costUsd": 0.03,
+        "sha256": "dc46b6332a1a4f30ed8d2075f6fd68f68c14a5e3bbbf2fd26e6bf88588486dbe"
+      },
+      {
+        "src": "logo-pile/pile-cutout.webp",
+        "kind": "image",
+        "label": "3. Transparent cutout: Bria guided background removal \u00b7 reported $0.03",
+        "costUsd": 0.03,
+        "sha256": "57470e1fb2b7352d83648a5d40dab529d82082d22054ffaf0ce099dc84211aa8"
+      }
+    ],
+    "preview": "logo-pile/preview.webp",
+    "workflow": "logo-pile/workflow.json",
+    "workflowSha256": "8cbfbdddb78f8978afb254f6cce7d43f77d05fe32eb17e937148bfbb7f2cab80"
+  },
+  {
+    "slug": "radio-play",
+    "title": "Radio play: two voices, one Speech node",
+    "date": "2026-10-26",
+    "review": "Audio sample: a baker and a first-day delivery drone, two distinct voices",
+    "note": "The story idea goes to GLM 5.3 Flash, which writes a 10-line, 126-word radio play as \"Tilly: \u2026\" / \"Rotor: \u2026\" lines: Tilly, a calm old baker, talks a jumpy delivery drone on its first morning through getting a three-tier cake up a windy hill to a lighthouse. A gust tilts the top tier, they split the cake into three trips, a gull nearly gets the last one, and the keeper names a cupcake after Rotor. Join puts a fixed cast note in front of the script (\"TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud.\"), and Gemini 3.1 Flash TTS reads it as one 1:09 scene. A diarizing transcription model (Voxtral) splits the recording into two speakers that switch exactly where the script switches, Tilly low (about 108 Hz) and Rotor high (about 253 Hz), and no speaker names are read aloud. Flaws: the delivery is slow for 126 words, with long gaps between lines. Gemini picks its own timbres from the cast note: Tilly comes out as a deep, rather masculine voice, not obviously the Kore voice named in the note. The script repeats one beat (\"not a crumb lost\" and \"not one crumb dropped\"). This depends on the cast note's wording: a first take that called it \"a lively radio play\" came back in one voice and is not used. The model is a preview. Every line was checked against the transcript and is family-friendly. Inspired by @jeffreyabrick's two-voice radio play (https://x.com/jeffreyabrick/status/2113269680702156843). No media from that post is used.",
+    "costUsd": 0.0985,
+    "costExact": false,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "gemini-3.1-flash-tts-preview"
+    ],
+    "graphSha256": "79fe075fd1c168d62c1d3e30d70db5cb7e69ca5ccf6fee1b4873024572e50f72",
+    "inputs": [
+      {
+        "label": "Story idea",
+        "text": "A one-minute radio play. Tilly, a calm old village baker, and Rotor, a jumpy young delivery drone on its very first morning, have to get a three-tier birthday cake up a windy hill to the lighthouse before the party at noon. Rotor is nervous and too literal; Tilly is patient and dry. A small mishap, a clever fix, and a happy landing."
+      },
+      {
+        "label": "Cast \u00b7 voice direction",
+        "text": "TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "radio-play/radio-play.mp3",
+        "kind": "audio",
+        "label": "Radio play: Gemini 3.1 Flash TTS, two voices, 1:09 \u00b7 about $0.097 by balance",
+        "costUsd": 0.097098,
+        "sha256": "11d12406ecc58be3a3811c35cd5e0c66ab72a4af624aa7ecdad9109cddcb0f39"
+      },
+      {
+        "src": "radio-play/script.txt",
+        "kind": "text",
+        "label": "Script: GLM 5.3 Flash \u00b7 reported $0.0009",
+        "costUsd": 0.000876,
+        "sha256": "eba462c8bcb7d67f3fecee06d813073ad850e7879af947e61b2d1d14b0ebb2ae"
+      }
+    ],
+    "preview": "radio-play/preview.svg",
+    "workflow": "radio-play/workflow.json",
+    "workflowSha256": "79fe075fd1c168d62c1d3e30d70db5cb7e69ca5ccf6fee1b4873024572e50f72"
+  },
+  {
+    "slug": "swap-the-character",
+    "title": "Swap the character, keep the performance",
+    "date": "2026-10-27",
+    "review": "A cartoon dancer's routine re-performed by a plush fox, same plaza, same camera move",
+    "note": "The first nodes just make a performance clip to swap into. Muse paints an invented cartoon street dancer (mustard raincoat, green beanie, jeans, red sneakers) in a pastel cobblestone plaza with a fountain and string lights, and MiniMax H3 Max Turbo (480p, 5 s) animates him: a slow push-in while he steps side to side, throws his arms up, spins once and bows. A second Muse still shows the new character, a plush felt fox with a knitted mustard scarf, on a plain backdrop at the same 16:9. The Video edit node sends the clip and the fox to Wan 2.2 Animate in replace mode. The fox takes over the whole performance: the side steps, the raised arms, the spin and the bow land on the same beats. The plaza, the fountain, the string lights, the camera push-in and the clip's sound all stay as they were. Compare the two clips side by side. Flaws: the fox is not a small plush toy any more. Wan stretches it to the dancer's human height and limb length, so it reads as a person in a fox mascot suit, with long thin legs and black boots. The fluffy tail almost disappears; only a white tip shows briefly from behind. The back view during the spin smears, and the bow ends with the head buried and the paws over the face rather than a clear bow. The result is 832\u00d7464 at 30 fps, a little smaller than the 832\u00d7480 source. It billed 6 s ($0.30) for the 5.18 s source clip. To use your own footage, delete the dancer nodes and wire a \ud83d\udcf9 Video input into the Video edit node; to use your own character, wire a \ud83d\udcf7 Image input into its character port. Keep the clip and the character image the same aspect ratio. Every still and sampled video frame was checked and is SFW (invented cartoon characters, fully clothed; no real people, text or logos). Inspired by @ComfyUI's OPENjutsu post (https://x.com/ComfyUI/status/2114843030364795231). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.447,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max-turbo",
+      "wan-22-animate"
+    ],
+    "graphSha256": "b2bd1e255afe40b96cd2492ff02f6039f05a4d536a9ed2d4d8f047bf32721c51",
+    "inputs": [
+      {
+        "label": "Dancer \u00b7 prompt",
+        "text": "Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. Scene: a small cobblestone town square at golden hour with a stone fountain, pastel shopfronts and string lights. In the center stands one invented cartoon street dancer, a lanky young man with stylized cartoon proportions, fully clothed in a mustard-yellow raincoat, a green knit beanie, blue jeans and red sneakers. He is seen full body from head to shoes with space around him, facing the camera, arms relaxed at his sides. Wide medium shot at eye level. No text, no logos, no other people."
+      },
+      {
+        "label": "Performance \u00b7 motion prompt",
+        "text": "Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors. One continuous shot with no cuts. The camera slowly pushes in and drifts a little to the left. The street dancer stays full body in frame: he steps side to side, raises both arms high and spins around once, then finishes with a big theatrical bow toward the camera. The fountain sprays softly and the string lights glow. No text, no other people."
+      },
+      {
+        "label": "New character \u00b7 prompt",
+        "text": "Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. One invented character: a plush fox toy brought to life, standing upright on two legs like a person, with soft orange felt fur, a cream belly and muzzle, black felt paws, a fluffy white-tipped tail, small button eyes, and a mustard-yellow knitted scarf. Full body from ears to feet with space around it, facing the camera, arms relaxed at its sides, centered, against a plain soft warm-gray studio backdrop. Wide medium shot at eye level. No text, no logos."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "swap-the-character/plaza.webp",
+        "kind": "image",
+        "label": "1. Dancer still: Muse 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "9845e56e7b900963a02cb53e2d55fccb1ecb97b04fb256d902d90d4cabd1a1c8"
+      },
+      {
+        "src": "swap-the-character/dancer.mp4",
+        "kind": "video",
+        "label": "2. Performance clip: H3 Max Turbo, 480p 5 s \u00b7 reported $0.125",
+        "costUsd": 0.125,
+        "sha256": "5fc6d45d606bdcceec1a2588cd3f42859743a132c6cf8c74aa1c3f29fa6d1489"
+      },
+      {
+        "src": "swap-the-character/fox.webp",
+        "kind": "image",
+        "label": "3. New character: Muse 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "19949cb8a0e51d28e0f5e5308e3095240a424810ffad64e1b2d4628e1bddf530"
+      },
+      {
+        "src": "swap-the-character/fox-dance.mp4",
+        "kind": "video",
+        "label": "4. Same performance by the fox: Wan 2.2 Animate, replace, 480p \u00b7 reported $0.30",
+        "costUsd": 0.3,
+        "sha256": "79029e83ef52c0bef0ae979df6d9ced1b861dd2532c93e1e14095e0c610f608f"
+      }
+    ],
+    "preview": "swap-the-character/preview.webp",
+    "workflow": "swap-the-character/workflow.json",
+    "workflowSha256": "b2bd1e255afe40b96cd2492ff02f6039f05a4d536a9ed2d4d8f047bf32721c51"
   }
 ]
