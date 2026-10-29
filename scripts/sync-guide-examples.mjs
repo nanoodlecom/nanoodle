@@ -214,6 +214,14 @@ const HOWTO = {
     inspect: "Play the two clips side by side and step through the spin: the moves and camera should match beat for beat. Check whether the character kept its proportions and details (here the fox grows to the dancer's height and loses most of its tail), and look at fast turns for smearing.",
     costHow: "Two Muse stills at $0.011 each + H3 Max Turbo 480p 5 s for $0.125 + Wan 2.2 Animate replace at 480p for $0.30 (it billed 6 s at $0.05/s for the 5.18 s clip) = $0.447. With your own clip and character image only the swap is paid: about $0.05 per second at 480p.",
   },
+  "carve-a-pumpkin": {
+    headline: "Carve a design into a pumpkin",
+    job: "Turn a flat design into a carved pumpkin, and then into a clip of it being carved.",
+    purpose: "Show a clean-plate trick for start + end frame video. You make the finished look first, then an edit node removes the change, and the Image→Video node travels from the clean plate back to the finished still. Both ends of the shot match because one image was made from the other.",
+    edit: "Rewrite <em>Stencil · prompt</em> for your own design and keep \"flat black shapes, no thin lines\" so it carves cleanly, or swap the stencil node for a 📷 Image input. Change the scene in <em>Carve · instruction</em> (a wooden sign, a cake, a sand sculpture) and keep <em>Clean plate · instruction</em> asking for the same camera and framing. <em>Carving · motion prompt</em> describes how the change happens.",
+    inspect: "Check that the carved still keeps the stencil's shapes (Muse Edit lost them here, Nano Banana Edit kept them), that the clean plate matches the carved still apart from the carving, and that the clip's first and last frames match the two stills.",
+    costHow: "Muse 1:1 $0.011 + Nano Banana Edit $0.039 + Muse Edit 16:9 $0.011 + MiniMax H3 Max Turbo at 480p for 5 s, $0.125. The saved run was $0.186.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -271,7 +279,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
