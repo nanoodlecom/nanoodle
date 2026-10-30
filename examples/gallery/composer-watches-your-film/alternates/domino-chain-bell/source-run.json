@@ -1,0 +1,167 @@
+{
+  "slug": "composer-watches-your-film",
+  "case": "domino-chain-bell",
+  "recordedAt": "2026-10-30T16:53:15.948Z",
+  "elapsedMs": 47435,
+  "graphSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17",
+  "executedGraphSha256": "6c958c715491b8c4df21985f5cc6e40f7f839fb6a0fb5eedc6aff9d35d125b6d",
+  "executedGraphNote": "The executed graph differs from graph.json here only in the layout size of the intro comment.",
+  "costUsd": 0.46826055,
+  "costExact": true,
+  "errors": [],
+  "captureErrors": [],
+  "runner": "nanoodle-js",
+  "mediaNote": "Displayed media are size-reduced re-encodes of the run outputs; the originals are linked per output.",
+  "nodes": [
+    {
+      "id": "c-intent",
+      "name": null,
+      "type": "comment",
+      "status": "skipped",
+      "outputs": []
+    },
+    {
+      "id": "shot",
+      "name": "Shot",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "shot-text.txt",
+          "bytes": 397,
+          "sha256": "f3c2e61cc6cd7e43a6e39b8855dbdef69f61dd8a8ba566ed74295c0d0a5440e5"
+        }
+      ]
+    },
+    {
+      "id": "film",
+      "name": "Silent film · H3 Max Turbo",
+      "type": "tvideo",
+      "model": "minimax/h3-max-turbo",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "film-video.mp4",
+          "bytes": 541176,
+          "sha256": "50d0515ea22ace789611984d58b8873dd0efa8fdaa0de2caa86d6f18b83bd2f8",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-composer-watches-your-film/film-silent.mp4"
+        }
+      ]
+    },
+    {
+      "id": "frames",
+      "name": "10 frames, one per second",
+      "type": "vframes",
+      "status": "done",
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "ask",
+      "name": "Ask",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "ask-text.txt",
+          "bytes": 26,
+          "sha256": "454c213a438907cc86a3091e0c0d0320e7d23e304cfa1ea896c2511bddd8b6bb"
+        }
+      ]
+    },
+    {
+      "id": "composer",
+      "name": "Composer · Elorian Glimpse",
+      "type": "llm",
+      "model": "elorian/glimpse",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "composer-text.txt",
+          "bytes": 506,
+          "sha256": "5b79a8f71dc0c191ac85d72a009dc68ea3b74dfd5366386d598661be8051e88b"
+        }
+      ]
+    },
+    {
+      "id": "score",
+      "name": "Fitted score · ElevenLabs Music",
+      "type": "music",
+      "model": "elevenlabs/music",
+      "status": "done",
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "final",
+      "name": "Film + fitted score",
+      "type": "soundtrack",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "final-video.mp4",
+          "bytes": 537922,
+          "sha256": "4baa6a8600b6fdd082bdc902e4326bb31c10df3eded01d6cb374059ef9b1fb26",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-composer-watches-your-film/film-with-fitted-score.mp4"
+        }
+      ]
+    },
+    {
+      "id": "blind-text",
+      "name": "Blind brief (no frames)",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "blind-text-text.txt",
+          "bytes": 228,
+          "sha256": "baa364f22deb133dc31e114e114c8c6be68dcf7bd14076edd1e4c25f9af11d7f"
+        }
+      ]
+    },
+    {
+      "id": "blind",
+      "name": "Blind score · ElevenLabs Music",
+      "type": "music",
+      "model": "elevenlabs/music",
+      "status": "done",
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "final-blind",
+      "name": "Film + blind score",
+      "type": "soundtrack",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "final-blind-video.mp4",
+          "bytes": 534402,
+          "sha256": "94651e2f673ac51d71c207f29471f2bfa4f502b4093f9cde9dfad2c64d2be819",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-composer-watches-your-film/film-with-blind-score.mp4"
+        }
+      ]
+    }
+  ]
+}
