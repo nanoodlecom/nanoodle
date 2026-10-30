@@ -71,7 +71,8 @@
 // DEPARTING line against every candidate line of the surface that moved, so the worst case is a
 // refactor that moves many twins at once, not a normal commit. A departure that left BOTH surfaces
 // is the dearest kind, because it is scored against BOTH surfaces. MAX_CLASSIFY caps the work at
-// 200 departures; 201 reports totals instead.
+// 250 departures; 251 reports totals instead. (The timings below were measured at the old
+// 200 ceiling.)
 // TIMINGS VARY BY MACHINE AND BY LOAD, and on this evidence the LOAD MATTERS MORE THAN THE CODE.
 // Every range below is scoped to the load band it was measured in. Outside that band it says
 // nothing, and none of it is a promise about your machine. Measure your own.
@@ -788,7 +789,7 @@ function dice(a, b) {
 //
 // bestMatch used to rebuild the bigram map of every candidate line on every call, so the cost was
 // O(departures x lines-in-the-mover x line-length). A clean tree never sees it, because nothing
-// departs. A big mirrored-but-not-quite refactor does: at the MAX_CLASSIFY ceiling of 200
+// departs. A big mirrored-but-not-quite refactor does: at the then MAX_CLASSIFY ceiling of 200
 // departures the guard took 23-30 s while the header promised "well under 2 seconds". It was
 // bounded, not hung, but that is the wrong surprise to hand a developer mid-refactor.
 // Building each candidate's bigram profile once, and sorting the candidates by length so the length
