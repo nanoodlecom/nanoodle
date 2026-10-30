@@ -27,7 +27,10 @@ export const MONTHS = {
   July: "07", August: "08", September: "09", October: "10", November: "11", December: "12",
 };
 
-const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?(conversation\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=)([^)\s"']+)/i;
+// NanoGPT also links new launches as /chat?model= (GPT-6.1 Terra, 2026-10-26) and
+// /studio/image|video|audio?model= (Qwen Image 3 Uncensored, 2026-10-25); the
+// classifier used to skip those cards, so the launches never reached 📣.
+const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?((?:conversation|chat)\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=|studio\/(image|video|audio)\?model=)([^)\s"'&]+)/i;
 
 export function seenKeyForId(id) {
   return id != null && String(id) !== "" ? `${ID_PREFIX}${id}` : null;
@@ -142,8 +145,8 @@ export function extractHtmlModelLinks(html) {
 export function parseModelUrl(url) {
   const m = String(url || "").match(MODEL_PATH_RE);
   if (!m) return null;
-  const kind = m[1].startsWith("conversation") ? "chat" : m[2];
-  const slug = decodeSlug(m[3]);
+  const kind = /^(conversation|chat)\?/i.test(m[1]) ? "chat" : (m[2] || m[3]).toLowerCase();
+  const slug = decodeSlug(m[4]);
   if (!slug) return null;
   return { slug, kind };
 }
