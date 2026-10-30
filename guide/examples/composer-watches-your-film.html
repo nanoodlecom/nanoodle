@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A composer that watches your film — nanoodle</title>
+<meta name="description" content="Score a clip with music written for what happens on screen, not a generic mood. Reported saved run: $0.468." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="A composer that watches your film — nanoodle" />
+<meta property="og:description" content="Score a clip with music written for what happens on screen, not a generic mood. Reported saved run: $0.468." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/composer-watches-your-film" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="A composer that watches your film — nanoodle" />
+<meta name="twitter:description" content="Score a clip with music written for what happens on screen, not a generic mood. Reported saved run: $0.468." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/composer-watches-your-film" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>A composer that watches your film</span></nav>
+
+  <main>
+    <h1><span class="grad">A composer that watches your film</span></h1>
+    <p class="lede">Score a clip with music written for what happens on screen, not a generic mood.</p>
+
+    <section>
+      <p class="meta-row">The fitted score enters on the first spark and is still playing when the lanterns rise; the blind one fades out early · 2026-10-30 · Reported saved run: $0.468. <code>minimax/h3-max-turbo</code> · <code>elorian/glimpse</code> · <code>elevenlabs/music</code></p>
+      <p>Show video → LLM → music. Frames turns the clip into stills, a vision LLM writes a timed brief from them, and the music node composes from that brief. The blind branch beside it is the control.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure class="sequence-text"><blockquote class="sample">60 BPM, D minor to D major, wondrous nocturnal mood; instrumental, no vocals; celesta, harp, strings. 0-1s: dark sustained strings, unlit lantern on still lake. At 1s, when a spark flares overhead, celesta strikes a glissando; 1-3s harp figures follow the flame to the lantern&#39;s top. At 3s, hush—silence as flame touches. At 4s, when the lantern ignites, strings swell into a major chord with harp arpeggios. 5-7s: celesta melody grows as lanterns light across the water. 8-10s: full swell as lanterns rise, ending cleanly at 10s.
+</blockquote><figcaption>Composer&#39;s brief: Elorian Glimpse from 10 frames · reported $0.018 · <a href="/examples/gallery/composer-watches-your-film/composer-brief.txt" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/composer-watches-your-film/preview.webp" aria-label="Film + fitted score: H3 Max Turbo 10 s ($0.25) + ElevenLabs Music from the brief · reported $0.35 — A composer that watches your film"><source src="/examples/gallery/composer-watches-your-film/fitted-score.mp4" type="video/mp4"></video><figcaption>Film + fitted score: H3 Max Turbo 10 s ($0.25) + ElevenLabs Music from the brief · reported $0.35 · <a href="/examples/gallery/composer-watches-your-film/fitted-score.mp4" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/composer-watches-your-film/preview.webp" aria-label="Film + blind score: ElevenLabs Music from a text description only · reported $0.10 — A composer that watches your film"><source src="/examples/gallery/composer-watches-your-film/blind-score.mp4" type="video/mp4"></video><figcaption>Film + blind score: ElevenLabs Music from a text description only · reported $0.10 · <a href="/examples/gallery/composer-watches-your-film/blind-score.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>MiniMax H3 Max Turbo films 10 silent seconds of a lantern on a still mountain lake at night: a firefly drifts down, the lantern lights, and a wave of lanterns lights and rises across the water. Frames pulls one still per second, and Elorian Glimpse reads them and writes a composer&#39;s brief with tempo, key, instruments and cue points (&quot;at 4 s, when the lantern ignites, strings swell&quot;). ElevenLabs Music composes from that brief and Soundtrack lays it on the film. A second branch scores the same film from a text description only, so you can hear what watching adds. All four of Glimpse&#39;s cue points land within about half a second of the picture, and the fitted cue tracks the asked 60 BPM. Flaws: ElevenLabs ignored the 10 s duration on the fitted call and returned 19 s, so the fitted version stops at 10 s while still at full level. The hush asked for at 3 s is only a small dip. Glimpse sees 1 fps stills, so it called the firefly a spark. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (lanterns on a lake, no people).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Shot</em> for a different film, or swap the film node for a 📹 Video input to score your own clip. Change <em>Ask</em> to ask for a different style, or set the number of frames to match the clip length. Edit <em>Blind brief (no frames)</em> to match, or delete the blind branch once you have seen the difference.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. H3 Max Turbo 10 s at 480p $0.25 + Glimpse $0.018 + two ElevenLabs Music cues at $0.10 each. Scoring your own clip costs about $0.12. The saved run was $0.468.</li>
+        <li>Read the brief against the frames, then play both versions and listen at each cue point. Check the music's length, since music models can ignore the requested duration.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA9VXTY_bOBK9968o-JIZrOzIbqfT7Zwyi-wHMJMcEmCxWAQLWipZhCmWlkW12xvkd819ftmiSMmWZbnTPu5Npll6VcXH90rfbmDyOFnBPLmBiaUcebKCf90AfJvofLKCSTbV1qP1kwQmfl9jWKOqapeeJitYpglM9pMVTBd38riT981TeSw0mlxe-W2SkSEn0Xs0hnbhffjkZeVLiZBRVROjg53yWYkMe2ocFNpUM3gPrA1aD_MUGDKja9AMWeNBW0-yWjhVIcNPZBFqdMCYkc1_nsEHQ04rC381uqoZE1DwqHOkqUPFZLXdQEU5mgQM0ZZBefAlVqAtkMvRgbI57Jz2yKDA6wpz0Ja9a6QDykDVsM5g7TQWK_BY1ZT0NnASXuBLbFOCXYkOw0KM5JIak0PZcAnkgHdojKSNj2h_VWuG38K2tj0M-KQyb_axFYWjCnypfEwggn2mxubeqWwLRu0ZtAeyAbHWmW8chobGbOLL5dxhg56BrNnHbEvyrxjkhOAnS22DfwbF4e-10TYPSSmnmexs8v170mONhPcZE056SJdlR5bb8GRVFfZ-bmN73OmI8lFvylCNklMuMHSCvTYGKmqsV9qCUVtMIEesYW0ahFy5rUXmBNgrx-CwMJj5cI6hlp3y6CLJ7MYgcKWMgcYa7aFWwiajrEdnoTCkPHdxGVofm1loeekecqcLz5DTzoaTMMrm0lPQ_siD7mUbQzuGnXIVkFN2gzP4UqJNQDisCh-4R75EJ4AKuHaociHsTj1KhfRftAxUnCbJoDJHzC3WFsGEpjV1TKHQVpl4yHuQQo0uPLChndkDFcWxJWG704zxlgVWbPcz-EhQI9UGZ_DZ0A42aL1BqBsup7rNPyPrtW2o4cCkIT3kWp_QI9zJA0EW5wxZnDAkqoG8Bf74Hf52C7-pJ_jSuDUNiBPutoRU2upKPb0ub6eVepr6bm_tqKoDt-RX3jjlNVn5PU9lxSGTabq15X1ay6riGrMQNb9bPchKAPpU-wD7PYGJIaeCln4dlB4uUr_4x-OSVP_2_qz6xcn9OMhdbPVR7ga1t689lLJRdfgRCtVBiuVG-MHZKN5eurnH1OJ5hJNJ-7m9j8EjV_dzRkH3NMM8nbbyI1I-5EZnBP0kTKSL5DBP787Zcd_P4c-dk_zx-1D-L7ED47bXm-O2gz98KApyoYQcC9WY0I1KPX2hLdrY3rs0TaOfVTU6JRor6-lsKau8Z4-VLPyTGlAOQUXqHiyPa_JebrbqjC40RvQAdKU24j0Oez4XdF8O_7SVycG2VjEO5mKUykMKnLRLC_k9h9aZmII5ULc_lX8fgGfwD_Fh2Im5ZKXoUwsbUpCI-KCip9moXtEq4dPHDxBvFhQkQgLv_9763QattIhc9C0WWhxdLfBDSllJ0InRZg0mJ-4X6mYwZDcJWIJHypThGXwM-ZXYufEW9-KsFVEea15Ml32LbjPf6Mc2TFdotBXZO4B4jbnUHNpRqroO0muBM4ei2VIlPqmqNgiv0ukt8Apms9k76eZSei0tkpUkLr-dSgVhzys5tcw0QdoFP9T4knGhc5SRAO27nWGgkPpL7WfwoQ3JGoTMoBK7V3GumsGnxteNP84AETGeY6s1yqmNU3WZQGNlOnpIYUcu53AAXnuD4UmsqlqLQ_yC8J9GZ9sV5ASWPORo9FoYgAJs0G58HHxC-tNNg8zvIEfOnF63lRN7oPWjFjvpuCjFK8s7dGezh1Cqrx6hjoN-LM_19VTD_qK9TAfhNVFDTmexyyIi-4xa8-sD4o_spc_wyQq8E5KL6dRkGf9dkKtUCK_q2zMPtcr0y-TD3Heo9f7cSeOIfqzVVPAnKHolD8ozRGIbhTKMpwmEGXDa-cOYX_S1ejEu1r-EQTJMr_0584KJvB9oQpDReFAvlId4VYPMcIYWV2CPM-XIJPkuiHUc78IgJZ8BJwOXfFLIRCaT2GEGa7c29XAaO8yBcfg6H68mI01-EZkvOHJs8P8FmadnxT5P6cWznF4fC3-W0jfwVb59jbbb4bevCbOSuF6Ik8-k_sdN3c4FgZ0y83k62ddNud2-tn-nlZvFKMYwNg7IYyCH4XGw9RTldhSlnfV-VEh_JHu2mGK8Yec5hpX5S7F0tZkPkS60bRxpcQXSYog03roLSLdXIJ1dguU1SMsrkJZDpDfXIL25AunNEOnuGqS7K5Duhkhvr0F6ewXS2yHS_TVI91cg3Q-RHq5BergC6eHs5qZXXd30mrubDtVonOhj4Zck6aDrz4vrBZ6_WFy7GetZbR2n-FmGqsn1y1Danaco4_Q-HcJ-1LWDwT7ftQv8vqpr0zOs0d6NE_ws9vnenWN1HbyBrzffb_4HbLKuCOUWAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#composer-watches-your-film">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/composer-watches-your-film/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/composer-watches-your-film/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#composer-watches-your-film">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/one-continuous-take">Grow one clip into a long take</a>
+        <a href="/guide/examples/new-angle-same-take">A second camera on the same take →</a>
+        <a href="/examples/gallery/#composer-watches-your-film">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

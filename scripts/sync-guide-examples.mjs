@@ -222,6 +222,54 @@ const HOWTO = {
     inspect: "Check that the carved still keeps the stencil's shapes (Muse Edit lost them here, Nano Banana Edit kept them), that the clean plate matches the carved still apart from the carving, and that the clip's first and last frames match the two stills.",
     costHow: "Muse 1:1 $0.011 + Nano Banana Edit $0.039 + Muse Edit 16:9 $0.011 + MiniMax H3 Max Turbo at 480p for 5 s, $0.125. The saved run was $0.186.",
   },
+  "director-picks-the-model": {
+    headline: "The graph picks the video model for each shot",
+    job: "Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time.",
+    purpose: "Show the <em>Decide → model</em> wire. A Decide node in choose mode returns one of its options, and when those options are model ids its text output can drive any node's <em>model</em> field. The Decide card shows a probability for every option, so you can see why each shot went where it did.",
+    edit: "Change <em>Story idea</em> and <em>Look bible (joined in front of every shot)</em> for your own film. Edit the question on each <em>Shot k · which model?</em> node to change the routing rules, or swap its options for other video model ids. The same wire works on image, LLM and music nodes.",
+    inspect: "Open each Decide card to see the probabilities, then watch whether the three shots still read as one film. Here shot 2 (Kandinsky) drifts into a cartoon fish, so check the hero stays consistent before trusting the routing.",
+    costHow: "Three GLM calls and three Decide calls cost under a cent. The shots depend on which model is picked: here P-Video 2 Pro $0.10 + Kandinsky 6 Lite $0.16 + H3 Max Turbo $0.125, plus the Mureka score $0.045. The saved run was about $0.43.",
+  },
+  "song-to-music-video": {
+    headline: "Song in, music video out",
+    job: "Turn a one-line song idea into an original sung track and a music video of a character performing it.",
+    purpose: "Show audio-driven video. The Avatar node with the Music Video Generator takes a picture and a song and returns a performance timed to the audio. Trim keeps the bill down, since the model bills per second of audio, and Soundtrack puts the full-quality song back.",
+    edit: "Change <em>Song idea</em> for your own song and <em>Performer &amp; stage</em> for who sings it. Set Trim's start and length to the part of the song you want, since music models often open with an instrumental intro.",
+    inspect: "Listen to the song first, then check where the singing starts inside the trimmed window. Watch whether the performer moves on the beat and keeps the look of the still.",
+    costHow: "GLM lyrics under a cent + FLUX.3 Klein $0.011 + MiniMax Music 2.6 $0.15 + Music Video Generator at 480p, $0.03 per second for 15 s, $0.45. The saved run was $0.611.",
+  },
+  "one-continuous-take": {
+    headline: "Grow one clip into a long take",
+    job: "Make a shot longer than a video model gives you in one call, with no cuts.",
+    purpose: "Show video extend. The Video edit node with an extend model takes the whole clip and a \"what happens next\" prompt and returns the clip plus new seconds that continue from its last frame. Chain two to grow a 5 s shot to about 16 s, steering each segment with its own beat.",
+    edit: "Change <em>Shot</em> for your opening and <em>Continue 1</em> and <em>Continue 2</em> for what happens next. Add another Video edit node in the chain for a longer take, or wire a 📹 Video input in place of the opening clip.",
+    inspect: "Step through the seams around 5 s and 10.7 s: the motion and light should carry straight through. Check whether each beat actually happened, since extend tends to keep motion going more than it adds events.",
+    costHow: "Grok Imagine 1.5 Lite 480p 5 s $0.10 + two H3 Max Turbo extends at $0.125 each (you pay only for the new seconds) + a Mureka score. The saved run was $0.395.",
+  },
+  "composer-watches-your-film": {
+    headline: "A composer that watches your film",
+    job: "Score a clip with music written for what happens on screen, not a generic mood.",
+    purpose: "Show video → LLM → music. Frames turns the clip into stills, a vision LLM writes a timed brief from them, and the music node composes from that brief. The blind branch beside it is the control.",
+    edit: "Change <em>Shot</em> for a different film, or swap the film node for a 📹 Video input to score your own clip. Change <em>Ask</em> to ask for a different style, or set the number of frames to match the clip length. Edit <em>Blind brief (no frames)</em> to match, or delete the blind branch once you have seen the difference.",
+    inspect: "Read the brief against the frames, then play both versions and listen at each cue point. Check the music's length, since music models can ignore the requested duration.",
+    costHow: "H3 Max Turbo 10 s at 480p $0.25 + Glimpse $0.018 + two ElevenLabs Music cues at $0.10 each. Scoring your own clip costs about $0.12. The saved run was $0.468.",
+  },
+  "new-angle-same-take": {
+    headline: "A second camera on the same take",
+    job: "Add a second camera angle to a single AI video take, so you have something to cut to.",
+    purpose: "Show reference-to-video with a video reference. The clip pins the action and the look, and an edited still pins the new camera position, so H3 Lite re-films the same action from there.",
+    edit: "Change <em>Shot</em> for your take, or wire a 📹 Video input in place of Camera A. Describe the new camera in <em>Angle C · low front</em>, and duplicate the Frames → Edit → Video edit branch with another angle text for more cameras. <em>Re-film brief C</em> tells the video model to keep the action and change only the camera.",
+    inspect: "Compare A and C at the same moments: the props, colours and light should match. Check the set geometry, since the new angle is a redraw, and watch the cut at the end of A for audio.",
+    costHow: "Grok Imagine 1.5 Lite $0.10 + Seedream 5.0 Flash Edit $0.027 + H3 Lite reference-to-video at 480p, which billed $0.4675. With your own clip, each extra angle costs about $0.49.",
+  },
+  "sketch-to-svg": {
+    headline: "Prompt to an editable SVG sticker",
+    job: "Get a logo, sticker or icon as a real vector file from one prompt.",
+    purpose: "Show the Edit node with Ideogram Vector in convert mode. It takes any image and returns an SVG made of shapes, with no prompt needed, so it works on generated art and on your own drawings.",
+    edit: "Change <em>Sticker concept</em> for your design and keep the flat-colour, plain-background wording, which vectorizes cleanly. Swap the image node for a 📷 Image input to vectorize your own sketch or logo.",
+    inspect: "Open the SVG and zoom in: the edges should stay sharp. Count the colours and gradients if you need a minimal palette, since shading in the raster becomes extra shapes.",
+    costHow: "FLUX.3 Klein 1024² $0.009 + Ideogram Vector convert $0.17 = $0.179 per run. Vectorizing your own image costs $0.17.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -279,7 +327,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "one-continuous-take", "composer-watches-your-film", "new-angle-same-take", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

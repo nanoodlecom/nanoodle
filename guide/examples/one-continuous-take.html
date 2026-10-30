@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Grow one clip into a long take — nanoodle</title>
+<meta name="description" content="Make a shot longer than a video model gives you in one call, with no cuts. Reported saved run: $0.395." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Grow one clip into a long take — nanoodle" />
+<meta property="og:description" content="Make a shot longer than a video model gives you in one call, with no cuts. Reported saved run: $0.395." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/one-continuous-take" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Grow one clip into a long take — nanoodle" />
+<meta name="twitter:description" content="Make a shot longer than a video model gives you in one call, with no cuts. Reported saved run: $0.395." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/one-continuous-take" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Grow one clip into a long take</span></nav>
+
+  <main>
+    <h1><span class="grad">Grow one clip into a long take</span></h1>
+    <p class="lede">Make a shot longer than a video model gives you in one call, with no cuts.</p>
+
+    <section>
+      <p class="meta-row">One unbroken 16-second camera move with invisible joins, ending on a sunset puddle · 2026-10-30 · Reported saved run: $0.395. <code>grok-imagine-video-1.5-lite</code> · <code>minimax/h3-max-turbo/extend-video</code> · <code>mureka-ai/mureka-v7.6/generate-bgm</code></p>
+      <p>Show video extend. The Video edit node with an extend model takes the whole clip and a &quot;what happens next&quot; prompt and returns the clip plus new seconds that continue from its last frame. Chain two to grow a 5 s shot to about 16 s, steering each segment with its own beat.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/one-continuous-take/preview.webp" aria-label="Opening: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10 — Grow one clip into a long take"><source src="/examples/gallery/one-continuous-take/opening.mp4" type="video/mp4"></video><figcaption>Opening: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10 · <a href="/examples/gallery/one-continuous-take/opening.mp4" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/one-continuous-take/preview.webp" aria-label="One take: extended twice by H3 Max Turbo, 16.4 s + Mureka score · reported $0.295 — Grow one clip into a long take"><source src="/examples/gallery/one-continuous-take/one-take.mp4" type="video/mp4"></video><figcaption>One take: extended twice by H3 Max Turbo, 16.4 s + Mureka score · reported $0.295 · <a href="/examples/gallery/one-continuous-take/one-take.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Grok Imagine 1.5 Lite films 5 seconds of a white paper sailboat floating down a rain-filled stone gutter at golden hour, with the camera at water level. MiniMax H3 Max Turbo&#39;s extend mode takes the whole clip plus a new beat and returns the original seconds plus about 5 new ones that continue from the last frame, and a second extend does it again, opening out onto a puddle that reflects the sunset. Mureka scores the 16.4 s take and Soundtrack lays the score on. The first 5 seconds are kept rather than re-rendered, and the joins near 5.0 s and 10.7 s are invisible frame to frame. Flaws: the first beat asked the boat to tip over a step and right itself, but what came out is gentle bobbing, so extend keeps motion going better than it adds new events. The run was made in stages from saved clips with the same prompts and settings. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (a paper boat in a gutter, no people).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Shot</em> for your opening and <em>Continue 1</em> and <em>Continue 2</em> for what happens next. Add another Video edit node in the chain for a longer take, or wire a 📹 Video input in place of the opening clip.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Grok Imagine 1.5 Lite 480p 5 s $0.10 + two H3 Max Turbo extends at $0.125 each (you pay only for the new seconds) + a Mureka score. The saved run was $0.395.</li>
+        <li>Step through the seams around 5 s and 10.7 s: the motion and light should carry straight through. Check whether each beat actually happened, since extend tends to keep motion going more than it adds events.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA-WXTW_bRhCG7_4VL3hqUVG25PgjyqkNgrRAjQBN0EsbFCtySC203CF2h6KNwP3txS5Fi6H14eTai02uOMPZ552dGX45Q7JJFphNzpBYzsknC_x1Bnw5A5DoPFkgyVJthawkk7goDzXFZa6q3ep9ssCri-76IVkgnfd3bbLA69vtTaHJ5OEl8QXBiWEXvD2QMdx2zpAI3UtY_WAJGVvRtuHGQ9SapnjveI3fKlVqS_hT58SYTa_wuxaCI5uT81C4ggfXZLUt4Vcsb3Cnrb5T9_j1EuHfp8YtGe_uhWzev4Q8ZEX4-PPdO2RG15BWZ4QfSGUrUHjUa7bwopx4FI6r-HztaKNDgEZ5QeFURVA2hyNpnO18Fo0xnYuccmxC2D9OUHDYdohRwVILL-wesCQliO8UXdEUf5BvjCzAltDYpeM1Wfw7C1vMVEVOoeINTWAZWSN-irvG0Vrhl_d38Bk78tCCjVb4yI3NxalsPU0C6scz4HEyEjzgGokdBdmv9FDny_7Gqirafdy5Gkvfa_w7t_0ulKBVQg6GNmS2cIKYvlLGoF0FiQs2OeVprWpy8EqbJSuBilssDCvxyLm1Aahyjls4pW1aaGMoD3wtoWwkvEUV8W-EXk3QKlehDN5tuuLGwTfW6HIlE7QkyHi5NBQd-AkUCmpRKGPIQjXSVBaG1IY8cqcLCZIuyeucoGWKcSIHBfrM3Ol2WJKQEbOXa3J5cUyUt9tkx-yENJ9WBB-SeQRbdO3Bmw5elMYL1dA2ZnpHdwJfG-VX1MkxgQsog0qeTBGPx5qo9tGrtuWbaLtNhO6X3eHQMsqNKd7uaH4LxPnLIV5dvwji_AUQtwkX6pEHW2EotDqnCbxoY2KKom7y3BBkpQSVdo5dVznYKVtSyEZPAr9-6FCNNCmNzsmDG4FwfKDS0V8g7cM5msTLAWWnPXmUZMU8BCNHG1ImPuHXD3BUGMqEcigXykZM5O_AHnY9ph7r35D7_FBFmY-4f9jW9FD8_m4uLpY3XzeEvhUcUKXinEzwUzpep7ozSmM46Wx6lZonUyS146qOGvYreeOUaLZh7apfdOTZNP3yq9uLuv9F-Zqy6GB2vXjdr8YQPtQSo3rcLhp2Kjbfzwc50v2zErChXA_T9-b2YBEYc9w2vp8GHIeN8RS-Sltdqfvz1WVaqftUgs15197Sgbj7IB7mtRfvV7jiEhJupG5kCyV21Jh-kdtBeOOjP4Y3mx0-_cfoqTKc3v8BwzhKjCBWjdfZQYi38yHEi_FwEPz14HYjy0ls8clU6fPt1eZmen1ekiWnhNJlWfXb1taLa8KUqoKluIZ2_Gq2nv4p2FUqUqjqy-e834fiSFhxTUVjMHS4gOdCUGhbkqt1tg6FMuPGi85QNlqUiwU3jhCotbKMVssq9EzDLZaNNnmoZHHu8OLiPNCSMZNuMkllRWnsDN1QgjiUVMz5BJkyVfTechh4tS2PFOBCW2VGuvmnQXAo3tXFQLzrYR2eX4_rsKU4j_f6xeSAUToH2wMSGuY6WYSpydNTtGf4HL4-jLbrfV8f5mlIcVztXIWPla9nVSQ1O3nq6dH_ds_83G7XlHZ2W9kPcjTzo6Hsc9kd4xOx7Ar7XsO9oVweDWUwLn4bln2hnMTy6mgsJ3Z3NJb5t2K5OonlmcsXYnlmdxLL9Sksx3Z3OJbBaX45l5vjh2hX2HcuVZPr7wtmYLk94GeP_wHdXz0gahAAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#one-continuous-take">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/one-continuous-take/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/one-continuous-take/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#one-continuous-take">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/song-to-music-video">Song in, music video out</a>
+        <a href="/guide/examples/composer-watches-your-film">A composer that watches your film →</a>
+        <a href="/examples/gallery/#one-continuous-take">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

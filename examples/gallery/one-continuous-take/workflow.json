@@ -1,0 +1,204 @@
+{
+ "v": 1,
+ "nodes": [
+  {
+   "id": "c-intent",
+   "type": "comment",
+   "x": 40,
+   "y": -240,
+   "w": 980,
+   "fields": {
+    "color": "yellow",
+    "text": "One continuous take. Grok Imagine Video 1.5 Lite renders a 5 s opening shot; MiniMax H3 Max Turbo Extend continues the SAME clip twice (each extension starts from the previous last frame and returns the full extended video), following a new story beat each time. Result: one unbroken ~15 s camera move, no cuts. Mureka BGM scores it via Soundtrack."
+   }
+  },
+  {
+   "id": "shot",
+   "type": "text",
+   "x": 40,
+   "y": 40,
+   "w": 340,
+   "name": "Shot",
+   "fields": {
+    "text": "Low camera at water level follows a small white folded-paper sailboat as it floats down a narrow rain-filled stone gutter after a storm, warm golden-hour sunlight, wet cobblestones, a few fallen autumn leaves drifting beside it. One continuous tracking shot, no cuts."
+   }
+  },
+  {
+   "id": "beat1",
+   "type": "text",
+   "x": 40,
+   "y": 300,
+   "w": 340,
+   "name": "Continue 1",
+   "fields": {
+    "text": "The same paper sailboat tips over a small step in the gutter, splashes down, rights itself and keeps sailing; the camera keeps following it at water level. Continuous shot, no cuts."
+   }
+  },
+  {
+   "id": "beat2",
+   "type": "text",
+   "x": 40,
+   "y": 560,
+   "w": 340,
+   "name": "Continue 2",
+   "fields": {
+    "text": "The gutter opens onto a wide, still rain puddle that mirrors the orange sunset sky; the paper sailboat glides out to the middle and slows, and the camera rises gently to reveal the sky reflected around it. Continuous shot, no cuts."
+   }
+  },
+  {
+   "id": "open",
+   "type": "tvideo",
+   "x": 420,
+   "y": 40,
+   "w": 320,
+   "name": "Opening 5 s \u00b7 Grok Imagine 1.5 Lite",
+   "fields": {
+    "model": "grok-imagine-video-1.5-lite",
+    "prompt": "",
+    "duration": "5",
+    "resolution": "480p",
+    "aspect": "16:9",
+    "modelOpts": {},
+    "loras": []
+   }
+  },
+  {
+   "id": "ext1",
+   "type": "vedit",
+   "x": 780,
+   "y": 300,
+   "w": 320,
+   "name": "Extend +5 s \u00b7 H3 Max Turbo",
+   "fields": {
+    "model": "minimax/h3-max-turbo/extend-video",
+    "prompt": "",
+    "resolution": "480p",
+    "duration": "5",
+    "modelOpts": {
+     "output": "extended"
+    }
+   }
+  },
+  {
+   "id": "ext2",
+   "type": "vedit",
+   "x": 1140,
+   "y": 560,
+   "w": 320,
+   "name": "Extend +5 s again \u00b7 H3 Max Turbo",
+   "fields": {
+    "model": "minimax/h3-max-turbo/extend-video",
+    "prompt": "",
+    "resolution": "480p",
+    "duration": "5",
+    "modelOpts": {
+     "output": "extended"
+    }
+   }
+  },
+  {
+   "id": "score",
+   "type": "music",
+   "x": 1140,
+   "y": 820,
+   "w": 300,
+   "name": "Score \u00b7 Mureka BGM",
+   "fields": {
+    "model": "mureka-ai/mureka-v7.6/generate-bgm",
+    "instrumental": true,
+    "response_format": "mp3",
+    "prompt": "Gentle hopeful instrumental: soft fingerpicked acoustic guitar and light piano with a slow building warm string swell, after-the-rain golden hour mood, calm and wondering."
+   }
+  },
+  {
+   "id": "final",
+   "type": "soundtrack",
+   "x": 1500,
+   "y": 640,
+   "w": 260,
+   "name": "One take \u00b7 score laid on",
+   "fields": {
+    "loop": false
+   }
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "shot",
+    "port": "text"
+   },
+   "to": {
+    "node": "open",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "open",
+    "port": "video"
+   },
+   "to": {
+    "node": "ext1",
+    "port": "video"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "beat1",
+    "port": "text"
+   },
+   "to": {
+    "node": "ext1",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "ext1",
+    "port": "video"
+   },
+   "to": {
+    "node": "ext2",
+    "port": "video"
+   }
+  },
+  {
+   "id": "l5",
+   "from": {
+    "node": "beat2",
+    "port": "text"
+   },
+   "to": {
+    "node": "ext2",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l6",
+   "from": {
+    "node": "ext2",
+    "port": "video"
+   },
+   "to": {
+    "node": "final",
+    "port": "video"
+   }
+  },
+  {
+   "id": "l7",
+   "from": {
+    "node": "score",
+    "port": "audio"
+   },
+   "to": {
+    "node": "final",
+    "port": "audio"
+   }
+  }
+ ]
+}

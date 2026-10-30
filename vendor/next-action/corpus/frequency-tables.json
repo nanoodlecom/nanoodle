@@ -1,90 +1,99 @@
 {
   "unigram": {
-    "add:text": 323,
-    "add:image": 183,
-    "set:model": 417,
-    "wire": 828,
+    "add:text": 398,
+    "add:image": 189,
+    "set:model": 512,
+    "wire": 954,
     "add:ivideo": 55,
-    "add:vedit": 19,
-    "add:comment": 123,
-    "run": 115,
-    "add:llm": 60,
-    "add:join": 60,
-    "add:edit": 84,
+    "add:vedit": 37,
+    "add:comment": 152,
+    "run": 144,
+    "add:llm": 91,
+    "add:join": 75,
+    "add:edit": 91,
     "add:resize": 46,
+    "add:music": 30,
     "add:tts": 8,
-    "add:music": 2,
-    "add:lipsync": 6
+    "add:lipsync": 11
   },
   "bigram": {
     "add:text": {
-      "add:text": 165,
-      "add:image": 101,
+      "add:text": 195,
+      "add:image": 106,
       "add:ivideo": 12,
-      "add:llm": 16,
-      "add:join": 19,
-      "add:edit": 4,
-      "add:comment": 1,
+      "add:llm": 27,
+      "add:join": 20,
+      "add:edit": 10,
+      "add:music": 10,
+      "add:comment": 4,
+      "add:vedit": 8,
+      "add:lipsync": 1,
       "add:tts": 5
     },
     "add:image": {
-      "set:model": 183
+      "set:model": 189
     },
     "set:model": {
-      "wire": 417
+      "wire": 501,
+      "add:llm": 2,
+      "add:text": 5,
+      "add:comment": 1,
+      "add:vedit": 3
     },
     "wire": {
       "add:ivideo": 43,
-      "wire": 305,
-      "add:vedit": 19,
-      "add:comment": 114,
-      "add:text": 43,
-      "add:image": 82,
-      "add:join": 41,
-      "add:llm": 44,
-      "add:edit": 80,
+      "wire": 332,
+      "add:vedit": 26,
+      "add:comment": 139,
+      "add:text": 57,
+      "add:image": 83,
+      "add:join": 55,
+      "add:llm": 62,
+      "add:edit": 81,
       "add:resize": 46,
+      "add:music": 17,
       "add:tts": 3,
-      "add:music": 2,
-      "add:lipsync": 6
+      "add:lipsync": 10
     },
     "add:ivideo": {
       "set:model": 55
     },
     "add:vedit": {
-      "set:model": 19
+      "set:model": 37
     },
     "add:comment": {
-      "run": 115,
+      "run": 144,
       "add:comment": 8
     },
     "add:llm": {
-      "set:model": 60
+      "set:model": 91
     },
     "add:join": {
-      "wire": 60
+      "wire": 75
     },
     "add:edit": {
-      "set:model": 84
+      "set:model": 91
     },
     "add:resize": {
       "wire": 46
     },
+    "add:music": {
+      "set:model": 30
+    },
     "add:tts": {
       "set:model": 8
     },
-    "add:music": {
-      "set:model": 2
-    },
     "add:lipsync": {
-      "set:model": 6
+      "set:model": 11
     }
   },
   "coldStart": {
-    "add:text": 115
+    "add:text": 141,
+    "add:music": 3
   },
   "firstNode": {
-    "add:text": 115
+    "add:text": 141,
+    "add:music": 3
   },
   "firstTrio": [
     {
@@ -93,7 +102,7 @@
         "add:text",
         "add:text"
       ],
-      "count": 53
+      "count": 61
     },
     {
       "actions": [
@@ -101,7 +110,7 @@
         "add:text",
         "add:image"
       ],
-      "count": 19
+      "count": 20
     },
     {
       "actions": [
@@ -117,7 +126,7 @@
         "add:image",
         "add:text"
       ],
-      "count": 9
+      "count": 10
     },
     {
       "actions": [
@@ -125,13 +134,29 @@
         "add:text",
         "add:llm"
       ],
-      "count": 5
+      "count": 8
     },
     {
       "actions": [
         "add:text",
         "add:llm",
         "add:image"
+      ],
+      "count": 4
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:llm",
+        "add:text"
+      ],
+      "count": 4
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:music",
+        "add:text"
       ],
       "count": 4
     },
@@ -146,8 +171,8 @@
     {
       "actions": [
         "add:text",
-        "add:llm",
-        "add:text"
+        "add:text",
+        "add:edit"
       ],
       "count": 3
     },
@@ -161,12 +186,60 @@
     },
     {
       "actions": [
+        "add:music",
+        "add:text",
+        "add:text"
+      ],
+      "count": 2
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:text",
+        "add:music"
+      ],
+      "count": 2
+    },
+    {
+      "actions": [
+        "add:music",
+        "add:text",
+        "add:llm"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:image",
+        "add:edit"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:image",
+        "add:lipsync"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
         "add:text",
         "add:llm",
         "add:llm"
       ],
       "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:text",
+        "add:vedit"
+      ],
+      "count": 1
     }
   ],
-  "total": 2329
+  "total": 2793
 }

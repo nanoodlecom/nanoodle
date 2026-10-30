@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The graph picks the video model for each shot — nanoodle</title>
+<meta name="description" content="Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time. Reported saved run: at least $0.4303." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="The graph picks the video model for each shot — nanoodle" />
+<meta property="og:description" content="Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time. Reported saved run: at least $0.4303." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/director-picks-the-model" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="The graph picks the video model for each shot — nanoodle" />
+<meta name="twitter:description" content="Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time. Reported saved run: at least $0.4303." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/director-picks-the-model" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>The graph picks the video model for each shot</span></nav>
+
+  <main>
+    <h1><span class="grad">The graph picks the video model for each shot</span></h1>
+    <p class="lede">Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time.</p>
+
+    <section>
+      <p class="meta-row">Three shots by three different models, each picked by its own Decide node, stitched and scored as one film · 2026-10-30 · Reported saved run: at least $0.4303. <code>z-ai/glm-5.3-flash</code> · <code>cloudflare/clef</code> · <code>mureka-ai/mureka-v7.6/generate-bgm</code></p>
+      <p>Show the &lt;em&gt;Decide → model&lt;/em&gt; wire. A Decide node in choose mode returns one of its options, and when those options are model ids its text output can drive any node&#39;s &lt;em&gt;model&lt;/em&gt; field. The Decide card shows a probability for every option, so you can see why each shot went where it did.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/director-picks-the-model/preview.webp" aria-label="Film: P-Video 2 Pro → Kandinsky 6 Lite → H3 Max Turbo shots + Mureka score, 15 s · about $0.43 in total — The graph picks the video model for each shot"><source src="/examples/gallery/director-picks-the-model/film.mp4" type="video/mp4"></video><figcaption>Film: P-Video 2 Pro → Kandinsky 6 Lite → H3 Max Turbo shots + Mureka score, 15 s · about $0.43 in total · <a href="/examples/gallery/director-picks-the-model/film.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>GLM 5.3 Flash writes a three-shot plan for a paper-lantern goldfish that slips off a night-market stall and swims up to the stars, then one GLM call per shot turns its line into a full video prompt. For each shot a Decide node (Clef, choose mode) answers &quot;which video model should film this?&quot; from four options that are exact model ids, and its answer is wired into that Text→Video node&#39;s model field. In the saved run shot 1 went to P-Video 2 Pro (87%), shot 2 to Kandinsky 6 Lite (61%) and shot 3 to MiniMax H3 Max Turbo (94%). A shared look line is joined in front of every shot prompt, Combine stitches the three shots, and one Mureka score plays over the whole 15 s film. Flaws: shot 2 breaks the look. Kandinsky drew a big-eyed cartoon goldfish rather than a paper lantern, and it hovers instead of weaving between lanterns, which is the risk of letting different models draw the same hero. The Decide calls are not itemized, so the total is approximate. The film was re-encoded to 832×480 for the gallery. Every sampled frame was checked and is SFW (a lantern fish over a market street, no people).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Story idea</em> and <em>Look bible (joined in front of every shot)</em> for your own film. Edit the question on each <em>Shot k · which model?</em> node to change the routing rules, or swap its options for other video model ids. The same wire works on image, LLM and music nodes.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Three GLM calls and three Decide calls cost under a cent. The shots depend on which model is picked: here P-Video 2 Pro $0.10 + Kandinsky 6 Lite $0.16 + H3 Max Turbo $0.125, plus the Mureka score $0.045. The saved run was about $0.43.</li>
+        <li>Open each Decide card to see the probabilities, then watch whether the three shots still read as one film. Here shot 2 (Kandinsky) drifts into a cartoon fish, so check the hero stays consistent before trusting the routing.</li>
+      </ol>
+
+      <p class="howto-note">The three Text→Video nodes now carry the model each Decide picked in the saved run as a default. The Decide wire still overrides it at run time, so routing works as before.</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA-1a247bOBJ9768o-CUJVnLadl8SvwyyO5eHTSYLTLCDwfZgURJLFtcUqSGpdjuD_PuiSPnSblm208huBtNvNm2WjqpOnVMy_fsZDG4HUxglZzDQRpAbTOFfZwC_nwHAQIrBFAZ5KrUn7QdJWPTLmsKyqarN6t1gChfn8fVyMIV0fN6-Wwym8Hr1ppCkBF8kXICDKGM52pKUMosYDAae7jyvfigJhLSUe2MBZ6Q91DKfO0AQsijI8sqtFGSgMoIUFMYC3ZJdgiuNH8IbDW_fvoNaoeZNvrREKX8EhVRVAgiOcqNF_BY6B76x2gFhXoKSmkBqb_hrHrVIURlN7QVra6raJ4BaAMK3lEtBwDmEmmy4POSlMY4cLEqZl_dwutI0SgQQID08L9B5wNxLoxOokRNu1RIqnMk8gdxUtaI7yLEii1CZW3IJGAs5qgrQV8bVJVl6MYTvGHgE88wBarcgC9KBLwnoDnPfApAigYW0JMB5i3JW-ninvkQPH-jO3zTj0evxPwNmvqtnbpViLmECzoSY1jRe6hlf4lY6mSkCo8MnOepbdLCQvgTkbGWYSSX9cqtIIeIQ3oArkbEoY-Zt2h38x0hNAqSGwhrtwRTtrpj5FQLOtIMKfV4mvKDhb6bKOIbz0uclhZuvQp24eu8aS3MElxtLTIylA3NLNsRalEZRqMpwwEz8dAbwKdnpB-eNXe40QyBsdydcbPXBZNy-0ViFfT9xLJCCcNDdIKtOeFN4spAr4zjbXlYE6AE1UFX7JehQwQrtnJiSUGNNNlXIPNJQSFeCU7J2YIoCpHfMZ6USEGi9g4z8giiWrUQ940u0e12bUyuZyOtEWWMKb2oXsuoWsnLQ1OBNKFosi0frerLIpT4hieO-LL5l2mSBfM_3soZ58uJAljnQFJCTINLYhgJmpsE83JGxy4wvhT4mPAFBVIPUQs5MSIUn5OZGYRYugQXaCrDKyK7SCSruc6bwsLpAZhtXAmNoLCUwupq-jspQWKykng2BdbAka7gtEFyFSoElkRqLekZd1Q5tZ2WWkYgfQ2GUcMyNQplFJJFzDaXxU49StVIWUOeohSKYKbMAqZ0UNIQfDdRkakUJaAMF5qxC2gTk4YUyM9NXc5bhnZorVd0r-b7Gudgp-bcrV7hpzs-z66i3W_F3KxyUhjd-TFG-nKkqvRxO0kKhK1emYwmd0VLPvisKY30k6dqSKrz7YOakOebg1fn5at0tnaeKF38xDaAlzjAXb-1bjIrDAsLoMm39BrWskIvvSmM9c7UKbdM4ss9c5NoQfrbSt7qtltG9QDdMKBZLqYMN6Og469CcioQbIAQBYwXZ1hhW0sp7HLGr5zQN122plsCCDaB1GOZDeB_1PJiPMOSG8A7nFFYjpqjBM9KN1KSWW-Y8l1qw6rSogsjiEhAsd8o6R4tgh7dol0Gsh_B3bqygI1gRsOipVQvoew5_n5RCojKzJr4xOnW5DcJGd34I7xtfNx6MDrlcYQ9pHK7KGb2Fy9ljAKXxo14eX7862gCYt6MVi9ur_y8ofNVF4e9XNFyTbN1XCVji2Qje__j2l7g84rWFld6TBgzKRKpIc6M9BhHmtKfepNsDE3Ph4pyt4vocFsYKN4RvyeVWZpFRochFo9QScIZSw_P_l-K92B4x4gToIIyAQ_gJl_f7ht9Uhge4aASbjuFmOkI8Y8pDLM3JIqwyRScRk2fjXWKKMAtucXM02judnPeSM06xgYXfHKJorkwjCoWWXuaKijUDjYjPDmEwXq3-1pDjxPEnP_eOyr6ULlTjG_iHzOchy6xli9I4NmhLeuZLKHjCWRcuI-eHMLNmnkoeqDVFQqaj4WWqpKcp3Bu_f2s4NE9GzJlY0wRIk52RlzlkhN4NYY5aSO3my6s2CHt6AoILt7w3xBt-TgoiGOb5KKtGC7LwnOnmEnA12rliSvBDjiLwFrUrjK2QL-9eDKGSbBl3L8tJWuFd6hubmWnnowG4Ji-5IXOL0SJsJr1LeIjjWyrUMvWlNc2sjANcJmdg6ZZQuSHUttHIClO3aRqntTUv7_XyNDx5JOCUWSSbBxCZw4Kfgsh5zJR0JV8tekPoTuelUoDShqsKK4uQ4jATrYlu6nDHTIaemt3onfzf6K4E3ehjbmd_R_E0udtRvLa3n8ajrYYa704tYVD9S6uee3rIUc1fvbnRNzd6P7JbKXaB-XgzW9Au9vpQf6vHzsu5qzRky_aB8lDTH5Xqh3LWrojG4koFLjeG5oxqVssXr87r1SfoaspDAJ6XtwVGva99gPepXVTGYvhh49deSx8fb-mT84OePv5jevr4ydO_Pk_fZeYBT7_Pzs5OHz-Z-pOp_5lNfbelek394vpYUx8_2tR3gR0w9VN6_fNcfackX7GBT4438MurgwY--WMa-OTJwL8-A99l5gEDv8_OzqaePBn4k4H_mQ18t6V6Dfx6cqyBTx5t4LvADhj4Kb3-eQbeVYGv1MXzpuNfBnyWu52-V3ufdR5UdnUS3OZvEmm_J2GCRMNFLlA52j9o8LnxDsiqcTLfC_FAhcM5dAuwPZv-6w_vDhY1fJM7qH11ez28ejljPURPaTarVrWQ2nnbsNgh7_S2oU1Va6Md_TsqWghbTx5S44coflEc00IqFQ5YN2FBNUphtpxCyARk5i6BnBQrTjwhDsed8uNHmaM3bAlSz8IUwAfwRaNaea-kEGzG4cgZg5Ct5NEtSKkoWGEyqJHHiCDdqOJxbBqOxTfHtJUxouc0spAa1U4lnWm08Bbz-VY5xzu_mG8z7mqnnN-zIa7OJENpw5k5T0p93FPGPKTeGfzK_8tRUs-7_pej1r8gWlNtQunWzbf-pgCDuh08w0F3uEB73-bhxs0p6mZfS4a9uVTjXixdIY-BsnXSdgKWSX9eumIelZfN6UrXxk4oF71QNv-BOA3J1q_Sm43YA-Pyy2SkE0fWg-OqF0dnuGNwbH4LP4El1_2M7S_2aViiau-H8uqLNc_45LS8PkiVBzGPbZ6ejZ1QRudfrHseQOnrntEBof3cnHQC6WufUb_KdsY7krOnE2XUL7MHCn4amEMNNOrX2cd00OT0xBxW2wdBj22hno3dWPoV9zEt9ABKbwv1q-1n56QTSG8L9WttZ7wjWfsZTOkX2wMFPw3MoRYa94ttl61tPaXvx7J-pLu3b9SHpF9uu_ThEUjGfUj69bYrzY9AMulD0i-23QEPA9l6BOrc2Y2lX2y3HpC3tKER8vPQbO1sn4nOPv0X-IIXIbcwAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#director-picks-the-model">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/director-picks-the-model/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/director-picks-the-model/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#director-picks-the-model">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/carve-a-pumpkin">Carve a design into a pumpkin</a>
+        <a href="/guide/examples/song-to-music-video">Song in, music video out →</a>
+        <a href="/examples/gallery/#director-picks-the-model">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

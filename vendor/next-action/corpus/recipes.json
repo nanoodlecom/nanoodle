@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "exampleCount": 27,
+  "exampleCount": 33,
   "recipes": [
     {
       "id": "add-snow-to-a-clip",
@@ -120,6 +120,31 @@
       }
     },
     {
+      "id": "composer-watches-your-film",
+      "slug": "composer-watches-your-film",
+      "title": "A composer that watches your film",
+      "sequence": [
+        "text",
+        "tvideo",
+        "vframes",
+        "text",
+        "llm",
+        "music",
+        "soundtrack",
+        "text",
+        "music",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 3,
+        "tvideo": 1,
+        "vframes": 1,
+        "llm": 1,
+        "music": 2,
+        "soundtrack": 2
+      }
+    },
+    {
       "id": "day-to-night",
       "slug": "day-to-night",
       "title": "Day to night between two keyframes",
@@ -136,6 +161,41 @@
         "image": 1,
         "edit": 1,
         "ivideo": 1
+      }
+    },
+    {
+      "id": "director-picks-the-model",
+      "slug": "director-picks-the-model",
+      "title": "The graph picks the video model for each shot",
+      "sequence": [
+        "text",
+        "text",
+        "llm",
+        "llm",
+        "decide",
+        "join",
+        "tvideo",
+        "llm",
+        "decide",
+        "join",
+        "tvideo",
+        "llm",
+        "decide",
+        "join",
+        "tvideo",
+        "combine",
+        "music",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 2,
+        "llm": 4,
+        "decide": 3,
+        "join": 3,
+        "tvideo": 3,
+        "combine": 1,
+        "music": 1,
+        "soundtrack": 1
       }
     },
     {
@@ -262,6 +322,51 @@
         "llm": 2,
         "image": 1,
         "ivideo": 1
+      }
+    },
+    {
+      "id": "new-angle-same-take",
+      "slug": "new-angle-same-take",
+      "title": "A second camera on the same take",
+      "sequence": [
+        "text",
+        "tvideo",
+        "vframes",
+        "text",
+        "edit",
+        "text",
+        "vedit",
+        "combine"
+      ],
+      "multiset": {
+        "text": 3,
+        "tvideo": 1,
+        "vframes": 1,
+        "edit": 1,
+        "vedit": 1,
+        "combine": 1
+      }
+    },
+    {
+      "id": "one-continuous-take",
+      "slug": "one-continuous-take",
+      "title": "Grow one clip into a long take",
+      "sequence": [
+        "text",
+        "text",
+        "text",
+        "tvideo",
+        "vedit",
+        "vedit",
+        "music",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 3,
+        "tvideo": 1,
+        "vedit": 2,
+        "music": 1,
+        "soundtrack": 1
       }
     },
     {
@@ -401,6 +506,45 @@
         "join": 3,
         "llm": 3,
         "music": 1
+      }
+    },
+    {
+      "id": "sketch-to-svg",
+      "slug": "sketch-to-svg",
+      "title": "Prompt to an editable SVG sticker",
+      "sequence": [
+        "text",
+        "image",
+        "edit"
+      ],
+      "multiset": {
+        "text": 1,
+        "image": 1,
+        "edit": 1
+      }
+    },
+    {
+      "id": "song-to-music-video",
+      "slug": "song-to-music-video",
+      "title": "Song in, music video out",
+      "sequence": [
+        "text",
+        "llm",
+        "music",
+        "trim",
+        "text",
+        "image",
+        "lipsync",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 2,
+        "llm": 1,
+        "music": 1,
+        "trim": 1,
+        "image": 1,
+        "lipsync": 1,
+        "soundtrack": 1
       }
     },
     {

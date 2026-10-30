@@ -1578,5 +1578,299 @@
     "preview": "carve-a-pumpkin/preview.webp",
     "workflow": "carve-a-pumpkin/workflow.json",
     "workflowSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9"
+  },
+  {
+    "slug": "director-picks-the-model",
+    "title": "The graph picks the video model for each shot",
+    "date": "2026-10-30",
+    "review": "Three shots by three different models, each picked by its own Decide node, stitched and scored as one film",
+    "note": "GLM 5.3 Flash writes a three-shot plan for a paper-lantern goldfish that slips off a night-market stall and swims up to the stars, then one GLM call per shot turns its line into a full video prompt. For each shot a Decide node (Clef, choose mode) answers \"which video model should film this?\" from four options that are exact model ids, and its answer is wired into that Text→Video node's model field. In the saved run shot 1 went to P-Video 2 Pro (87%), shot 2 to Kandinsky 6 Lite (61%) and shot 3 to MiniMax H3 Max Turbo (94%). A shared look line is joined in front of every shot prompt, Combine stitches the three shots, and one Mureka score plays over the whole 15 s film. Flaws: shot 2 breaks the look. Kandinsky drew a big-eyed cartoon goldfish rather than a paper lantern, and it hovers instead of weaving between lanterns, which is the risk of letting different models draw the same hero. The Decide calls are not itemized, so the total is approximate. The film was re-encoded to 832×480 for the gallery. Every sampled frame was checked and is SFW (a lantern fish over a market street, no people).",
+    "layout": "sequence",
+    "costUsd": 0.4303,
+    "costExact": false,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "cloudflare/clef",
+      "mureka-ai/mureka-v7.6/generate-bgm"
+    ],
+    "graphSha256": "11f0b910b5cc235daafec4ed2d556b403f50d4325cd543c07d7e09d30b30c94e",
+    "inputs": [
+      {
+        "label": "Story idea",
+        "text": "After closing time at an empty night market, a paper-lantern fish slips off its stall, darts between the hanging lanterns, then rises over the rooftops and swims up to join the stars."
+      },
+      {
+        "label": "Look bible (joined in front of every shot)",
+        "text": "Look: a hand-painted gouache storybook at night, deep indigo and teal shadows, warm amber lantern light, soft painted brush texture, 16:9 film framing. The hero is a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside. No people, no faces, no text, no logos."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "director-picks-the-model/film.mp4",
+        "kind": "video",
+        "label": "Film: P-Video 2 Pro → Kandinsky 6 Lite → H3 Max Turbo shots + Mureka score, 15 s · about $0.43 in total",
+        "costUsd": 0.4303,
+        "sha256": "aa96f9e41774e649d13b3b1157c910515d822c55d9c025b2e1754bdc5ec459bb"
+      }
+    ],
+    "preview": "director-picks-the-model/preview.webp",
+    "workflow": "director-picks-the-model/workflow.json",
+    "workflowSha256": "f12258e3f87c37707834daa86d8a60074d3de456668120494a8d1ed600e360c4",
+    "workflowNote": "The three Text→Video nodes now carry the model each Decide picked in the saved run as a default. The Decide wire still overrides it at run time, so routing works as before."
+  },
+  {
+    "slug": "song-to-music-video",
+    "title": "Song in, music video out",
+    "date": "2026-10-30",
+    "review": "The tin robot dances and mouths along to its own song, with the video driven by the audio",
+    "note": "GLM 5.3 Flash writes a two-line verse and a two-line chorus about a red tin-toy robot watering a rooftop garden at sunrise. MiniMax Music 2.6 sings them as bright synth-pop. FLUX.3 Klein paints the robot on its rooftop stage, and the Avatar node sends that picture and the song to the Music Video Generator, which returns a performance with its own scene changes: the robot dances and mouths along while the vocal plays. Trim caps the song at 15 s before the video model, which bills by audio length, and Soundtrack lays the original full-quality song back over the video. Flaws: MiniMax ignored the 15 s duration and returned a 33 s song with an 8 s instrumental intro, so the 15 s cut keeps only the verse and the chorus is not in the video. Move Trim's start to about 7 s to catch the singing. The video was re-encoded for the gallery. Every still and sampled frame was checked and is SFW (a toy robot, no people).",
+    "layout": "sequence",
+    "costUsd": 0.611,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "Minimax-Music-2.6",
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "music-video-generator"
+    ],
+    "graphSha256": "cf3325cfbc6e79166f15d270cea44c57586ac02f8a9badcc43355735d9a4aef3",
+    "inputs": [
+      {
+        "label": "Song idea",
+        "text": "An upbeat synth-pop song about a little red tin-toy robot who wakes up at sunrise and waters the flowers in a rooftop garden, singing into its watering can."
+      },
+      {
+        "label": "Performer & stage",
+        "text": "A small shiny red wind-up tin-toy robot with a brass wind-up key on its back, round glass eyes and riveted panels, holding a little green watering can like a microphone, standing on a tiny stage in a lush rooftop garden at sunrise, potted sunflowers and tomato vines, string lights, warm golden light, city rooftops behind, colourful stylised 3D animation look, no people, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "song-to-music-video/performer.webp",
+        "kind": "image",
+        "label": "Performer: FLUX.3 Klein 1:1 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "1f2d2ebd2c78421b629cfc05effeeaa78bdd9b9d6f0e07554aeff8a8091ab759"
+      },
+      {
+        "src": "song-to-music-video/song.mp3",
+        "kind": "audio",
+        "label": "Song: MiniMax Music 2.6, 33 s returned · reported $0.15",
+        "costUsd": 0.15,
+        "sha256": "7c5f497308679afa0a2c3894d1cb0001f684b4d079468fd81278be87374c12b3"
+      },
+      {
+        "src": "song-to-music-video/music-video.mp4",
+        "kind": "video",
+        "label": "Music video: Music Video Generator 480p, first 15 s of the song · reported $0.45",
+        "costUsd": 0.45,
+        "sha256": "898412bd84e2234eb0588a8dae99edeb3b92ec3eac3b96df95c6588da0f80e67"
+      }
+    ],
+    "preview": "song-to-music-video/preview.webp",
+    "workflow": "song-to-music-video/workflow.json",
+    "workflowSha256": "cf3325cfbc6e79166f15d270cea44c57586ac02f8a9badcc43355735d9a4aef3"
+  },
+  {
+    "slug": "one-continuous-take",
+    "title": "Grow one clip into a long take",
+    "date": "2026-10-30",
+    "review": "One unbroken 16-second camera move with invisible joins, ending on a sunset puddle",
+    "note": "Grok Imagine 1.5 Lite films 5 seconds of a white paper sailboat floating down a rain-filled stone gutter at golden hour, with the camera at water level. MiniMax H3 Max Turbo's extend mode takes the whole clip plus a new beat and returns the original seconds plus about 5 new ones that continue from the last frame, and a second extend does it again, opening out onto a puddle that reflects the sunset. Mureka scores the 16.4 s take and Soundtrack lays the score on. The first 5 seconds are kept rather than re-rendered, and the joins near 5.0 s and 10.7 s are invisible frame to frame. Flaws: the first beat asked the boat to tip over a step and right itself, but what came out is gentle bobbing, so extend keeps motion going better than it adds new events. The run was made in stages from saved clips with the same prompts and settings. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (a paper boat in a gutter, no people).",
+    "layout": "sequence",
+    "costUsd": 0.395,
+    "costExact": true,
+    "models": [
+      "grok-imagine-video-1.5-lite",
+      "minimax/h3-max-turbo/extend-video",
+      "mureka-ai/mureka-v7.6/generate-bgm"
+    ],
+    "graphSha256": "eff054c473597a240e3a94e345ca59f20957c09094f34153d5f48750c3bfa267",
+    "inputs": [
+      {
+        "label": "Shot",
+        "text": "Low camera at water level follows a small white folded-paper sailboat as it floats down a narrow rain-filled stone gutter after a storm, warm golden-hour sunlight, wet cobblestones, a few fallen autumn leaves drifting beside it. One continuous tracking shot, no cuts."
+      },
+      {
+        "label": "Continue 1",
+        "text": "The same paper sailboat tips over a small step in the gutter, splashes down, rights itself and keeps sailing; the camera keeps following it at water level. Continuous shot, no cuts."
+      },
+      {
+        "label": "Continue 2",
+        "text": "The gutter opens onto a wide, still rain puddle that mirrors the orange sunset sky; the paper sailboat glides out to the middle and slows, and the camera rises gently to reveal the sky reflected around it. Continuous shot, no cuts."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "one-continuous-take/opening.mp4",
+        "kind": "video",
+        "label": "Opening: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10",
+        "costUsd": 0.1,
+        "sha256": "c622dfb454ce6f695faaafddde42bdae9d684083529f2a55b6e8d5faf7a235a4"
+      },
+      {
+        "src": "one-continuous-take/one-take.mp4",
+        "kind": "video",
+        "label": "One take: extended twice by H3 Max Turbo, 16.4 s + Mureka score · reported $0.295",
+        "costUsd": 0.295,
+        "sha256": "6d1993bb18224b313b4223a18625f3d5952aa905f0dace68a1dae74ec8aa07ad"
+      }
+    ],
+    "preview": "one-continuous-take/preview.webp",
+    "workflow": "one-continuous-take/workflow.json",
+    "workflowSha256": "eff054c473597a240e3a94e345ca59f20957c09094f34153d5f48750c3bfa267"
+  },
+  {
+    "slug": "composer-watches-your-film",
+    "title": "A composer that watches your film",
+    "date": "2026-10-30",
+    "review": "The fitted score enters on the first spark and is still playing when the lanterns rise; the blind one fades out early",
+    "note": "MiniMax H3 Max Turbo films 10 silent seconds of a lantern on a still mountain lake at night: a firefly drifts down, the lantern lights, and a wave of lanterns lights and rises across the water. Frames pulls one still per second, and Elorian Glimpse reads them and writes a composer's brief with tempo, key, instruments and cue points (\"at 4 s, when the lantern ignites, strings swell\"). ElevenLabs Music composes from that brief and Soundtrack lays it on the film. A second branch scores the same film from a text description only, so you can hear what watching adds. All four of Glimpse's cue points land within about half a second of the picture, and the fitted cue tracks the asked 60 BPM. Flaws: ElevenLabs ignored the 10 s duration on the fitted call and returned 19 s, so the fitted version stops at 10 s while still at full level. The hush asked for at 3 s is only a small dip. Glimpse sees 1 fps stills, so it called the firefly a spark. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (lanterns on a lake, no people).",
+    "layout": "sequence",
+    "costUsd": 0.468,
+    "costExact": true,
+    "models": [
+      "minimax/h3-max-turbo",
+      "elorian/glimpse",
+      "elevenlabs/music"
+    ],
+    "graphSha256": "df49086cfaef7bed04173c34beeaf0c1f18ccb32d12231fd4933d6ef5ec9f022",
+    "inputs": [
+      {
+        "label": "Shot",
+        "text": "Night on a perfectly still mountain lake, deep blue darkness, stars reflected in the water. A single small unlit paper lantern floats in the centre. A firefly drifts down and lands on it, and the lantern glows warm orange. Then, one after another in a spreading wave, dozens of paper lanterns across the lake light up, and finally they all lift slowly off the water and rise into the sky. No people. Slow gentle push-in, one continuous shot."
+      },
+      {
+        "label": "Ask",
+        "text": "Score this 10-second clip."
+      },
+      {
+        "label": "Blind brief (no frames)",
+        "text": "An instrumental film score cue, exactly 10 seconds long, no vocals, for this scene: night on a still mountain lake; a firefly lights a paper lantern, a wave of lanterns lights up across the lake, and they all rise into the sky."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "composer-watches-your-film/composer-brief.txt",
+        "kind": "text",
+        "label": "Composer's brief: Elorian Glimpse from 10 frames · reported $0.018",
+        "costUsd": 0.018,
+        "sha256": "f0db110c6f4643c8450eb78185ee96589d81a679a8ff85e8893c42ff0e92d8b3"
+      },
+      {
+        "src": "composer-watches-your-film/fitted-score.mp4",
+        "kind": "video",
+        "label": "Film + fitted score: H3 Max Turbo 10 s ($0.25) + ElevenLabs Music from the brief · reported $0.35",
+        "costUsd": 0.35,
+        "sha256": "c74abc381e846529a71e879373501fd5fbf96180fad6fba547c1178883e2efd8"
+      },
+      {
+        "src": "composer-watches-your-film/blind-score.mp4",
+        "kind": "video",
+        "label": "Film + blind score: ElevenLabs Music from a text description only · reported $0.10",
+        "costUsd": 0.1,
+        "sha256": "67b3bd056089d5a7b12f77ee3c276de9b04b4aa9319f6f81615e94e33a937910"
+      }
+    ],
+    "preview": "composer-watches-your-film/preview.webp",
+    "workflow": "composer-watches-your-film/workflow.json",
+    "workflowSha256": "df49086cfaef7bed04173c34beeaf0c1f18ccb32d12231fd4933d6ef5ec9f022"
+  },
+  {
+    "slug": "new-angle-same-take",
+    "title": "A second camera on the same take",
+    "date": "2026-10-30",
+    "review": "The same train, table, teapot and oranges, now filmed head-on from a low second camera",
+    "note": "Grok Imagine 1.5 Lite films 5 seconds of a red-and-black toy steam train crossing a wooden trestle on a sunlit kitchen table, next to a blue teapot and a bowl of oranges. Frames pulls the still at 2.5 s, and Seedream 5.0 Flash Edit redraws it from a low front angle on the track. MiniMax H3 Lite gets the original clip as a video reference and that still as an image reference and re-films the same run head-on, so you get a second camera on a shot that only had one. Combine cuts A then C. Flaws: the redraw is plausible rather than 3D-correct, so the teapot moves from behind the bridge to beside the track, and near the lens the trestle turns into a flat curved track. Grok drew three carriages, not two. The saved run also made an unused overhead still ($0.027), which is not in this graph, and its Combine step dropped audio after 6.8 s, so the cut is not shipped here; the two camera clips are. The clips were re-encoded for the gallery. Inspired by @jerrod_lew's multi-angle workflow (https://x.com/jerrod_lew/status/2112889004928692268). No media from that post is used. Every still and sampled frame was checked and is SFW (a toy train, no people).",
+    "layout": "sequence",
+    "costUsd": 0.5945,
+    "costExact": false,
+    "models": [
+      "grok-imagine-video-1.5-lite",
+      "bytedance/seedream-v5.0-flash/edit",
+      "minimax/h3-lite"
+    ],
+    "graphSha256": "32cee2a855e2aa85a6302b5c2488f346bb74d35a5adf7862c6478ede79c0ccf1",
+    "inputs": [
+      {
+        "label": "Shot",
+        "text": "A small red-and-black toy steam locomotive pulling two little wooden carriages chugs from left to right across a wooden toy trestle bridge on a sunlit farmhouse kitchen table, puffs of white steam rising from its chimney. A blue teapot and a bowl of oranges sit beside the track. Medium side shot at table height, steady camera, warm morning light. No people."
+      },
+      {
+        "label": "Angle C · low front",
+        "text": "Show this exact same moment from a low camera on the track just ahead of the locomotive, looking back at it head-on as it comes across the bridge towards the lens, the steam rising above it, the teapot and oranges soft in the background. Same objects, same colours, same warm morning light. No people, no hands."
+      },
+      {
+        "label": "Re-film brief C",
+        "text": "Re-film the action of the reference video from the camera angle of the reference image: a low camera on the track ahead of the small red-and-black toy steam locomotive, which comes head-on across the wooden trestle bridge towards the lens pulling its two wooden carriages, white steam puffing from the chimney, the blue teapot and the bowl of oranges soft in the background. Same train, same table, same warm morning light, same pace as the reference video. No people, no hands."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "new-angle-same-take/camera-a.mp4",
+        "kind": "video",
+        "label": "Camera A: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10",
+        "costUsd": 0.1,
+        "sha256": "267e926b0f09f4f4d1ec668e05001f3cec388c39bb6f7f2df6efc12ef4c7a95f"
+      },
+      {
+        "src": "new-angle-same-take/angle-c.webp",
+        "kind": "image",
+        "label": "New angle still: Seedream 5.0 Flash Edit · reported $0.027",
+        "costUsd": 0.027,
+        "sha256": "8476be0009d02de4a5db3bb9a6027bb04ea9f61b854ab72b10ebf2619c88afb7"
+      },
+      {
+        "src": "new-angle-same-take/camera-c.mp4",
+        "kind": "video",
+        "label": "Camera C: MiniMax H3 Lite with the clip and the still as references · reported $0.4675",
+        "costUsd": 0.4675,
+        "sha256": "70544395cd843eb21b8a9db55db279e38798cdf97a51809e0ea455afa4475a1a"
+      }
+    ],
+    "preview": "new-angle-same-take/preview.webp",
+    "workflow": "new-angle-same-take/workflow.json",
+    "workflowSha256": "5dbe6ff48c2f3307f80c692a7d6f7498c84e2f713aefb308a9119176417c23ce",
+    "workflowNote": "The Seedream edit node now asks for the 2k size the current catalog lists; the saved run used the older 16:9 setting."
+  },
+  {
+    "slug": "sketch-to-svg",
+    "title": "Prompt to an editable SVG sticker",
+    "date": "2026-10-30",
+    "review": "A baby dragon sticker as a real SVG, 122 vector shapes and no embedded raster",
+    "note": "FLUX.3 Klein paints a sticker of a baby dragon holding a paper lantern in a flat style on a white background. Ideogram Vector, in convert mode with a blank prompt, turns that image into an SVG with 122 vector shapes and no embedded raster, so you can zoom to 8× and the edges stay crisp, then edit the shapes in any vector tool. Flaws: the prompt asked for four flat colours, but FLUX added soft shading and a white sticker border, and the vectorizer kept them faithfully, so the SVG has about 25 fills and 5 gradients rather than a minimal palette. The sticker PNG was re-encoded to WebP for the gallery; the SVG is as returned. Inspired by @AllaAisling's Ideogram Vector post (https://x.com/AllaAisling/status/2113305041906061472). No media from that post is used. Every image was checked and is SFW (a cartoon dragon).",
+    "layout": "sequence",
+    "costUsd": 0.179,
+    "costExact": true,
+    "models": [
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "ideogram/vector"
+    ],
+    "graphSha256": "7ecef2135ea4db3796ab6e01ca90ddfda649504ae52f3d0c8f1a141deaf14dac",
+    "inputs": [
+      {
+        "label": "Sticker concept",
+        "text": "A friendly cartoon baby dragon sticker, sitting and holding a tiny paper lantern. Flat vector illustration style, exactly four flat colours (mint green body, cream belly, warm orange lantern, dark navy outline), thick even navy outline, clearly separated scales on the back, small rounded wings, big friendly eyes. Centered on a plain white background, no gradients, no texture, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "sketch-to-svg/sticker.webp",
+        "kind": "image",
+        "label": "Raster sticker: FLUX.3 Klein 1024² · reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "ba7927dd3014b758aead6d95377c6543e07ca430baf2df18ad6d360a45882861"
+      },
+      {
+        "src": "sketch-to-svg/dragon.svg",
+        "kind": "image",
+        "label": "SVG: Ideogram Vector convert · reported $0.17",
+        "costUsd": 0.17,
+        "sha256": "8406429012b53af3d67e5fcdc034981484b0e0e876194f0f36e9680d43a39f39"
+      }
+    ],
+    "preview": "sketch-to-svg/preview.webp",
+    "workflow": "sketch-to-svg/workflow.json",
+    "workflowSha256": "7ecef2135ea4db3796ab6e01ca90ddfda649504ae52f3d0c8f1a141deaf14dac"
   }
 ]
