@@ -8286,15 +8286,17 @@ function imgExtra(n){
       if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       const rawUrls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
+      if(!rawUrls.length) throw new Error("no image in response");
+      // Record cost before the content read: if that read fails, the paid request is still on the meter.
+      const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
+      if(c.usd==null){ const est = await estImageUsd(model, size, rawUrls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
+      onCost(c);
       const urls = [];
       for(const u of rawUrls){
         try{ urls.push(await resolveContentMedia(u)); }
         catch(e){ throw opaqueContentError(e, false); }
       }
-      if(!urls.length) throw new Error("no image in response");
-      const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
-      if(c.usd==null){ const est = await estImageUsd(model, size, urls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
-      onCost(c); return opts.multi ? urls : urls[0];
+      return opts.multi ? urls : urls[0];
     },
     // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The
     // real price rides usage.cost (input tokens only), so bill that (twin of the editor's genDecision).

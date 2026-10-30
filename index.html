@@ -14032,16 +14032,18 @@ const CTX = {
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
     const rawUrls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    if(!rawUrls.length) throw new Error("no image in response");
+    // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
+    // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
+    // Bill as soon as the paid request returns: a failed content load below must not drop the charge.
+    const unit = imageUnitUsd(model, size);
+    accrue(j, unit!=null ? unit*rawUrls.length : null, r);
     const urls = [];
     for(const u of rawUrls){
       try{ urls.push(await resolveContentMedia(u)); }
       catch(e){ throw opaqueContentError(e, false); }
     }
-    if(!urls.length) throw new Error("no image in response");
-    // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
-    // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
-    const unit = imageUnitUsd(model, size);
-    accrue(j, unit!=null ? unit*urls.length : null, r); return opts.multi ? urls : urls[0];
+    return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
     opts = opts || {};
