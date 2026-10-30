@@ -1593,7 +1593,7 @@
       "cloudflare/clef",
       "mureka-ai/mureka-v7.6/generate-bgm"
     ],
-    "graphSha256": "11f0b910b5cc235daafec4ed2d556b403f50d4325cd543c07d7e09d30b30c94e",
+    "graphSha256": "1aba2150ce55d8e835cc53f705dd2d8466642cf0070331abab54c87697a083fa",
     "inputs": [
       {
         "label": "Story idea",
@@ -1615,7 +1615,7 @@
     ],
     "preview": "director-picks-the-model/preview.webp",
     "workflow": "director-picks-the-model/workflow.json",
-    "workflowSha256": "f12258e3f87c37707834daa86d8a60074d3de456668120494a8d1ed600e360c4",
+    "workflowSha256": "229a64d2036c165af6eb6c8a041fc82a21b16d1676e18501317ca81c28b48248",
     "workflowNote": "The three Text→Video nodes now carry the model each Decide picked in the saved run as a default. The Decide wire still overrides it at run time, so routing works as before."
   },
   {
@@ -1633,7 +1633,7 @@
       "blackforestlabs/flux-3/klein/text-to-image",
       "music-video-generator"
     ],
-    "graphSha256": "cf3325cfbc6e79166f15d270cea44c57586ac02f8a9badcc43355735d9a4aef3",
+    "graphSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a",
     "inputs": [
       {
         "label": "Song idea",
@@ -1669,56 +1669,7 @@
     ],
     "preview": "song-to-music-video/preview.webp",
     "workflow": "song-to-music-video/workflow.json",
-    "workflowSha256": "cf3325cfbc6e79166f15d270cea44c57586ac02f8a9badcc43355735d9a4aef3"
-  },
-  {
-    "slug": "one-continuous-take",
-    "title": "Grow one clip into a long take",
-    "date": "2026-10-30",
-    "review": "One unbroken 16-second camera move with invisible joins, ending on a sunset puddle",
-    "note": "Grok Imagine 1.5 Lite films 5 seconds of a white paper sailboat floating down a rain-filled stone gutter at golden hour, with the camera at water level. MiniMax H3 Max Turbo's extend mode takes the whole clip plus a new beat and returns the original seconds plus about 5 new ones that continue from the last frame, and a second extend does it again, opening out onto a puddle that reflects the sunset. Mureka scores the 16.4 s take and Soundtrack lays the score on. The first 5 seconds are kept rather than re-rendered, and the joins near 5.0 s and 10.7 s are invisible frame to frame. Flaws: the first beat asked the boat to tip over a step and right itself, but what came out is gentle bobbing, so extend keeps motion going better than it adds new events. The run was made in stages from saved clips with the same prompts and settings. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (a paper boat in a gutter, no people).",
-    "layout": "sequence",
-    "costUsd": 0.395,
-    "costExact": true,
-    "models": [
-      "grok-imagine-video-1.5-lite",
-      "minimax/h3-max-turbo/extend-video",
-      "mureka-ai/mureka-v7.6/generate-bgm"
-    ],
-    "graphSha256": "eff054c473597a240e3a94e345ca59f20957c09094f34153d5f48750c3bfa267",
-    "inputs": [
-      {
-        "label": "Shot",
-        "text": "Low camera at water level follows a small white folded-paper sailboat as it floats down a narrow rain-filled stone gutter after a storm, warm golden-hour sunlight, wet cobblestones, a few fallen autumn leaves drifting beside it. One continuous tracking shot, no cuts."
-      },
-      {
-        "label": "Continue 1",
-        "text": "The same paper sailboat tips over a small step in the gutter, splashes down, rights itself and keeps sailing; the camera keeps following it at water level. Continuous shot, no cuts."
-      },
-      {
-        "label": "Continue 2",
-        "text": "The gutter opens onto a wide, still rain puddle that mirrors the orange sunset sky; the paper sailboat glides out to the middle and slows, and the camera rises gently to reveal the sky reflected around it. Continuous shot, no cuts."
-      }
-    ],
-    "outputs": [
-      {
-        "src": "one-continuous-take/opening.mp4",
-        "kind": "video",
-        "label": "Opening: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10",
-        "costUsd": 0.1,
-        "sha256": "c622dfb454ce6f695faaafddde42bdae9d684083529f2a55b6e8d5faf7a235a4"
-      },
-      {
-        "src": "one-continuous-take/one-take.mp4",
-        "kind": "video",
-        "label": "One take: extended twice by H3 Max Turbo, 16.4 s + Mureka score · reported $0.295",
-        "costUsd": 0.295,
-        "sha256": "6d1993bb18224b313b4223a18625f3d5952aa905f0dace68a1dae74ec8aa07ad"
-      }
-    ],
-    "preview": "one-continuous-take/preview.webp",
-    "workflow": "one-continuous-take/workflow.json",
-    "workflowSha256": "eff054c473597a240e3a94e345ca59f20957c09094f34153d5f48750c3bfa267"
+    "workflowSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a"
   },
   {
     "slug": "composer-watches-your-film",
@@ -1734,7 +1685,7 @@
       "elorian/glimpse",
       "elevenlabs/music"
     ],
-    "graphSha256": "df49086cfaef7bed04173c34beeaf0c1f18ccb32d12231fd4933d6ef5ec9f022",
+    "graphSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17",
     "inputs": [
       {
         "label": "Shot",
@@ -1774,7 +1725,7 @@
     ],
     "preview": "composer-watches-your-film/preview.webp",
     "workflow": "composer-watches-your-film/workflow.json",
-    "workflowSha256": "df49086cfaef7bed04173c34beeaf0c1f18ccb32d12231fd4933d6ef5ec9f022"
+    "workflowSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17"
   },
   {
     "slug": "new-angle-same-take",
@@ -1790,7 +1741,7 @@
       "bytedance/seedream-v5.0-flash/edit",
       "minimax/h3-lite"
     ],
-    "graphSha256": "32cee2a855e2aa85a6302b5c2488f346bb74d35a5adf7862c6478ede79c0ccf1",
+    "graphSha256": "d8287bc66578cb579b1cdfd915370ada465a7ad99f8e54781d404dea422985e7",
     "inputs": [
       {
         "label": "Shot",
@@ -1830,7 +1781,7 @@
     ],
     "preview": "new-angle-same-take/preview.webp",
     "workflow": "new-angle-same-take/workflow.json",
-    "workflowSha256": "5dbe6ff48c2f3307f80c692a7d6f7498c84e2f713aefb308a9119176417c23ce",
+    "workflowSha256": "719fbc39d58d31074ddb7f664e199e1d229afbedd88714ecbb6f9e474701ea6e",
     "workflowNote": "The Seedream edit node now asks for the 2k size the current catalog lists; the saved run used the older 16:9 setting."
   },
   {
@@ -1846,7 +1797,7 @@
       "blackforestlabs/flux-3/klein/text-to-image",
       "ideogram/vector"
     ],
-    "graphSha256": "7ecef2135ea4db3796ab6e01ca90ddfda649504ae52f3d0c8f1a141deaf14dac",
+    "graphSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff",
     "inputs": [
       {
         "label": "Sticker concept",
@@ -1871,6 +1822,6 @@
     ],
     "preview": "sketch-to-svg/preview.webp",
     "workflow": "sketch-to-svg/workflow.json",
-    "workflowSha256": "7ecef2135ea4db3796ab6e01ca90ddfda649504ae52f3d0c8f1a141deaf14dac"
+    "workflowSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff"
   }
 ]

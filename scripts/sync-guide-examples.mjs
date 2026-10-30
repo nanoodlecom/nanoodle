@@ -238,14 +238,7 @@ const HOWTO = {
     inspect: "Listen to the song first, then check where the singing starts inside the trimmed window. Watch whether the performer moves on the beat and keeps the look of the still.",
     costHow: "GLM lyrics under a cent + FLUX.3 Klein $0.011 + MiniMax Music 2.6 $0.15 + Music Video Generator at 480p, $0.03 per second for 15 s, $0.45. The saved run was $0.611.",
   },
-  "one-continuous-take": {
-    headline: "Grow one clip into a long take",
-    job: "Make a shot longer than a video model gives you in one call, with no cuts.",
-    purpose: "Show video extend. The Video edit node with an extend model takes the whole clip and a \"what happens next\" prompt and returns the clip plus new seconds that continue from its last frame. Chain two to grow a 5 s shot to about 16 s, steering each segment with its own beat.",
-    edit: "Change <em>Shot</em> for your opening and <em>Continue 1</em> and <em>Continue 2</em> for what happens next. Add another Video edit node in the chain for a longer take, or wire a 📹 Video input in place of the opening clip.",
-    inspect: "Step through the seams around 5 s and 10.7 s: the motion and light should carry straight through. Check whether each beat actually happened, since extend tends to keep motion going more than it adds events.",
-    costHow: "Grok Imagine 1.5 Lite 480p 5 s $0.10 + two H3 Max Turbo extends at $0.125 each (you pay only for the new seconds) + a Mureka score. The saved run was $0.395.",
-  },
+
   "composer-watches-your-film": {
     headline: "A composer that watches your film",
     job: "Score a clip with music written for what happens on screen, not a generic mood.",
@@ -327,7 +320,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "one-continuous-take", "composer-watches-your-film", "new-angle-same-take", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "composer-watches-your-film", "new-angle-same-take", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

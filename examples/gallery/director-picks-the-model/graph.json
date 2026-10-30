@@ -5,8 +5,9 @@
    "id": "c-intent",
    "type": "comment",
    "x": 40,
-   "y": -200,
+   "y": -290,
    "w": 900,
+   "sizes": {"text": 164},
    "fields": {
     "color": "yellow",
     "text": "The director agent picks a different video model for every shot. An LLM plans a three-shot film, a second LLM pass turns each line into a stand-alone video prompt, and a Decide node per shot chooses which video model should film it (fast action, painterly magic, complex camera moves, or calm atmosphere). Each Decide's answer is the exact model id, wired straight into that Text\u2192Video node's model field, so the routing is visible on the canvas with a probability for every model. A shared look line is joined in front of every prompt so the shots match, then Combine stitches them and one Mureka score plays over the whole film."
