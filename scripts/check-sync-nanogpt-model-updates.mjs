@@ -51,6 +51,17 @@ console.log("sync-nanogpt-model-updates (fixture)");
   );
 }
 
+// (a2) 2026-10 link formats: /chat?model= (GPT-6.1 Terra) and /studio/image?model=
+// (Qwen Image 3 Uncensored) are launches too, not skips.
+{
+  const terra = lineFor({ id: "t-1378", date: "2026-10-26", title: "GPT-6.1 Terra",
+    text: "[GPT-6.1 Terra](https://nano-gpt.com/chat?model=openai%2Fgpt-6.1-terra) is now available." });
+  check("/chat?model= card → New LLM model", typeof terra === "string" && terra.startsWith("New LLM model: GPT-6.1 Terra"), terra);
+  const qwen = lineFor({ id: "t-1365", date: "2026-10-25", title: "Qwen Image 3 Uncensored and Qwen Edit Uncensored",
+    text: "[Qwen Image 3 Uncensored](https://nano-gpt.com/studio/image?model=qwen-image-3-uncensored) and [Qwen Edit Uncensored](https://nano-gpt.com/studio/image?model=qwen-edit-uncensored) are now available." });
+  check("/studio/image?model= card → New image models", typeof qwen === "string" && qwen.startsWith("New image models: Qwen Image 3 Uncensored & Qwen Edit Uncensored"), qwen);
+}
+
 // (b) Claw/Hermes-style "now use GLM 5.3" becomes "Updated" not "New LLM models"
 {
   const line = lineFor(byId["1016"]);
