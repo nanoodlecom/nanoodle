@@ -8001,7 +8001,7 @@ window.NoodleApp = (function () {
         const tl = src ? g.links.find(l=> l.to.node===src.id && l.to.port==="prompt") : null, ts = tl ? g.nodes.find(x=> x.id===tl.from.node) : null;
         const txt = (ts && ts.type==="text" && ts.fields && ts.fields.text) || "";
         const secs = avatarAudioEstSeconds(src, txt, null);
-        if(secs!=null){ const u = avatarClampUsd(f.model, videoUnitUsd(pricing, Object.assign({}, videoPriceFields(pp, f), { duration: secs }), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} })); return (u!=null && isFinite(u)) ? u : null; }
+        if(secs!=null){ const u = videoUnitUsd(pricing, Object.assign({}, videoPriceFields(pp, f), { duration: avatarClampSecs(f.model, secs, pricing) }), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
       }
       const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
     if(n.type==="decide"){   // input tokens only — twin of the editor's Decide estimate (pick asks twice: in order + reversed)
@@ -9686,11 +9686,16 @@ function mp4ParamsMatch(bufs){
     var secs = txt ? txt.split(/\s+/).length / 2.8 : EST.ttsChars / 15;
     return Math.max(1, Math.ceil(secs - 1e-6));
   }
-  // LongCat Avatar bills at least $0.12 and at most $1.20 per clip (NanoGPT's min/max billing), whatever
-  // the audio length, so the chip clamps its seconds × rate to that range. Other avatar models: unchanged.
-  function avatarClampUsd(model, usd){
-    if(usd==null || !isFinite(usd) || !/^longcat-avatar/i.test(String(model||""))) return usd;
-    return Math.min(1.20, Math.max(0.12, usd));
+  // LongCat Avatar bills the voice's whole seconds clamped to a minimum and maximum BILLABLE DURATION
+  // (NanoGPT catalog: longcat-avatar-1.5 = 3–30 s; the 480p $0.12/$1.20 limits are just 3 s / 30 s × $0.04),
+  // so the chip clamps the SECONDS first and then prices them at the chosen resolution's per-second rate
+  // (720p = $0.08/s → $0.24–$2.40). Uses the catalog's minimum/maximum_billable_duration when present.
+  // Other avatar models: unchanged.
+  function avatarClampSecs(model, secs, pricing){
+    if(secs==null || !isFinite(secs)) return secs;
+    var p = pricing || {}, lo = +p.minimum_billable_duration, hi = +p.maximum_billable_duration;
+    if(!(lo>0) || !(hi>=lo)){ if(!/^longcat-avatar-1\.5(?!\/)/i.test(String(model||""))) return secs; lo = 3; hi = 30; }
+    return Math.min(hi, Math.max(lo, secs));
   }
   // NanoGPT's 400s, reworded into the fix
   function cleanVoiceError(e){

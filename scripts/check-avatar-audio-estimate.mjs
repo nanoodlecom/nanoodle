@@ -34,25 +34,43 @@ if (ed && pl) {
   ok(est({ type: "aupload", fields: {} }, "", null) === null, "unmeasured upload with no knob → null");
   ok(est(tts(), "", null) * 0.04 > 0.2, "never back to the old 5 s × $0.04 = $0.20 once a Speech node is wired");
 }
-// LongCat's billing limits: at least $0.12 and at most $1.20 a clip, in both twins.
-const edC = lift("index.html", "avatarClampUsd"), plC = lift("play.html", "avatarClampUsd");
+// LongCat's billing limits are on DURATION, not dollars: NanoGPT's catalog (GET /api/v1/video-models,
+// 2026-10-30) gives longcat-avatar-1.5 pricing.per_second_by_resolution {480p: 0.04, 720p: 0.08} with
+// minimum_billable_duration 3 and maximum_billable_duration 30 ("rounded up to whole seconds, then
+// clamped"). So 480p bills $0.12–$1.20 and 720p $0.24–$2.40. Both twins clamp the seconds, then price.
+const edC = lift("index.html", "avatarClampSecs"), plC = lift("play.html", "avatarClampSecs");
 if (edC && plC) {
-  ok(edC.fn === plC.fn, "index.html and play.html avatarClampUsd differ (twin drift)");
-  const clamp = new Function(edC.fn + "\nreturn avatarClampUsd;")();
+  ok(edC.fn === plC.fn, "index.html and play.html avatarClampSecs differ (twin drift)");
+  const clampS = new Function(edC.fn + "\nreturn avatarClampSecs;")();
   const est = ed && new Function("EST", ed.fn + "\nreturn avatarAudioEstSeconds;")({ ttsChars: 600 });
   const lc = "longcat-avatar-1.5", tts = { type: "tts", fields: {} };
-  ok(est(tts, "", 0.5) === 1 && Math.abs(clamp(lc, 1 * 0.04) - 0.12) < 1e-9, "0.5 s voice → 1 s × $0.04 = $0.04 → LongCat minimum $0.12");
-  ok(Math.abs(clamp(lc, 3 * 0.04) - 0.12) < 1e-9, "3 s × $0.04 = $0.12 → exactly the minimum");
-  ok(Math.abs(clamp(lc, 14 * 0.04) - 0.56) < 1e-9, "13.1 s → 14 s → $0.56 stays inside the limits");
-  ok(Math.abs(clamp(lc, 30 * 0.04) - 1.20) < 1e-9, "30 s × $0.04 = $1.20 → exactly the ceiling");
-  ok(Math.abs(clamp(lc, 40 * 0.04) - 1.20) < 1e-9, "40 s (unknown script) × $0.04 = $1.60 → LongCat ceiling $1.20");
-  ok(Math.abs(clamp(lc, 120 * 0.04) - 1.20) < 1e-9, "a 2-minute voice → still $1.20");
-  ok(clamp("omnihuman-1.5", 0.04) === 0.04 && clamp("omnihuman-1.5", 4) === 4, "non-LongCat avatar models are not clamped");
-  ok(clamp(lc, null) === null, "unpriced stays unpriced");
+  const P = { per_second_by_resolution: { "480p": 0.04, "720p": 0.08 }, minimum_billable_duration: 3, maximum_billable_duration: 30, default_resolution: "480p" };
+  const usd = (secs, res, pricing = P) => clampS(lc, secs, pricing) * P.per_second_by_resolution[res];
+  const cases = [
+    // [label, voice seconds (already whole), resolution, expected $]
+    ["minimum (0.5 s voice → 1 s → 3 s billed)", est(tts, "", 0.5), "480p", 0.12],
+    ["minimum (0.5 s voice → 1 s → 3 s billed)", est(tts, "", 0.5), "720p", 0.24],
+    ["mid (13.1 s voice → 14 s billed)", est(tts, "", 13.1), "480p", 0.56],
+    ["mid (13.1 s voice → 14 s billed)", est(tts, "", 13.1), "720p", 1.12],
+    ["maximum (30 s voice)", 30, "480p", 1.20],
+    ["maximum (30 s voice)", 30, "720p", 2.40],
+    ["over the maximum (40 s unknown-script assumption)", est(tts, "", null), "480p", 1.20],
+    ["over the maximum (40 s unknown-script assumption)", est(tts, "", null), "720p", 2.40],
+  ];
+  for (const [label, secs, res, want] of cases) {
+    const got = usd(secs, res);
+    ok(Math.abs(got - want) < 1e-9, `${res} ${label}: got $${got.toFixed(2)}, want $${want.toFixed(2)}`);
+  }
+  ok(Math.abs(usd(30, "720p") - 2.40) < 1e-9 && Math.abs(usd(30, "720p") - 1.20) > 0.5, "720p ceiling is $2.40, not the 480p $1.20");
+  ok(clampS(lc, 2, {}) === 3 && clampS(lc, 31, null) === 30, "longcat-avatar-1.5 falls back to 3–30 s when the catalog omits the limits");
+  ok(clampS("longcat-avatar", 100, { minimum_billable_duration: 3, maximum_billable_duration: 120 }) === 100, "LongCat Avatar 1.0 uses its own 120 s ceiling from the catalog");
+  ok(clampS("omnihuman-1.5", 1, {}) === 1 && clampS("omnihuman-1.5", 400, null) === 400, "avatar models with no billable-duration limits are not clamped");
+  ok(clampS(lc, null, P) === null, "no estimate stays no estimate");
 }
-if (ed) ok(/if\(n\.type==="lipsync"\)\{[\s\S]{0,900}avatarClampUsd\(fields\.model, videoUnitUsd\(/.test(ed.src.slice(ed.src.indexOf("function nodeUnitUsd(n)"))), "index.html lipsync estimate doesn't clamp to LongCat's limits");
-if (pl) ok(/if\(n\.type==="lipsync" && STATE && STATE\.graph\)\{[\s\S]{0,900}avatarClampUsd\(f\.model, videoUnitUsd\(/.test(pl.src.slice(pl.src.indexOf("async function nodeUnitUsdPlay(n)"))), "play.html lipsync estimate doesn't clamp to LongCat's limits");
+if (ed) ok(/if\(n\.type==="lipsync"\)\{[\s\S]{0,900}duration: avatarClampSecs\(fields\.model, secs, it\.pricing\)/.test(ed.src.slice(ed.src.indexOf("function nodeUnitUsd(n)"))), "index.html lipsync estimate doesn't clamp the billable seconds before pricing");
+if (pl) ok(/if\(n\.type==="lipsync" && STATE && STATE\.graph\)\{[\s\S]{0,900}duration: avatarClampSecs\(f\.model, secs, pricing\)/.test(pl.src.slice(pl.src.indexOf("async function nodeUnitUsdPlay(n)"))), "play.html lipsync estimate doesn't clamp the billable seconds before pricing");
+for (const [f, x] of [["index.html", ed], ["play.html", pl]]) if (x) ok(!/avatarClampUsd/.test(x.src), `${f}: the old fixed-dollar avatarClampUsd is back`);
 if (ed) ok(/if\(n\.type==="lipsync"\)\{[\s\S]{0,900}avatarAudioEstSeconds\(/.test(ed.src.slice(ed.src.indexOf("function nodeUnitUsd(n)"))), "index.html nodeUnitUsd doesn't price lipsync off avatarAudioEstSeconds");
 if (pl) ok(/if\(n\.type==="lipsync" && STATE && STATE\.graph\)\{[\s\S]{0,900}avatarAudioEstSeconds\(/.test(pl.src.slice(pl.src.indexOf("async function nodeUnitUsdPlay(n)"))), "play.html nodeUnitUsdPlay doesn't price lipsync off avatarAudioEstSeconds");
 if (fails) { console.error(`check-avatar-audio-estimate: ${fails} failure(s)`); process.exit(1); }
-console.log("check-avatar-audio-estimate: ok — avatar/lip-sync estimates bill the wired audio's seconds (13.1 s → 14 s → $0.56), clamped to LongCat's $0.12–$1.20");
+console.log("check-avatar-audio-estimate: ok — avatar/lip-sync estimates bill the wired audio's seconds (13.1 s → 14 s → $0.56), clamped to LongCat's 3–30 billable seconds (480p $0.12–$1.20, 720p $0.24–$2.40)");
