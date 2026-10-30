@@ -112,6 +112,16 @@ const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
   extractFn("njsCtx"), extractFn("njsRunFor"),
   extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
+  // genImage resolves provider content URLs before returning them. data:/https no-ops here;
+  // the helpers must be in the sandbox or a b64 image response throws before the body compare.
+  extractFn("isContentApiPath"), extractFn("contentApiBase"), extractFn("contentDataUrlWouldExceed"),
+  extractFn("scrubContentSecrets"), extractFn("contentAuthHeaders"), extractFn("drainContentBody"),
+  extractFn("contentResponseMime"), extractFn("sniffContentMime"), extractFn("contentBytesToDataUrl"),
+  extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
+  extractFn("isOpaqueContentRedirect"), extractFn("contentBearerHeaders"),
+  extractFn("readCappedContentBody"), extractFn("contentFetchForEngine"),
+  extractFn("opaqueContentError"), extractFn("deliverResolvedMedia"),
+  extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
@@ -149,7 +159,8 @@ const REAL = [
 
 function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], directive = null }) {
   const ctx = {
-    console, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    console, URL, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    Uint8Array, TextEncoder, TextDecoder, btoa, atob,
     // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome)
     Blob,
     FileReader: class {
@@ -522,6 +533,90 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
     assert.equal(kept, expectKept, `${label}: pending entry ${expectKept ? "must survive" : "must be deleted"} (got kept=${kept})`);
   }
   console.log("✓ pending jobs survive Stop/timeout and are deleted only on genuine failure");
+}
+
+// Browser fetch with redirect:manual is opaque. The editor shim must not POST the
+// user key to nanoodle.com. A manual content read drops x-api-key. When Location
+// is hidden, the page resolver throws and the finished job stays pending.
+{
+  const on = makeCtx({ flagOn: false });
+  const seen = [];
+  on.fetch = async (url, init = {}) => {
+    seen.push({ url: String(url), redirect: init.redirect, headers: init.headers || {} });
+    return {
+      ok: false, status: 0, type: "opaqueredirect",
+      headers: { get: () => null },
+      text: async () => "",
+      arrayBuffer: async () => new ArrayBuffer(0),
+      body: { cancel: async () => {} },
+    };
+  };
+  const contentUrl = "https://nano-gpt.com/api/generate-video/content?runId=grok1";
+  const r = await on.contentFetchForEngine(contentUrl, {
+    redirect: "manual",
+    headers: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+  });
+  assert.equal(r.status, 0, "an opaque content fetch stays opaque");
+  assert.equal(r.type, "opaqueredirect");
+  assert.equal(seen.length, 1, "the wrapper performs one fetch");
+  assert.equal(seen[0].redirect, "manual", "the content GET stays redirect:manual");
+  assert.equal(seen[0].headers.Authorization, "Bearer test-api-key", "the content GET keeps Authorization");
+  assert.equal(seen[0].headers["x-api-key"], undefined, "the content GET drops x-api-key");
+  assert.equal(seen.some((s) => {
+    try {
+      const host = new URL(s.url).hostname;
+      const h = s.headers || {};
+      return (host === "nanoodle.com" || host.endsWith(".nanoodle.com")) && (h.Authorization || h.authorization || h["x-api-key"]);
+    } catch { return false; }
+  }), false, "no request carrying a user key goes to a nanoodle.com origin");
+  await assert.rejects(
+    () => on.resolveProviderMediaUrl(contentUrl, {
+      baseUrl: "https://nano-gpt.com",
+      apiKey: "test-api-key",
+      authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+      fetch: on.fetch,
+    }),
+    (err) => /hid the provider file link/.test(err && err.message)
+      && !/finished job is saved/.test(err && err.message)
+      && !/new paid request/.test(err && err.message)
+      && !String(err && err.message).includes("test-api-key"),
+    "the shared handler does not promise the job was saved",
+  );
+  const contentGets = seen.filter((s) => String(s.url).includes("/api/generate-video/content"));
+  assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
+  let submits = 0;
+  const ctx = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      video() {
+        submits++;
+        return Promise.resolve("/api/generate-video/content?runId=grok1");
+      }
+    },
+  }, { id: "n1" });
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  assert.equal(submits, 1, "a second run does not submit the video again");
+  assert.equal(on.PENDING_VIDEO.has("n1"), true, "the finished job stays pending");
+  assert.equal(on.PENDING_VIDEO.get("n1").resultUrl, "/api/generate-video/content?runId=grok1");
+  let imagePosts = 0;
+  const img = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      image() {
+        imagePosts++;
+        return this.resolveContentUrl("/api/images/content?runId=img1");
+      }
+    },
+  }, { id: "img" });
+  await assert.rejects(
+    () => img.image({}),
+    (err) => /new paid request/.test(err && err.message) && !/finished job is saved/.test(err && err.message),
+    "an opaque image says a second run is a new paid request",
+  );
+  await assert.rejects(() => img.image({}), /new paid request/);
+  assert.equal(imagePosts, 2, "an image retry submits again");
+  console.log("✓ editor refuses an opaque redirect without sending the key to nanoodle.com");
 }
 
 if (failed) { console.log(`\n${failed}/${SCENARIOS.length} editor delegation scenarios failed`); process.exit(1); }
