@@ -7457,6 +7457,20 @@ function cleanVoiceEstSeconds(srcFields){
   var d = parseFloat(srcFields && srcFields.duration);
   return (isFinite(d) && d>0) ? d : 30;
 }
+// 🎬 Avatar / lip-sync models bill the AUDIO's length, not the 5 s video default. Seconds the run-cost
+// chip assumes for the wired audio source: its measured length when known, else its duration knob, else
+// (a 🗣️ Speech node) the words it will speak at ~2.8 words/s — the wired/typed text, or the Speech chip's
+// own EST.ttsChars assumption at ~15 chars/s when the text isn't known yet. Whole seconds, rounded up
+// (LongCat billed 14 s for a 13.1 s voice). null = nothing usable wired → keep the model default.
+function avatarAudioEstSeconds(src, srcText, measuredSecs){
+  if(!src) return null;
+  var m = +measuredSecs; if(isFinite(m) && m>0) return Math.max(1, Math.ceil(m - 1e-6));
+  var d = parseFloat(src.fields && src.fields.duration); if(isFinite(d) && d>0) return Math.max(1, Math.ceil(d - 1e-6));
+  if(src.type !== "tts") return null;
+  var txt = String(srcText || (src.fields && src.fields.prompt) || "").trim();
+  var secs = txt ? txt.split(/\s+/).length / 2.8 : EST.ttsChars / 15;
+  return Math.max(1, Math.ceil(secs - 1e-6));
+}
 // NanoGPT's 400s, reworded into the fix
 function cleanVoiceError(e){
   if(e && e.name==="AbortError") return e;
@@ -8557,6 +8571,15 @@ function effectiveModelFields(n){
   return Object.assign({}, n.fields || {}, { model: id });
 }
 // USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
+// measured lengths of wired audio outputs (url → s), probed once off the metadata; the chip re-renders when one lands
+const AVATAR_AUDIO_SECS = new Map();
+function avatarMeasuredSecs(url){
+  if(!url || typeof url!=="string") return null;
+  if(AVATAR_AUDIO_SECS.has(url)) return AVATAR_AUDIO_SECS.get(url);
+  AVATAR_AUDIO_SECS.set(url, null);
+  cleanVoiceMediaSeconds(url, false).then(function(v){ if(v){ AVATAR_AUDIO_SECS.set(url, v); try{ refreshRunEstimate(); }catch(e){} } });
+  return null;
+}
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const fields = effectiveModelFields(n);
@@ -8579,6 +8602,13 @@ function nodeUnitUsd(n){
       ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
+    if(n.type==="lipsync"){   // 🎬 avatar bills the wired audio's length (see avatarAudioEstSeconds)
+      const al = graph.links.find(l=> l.to.node===n.id && l.to.port==="audio"), src = al && byId(al.from.node);
+      const tl = src && graph.links.find(l=> l.to.node===src.id && l.to.port==="prompt"), ts = tl && byId(tl.from.node);
+      const txt = ts ? ((ts.out && typeof ts.out.text==="string" && ts.out.text) || (ts.type==="text" && ts.fields && ts.fields.text) || "") : "";
+      const secs = avatarAudioEstSeconds(src, txt, avatarMeasuredSecs(src && src.out && src.out.audio));
+      if(secs!=null){ const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), Object.assign({}, videoPriceFields(it.params, fields), { duration: secs }), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
+    }
     const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat" && t.modelFilter==="decision"){
     // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
@@ -20326,18 +20356,18 @@ const EXAMPLES = [
  { em:"📱", slug:"creator-ad", title:"A creator ad for your product", desc:"Put your product in an invented creator's hand, write a short script from a brief, voice it, and get a vertical talking selfie ad.",
    thumb:"examples/gallery/creator-ad/preview.webp",
    graph:{ v:1,
-   nodes:[ {id:"c-intent",type:"comment",x:40,y:-200,w:760,fields:{"text":"Turn a product into a vertical creator-style ad. Muse paints a stand-in product shot and an invented creator in her kitchen; Muse Edit puts that exact product in her hand in a 9:16 selfie frame. GLM writes a short first-person script from your product brief (only claims from the brief), MiniMax Speech reads it, and LongCat Avatar 1.5 makes her say it while holding the product. Swap the product Image for a 📷 Image input with your own product photo and rewrite the brief. LongCat bills by the length of the voice (about $0.04 per second at 480p), so keep the script near 10 seconds. Inspired by @teddarling's AI Creator Lab for ComfyUI (https://x.com/teddarling/status/2116187911850701017).","color":"yellow"}},
-           {id:"p-product",type:"text",x:40,y:60,w:300,fields:{"text":"Product photo of a small handmade terracotta self-watering herb pot: a round matte clay pot with a fresh basil plant, sitting inside a slightly larger glazed sage-green ceramic water reservoir with a tiny round water-level window on the front. Centered on a plain off-white background, soft even studio light, the whole product visible. No text, no letters, no logos, no labels, no people."},name:"Product · stand-in"},
-           {id:"product",type:"image",x:380,y:40,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"Product shot"},
-           {id:"p-creator",type:"text",x:40,y:480,w:300,fields:{"text":"A fictional friendly woman in her late twenties with shoulder-length curly dark hair, wearing a plain mustard-yellow knit sweater, filming a casual vertical selfie video in her bright small apartment kitchen with a sunny windowsill and a few plants behind her. Chest-up, front-facing, eyes to camera, warm natural smile with lips closed, face and mouth fully visible, natural window light, phone-camera look. No glasses, no hat, no jewelry, no text, no logos."},name:"Creator · look"},
-           {id:"creator",type:"image",x:380,y:460,fields:{"model":"meta/muse-image/text-to-image","size":"9:16","variations":"1"},name:"Creator"},
-           {id:"p-mix",type:"text",x:760,y:40,w:320,fields:{"text":"Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact woman, same face, curly hair, mustard sweater, kitchen and window light, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: she holds exactly one of this herb pot in one hand at chest height beside her shoulder, showing it to the camera, with the same terracotta pot, basil plant, sage-green reservoir and small round water-level window. The pot must not cover her face, chin or mouth. One person, one product, no other copies, no text, no logos, no stickers."},name:"Hold the product · instruction"},
-           {id:"mix",type:"edit",x:760,y:400,fields:{"model":"meta/muse-image/edit","size":"9:16","prompt":""},name:"Selfie frame · Muse Edit"},
-           {id:"p-brief",type:"text",x:40,y:900,w:300,fields:{"text":"Product: a small terracotta self-watering herb pot. The clay pot sits in a ceramic water reservoir, so the basil drinks on its own; a little window shows when to refill, about once every two weeks."},name:"Product brief"},
-           {id:"script",type:"llm",x:380,y:880,w:340,fields:{"model":"z-ai/glm-5.3-flash","system":"You write the spoken script for a short vertical UGC-style product video. The speaker is holding the product and talking to her phone camera like a friend. Write 2 or 3 short casual first-person sentences, 30 to 40 words total, about 10 to 12 seconds out loud. Open with a quick hook, say one concrete benefit from the brief, end with a light recommendation. Only claim what the brief says. No prices, no discount codes, no brand names, no hashtags, no emojis, no stage directions. Return only the words she says.","prompt":""},name:"Write the script"},
-           {id:"voice",type:"tts",x:760,y:940,fields:{"model":"Minimax-Speech-2.8-HD","voice":"Lively_Girl","response_format":"mp3"},name:"Voice"},
-           {id:"p-delivery",type:"text",x:1140,y:40,w:300,fields:{"text":"Casual, upbeat selfie-video delivery, like talking to a friend. Natural blinks, small nods and head movements, a warm smile between sentences. She keeps holding the herb pot steady beside her shoulder; the pot, the basil and her hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."},name:"Delivery"},
-           {id:"ad",type:"lipsync",x:1140,y:400,fields:{"model":"longcat-avatar-1.5","resolution":"480p"},name:"Creator ad · LongCat Avatar 1.5"} ],
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-260,w:760,sizes:{text:190},fields:{text:"Turn a product into a vertical creator-style ad. Muse paints a stand-in product shot and an invented creator in her kitchen; Muse Edit puts that exact product in her hand in a 9:16 selfie frame. GLM writes a short first-person script from your product brief (only claims from the brief), MiniMax Speech reads it, and LongCat Avatar 1.5 makes her say it while holding the product. Swap the product Image for a 📷 Image input with your own product photo and rewrite the brief. LongCat bills by the length of the voice (about $0.04 per second at 480p), so keep the script near 10 seconds. Inspired by @teddarling's AI Creator Lab for ComfyUI (https://x.com/teddarling/status/2116187911850701017).",color:"yellow"}},
+           {id:"p-product",type:"text",x:40,y:60,w:300,fields:{text:"Product photo of a small handmade terracotta self-watering herb pot: a round matte clay pot with a fresh basil plant, sitting inside a slightly larger glazed sage-green ceramic water reservoir with a tiny round water-level window on the front. Centered on a plain off-white background, soft even studio light, the whole product visible. No text, no letters, no logos, no labels, no people."},name:"Product · stand-in"},
+           {id:"product",type:"image",x:380,y:40,fields:{model:"meta/muse-image/text-to-image",size:"1:1",variations:"1"},name:"Product shot"},
+           {id:"p-creator",type:"text",x:40,y:480,w:300,fields:{text:"A fictional friendly woman in her late twenties with shoulder-length curly dark hair, wearing a plain mustard-yellow knit sweater, filming a casual vertical selfie video in her bright small apartment kitchen with a sunny windowsill and a few plants behind her. Chest-up, front-facing, eyes to camera, warm natural smile with lips closed, face and mouth fully visible, natural window light, phone-camera look. No glasses, no hat, no jewelry, no text, no logos."},name:"Creator · look"},
+           {id:"creator",type:"image",x:380,y:460,fields:{model:"meta/muse-image/text-to-image",size:"9:16",variations:"1"},name:"Creator"},
+           {id:"p-mix",type:"text",x:760,y:40,w:320,fields:{text:"Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact woman, same face, curly hair, mustard sweater, kitchen and window light, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: she holds exactly one of this herb pot in one hand at chest height beside her shoulder, showing it to the camera, with the same terracotta pot, basil plant, sage-green reservoir and small round water-level window. The pot must not cover her face, chin or mouth. One person, one product, no other copies, no text, no logos, no stickers."},name:"Hold the product · instruction"},
+           {id:"mix",type:"edit",x:760,y:400,fields:{model:"meta/muse-image/edit",size:"9:16",prompt:""},name:"Selfie frame · Muse Edit"},
+           {id:"p-brief",type:"text",x:40,y:900,w:300,fields:{text:"Product: a small terracotta self-watering herb pot. The clay pot sits in a ceramic water reservoir, so the basil drinks on its own; a little window shows when to refill, about once every two weeks."},name:"Product brief"},
+           {id:"script",type:"llm",x:380,y:880,w:340,fields:{model:"z-ai/glm-5.3-flash",system:"You write the spoken script for a short vertical UGC-style product video. The speaker is holding the product and talking to her phone camera like a friend. Write 2 or 3 short casual first-person sentences, 30 to 40 words total, about 10 to 12 seconds out loud. Open with a quick hook, say one concrete benefit from the brief, end with a light recommendation. Only claim what the brief says. No prices, no discount codes, no brand names, no hashtags, no emojis, no stage directions. Return only the words she says.",prompt:""},name:"Write the script"},
+           {id:"voice",type:"tts",x:760,y:940,fields:{model:"Minimax-Speech-2.8-HD",voice:"Lively_Girl",response_format:"mp3"},name:"Voice"},
+           {id:"p-delivery",type:"text",x:1140,y:40,w:300,fields:{text:"Casual, upbeat selfie-video delivery, like talking to a friend. Natural blinks, small nods and head movements, a warm smile between sentences. She keeps holding the herb pot steady beside her shoulder; the pot, the basil and her hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."},name:"Delivery"},
+           {id:"ad",type:"lipsync",x:1140,y:400,fields:{model:"longcat-avatar-1.5",resolution:"480p"},name:"Creator ad · LongCat Avatar 1.5"} ],
    links:[ {id:"l1",from:{node:"p-product",port:"text"},to:{node:"product",port:"prompt"}},
            {id:"l2",from:{node:"p-creator",port:"text"},to:{node:"creator",port:"prompt"}},
            {id:"l3",from:{node:"creator",port:"image"},to:{node:"mix",port:"image"}},
