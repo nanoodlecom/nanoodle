@@ -130,7 +130,7 @@ const REAL = [
   extractConst("IMAGE_ASPECT"), extractFn("aspectFromParams"), extractFn("imageAspectSpec"),
   extractFn("imageAspectExtra"),
   extractFn("imageKnobSpec"), extractFn("imageKnobExtra"),
-  extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
+  extractFn("imageModelOpts"), extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("normalizeLoraUrl"), extractFn("loraFamily"), extractFn("loraKind"),
   extractFn("imageTakesLora"), extractFn("modelTakesLora"), extractFn("loraCap"),
   extractFn("nodeLoras"), extractFn("loraBodyFor"), extractFn("loraParams"),
@@ -214,6 +214,18 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
 /* ---- scenarios: run built-in vs delegated, literal-compare --------------- */
 
 const SCENARIOS = [
+  ["vector convert protects request fields", "edit", { model: "ideogram/vector", prompt: "", modelOpts: {
+    vector_operation: "convert", mode: "default", model: "wrong", prompt: "wrong", n: 99,
+    imageDataUrl: "wrong", response_format: "url", api_key: "wrong", endpoint: "https://wrong.example"
+  } }, { image: IMG }, null, {
+    must: { model: "ideogram/vector", n: 1, imageDataUrl: IMG, vector_operation: "convert", mode: "default", response_format: "b64_json" },
+    forbid: ["prompt", "api_key", "endpoint"],
+  }],
+  ["image forwards safe model options", "image", { model: "ideogram/vector", prompt: "an icon", modelOpts: {
+    vector_operation: "generate", mode: "default", prompt: "wrong", n: 99
+  } }, {}, null, {
+    must: { model: "ideogram/vector", prompt: "an icon", n: 1, vector_operation: "generate", mode: "default" }, forbid: [],
+  }],
   // [name, type, fields, inp, directive] — directive simulates a non-English UI (withLocale must fire on BOTH paths)
   ["llm chat", "llm", { model: "x", system: "You are terse.", prompt: "Hello" }, {}, null],
   ["llm chat localized", "llm", { model: "x", system: "You are terse.", prompt: "Hola" }, {}, "Respond in Spanish."],

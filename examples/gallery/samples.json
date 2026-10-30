@@ -1510,5 +1510,73 @@
     "preview": "swap-the-character/preview.webp",
     "workflow": "swap-the-character/workflow.json",
     "workflowSha256": "b2bd1e255afe40b96cd2492ff02f6039f05a4d536a9ed2d4d8f047bf32721c51"
+  },
+  {
+    "slug": "carve-a-pumpkin",
+    "title": "Carve a design into a pumpkin",
+    "date": "2026-10-29",
+    "review": "The clip traces the owl, drops the cut pieces and lights the candle, landing on the carved still",
+    "note": "Muse draws a flat black stencil: an owl perched on a big crescent moon with three stars. Nano Banana Edit carves that stencil into a pumpkin on a dusk porch with fairy lights behind it. The moon and the owl's eye rings are cut through and glow, the owl's body and the stars are shaved into the skin, and a few chips lie on the step. Muse Edit takes the carving back out to make a clean plate: the same pumpkin, step and framing with whole skin and no chips. MiniMax H3 Max Turbo gets the clean plate on its image port and the carved still on its end-frame port. Across 5 seconds at 480p the camera holds still while glowing lines trace the stars, the moon and the owl. Two cut pieces drop onto the step and the candle inside flickers on, and the clip ends on the carved still. Flaws: no hands or tools appear, so the carving draws itself. The prompt asked for a curly green stem, but both stills have a dark brown one. The clean plate is a slightly wider crop (2048\u00d71152 against the carve's 1344\u00d7768), which the clip absorbs. H3 Max Turbo added a faint, wordless sound bed. A first carve with Muse Edit drifted from the stencil (the moon became a grin), so the saved graph uses Nano Banana Edit for that step. The original workflow vectorizes its design first. Here the stencil prompt asks for flat black shapes, so no vectorize step is needed. Swap the stencil node for a \ud83d\udcf7 Image input to carve your own drawing. Every still and sampled video frame was checked and is SFW (an invented owl design and a pumpkin, no people). Inspired by @jp_costa's ComfyUI pumpkin-carving workflow (https://x.com/jp_costa/status/2115525910254530758). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.186,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "nano-banana-edit",
+      "meta/muse-image/edit",
+      "minimax/h3-max-turbo"
+    ],
+    "graphSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9",
+    "inputs": [
+      {
+        "label": "Stencil \u00b7 prompt",
+        "text": "A pumpkin-carving stencil: one bold flat design in solid black shapes on a plain white background. An invented round little owl with big round eyes and two pointed ear tufts, perched on a thin crescent moon, with three small five-pointed stars around it. Simple thick shapes with clean edges and wide gaps between them, like a paper cut-out template, no thin lines, no shading, no gradients. Centered with a white margin all around. No text, no letters, no logos."
+      },
+      {
+        "label": "Carve \u00b7 instruction",
+        "text": "Look: cozy photoreal still life at dusk, one large round orange pumpkin with a curly green stem sitting on a weathered wooden porch step, dark blue evening background with soft out-of-focus fairy lights, shallow depth of field, eye-level close-up, the pumpkin fills the center of the frame. Carve this exact design into the front of the pumpkin as a jack-o'-lantern: every black shape of the design is cut clean through the skin, keeping the same owl, crescent moon and three stars in the same layout. A candle inside glows warm orange-yellow through the cut-out shapes, a few small carved pumpkin chips lie on the step beside it. No hands, no people, no knife, no text, no logos."
+      },
+      {
+        "label": "Clean plate \u00b7 instruction",
+        "text": "Clean plate: show this exact same photo with the carving undone. Keep the same pumpkin with the same shape, size, ribs, color and curly green stem, in exactly the same place on the same wooden porch step, with the same camera, framing, dark blue dusk background and fairy lights. Change only the front of the pumpkin: its skin is whole, smooth and uncut, with no holes, no design and no glow from inside, lit softly by the dusk and the fairy lights. Remove the pumpkin chips from the step. No hands, no people, no text."
+      },
+      {
+        "label": "Carving \u00b7 motion prompt",
+        "text": "Look: cozy photoreal still life at dusk, one large round orange pumpkin with a curved stem on a weathered wooden porch step, dark blue evening background with soft out-of-focus fairy lights, shallow depth of field, eye-level close-up. One continuous locked-off shot, the camera never moves. The whole uncarved pumpkin sits still in the dusk. Then thin glowing lines trace an owl, a crescent moon and three stars across its skin as if drawn by an invisible blade. The crescent moon and the owl's eye rings pop out cleanly and the pieces tumble onto the step at the right, while the owl's body and the stars are shaved into the skin. A candle inside flickers on and warm orange light pours out through the cut shapes. No hands, no knife, no people, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "carve-a-pumpkin/stencil.webp",
+        "kind": "image",
+        "label": "Stencil: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "433bebaf2653a4c943900c0aca967b54ecc6a8f7c23d1152566dd579e8e586cf"
+      },
+      {
+        "src": "carve-a-pumpkin/carved.webp",
+        "kind": "image",
+        "label": "End frame \u00b7 carved: Nano Banana Edit 16:9 \u00b7 reported $0.039",
+        "costUsd": 0.039,
+        "sha256": "706a114484b12e17fc027d098fcf83e0be1003867de8b77543f84160d4263e61"
+      },
+      {
+        "src": "carve-a-pumpkin/clean-plate.webp",
+        "kind": "image",
+        "label": "Start frame \u00b7 clean plate: Muse Edit 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "5ebe6573726d491c3e98fa6b61ca90a040e30101a8353fb04108058708681795"
+      },
+      {
+        "src": "carve-a-pumpkin/carve-a-pumpkin.mp4",
+        "kind": "video",
+        "label": "Uncarved \u2192 carved: MiniMax H3 Max Turbo, start + end frame, 480p 5 s \u00b7 reported $0.125",
+        "costUsd": 0.125,
+        "sha256": "ab77762814f5947f7f573d66f89f034ab4c7732027940acfd83e88600cdfbf70"
+      }
+    ],
+    "preview": "carve-a-pumpkin/preview.webp",
+    "workflow": "carve-a-pumpkin/workflow.json",
+    "workflowSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9"
   }
 ]

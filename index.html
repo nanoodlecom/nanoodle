@@ -9586,8 +9586,8 @@ const NODE_TYPES = {
         imgs = imgs.slice(0, cap);
       }
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      // Upscalers just enlarge — they need no instruction. Every other edit model requires one.
-      if(!prompt && !/upscal/i.test(n.fields.model||"")) throw new Error("no edit instruction — describe the change to make");
+      // Upscalers just enlarge — they need no instruction. Ideogram Vector convert also needs no instruction.
+      if(!prompt && !/upscal/i.test(n.fields.model||"") && !(n.fields.model==="ideogram/vector" && n.fields.modelOpts && n.fields.modelOpts.vector_operation==="convert")) throw new Error("no edit instruction — describe the change to make");
       // N inlined refs add up fast — refuse before any paid call (mirrors the inpaint guard)
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
@@ -11712,14 +11712,28 @@ function setNodeProgress(n, msg, meta){
   paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
+function imageDownloadFilename(filename, mime){
+  const exts = {
+    "image/png":"png", "image/jpeg":"jpg", "image/gif":"gif", "image/webp":"webp",
+    "image/svg+xml":"svg", "image/avif":"avif", "image/bmp":"bmp"
+  };
+  const type = String(mime||"").split(";")[0].trim().toLowerCase();
+  return Object.hasOwn(exts, type) ? filename.replace(/\.[^./\\]+$/, "") + "." + exts[type] : filename;
+}
 async function downloadUrl(url, filename){
   try{
     let href = url;
-    if(!/^(data:|blob:)/.test(url)){                    // remote URL → fetch the bytes so download works cross-origin
+    let mime = (String(url).match(/^data:([^;,]+)/i)||[])[1] || "";
+    if(!/^(data:|blob:)/i.test(url)){                  // remote URL → fetch the bytes so download works cross-origin
       const b = await (await fetch(url)).blob();
+      mime = b.type;
       href = URL.createObjectURL(b);
+    } else if(/^blob:/i.test(url)){
+      // Read the existing Blob's type without taking ownership of its URL.
+      // If it can no longer be fetched, retain the caller's filename fallback.
+      try{ mime = (await (await fetch(url)).blob()).type; }catch{}
     }
-    const a = document.createElement("a"); a.href=href; a.download=filename; a.click();
+    const a = document.createElement("a"); a.href=href; a.download=imageDownloadFilename(filename, mime); a.click();
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
@@ -13827,7 +13841,13 @@ function b64ImageMime(b64){
   if(b64.startsWith("iVBOR")) return "image/png";
   if(b64.startsWith("R0lG"))  return "image/gif";
   if(b64.startsWith("UklG"))  return "image/webp";
-  return "image/png";   // unknown → sensible default; browsers sniff content regardless
+    // SVG may start with a BOM, XML declaration, or comments. Inspect a bounded
+  // prefix as text only; no XML parsing or execution.
+  try {
+    const head = atob(b64.slice(0, 8192));
+    if (/^(?:\xef\xbb\xbf)?\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|\/?>)/i.test(head)) return "image/svg+xml";
+  } catch { /* malformed/unknown base64 keeps the raster fallback */ }
+return "image/png";   // unknown → sensible default; browsers sniff content regardless
 }
 /* ---------- LoRA (image style adapters) ----------
    HuggingFace + any direct .safetensors URL only. The browser never fetches the
@@ -13927,8 +13947,19 @@ function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, alrea
 // result regardless, making "same seed → same image" hold even if the model isn't seed-honest).
 // custom-civitai also requires customCivitaiAir (full AIR) — refuse before the paid call so we
 // never surface the API's raw missing_custom_model / invalidModel 400s.
+// Model knobs may tune generation, but cannot replace node-owned request fields
+// or smuggle routing/authentication settings into an image request.
+function imageModelOpts(opts) {
+  const out = {};
+  if (!opts || typeof opts !== "object" || Array.isArray(opts)) return out;
+  for (const [key, value] of Object.entries(opts)) {
+    if (/^(?:model|prompt|size|n|responseformat|image|images|imageurl|imagedataurl|mask|maskurl|maskdataurl|key|apikey|xapikey|token|accesstoken|authorization|auth|headers|url|endpoint|baseurl|method|body|credentials|proxy|runid|requestid|isapirequest|paymentsource|paymentid|tojson|proto|prototype|constructor)$/i.test(key.replace(/[_-]/g, ""))) continue;
+    out[key] = value;
+  }
+  return out;
+}
 function imgExtra(n){
-  const e = loraParams(n), s = n.fields.seed;
+  const e = Object.assign(imageModelOpts(n.fields.modelOpts), loraParams(n)), s = n.fields.seed;
   if(s!=null && String(s).trim()!=="" && !isNaN(Number(s))) e.seed = Number(s);
   // Catalog aspect_ratio (or the FIBO offline map). Leftover fields.aspect after a swap onto
   // a model with no separate knob must not go out — imageAspectExtra returns {} then.
@@ -13996,7 +14027,7 @@ const CTX = {
     if(prompt) body.prompt = prompt;                     // omit when blank — upscalers run with no instruction; every other path guarantees a non-empty prompt before reaching here
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
-    if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
+    Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
@@ -20617,6 +20648,26 @@ const EXAMPLES = [
            {id:"l4",from:{node:"p-char",port:"text"},to:{node:"char",port:"prompt"}},
            {id:"l5",from:{node:"driver",port:"video"},to:{node:"swap",port:"video"}},
            {id:"l6",from:{node:"char",port:"image"},to:{node:"swap",port:"image"}} ] } },
+ { em:"🎃", slug:"carve-a-pumpkin", title:"Carve a design into a pumpkin", desc:"Draw a stencil, carve it into a pumpkin, take the carving back out for a clean plate, then let the video carve it from the clean frame to the lit one.",
+   thumb:"examples/gallery/carve-a-pumpkin/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-170,w:760,fields:{"text":"Carve a design into a pumpkin, then play the carving. Muse draws a flat black stencil, Nano Banana Edit carves that exact stencil into a pumpkin on a dusk porch, and Muse Edit takes the carving back out to get a clean plate of the same shot. MiniMax H3 Max Turbo gets the clean pumpkin on its image port and the carved one on its end-frame port, so the clip starts uncarved and ends lit. Swap the stencil prompt for your own design, or the pumpkin for a wall, a cake or a wooden sign. Inspired by @jp_costa's ComfyUI pumpkin-carving workflow (https://x.com/jp_costa/status/2115525910254530758).","color":"yellow"}},
+           {id:"p-design",type:"text",x:40,y:60,w:320,fields:{"text":"A pumpkin-carving stencil: one bold flat design in solid black shapes on a plain white background. An invented round little owl with big round eyes and two pointed ear tufts, perched on a thin crescent moon, with three small five-pointed stars around it. Simple thick shapes with clean edges and wide gaps between them, like a paper cut-out template, no thin lines, no shading, no gradients. Centered with a white margin all around. No text, no letters, no logos."},name:"Stencil · prompt"},
+           {id:"design",type:"image",x:400,y:40,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"Stencil · Muse"},
+           {id:"p-carve",type:"text",x:40,y:400,w:320,fields:{"text":"Look: cozy photoreal still life at dusk, one large round orange pumpkin with a curly green stem sitting on a weathered wooden porch step, dark blue evening background with soft out-of-focus fairy lights, shallow depth of field, eye-level close-up, the pumpkin fills the center of the frame. Carve this exact design into the front of the pumpkin as a jack-o'-lantern: every black shape of the design is cut clean through the skin, keeping the same owl, crescent moon and three stars in the same layout. A candle inside glows warm orange-yellow through the cut-out shapes, a few small carved pumpkin chips lie on the step beside it. No hands, no people, no knife, no text, no logos."},name:"Carve · instruction"},
+           {id:"carved",type:"edit",x:400,y:400,w:280,fields:{"model":"nano-banana-edit","size":"auto","aspect":"16:9","prompt":""},name:"Carved pumpkin · Nano Banana Edit"},
+           {id:"p-clean",type:"text",x:40,y:740,w:320,fields:{"text":"Clean plate: show this exact same photo with the carving undone. Keep the same pumpkin with the same shape, size, ribs, color and curly green stem, in exactly the same place on the same wooden porch step, with the same camera, framing, dark blue dusk background and fairy lights. Change only the front of the pumpkin: its skin is whole, smooth and uncut, with no holes, no design and no glow from inside, lit softly by the dusk and the fairy lights. Remove the pumpkin chips from the step. No hands, no people, no text."},name:"Clean plate · instruction"},
+           {id:"clean",type:"edit",x:400,y:740,w:280,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"Clean plate · Muse Edit"},
+           {id:"p-move",type:"text",x:760,y:60,w:320,fields:{"text":"Look: cozy photoreal still life at dusk, one large round orange pumpkin with a curved stem on a weathered wooden porch step, dark blue evening background with soft out-of-focus fairy lights, shallow depth of field, eye-level close-up. One continuous locked-off shot, the camera never moves. The whole uncarved pumpkin sits still in the dusk. Then thin glowing lines trace an owl, a crescent moon and three stars across its skin as if drawn by an invisible blade. The crescent moon and the owl's eye rings pop out cleanly and the pieces tumble onto the step at the right, while the owl's body and the stars are shaved into the skin. A candle inside flickers on and warm orange light pours out through the cut shapes. No hands, no knife, no people, no text."},name:"Carving · motion prompt"},
+           {id:"clip",type:"ivideo",x:760,y:400,w:300,fields:{"model":"minimax/h3-max-turbo","prompt":"","resolution":"480p","duration":"5","loras":[]},name:"Uncarved → carved · H3 Max Turbo (start + end frame)"} ],
+   links:[ {id:"l1",from:{node:"p-design",port:"text"},to:{node:"design",port:"prompt"}},
+           {id:"l2",from:{node:"design",port:"image"},to:{node:"carved",port:"image"}},
+           {id:"l3",from:{node:"p-carve",port:"text"},to:{node:"carved",port:"prompt"}},
+           {id:"l4",from:{node:"carved",port:"image"},to:{node:"clean",port:"image"}},
+           {id:"l5",from:{node:"p-clean",port:"text"},to:{node:"clean",port:"prompt"}},
+           {id:"l6",from:{node:"clean",port:"image"},to:{node:"clip",port:"image"}},
+           {id:"l7",from:{node:"carved",port:"image"},to:{node:"clip",port:"endframe"}},
+           {id:"l8",from:{node:"p-move",port:"text"},to:{node:"clip",port:"prompt"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"From scene to short clip", desc:"Generate a first frame, then animate it with a separate motion brief.",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,

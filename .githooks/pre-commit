@@ -61,7 +61,7 @@ touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.h
 # index.html runGroup must not run/charge a downstream node on a failed upstream's stale output.
 touches_stale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-stale-input-charge\.mjs)$' || true)
 # index.html + play.html carry the AI-upscale-through-Edit path (prompt-optional for /upscal/ models, blank prompt omitted from genImage) — the check pins both engines in lockstep.
-touches_upscale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-upscale\.mjs)$' || true)
+touches_upscale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-upscale\.mjs|scripts/check-vector-image\.mjs)$' || true)
 # play.html runtime must resume a timed-out video job instead of re-submitting (double charge).
 touches_vresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-video-resume\.mjs)$' || true)
 # lipsync must not auto-retry after a post-submit job failure (already charged → second submit double-bills).
@@ -349,6 +349,7 @@ fi
 #      BOTH engines (recurring twin-drift risk). Source-assertion, no browser/network.
 if [ -n "$touches_upscale" ]; then
   node "$root/scripts/check-upscale.mjs"
+  node "$root/scripts/check-vector-image.mjs"
 fi
 
 # 14) the exported/standalone runtime must RESUME a video job that outlived the 10-min poll window
