@@ -1580,45 +1580,6 @@
     "workflowSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9"
   },
   {
-    "slug": "director-picks-the-model",
-    "title": "The graph picks the video model for each shot",
-    "date": "2026-10-30",
-    "review": "Three shots by three different models, each picked by its own Decide node, stitched and scored as one film",
-    "note": "GLM 5.3 Flash writes a three-shot plan for a paper-lantern goldfish that slips off a night-market stall and swims up to the stars, then one GLM call per shot turns its line into a full video prompt. For each shot a Decide node (Clef, choose mode) answers \"which video model should film this?\" from four options that are exact model ids, and its answer is wired into that Text→Video node's model field. In the saved run shot 1 went to P-Video 2 Pro (87%), shot 2 to Kandinsky 6 Lite (61%) and shot 3 to MiniMax H3 Max Turbo (94%). A shared look line is joined in front of every shot prompt, Combine stitches the three shots, and one Mureka score plays over the whole 15 s film. Flaws: shot 2 breaks the look. Kandinsky drew a big-eyed cartoon goldfish rather than a paper lantern, and it hovers instead of weaving between lanterns, which is the risk of letting different models draw the same hero. The Decide calls are not itemized, so the total is approximate. The film was re-encoded to 832×480 for the gallery. Every sampled frame was checked and is SFW (a lantern fish over a market street, no people).",
-    "layout": "sequence",
-    "costUsd": 0.4303,
-    "costExact": false,
-    "models": [
-      "z-ai/glm-5.3-flash",
-      "cloudflare/clef",
-      "mureka-ai/mureka-v7.6/generate-bgm"
-    ],
-    "graphSha256": "1aba2150ce55d8e835cc53f705dd2d8466642cf0070331abab54c87697a083fa",
-    "inputs": [
-      {
-        "label": "Story idea",
-        "text": "After closing time at an empty night market, a paper-lantern fish slips off its stall, darts between the hanging lanterns, then rises over the rooftops and swims up to join the stars."
-      },
-      {
-        "label": "Look bible (joined in front of every shot)",
-        "text": "Look: a hand-painted gouache storybook at night, deep indigo and teal shadows, warm amber lantern light, soft painted brush texture, 16:9 film framing. The hero is a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside. No people, no faces, no text, no logos."
-      }
-    ],
-    "outputs": [
-      {
-        "src": "director-picks-the-model/film.mp4",
-        "kind": "video",
-        "label": "Film: P-Video 2 Pro → Kandinsky 6 Lite → H3 Max Turbo shots + Mureka score, 15 s · about $0.43 in total",
-        "costUsd": 0.4303,
-        "sha256": "aa96f9e41774e649d13b3b1157c910515d822c55d9c025b2e1754bdc5ec459bb"
-      }
-    ],
-    "preview": "director-picks-the-model/preview.webp",
-    "workflow": "director-picks-the-model/workflow.json",
-    "workflowSha256": "229a64d2036c165af6eb6c8a041fc82a21b16d1676e18501317ca81c28b48248",
-    "workflowNote": "The three Text→Video nodes now carry the model each Decide picked in the saved run as a default. The Decide wire still overrides it at run time, so routing works as before."
-  },
-  {
     "slug": "song-to-music-video",
     "title": "Song in, music video out",
     "date": "2026-10-30",

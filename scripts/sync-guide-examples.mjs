@@ -222,14 +222,7 @@ const HOWTO = {
     inspect: "Check that the carved still keeps the stencil's shapes (Muse Edit lost them here, Nano Banana Edit kept them), that the clean plate matches the carved still apart from the carving, and that the clip's first and last frames match the two stills.",
     costHow: "Muse 1:1 $0.011 + Nano Banana Edit $0.039 + Muse Edit 16:9 $0.011 + MiniMax H3 Max Turbo at 480p for 5 s, $0.125. The saved run was $0.186.",
   },
-  "director-picks-the-model": {
-    headline: "The graph picks the video model for each shot",
-    job: "Film a short multi-shot story where each shot is filmed by the video model best suited to it, picked at run time.",
-    purpose: "Show the <em>Decide → model</em> wire. A Decide node in choose mode returns one of its options, and when those options are model ids its text output can drive any node's <em>model</em> field. The Decide card shows a probability for every option, so you can see why each shot went where it did.",
-    edit: "Change <em>Story idea</em> and <em>Look bible (joined in front of every shot)</em> for your own film. Edit the question on each <em>Shot k · which model?</em> node to change the routing rules, or swap its options for other video model ids. The same wire works on image, LLM and music nodes.",
-    inspect: "Open each Decide card to see the probabilities, then watch whether the three shots still read as one film. Here shot 2 (Kandinsky) drifts into a cartoon fish, so check the hero stays consistent before trusting the routing.",
-    costHow: "Three GLM calls and three Decide calls cost under a cent. The shots depend on which model is picked: here P-Video 2 Pro $0.10 + Kandinsky 6 Lite $0.16 + H3 Max Turbo $0.125, plus the Mureka score $0.045. The saved run was about $0.43.",
-  },
+
   "song-to-music-video": {
     headline: "Song in, music video out",
     job: "Turn a one-line song idea into an original sung track and a music video of a character performing it.",
@@ -312,7 +305,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
