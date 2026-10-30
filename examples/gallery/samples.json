@@ -1578,5 +1578,85 @@
     "preview": "carve-a-pumpkin/preview.webp",
     "workflow": "carve-a-pumpkin/workflow.json",
     "workflowSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9"
+  },
+  {
+    "slug": "creator-ad",
+    "title": "A creator ad for your product",
+    "date": "2026-10-30",
+    "review": "Every sampled frame keeps the same face and the same pot; a Whisper pass on the ad's audio matched the script word for word",
+    "note": "Muse paints a stand-in product: a terracotta self-watering herb pot with basil, sitting in a sage-green reservoir with a round water-level window. It also paints an invented creator in a mustard sweater filming a selfie in a sunny kitchen. Muse Edit puts that exact pot in her hand at chest height in a 9:16 frame, keeping her face, the kitchen and the pot's reservoir and window. GLM writes a 37-word first-person script from a two-line product brief: \"I used to kill every basil I brought home. This little terracotta pot sits in a water reservoir, so it drinks on its own, and a tiny window shows me when to refill\u2014like every two weeks. Honestly, get one.\" MiniMax Speech 2.8 HD reads it in 13 seconds, and LongCat Avatar 1.5 makes her say it at 480p while she holds the pot steady beside her shoulder. Flaws: the prompt asked for shoulder-length hair and she has longer curls. Her expressions run a little big, with a few wide-mouthed frames. The ad is 480p. The script ran 13.1 s against a 10 to 12 s target, so LongCat billed 14 s ($0.56), and the editor's cost estimate assumes a 5 s clip, so it reads low for this node. The creator is an invented person and the ad is AI-generated, so label it that way if you post it. Swap the product Image for a \ud83d\udcf7 Image input to use your own product photo. Every still and sampled video frame was checked and is SFW (a clothed invented adult and a plant pot, no text or logos). Inspired by @teddarling's AI Creator Lab for ComfyUI (https://x.com/teddarling/status/2116187911850701017). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.614,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "z-ai/glm-5.3-flash",
+      "Minimax-Speech-2.8-HD",
+      "longcat-avatar-1.5"
+    ],
+    "graphSha256": "9992528dc70651bbba57935b7cc65a28f871634fa2cb9f961c16d9ca247fffb2",
+    "inputs": [
+      {
+        "label": "Product \u00b7 stand-in",
+        "text": "Product photo of a small handmade terracotta self-watering herb pot: a round matte clay pot with a fresh basil plant, sitting inside a slightly larger glazed sage-green ceramic water reservoir with a tiny round water-level window on the front. Centered on a plain off-white background, soft even studio light, the whole product visible. No text, no letters, no logos, no labels, no people."
+      },
+      {
+        "label": "Creator \u00b7 look",
+        "text": "A fictional friendly woman in her late twenties with shoulder-length curly dark hair, wearing a plain mustard-yellow knit sweater, filming a casual vertical selfie video in her bright small apartment kitchen with a sunny windowsill and a few plants behind her. Chest-up, front-facing, eyes to camera, warm natural smile with lips closed, face and mouth fully visible, natural window light, phone-camera look. No glasses, no hat, no jewelry, no text, no logos."
+      },
+      {
+        "label": "Hold the product \u00b7 instruction",
+        "text": "Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact woman, same face, curly hair, mustard sweater, kitchen and window light, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: she holds exactly one of this herb pot in one hand at chest height beside her shoulder, showing it to the camera, with the same terracotta pot, basil plant, sage-green reservoir and small round water-level window. The pot must not cover her face, chin or mouth. One person, one product, no other copies, no text, no logos, no stickers."
+      },
+      {
+        "label": "Product brief",
+        "text": "Product: a small terracotta self-watering herb pot. The clay pot sits in a ceramic water reservoir, so the basil drinks on its own; a little window shows when to refill, about once every two weeks."
+      },
+      {
+        "label": "Delivery",
+        "text": "Casual, upbeat selfie-video delivery, like talking to a friend. Natural blinks, small nods and head movements, a warm smile between sentences. She keeps holding the herb pot steady beside her shoulder; the pot, the basil and her hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "creator-ad/product.webp",
+        "kind": "image",
+        "label": "Product: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "77c2d9df307b0c821cfdc8cdae0477ae998cd1be5029c529aa100478bc479c69"
+      },
+      {
+        "src": "creator-ad/creator.webp",
+        "kind": "image",
+        "label": "Creator: Muse 9:16 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "ecb41cc67bf316845f6d4ca33ae82dab1aa299a7239c6628302f82cbdf231164"
+      },
+      {
+        "src": "creator-ad/selfie-frame.webp",
+        "kind": "image",
+        "label": "Creator holds the product: Muse Edit 9:16 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "1dea347b1e05aa5f14f189dc6458a5789f0e215fe61cbfb9950bffeecb0a929c"
+      },
+      {
+        "src": "creator-ad/voice.mp3",
+        "kind": "audio",
+        "label": "Script: GLM 5.3 Flash ($0.0009) \u2192 MiniMax Speech 2.8 HD, 13.1 s \u00b7 $0.0204 by balance",
+        "costUsd": 0.0213,
+        "sha256": "92e90af8299223d5bd5efabba9a0bed7e1f559c46f8a63bf5b0b825efb5b7187"
+      },
+      {
+        "src": "creator-ad/creator-ad.mp4",
+        "kind": "video",
+        "label": "Creator ad: LongCat Avatar 1.5, 480p, 13.1 s (billed 14 s) \u00b7 reported $0.56",
+        "costUsd": 0.56,
+        "sha256": "61d1166cca40c0b7ba4aa26f4b2dbf715ed1d8502d845532cc044f420b272b0e"
+      }
+    ],
+    "preview": "creator-ad/preview.webp",
+    "workflow": "creator-ad/workflow.json",
+    "workflowSha256": "9992528dc70651bbba57935b7cc65a28f871634fa2cb9f961c16d9ca247fffb2"
   }
 ]

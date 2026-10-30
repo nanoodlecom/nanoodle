@@ -21,8 +21,8 @@ const catalogs = {
   chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
     ...(id === 'google/gemini-3.8-flash' ? { capabilities: { vision: true } } : {}) })),
   image: [
-    image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9'], true),
-    image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9']),
+    image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9', '9:16'], true),
+    image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9', '9:16']),
     image('nano-banana-edit', ['auto'], true),
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
@@ -76,7 +76,7 @@ const catalogs = {
       capabilities: { video_to_video: true }, supported_parameters: { parameters: { seed: { type: 'number', default: -1 } } } },
   ],
   audio: [
-    { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
+    { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
     { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
   ],
