@@ -7996,6 +7996,13 @@ window.NoodleApp = (function () {
         ? STATE.graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
       // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
       const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
+      if(n.type==="lipsync" && STATE && STATE.graph){   // 🎬 avatar bills the wired audio's length — twin of the editor (no measured clip before a run here)
+        const g = STATE.graph, al = g.links.find(l=> l.to.node===n.id && l.to.port==="audio"), src = al ? g.nodes.find(x=> x.id===al.from.node) : null;
+        const tl = src ? g.links.find(l=> l.to.node===src.id && l.to.port==="prompt") : null, ts = tl ? g.nodes.find(x=> x.id===tl.from.node) : null;
+        const txt = (ts && ts.type==="text" && ts.fields && ts.fields.text) || "";
+        const secs = avatarAudioEstSeconds(src, txt, null);
+        if(secs!=null){ const u = videoUnitUsd(pricing, Object.assign({}, videoPriceFields(pp, f), { duration: avatarClampSecs(f.model, secs, pricing) }), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
+      }
       const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
     if(n.type==="decide"){   // input tokens only — twin of the editor's Decide estimate (pick asks twice: in order + reversed)
       const imgs = (STATE && STATE.graph) ? STATE.graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length : 0;
@@ -9664,6 +9671,31 @@ function mp4ParamsMatch(bufs){
   function cleanVoiceEstSeconds(srcFields){
     var d = parseFloat(srcFields && srcFields.duration);
     return (isFinite(d) && d>0) ? d : 30;
+  }
+  // 🎬 Avatar / lip-sync models bill the AUDIO's length, not the 5 s video default. Seconds the run-cost
+  // chip assumes for the wired audio source: its measured length when known, else its duration knob, else
+  // (a 🗣️ Speech node) the words it will speak at ~2.8 words/s — the wired/typed text, or the Speech chip's
+  // own EST.ttsChars assumption at ~15 chars/s when the text isn't known yet. Whole seconds, rounded up
+  // (LongCat billed 14 s for a 13.1 s voice). null = nothing usable wired → keep the model default.
+  function avatarAudioEstSeconds(src, srcText, measuredSecs){
+    if(!src) return null;
+    var m = +measuredSecs; if(isFinite(m) && m>0) return Math.max(1, Math.ceil(m - 1e-6));
+    var d = parseFloat(src.fields && src.fields.duration); if(isFinite(d) && d>0) return Math.max(1, Math.ceil(d - 1e-6));
+    if(src.type !== "tts") return null;
+    var txt = String(srcText || (src.fields && src.fields.prompt) || "").trim();
+    var secs = txt ? txt.split(/\s+/).length / 2.8 : EST.ttsChars / 15;
+    return Math.max(1, Math.ceil(secs - 1e-6));
+  }
+  // LongCat Avatar bills the voice's whole seconds clamped to a minimum and maximum BILLABLE DURATION
+  // (NanoGPT catalog: longcat-avatar-1.5 = 3–30 s; the 480p $0.12/$1.20 limits are just 3 s / 30 s × $0.04),
+  // so the chip clamps the SECONDS first and then prices them at the chosen resolution's per-second rate
+  // (720p = $0.08/s → $0.24–$2.40). Uses the catalog's minimum/maximum_billable_duration when present.
+  // Other avatar models: unchanged.
+  function avatarClampSecs(model, secs, pricing){
+    if(secs==null || !isFinite(secs)) return secs;
+    var p = pricing || {}, lo = +p.minimum_billable_duration, hi = +p.maximum_billable_duration;
+    if(!(lo>0) || !(hi>=lo)){ if(!/^longcat-avatar-1\.5(?!\/)/i.test(String(model||""))) return secs; lo = 3; hi = 30; }
+    return Math.min(hi, Math.max(lo, secs));
   }
   // NanoGPT's 400s, reworded into the fix
   function cleanVoiceError(e){

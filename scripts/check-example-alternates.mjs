@@ -16,6 +16,7 @@ const APPROVED = new Map([
   ['song-to-music-video', 'owl-lighthouse-lullaby'],
   ['composer-watches-your-film', 'domino-chain-bell'],
   ['sketch-to-svg', 'camp-badge'],
+  ['creator-ad', 'workshop-lunchbox'],
 ]);
 const CAPTURED_OUTPUTS = {
   'storyboard-relay': ['frame-one-image.webp', 'frame-two-image.png', 'repair-image.webp', 'review-text.txt', 'final-review-text.txt'],
@@ -23,6 +24,7 @@ const CAPTURED_OUTPUTS = {
   'song-to-music-video': ['lyrics-text.txt', 'song-audio.mp3', 'still-image.webp', 'final-video.mp4'],
   'composer-watches-your-film': ['film-video.mp4', 'composer-text.txt', 'final-video.mp4', 'final-blind-video.mp4'],
   'sketch-to-svg': ['paint-image.webp', 'vec-image.svg'],
+  'creator-ad': ['product-image.webp', 'creator-image.webp', 'mix-image.webp', 'script-text.txt', 'voice-audio.mp3', 'ad-video.mp4'],
 };
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const esc = value => String(value).replace(/[&<>"']/g, c => ({
@@ -161,7 +163,8 @@ export function checkAlternates({
     assert(overrides && typeof overrides === 'object' && !Array.isArray(overrides), slug + ': invalid input overrides');
     // A few workflows keep part of the brief in a model node's prompt field
     // (the song style, the video direction). Such edits must be declared,
-    // displayed like a text input, and captured by the saved run.
+    // displayed like a text input, and captured by the saved run. A speech
+    // node's preset voice is the one non-prompt choice an alternate may swap.
     const fieldOverrides = a.fieldOverrides || [];
     const inputNames = [...textNodes.map(n => n.name), ...fieldOverrides.map(f => f.label)];
     sameSet(Object.keys(overrides), inputNames, slug + ': alternate must record every named text input');
@@ -170,11 +173,11 @@ export function checkAlternates({
     for (const f of fieldOverrides) {
       const node = expected.nodes.find(n => n.id === f.node);
       assert(node && node.type !== 'text' && node.type !== 'comment', slug + ': field override must target a model node');
-      assert(f.field === 'prompt', slug + ': only prompt fields may be overridden');
+      assert(f.field === 'prompt' || (f.field === 'voice' && node.type === 'tts'), slug + ': only prompt fields (or a speech voice) may be overridden');
       assert.equal(typeof node.fields[f.field], 'string', slug + ': overridden field is not text');
       const text = overrides[f.label];
       assert.equal(typeof text, 'string', slug + ': field override is not text');
-      assert.equal(f.label, node.name + ' · prompt', slug + ': field override label must name its node');
+      assert.equal(f.label, node.name + ' · ' + f.field, slug + ': field override label must name its node');
       node.fields[f.field] = text;
       assert.deepEqual(a.inputs.find(i => i.label === f.label), { label: f.label, text }, slug + ': displayed field override differs');
       const recorded = run.nodes.find(n => n.id === f.node)?.fieldOverrides?.[f.field];
