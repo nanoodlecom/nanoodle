@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A second camera on the same take — nanoodle</title>
+<meta name="description" content="Add a second camera angle to a single AI video take, so you have something to cut to. Reported saved run: at least $0.5945." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="A second camera on the same take — nanoodle" />
+<meta property="og:description" content="Add a second camera angle to a single AI video take, so you have something to cut to. Reported saved run: at least $0.5945." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/new-angle-same-take" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="A second camera on the same take — nanoodle" />
+<meta name="twitter:description" content="Add a second camera angle to a single AI video take, so you have something to cut to. Reported saved run: at least $0.5945." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/new-angle-same-take" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>A second camera on the same take</span></nav>
+
+  <main>
+    <h1><span class="grad">A second camera on the same take</span></h1>
+    <p class="lede">Add a second camera angle to a single AI video take, so you have something to cut to.</p>
+
+    <section>
+      <p class="meta-row">The same train, table, teapot and oranges, now filmed head-on from a low second camera · 2026-10-30 · Reported saved run: at least $0.5945. <code>grok-imagine-video-1.5-lite</code> · <code>bytedance/seedream-v5.0-flash/edit</code> · <code>minimax/h3-lite</code></p>
+      <p>Show reference-to-video with a video reference. The clip pins the action and the look, and an edited still pins the new camera position, so H3 Lite re-films the same action from there.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/new-angle-same-take/preview.webp" aria-label="Camera A: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10 — A second camera on the same take"><source src="/examples/gallery/new-angle-same-take/camera-a.mp4" type="video/mp4"></video><figcaption>Camera A: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10 · <a href="/examples/gallery/new-angle-same-take/camera-a.mp4" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/new-angle-same-take/angle-c.webp"><img src="/examples/gallery/new-angle-same-take/angle-c.webp" alt="New angle still: Seedream 5.0 Flash Edit · reported $0.027 — A second camera on the same take" loading="lazy" /></a><figcaption>New angle still: Seedream 5.0 Flash Edit · reported $0.027 · <a href="/examples/gallery/new-angle-same-take/angle-c.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/new-angle-same-take/preview.webp" aria-label="Camera C: MiniMax H3 Lite with the clip and the still as references · reported $0.4675 — A second camera on the same take"><source src="/examples/gallery/new-angle-same-take/camera-c.mp4" type="video/mp4"></video><figcaption>Camera C: MiniMax H3 Lite with the clip and the still as references · reported $0.4675 · <a href="/examples/gallery/new-angle-same-take/camera-c.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Grok Imagine 1.5 Lite films 5 seconds of a red-and-black toy steam train crossing a wooden trestle on a sunlit kitchen table, next to a blue teapot and a bowl of oranges. Frames pulls the still at 2.5 s, and Seedream 5.0 Flash Edit redraws it from a low front angle on the track. MiniMax H3 Lite gets the original clip as a video reference and that still as an image reference and re-films the same run head-on, so you get a second camera on a shot that only had one. Combine cuts A then C. Flaws: the redraw is plausible rather than 3D-correct, so the teapot moves from behind the bridge to beside the track, and near the lens the trestle turns into a flat curved track. Grok drew three carriages, not two. The saved run also made an unused overhead still ($0.027), which is not in this graph, and its Combine step dropped audio after 6.8 s, so the cut is not shipped here; the two camera clips are. The clips were re-encoded for the gallery. Inspired by @jerrod_lew&#39;s multi-angle workflow (https://x.com/jerrod_lew/status/2112889004928692268). No media from that post is used. Every still and sampled frame was checked and is SFW (a toy train, no people).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Shot</em> for your take, or wire a 📹 Video input in place of Camera A. Describe the new camera in <em>Angle C · low front</em>, and duplicate the Frames → Edit → Video edit branch with another angle text for more cameras. <em>Re-film brief C</em> tells the video model to keep the action and change only the camera.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Grok Imagine 1.5 Lite $0.10 + Seedream 5.0 Flash Edit $0.027 + H3 Lite reference-to-video at 480p, which billed $0.4675. With your own clip, each extra angle costs about $0.49.</li>
+        <li>Compare A and C at the same moments: the props, colours and light should match. Check the set geometry, since the new angle is a redraw, and watch the cut at the end of A for audio.</li>
+      </ol>
+
+      <p class="howto-note">The Seedream edit node now asks for the 2k size the current catalog lists; the saved run used the older 16:9 setting.</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA71X32_bNhB-919xEAa0ASzFVuI09V5mZL8CNC3QAHtZi4GSThZrihRIyopXZH_7cJRk2bItNwO6N-tMno73fd991NcReGtvDtPxCDypEjTeHP4cAXwdAYDHE28OXuxzaVFab-yCdlOgC6s876JP3hyuJ_XvjTcHPwybp4ryTyfNU8pRJPQW9wbKIpSmdBsUQlV1NvAsPlmKvscKmFwKHINhOYJlK4TXLLWo4acvqLVK_hJYvTLwKlca67UGUq1yYGA4PcLiHtY8QfXqIoDftFrBfc6WXCKkXOQGlESYgQGTKRvAH7QSPpXh9G0IqWY5GlhqFhmwGYKxXAhgFsJgBuZHeERMNLIcZsEEfhXMZPBLwi1oTDSrDHDb1iKxgpjlqBkUynDLlQzggUv-wJ7g9yt4xy3Ca40papQx-lb5rugLWKKtX_7h4_1v9-8X7yAWvABmgNXngu0uKERZr5VY-a4ZbckGmASesyV2y8fAZAIa_boR7oDUZRZTeXXlNmO2KTyAO5VH1Li4tAYWtEHCXQA_l4XgMbPoUizca-_gEj7Wmd3vu_rsd-BoBqnS4BCrUxt4_c8Pk2A2AWRxdhF4RIPnEcDzuMdGQqnHREeW4zS83iHhVfsgWe72PXap-rRs-bcAkzMhCE-fycSPBItXYNUGjCXYhYpVrixfIxSlEFwuwVYKBLdWIFRKJSghZlpztkQDcVYuG3YKTC1YBZovMwss1soQoM0WeoPVaChLpHmyRFCSGF1KQZxiOs9UaRBW3MaEgmURiaQo09SASqHKiE91kZqTEOrXcktV8FziJoAFRKJEsMgKZR0XGESqEpRAaSapZMMtRGh4UoNrNYtXATxgwsscXJgQIUm4EiBDOtDYvTrZNPCOoWI6J8AlVSJoSQDvFRSoCoEDcJPg-3A70u8CHp5CPOwh3pBwAZ_KySR6sz8NpsHMqfAEJXKVoKAkS61WPq831Rr1p8HMF9ut4BVa5YUjUBtJSs1IVBSbtUGNRomyDV_fTor2H2YKjF2C6c38bRt1JXworKvquQkKpZkb259PNrEeY702rvei1Mc3tyf6GB4oZ28MnmhYk38OXtgeYMkK9xxsW5BwN_2NZdqeZoGbZH7s26cz2t8_QjjEhXZMNVQQqiKFyHMT4TFTFdiMG8AnFtt6YOaKrLAd9ZSqGfVKdqqBL6WxwDJkCQmM4t34GINQakXiiGgps2QdtNQn3TsjiRV5UTMpaHczGKyqmE7qkEBpxo1T7UifRWqNwG39147etypXqQVeF0sFLLUqZRLAI51ORV8wtqaxYHLsUrdPg7oeg1SQMZmYoYFOXPLjHq6Y8F1cp9Prk8BOesC-U5XvkGysrwH4hFWfU3u0sZgwGeOlaRL461kw8VPKcNmVCZ7hf7v3h6sjY-Dk8TWaTClL1D5oQo_c-024nQyxu7XeSHNM4e4MqdvVBH9j_g1Du6tFfdVo7gStb9cXrsPF7qIxH9DCngy-1WPHZGtx1ihhq45OEa177jtnXyBbqyYzJLvu-_R4zz7JU7f-6Y5e-2ctpr6DuljfQ4fUZTXjcnu9jbZX3UNlNX8ULEYaCUfgean2YpYfkG7dl95s8s0zdXvJazR37H5rLs5JLueS5-zpMrv6303VhepYLc7-ddz10jXzREfrG_Lht9JO1HX19manq-Ge2970uvpQCstjls_dxcV9mJwSdIJJSRabMmFwW-QIPtMHnuBydewDT0zbbFrlXS7ZNKG7cYNXKG23k8nlbw6qDvd1V7duX4PhyfaJcLCUYyk7WAZq2b3rHN16tJjZYDHHc7poeK6ePdPrNruxOVDQzWBBB7ekl-F1oqazkE0n3wezneH07ZBNz3D5bN9fWI_GdDpUzjCfj5j_yzA7WtN5xK6-E2K7Y25v72CPhmV2jgb_pZywK2cEn0fP_wKlI5f-CBMAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#new-angle-same-take">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/new-angle-same-take/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/new-angle-same-take/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#new-angle-same-take">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/composer-watches-your-film">A composer that watches your film</a>
+        <a href="/guide/examples/sketch-to-svg">Prompt to an editable SVG sticker →</a>
+        <a href="/examples/gallery/#new-angle-same-take">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

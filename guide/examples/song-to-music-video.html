@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Song in, music video out — nanoodle</title>
+<meta name="description" content="Turn a one-line song idea into an original sung track and a music video of a character performing it. Reported saved run: $0.611." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Song in, music video out — nanoodle" />
+<meta property="og:description" content="Turn a one-line song idea into an original sung track and a music video of a character performing it. Reported saved run: $0.611." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/song-to-music-video" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Song in, music video out — nanoodle" />
+<meta name="twitter:description" content="Turn a one-line song idea into an original sung track and a music video of a character performing it. Reported saved run: $0.611." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/song-to-music-video" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Song in, music video out</span></nav>
+
+  <main>
+    <h1><span class="grad">Song in, music video out</span></h1>
+    <p class="lede">Turn a one-line song idea into an original sung track and a music video of a character performing it.</p>
+
+    <section>
+      <p class="meta-row">The tin robot dances and mouths along to its own song, with the video driven by the audio · 2026-10-30 · Reported saved run: $0.611. <code>z-ai/glm-5.3-flash</code> · <code>Minimax-Music-2.6</code> · <code>blackforestlabs/flux-3/klein/text-to-image</code> · <code>music-video-generator</code></p>
+      <p>Show audio-driven video. The Avatar node with the Music Video Generator takes a picture and a song and returns a performance timed to the audio. Trim keeps the bill down, since the model bills per second of audio, and Soundtrack puts the full-quality song back.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/song-to-music-video/performer.webp"><img src="/examples/gallery/song-to-music-video/performer.webp" alt="Performer: FLUX.3 Klein 1:1 · reported $0.011 — Song in, music video out" loading="lazy" /></a><figcaption>Performer: FLUX.3 Klein 1:1 · reported $0.011 · <a href="/examples/gallery/song-to-music-video/performer.webp" download>Download</a></figcaption></figure>
+          <figure><audio controls preload="none" aria-label="Song in, music video out"><source src="/examples/gallery/song-to-music-video/song.mp3" type="audio/mpeg"></audio><figcaption>Song: MiniMax Music 2.6, 33 s returned · reported $0.15 · <a href="/examples/gallery/song-to-music-video/song.mp3" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/song-to-music-video/preview.webp" aria-label="Music video: Music Video Generator 480p, first 15 s of the song · reported $0.45 — Song in, music video out"><source src="/examples/gallery/song-to-music-video/music-video.mp4" type="video/mp4"></video><figcaption>Music video: Music Video Generator 480p, first 15 s of the song · reported $0.45 · <a href="/examples/gallery/song-to-music-video/music-video.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>GLM 5.3 Flash writes a two-line verse and a two-line chorus about a red tin-toy robot watering a rooftop garden at sunrise. MiniMax Music 2.6 sings them as bright synth-pop. FLUX.3 Klein paints the robot on its rooftop stage, and the Avatar node sends that picture and the song to the Music Video Generator, which returns a performance with its own scene changes: the robot dances and mouths along while the vocal plays. Trim caps the song at 15 s before the video model, which bills by audio length, and Soundtrack lays the original full-quality song back over the video. Flaws: MiniMax ignored the 15 s duration and returned a 33 s song with an 8 s instrumental intro, so the 15 s cut keeps only the verse and the chorus is not in the video. Move Trim&#39;s start to about 7 s to catch the singing. The video was re-encoded for the gallery. Every still and sampled frame was checked and is SFW (a toy robot, no people).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Song idea</em> for your own song and <em>Performer &amp; stage</em> for who sings it. Set Trim's start and length to the part of the song you want, since music models often open with an instrumental intro.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. GLM lyrics under a cent + FLUX.3 Klein $0.011 + MiniMax Music 2.6 $0.15 + Music Video Generator at 480p, $0.03 per second for 15 s, $0.45. The saved run was $0.611.</li>
+        <li>Listen to the song first, then check where the singing starts inside the trimmed window. Watch whether the performer moves on the beat and keeps the look of the still.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA6VXTW_bRhC9-1cMeGhTgFQsy3Yc9ZS2aQ-N2wL5aIEkKEbkUFxoubPdXUpmAv-u3PPLilmSskjLSYFeDHk1O1_vzdvRxxNItskS5ukJJIYL8skS3p4AfExUkSwhyTNlApmQpJCE1lI847ruj26SJZyfppC0yRKyszP5uEuW8PRUPpWKdCEePyY5a3ZyuSWteRfd0U2Qk5ds1qBMCnXjVQ5bVRADN2EGzwy8eHENO6cCefAVuwC6dSr3UDquAYENZVoZAh-dFIQpXCujrvEGrqO7s9kleGXWHkJFNaAHhPlF5ilnU0BwmG9S-PnF679mC_hVkzJgUZkQzcGSK9nV5FJAsa6o9_omJvkLGXIY2EFonOmvqDw0jsDqpjvoMjOBAQd_aHLq6yyc2pKBVRttsSkUgwqedDmDV07VsCGynaOV0pqK3gYDzC_Afw8vuTFFLANs06fNTq2VQQ1lo3X2T4NahbZLZCWGbKJZzGCW3N6mB4BLDw_BjihNkT4fcF5ExA3WdIdk7-AA_AHpZwYauyIM4FsTqsyy7bLCFTcBELQKQRM4KiAokwVuwfGKA-wqhh1uyENjpXbfGKc8RVR2GMh1hZead_JZGUBwzGVgC2t0BZk0skANWKjgu4tykqOZtqGj2WEjtK7v-nC_EeeHjXght5UPkz7UXJCW7z9kqB6vdZ1dzBZZqdFXYukIPRtl1s_Lkl3sWD8qNd684g0ZcZNcnJ7KmW99oFoO_pT52A8GuxHDY3895UGx6aZGGtV4ct_6iNUMfm-CbQLQDeZBCxGVDBvarr2GQyVNIu1p-c68fUPO0_t35lHY8TCTypD_7p15-2PFrvHjL3MMedXubZ5jXsV_BMaafYAnsGNXeAGotpq6_yBUGAAdAaFvIXCEL4W8InJlo2NqJdZKt1npFJlCtzP4jUEg8MAlOEINllhcsoOVQ1P4mXTOOq5tbO8EdOnVIeRRkAbQn1z9F_Z__nRffx5igRjWeJNFw6w3LBqHgpUYzC86WnjLxtPfUTpi3rVdjAv5wal1FVJYcWPy9m68UpjPr2Bl6xQqNEWu0XpporKhEQicpfVasU9hh64GNKhZRML7FPCu2bkmdKAJC9hyjjqVATQt1OyEr1AS6djafmzutzZvQlfNXlec2s_TfH5fWc5GAxWlMHDUPHiUYy-JnYaKMH43abIP2E1QnBVNZh2qvqXjxPYS_1XRW1wex_2PwQN8Az7gmh5SP_A1ag2-UqaNGrdTpsgaO9U6FSpAIaz3e5MNtSLbIlur-GQ50X1YazGilnwcCHlMAhVg0ZD2KVSsC8Fnr6xrR2RGwgdabQgQapU7thUbSqUKE--x6GiQdGNhna7qxlcTcT2Q5BQsB8nBN2aQ4_h2co2BYSsyIBFifC2sHci3Zi2udMfkXJ6sPoqHFVXKFCnIGtFESvrQauWpgMVPgDJHUeA08yYFw_3gx4_S_6m8-6C0PkRc1T1w41H_OuafP422h4dmfaUx35TsyAeNK_-41M1Ntni8kTuPJcMscLZPwqsP1LF1cXkjf-Rwi07FKuN8zb-oZPV29HQp61uzV7L5-Z7TZ6fH67s-WMVE0o4tPQ-VGlUzi3ez9aGxI8-6GcTt_OrUyil6S3msYX65fDqu6nW3LRyuTaMlsYwqMB6f4ZkX0hVo8p7HMjkT0kZOp5A3IYjRisIuTocqSN6u0BE31-wpa6wf1iZJKQWrsY3SiDU5hJq3kdf9XtKTWJa3bgnEmvr8lAHakmtjiAOuTilaygZ3iKLfb3p7IK_O7gN5dvkFIPeb4fDUHQComW2yhBK1p9vbE3gvvwm0MpvpbwIduSe7RLwnPxsON0fb7y5R926lAB7Z3a1Wg2UP-GQDOzsa5f7th-IMJQ52_c1JlMXRKNO7cek-FmT_rk0sx0HOjwYZPT1frWZQrC837eJ4OdPLndIcCdMJx8RsHOLyaIiHGvG1EEf79eRoiPHFyOlj_veDM7Ech7j6f7jfCzLUcQLvT25P_gWUfxgxWA8AAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#song-to-music-video">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/song-to-music-video/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/song-to-music-video/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#song-to-music-video">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/director-picks-the-model">The graph picks the video model for each shot</a>
+        <a href="/guide/examples/one-continuous-take">Grow one clip into a long take →</a>
+        <a href="/examples/gallery/#song-to-music-video">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

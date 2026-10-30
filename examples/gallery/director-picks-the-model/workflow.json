@@ -1,0 +1,526 @@
+{
+ "v": 1,
+ "nodes": [
+  {
+   "id": "c-intent",
+   "type": "comment",
+   "x": 40,
+   "y": -200,
+   "w": 900,
+   "fields": {
+    "color": "yellow",
+    "text": "The director agent picks a different video model for every shot. An LLM plans a three-shot film, a second LLM pass turns each line into a stand-alone video prompt, and a Decide node per shot chooses which video model should film it (fast action, painterly magic, complex camera moves, or calm atmosphere). Each Decide's answer is the exact model id, wired straight into that Text\u2192Video node's model field, so the routing is visible on the canvas with a probability for every model. A shared look line is joined in front of every prompt so the shots match, then Combine stitches them and one Mureka score plays over the whole film."
+   }
+  },
+  {
+   "id": "story",
+   "type": "text",
+   "x": 40,
+   "y": 40,
+   "w": 320,
+   "name": "Story idea",
+   "fields": {
+    "text": "After closing time at an empty night market, a paper-lantern fish slips off its stall, darts between the hanging lanterns, then rises over the rooftops and swims up to join the stars."
+   }
+  },
+  {
+   "id": "look",
+   "type": "text",
+   "x": 40,
+   "y": 420,
+   "w": 320,
+   "name": "Look bible (joined in front of every shot)",
+   "fields": {
+    "text": "Look: a hand-painted gouache storybook at night, deep indigo and teal shadows, warm amber lantern light, soft painted brush texture, 16:9 film framing. The hero is a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside. No people, no faces, no text, no logos."
+   }
+  },
+  {
+   "id": "plan",
+   "type": "llm",
+   "x": 400,
+   "y": 40,
+   "w": 340,
+   "name": "Director \u00b7 shot plan",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "maxTokens": "800",
+    "system": "You are a film director planning a 15-second animated short from the user's story. Write exactly three numbered lines, one per 5-second shot, in story order. Each line is one sentence: the framing, what moves, and what the camera does. Make the three shots genuinely different kinds of shot, the way a real director would vary them. Keep the same single hero in every shot. No people, no dialogue, no on-screen text. Output only the three lines.",
+    "prompt": ""
+   }
+  },
+  {
+   "id": "shot1",
+   "type": "llm",
+   "x": 780,
+   "y": 40,
+   "w": 320,
+   "name": "Shot 1 \u00b7 prompt",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "maxTokens": "600",
+    "system": "From the numbered shot plan, return ONLY shot 1, rewritten as a self-contained text-to-video prompt of 40 to 70 words. Describe the hero fully again (a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside) so the shot stands alone. Say the framing, the motion and the camera move. No people, no faces, no text, no numbering, no preamble.",
+    "prompt": ""
+   }
+  },
+  {
+   "id": "pick1",
+   "type": "decide",
+   "x": 1140,
+   "y": 40,
+   "w": 300,
+   "name": "Shot 1 \u00b7 which model?",
+   "fields": {
+    "model": "cloudflare/clef",
+    "mode": "choose",
+    "question": "Which video model should film this shot? Pick the one whose strength fits the shot best. grok-imagine-video-1.5-lite: fast action, quick darting motion, energetic beats. kandinsky6-lite: soft, dreamy, painterly moments of magic and wonder (glows, sparkles, gentle transformations). minimax/h3-max-turbo: complex camera moves such as cranes, orbits, rising fly-throughs and big reveals. pruna-ai/p-video-2-pro/text-to-video: calm, slow, atmospheric wide establishing shots with still air and drifting light.",
+    "options": "grok-imagine-video-1.5-lite\nkandinsky6-lite\nminimax/h3-max-turbo\npruna-ai/p-video-2-pro/text-to-video"
+   }
+  },
+  {
+   "id": "join1",
+   "type": "join",
+   "x": 1140,
+   "y": 210,
+   "w": 240,
+   "name": "Look + shot 1",
+   "fields": {
+    "sep": "\\n\\n"
+   }
+  },
+  {
+   "id": "vid1",
+   "type": "tvideo",
+   "x": 1480,
+   "y": 40,
+   "w": 300,
+   "name": "Shot 1 \u00b7 model chosen by Decide",
+   "fields": {
+    "model": "pruna-ai/p-video-2-pro/text-to-video",
+    "prompt": "",
+    "duration": "5",
+    "resolution": "480p",
+    "aspect": "16:9",
+    "modelOpts": {},
+    "loras": []
+   }
+  },
+  {
+   "id": "shot2",
+   "type": "llm",
+   "x": 780,
+   "y": 300,
+   "w": 320,
+   "name": "Shot 2 \u00b7 prompt",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "maxTokens": "600",
+    "system": "From the numbered shot plan, return ONLY shot 2, rewritten as a self-contained text-to-video prompt of 40 to 70 words. Describe the hero fully again (a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside) so the shot stands alone. Say the framing, the motion and the camera move. No people, no faces, no text, no numbering, no preamble.",
+    "prompt": ""
+   }
+  },
+  {
+   "id": "pick2",
+   "type": "decide",
+   "x": 1140,
+   "y": 300,
+   "w": 300,
+   "name": "Shot 2 \u00b7 which model?",
+   "fields": {
+    "model": "cloudflare/clef",
+    "mode": "choose",
+    "question": "Which video model should film this shot? Pick the one whose strength fits the shot best. grok-imagine-video-1.5-lite: fast action, quick darting motion, energetic beats. kandinsky6-lite: soft, dreamy, painterly moments of magic and wonder (glows, sparkles, gentle transformations). minimax/h3-max-turbo: complex camera moves such as cranes, orbits, rising fly-throughs and big reveals. pruna-ai/p-video-2-pro/text-to-video: calm, slow, atmospheric wide establishing shots with still air and drifting light.",
+    "options": "grok-imagine-video-1.5-lite\nkandinsky6-lite\nminimax/h3-max-turbo\npruna-ai/p-video-2-pro/text-to-video"
+   }
+  },
+  {
+   "id": "join2",
+   "type": "join",
+   "x": 1140,
+   "y": 470,
+   "w": 240,
+   "name": "Look + shot 2",
+   "fields": {
+    "sep": "\\n\\n"
+   }
+  },
+  {
+   "id": "vid2",
+   "type": "tvideo",
+   "x": 1480,
+   "y": 300,
+   "w": 300,
+   "name": "Shot 2 \u00b7 model chosen by Decide",
+   "fields": {
+    "model": "kandinsky6-lite",
+    "prompt": "",
+    "duration": "5",
+    "resolution": "480p",
+    "aspect": "16:9",
+    "modelOpts": {},
+    "loras": []
+   }
+  },
+  {
+   "id": "shot3",
+   "type": "llm",
+   "x": 780,
+   "y": 560,
+   "w": 320,
+   "name": "Shot 3 \u00b7 prompt",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "maxTokens": "600",
+    "system": "From the numbered shot plan, return ONLY shot 3, rewritten as a self-contained text-to-video prompt of 40 to 70 words. Describe the hero fully again (a small red-orange paper-lantern fish with ribbed paper folds, a flowing tissue-paper tail and a warm candle glow inside) so the shot stands alone. Say the framing, the motion and the camera move. No people, no faces, no text, no numbering, no preamble.",
+    "prompt": ""
+   }
+  },
+  {
+   "id": "pick3",
+   "type": "decide",
+   "x": 1140,
+   "y": 560,
+   "w": 300,
+   "name": "Shot 3 \u00b7 which model?",
+   "fields": {
+    "model": "cloudflare/clef",
+    "mode": "choose",
+    "question": "Which video model should film this shot? Pick the one whose strength fits the shot best. grok-imagine-video-1.5-lite: fast action, quick darting motion, energetic beats. kandinsky6-lite: soft, dreamy, painterly moments of magic and wonder (glows, sparkles, gentle transformations). minimax/h3-max-turbo: complex camera moves such as cranes, orbits, rising fly-throughs and big reveals. pruna-ai/p-video-2-pro/text-to-video: calm, slow, atmospheric wide establishing shots with still air and drifting light.",
+    "options": "grok-imagine-video-1.5-lite\nkandinsky6-lite\nminimax/h3-max-turbo\npruna-ai/p-video-2-pro/text-to-video"
+   }
+  },
+  {
+   "id": "join3",
+   "type": "join",
+   "x": 1140,
+   "y": 730,
+   "w": 240,
+   "name": "Look + shot 3",
+   "fields": {
+    "sep": "\\n\\n"
+   }
+  },
+  {
+   "id": "vid3",
+   "type": "tvideo",
+   "x": 1480,
+   "y": 560,
+   "w": 300,
+   "name": "Shot 3 \u00b7 model chosen by Decide",
+   "fields": {
+    "model": "minimax/h3-max-turbo",
+    "prompt": "",
+    "duration": "5",
+    "resolution": "480p",
+    "aspect": "16:9",
+    "modelOpts": {},
+    "loras": []
+   }
+  },
+  {
+   "id": "cut",
+   "type": "combine",
+   "x": 1840,
+   "y": 300,
+   "w": 240,
+   "name": "Combine \u00b7 3 shots",
+   "fields": {
+    "dedup": false
+   }
+  },
+  {
+   "id": "score",
+   "type": "music",
+   "x": 1840,
+   "y": 560,
+   "w": 300,
+   "name": "Score \u00b7 Mureka BGM",
+   "fields": {
+    "model": "mureka-ai/mureka-v7.6/generate-bgm",
+    "instrumental": true,
+    "response_format": "mp3",
+    "prompt": "Gentle wonder-filled instrumental lullaby: music box, celesta and soft pizzicato strings, a playful quick middle, then a slow rising swell with warm pads, magical night-time storybook mood."
+   }
+  },
+  {
+   "id": "final",
+   "type": "soundtrack",
+   "x": 2140,
+   "y": 400,
+   "w": 260,
+   "name": "Film \u00b7 score over all shots",
+   "fields": {
+    "loop": false
+   }
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "story",
+    "port": "text"
+   },
+   "to": {
+    "node": "plan",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "plan",
+    "port": "text"
+   },
+   "to": {
+    "node": "shot1",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "shot1",
+    "port": "text"
+   },
+   "to": {
+    "node": "pick1",
+    "port": "text"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "look",
+    "port": "text"
+   },
+   "to": {
+    "node": "join1",
+    "port": "a"
+   }
+  },
+  {
+   "id": "l5",
+   "from": {
+    "node": "shot1",
+    "port": "text"
+   },
+   "to": {
+    "node": "join1",
+    "port": "b"
+   }
+  },
+  {
+   "id": "l6",
+   "from": {
+    "node": "join1",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid1",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l7",
+   "from": {
+    "node": "pick1",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid1",
+    "port": "model"
+   }
+  },
+  {
+   "id": "l8",
+   "from": {
+    "node": "plan",
+    "port": "text"
+   },
+   "to": {
+    "node": "shot2",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l9",
+   "from": {
+    "node": "shot2",
+    "port": "text"
+   },
+   "to": {
+    "node": "pick2",
+    "port": "text"
+   }
+  },
+  {
+   "id": "l10",
+   "from": {
+    "node": "look",
+    "port": "text"
+   },
+   "to": {
+    "node": "join2",
+    "port": "a"
+   }
+  },
+  {
+   "id": "l11",
+   "from": {
+    "node": "shot2",
+    "port": "text"
+   },
+   "to": {
+    "node": "join2",
+    "port": "b"
+   }
+  },
+  {
+   "id": "l12",
+   "from": {
+    "node": "join2",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid2",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l13",
+   "from": {
+    "node": "pick2",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid2",
+    "port": "model"
+   }
+  },
+  {
+   "id": "l14",
+   "from": {
+    "node": "plan",
+    "port": "text"
+   },
+   "to": {
+    "node": "shot3",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l15",
+   "from": {
+    "node": "shot3",
+    "port": "text"
+   },
+   "to": {
+    "node": "pick3",
+    "port": "text"
+   }
+  },
+  {
+   "id": "l16",
+   "from": {
+    "node": "look",
+    "port": "text"
+   },
+   "to": {
+    "node": "join3",
+    "port": "a"
+   }
+  },
+  {
+   "id": "l17",
+   "from": {
+    "node": "shot3",
+    "port": "text"
+   },
+   "to": {
+    "node": "join3",
+    "port": "b"
+   }
+  },
+  {
+   "id": "l18",
+   "from": {
+    "node": "join3",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid3",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l19",
+   "from": {
+    "node": "pick3",
+    "port": "text"
+   },
+   "to": {
+    "node": "vid3",
+    "port": "model"
+   }
+  },
+  {
+   "id": "l20",
+   "from": {
+    "node": "vid1",
+    "port": "video"
+   },
+   "to": {
+    "node": "cut",
+    "port": "vid1"
+   }
+  },
+  {
+   "id": "l21",
+   "from": {
+    "node": "vid2",
+    "port": "video"
+   },
+   "to": {
+    "node": "cut",
+    "port": "vid2"
+   }
+  },
+  {
+   "id": "l22",
+   "from": {
+    "node": "vid3",
+    "port": "video"
+   },
+   "to": {
+    "node": "cut",
+    "port": "vid3"
+   }
+  },
+  {
+   "id": "l23",
+   "from": {
+    "node": "cut",
+    "port": "video"
+   },
+   "to": {
+    "node": "final",
+    "port": "video"
+   }
+  },
+  {
+   "id": "l24",
+   "from": {
+    "node": "score",
+    "port": "audio"
+   },
+   "to": {
+    "node": "final",
+    "port": "audio"
+   }
+  }
+ ]
+}

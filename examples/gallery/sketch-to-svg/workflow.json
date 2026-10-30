@@ -1,0 +1,81 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -300,
+      "w": 560,
+      "fields": {
+        "text": "Sketch to SVG. FLUX.3 Klein paints a flat-colour sticker; Ideogram Vector traces it into a real, editable SVG (paths you can scale to a billboard or recolour). Leave the Vector prompt blank so it converts the image instead of inventing a new one. Swap the concept and ▶ Run.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "concept",
+      "type": "text",
+      "x": -40,
+      "y": 0,
+      "w": 340,
+      "name": "Sticker concept",
+      "fields": {
+        "text": "A friendly cartoon baby dragon sticker, sitting and holding a tiny paper lantern. Flat vector illustration style, exactly four flat colours (mint green body, cream belly, warm orange lantern, dark navy outline), thick even navy outline, clearly separated scales on the back, small rounded wings, big friendly eyes. Centered on a plain white background, no gradients, no texture, no text."
+      }
+    },
+    {
+      "id": "paint",
+      "type": "image",
+      "x": 380,
+      "y": 0,
+      "w": 300,
+      "name": "Raster sticker",
+      "fields": {
+        "model": "blackforestlabs/flux-3/klein/text-to-image",
+        "size": "1024x1024",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "vec",
+      "type": "edit",
+      "x": 760,
+      "y": 0,
+      "w": 300,
+      "name": "Vectorize (SVG)",
+      "fields": {
+        "model": "ideogram/vector",
+        "size": "auto",
+        "prompt": "",
+        "modelOpts": {
+          "vector_operation": "convert",
+          "mode": "default"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "concept",
+        "port": "text"
+      },
+      "to": {
+        "node": "paint",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "paint",
+        "port": "image"
+      },
+      "to": {
+        "node": "vec",
+        "port": "image"
+      }
+    }
+  ]
+}
