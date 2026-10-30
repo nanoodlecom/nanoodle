@@ -1,0 +1,84 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -300,
+      "w": 560,
+      "sizes": {
+        "text": 101
+      },
+      "fields": {
+        "text": "Sketch to SVG. FLUX.3 Klein paints a flat-colour sticker; Ideogram Vector traces it into a real, editable SVG (paths you can scale to a billboard or recolour). Leave the Vector prompt blank so it converts the image instead of inventing a new one. Swap the concept and ▶ Run.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "concept",
+      "type": "text",
+      "x": -40,
+      "y": 0,
+      "w": 340,
+      "name": "Sticker concept",
+      "fields": {
+        "text": "A round outdoor camping badge logo: a perfect circle border, a single dark green pine tree and a small orange triangular tent under a pale yellow sun, the word \"CAMP\" in bold block capital letters curved along the bottom of the circle. Flat vector logo style, exactly three flat colours (dark green, orange, pale yellow) on a plain white background, crisp geometric shapes, no gradients, no shading, no texture, no other text."
+      }
+    },
+    {
+      "id": "paint",
+      "type": "image",
+      "x": 380,
+      "y": 0,
+      "w": 300,
+      "name": "Raster sticker",
+      "fields": {
+        "model": "blackforestlabs/flux-3/klein/text-to-image",
+        "size": "1024x1024",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "vec",
+      "type": "edit",
+      "x": 760,
+      "y": 0,
+      "w": 300,
+      "name": "Vectorize (SVG)",
+      "fields": {
+        "model": "ideogram/vector",
+        "size": "auto",
+        "prompt": "",
+        "modelOpts": {
+          "vector_operation": "convert",
+          "mode": "default"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "concept",
+        "port": "text"
+      },
+      "to": {
+        "node": "paint",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "paint",
+        "port": "image"
+      },
+      "to": {
+        "node": "vec",
+        "port": "image"
+      }
+    }
+  ]
+}

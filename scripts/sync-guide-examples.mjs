@@ -222,6 +222,32 @@ const HOWTO = {
     inspect: "Check that the carved still keeps the stencil's shapes (Muse Edit lost them here, Nano Banana Edit kept them), that the clean plate matches the carved still apart from the carving, and that the clip's first and last frames match the two stills.",
     costHow: "Muse 1:1 $0.011 + Nano Banana Edit $0.039 + Muse Edit 16:9 $0.011 + MiniMax H3 Max Turbo at 480p for 5 s, $0.125. The saved run was $0.186.",
   },
+
+  "song-to-music-video": {
+    headline: "Song in, music video out",
+    job: "Turn a one-line song idea into an original sung track and a music video of a character performing it.",
+    purpose: "Show audio-driven video. The Avatar node with the Music Video Generator takes a picture and a song and returns a performance timed to the audio. Trim keeps the bill down, since the model bills per second of audio, and Soundtrack puts the full-quality song back.",
+    edit: "Change <em>Song idea</em> for your own song and <em>Performer &amp; stage</em> for who sings it. Set Trim's start and length to the part of the song you want, since music models often open with an instrumental intro.",
+    inspect: "Listen to the song first, then check where the singing starts inside the trimmed window. Watch whether the performer moves on the beat and keeps the look of the still.",
+    costHow: "GLM lyrics under a cent + FLUX.3 Klein $0.011 + MiniMax Music 2.6 $0.15 + Music Video Generator at 480p, $0.03 per second for 15 s, $0.45. The saved run was $0.611.",
+  },
+
+  "composer-watches-your-film": {
+    headline: "A composer that watches your film",
+    job: "Score a clip with music written for what happens on screen, not a generic mood.",
+    purpose: "Show video → LLM → music. Frames turns the clip into stills, a vision LLM writes a timed brief from them, and the music node composes from that brief. The blind branch beside it is the control.",
+    edit: "Change <em>Shot</em> for a different film, or swap the film node for a 📹 Video input to score your own clip. Change <em>Ask</em> to ask for a different style, or set the number of frames to match the clip length. Edit <em>Blind brief (no frames)</em> to match, or delete the blind branch once you have seen the difference.",
+    inspect: "Read the brief against the frames, then play both versions and listen at each cue point. Check the music's length, since music models can ignore the requested duration.",
+    costHow: "H3 Max Turbo 10 s at 480p $0.25 + Glimpse $0.018 + two ElevenLabs Music cues at $0.10 each. Scoring your own clip costs about $0.12. The saved run was $0.468.",
+  },
+  "sketch-to-svg": {
+    headline: "Prompt to an editable SVG sticker",
+    job: "Get a logo, sticker or icon as a real vector file from one prompt.",
+    purpose: "Show the Edit node with Ideogram Vector in convert mode. It takes any image and returns an SVG made of shapes, with no prompt needed, so it works on generated art and on your own drawings.",
+    edit: "Change <em>Sticker concept</em> for your design and keep the flat-colour, plain-background wording, which vectorizes cleanly. Swap the image node for a 📷 Image input to vectorize your own sketch or logo.",
+    inspect: "Open the SVG and zoom in: the edges should stay sharp. Count the colours and gradients if you need a minimal palette, since shading in the raster becomes extra shapes.",
+    costHow: "FLUX.3 Klein 1024² $0.009 + Ideogram Vector convert $0.17 = $0.179 per run. Vectorizing your own image costs $0.17.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -279,7 +305,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

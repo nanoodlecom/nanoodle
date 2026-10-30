@@ -1578,5 +1578,372 @@
     "preview": "carve-a-pumpkin/preview.webp",
     "workflow": "carve-a-pumpkin/workflow.json",
     "workflowSha256": "5872551f49ad5bbb32483b176dfa9c7a33280d156f114f4c9d41e7ced0f65ab9"
+  },
+  {
+    "slug": "song-to-music-video",
+    "title": "Song in, music video out",
+    "date": "2026-10-30",
+    "review": "The tin robot dances and mouths along to its own song, with the video driven by the audio",
+    "note": "GLM 5.3 Flash writes a two-line verse and a two-line chorus about a red tin-toy robot watering a rooftop garden at sunrise. MiniMax Music 2.6 sings them as bright synth-pop. FLUX.3 Klein paints the robot on its rooftop stage, and the Avatar node sends that picture and the song to the Music Video Generator, which returns a performance with its own scene changes: the robot dances and mouths along while the vocal plays. Trim caps the song at 15 s before the video model, which bills by audio length, and Soundtrack lays the original full-quality song back over the video. Flaws: MiniMax ignored the 15 s duration and returned a 33 s song with an 8 s instrumental intro, so the 15 s cut keeps only the verse and the chorus is not in the video. Move Trim's start to about 7 s to catch the singing. The video was re-encoded for the gallery. Every still and sampled frame was checked and is SFW (a toy robot, no people).",
+    "layout": "sequence",
+    "costUsd": 0.611,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "Minimax-Music-2.6",
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "music-video-generator"
+    ],
+    "graphSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a",
+    "inputs": [
+      {
+        "label": "Song idea",
+        "text": "An upbeat synth-pop song about a little red tin-toy robot who wakes up at sunrise and waters the flowers in a rooftop garden, singing into its watering can."
+      },
+      {
+        "label": "Performer & stage",
+        "text": "A small shiny red wind-up tin-toy robot with a brass wind-up key on its back, round glass eyes and riveted panels, holding a little green watering can like a microphone, standing on a tiny stage in a lush rooftop garden at sunrise, potted sunflowers and tomato vines, string lights, warm golden light, city rooftops behind, colourful stylised 3D animation look, no people, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "song-to-music-video/performer.webp",
+        "kind": "image",
+        "label": "Performer: FLUX.3 Klein 1:1 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "1f2d2ebd2c78421b629cfc05effeeaa78bdd9b9d6f0e07554aeff8a8091ab759"
+      },
+      {
+        "src": "song-to-music-video/song.mp3",
+        "kind": "audio",
+        "label": "Song: MiniMax Music 2.6, 33 s returned · reported $0.15",
+        "costUsd": 0.15,
+        "sha256": "7c5f497308679afa0a2c3894d1cb0001f684b4d079468fd81278be87374c12b3"
+      },
+      {
+        "src": "song-to-music-video/music-video.mp4",
+        "kind": "video",
+        "label": "Music video: Music Video Generator 480p, first 15 s of the song · reported $0.45",
+        "costUsd": 0.45,
+        "sha256": "898412bd84e2234eb0588a8dae99edeb3b92ec3eac3b96df95c6588da0f80e67"
+      }
+    ],
+    "preview": "song-to-music-video/preview.webp",
+    "workflow": "song-to-music-video/workflow.json",
+    "workflowSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a",
+    "alternates": [
+      {
+        "id": "owl-lighthouse-lullaby",
+        "case": "owl-lighthouse-lullaby",
+        "title": "An owl\u2019s lighthouse lullaby",
+        "date": "2026-10-30",
+        "recordedAt": "2026-10-30T16:57:20.649Z",
+        "review": "Frames, lyrics and audio checked; one real flaw kept",
+        "note": "Partial. Same graph, a different brief: a slow 72 bpm acoustic folk lullaby sung by a grey owl in a blue scarf on a foggy lighthouse. The lyricist wrote a verse and chorus; the full song (about 52 seconds, although 15 were asked for) is at 72 bpm and all four lyric lines can be heard in it. The owl, its scarf and amber eyes hold across the video, and the beak and wings move. The flaw: the fixed 15-second trim starts at 0 s, so the video carries only the hummed intro and the first two words of the verse. The look also drifts from painterly to more 3D, and a microphone stand appears in the last three seconds. Besides the two text inputs, the song style and video direction prompts were edited; both are listed below.",
+        "costUsd": 0.611038745,
+        "costExact": true,
+        "elapsedMs": 292141,
+        "models": [
+          "z-ai/glm-5.3-flash",
+          "Minimax-Music-2.6",
+          "blackforestlabs/flux-3/klein/text-to-image",
+          "music-video-generator"
+        ],
+        "inputs": [
+          {
+            "label": "Song idea",
+            "text": "A slow, gentle acoustic folk lullaby about an old grey owl who keeps a lighthouse on a foggy island and sings the ships safely home at night."
+          },
+          {
+            "label": "Performer & stage",
+            "text": "A wise old grey owl with big amber eyes and fluffy feathers, wearing a small knitted blue scarf, perched on the iron railing at the top of a white and red lighthouse at night, the lighthouse lamp glowing warmly behind it, soft fog over a calm sea, a small sailing boat far away, painterly storybook illustration style, no people, no text."
+          },
+          {
+            "label": "Song \u00b7 MiniMax Music 2.6 \u00b7 prompt",
+            "text": "Slow, warm acoustic folk lullaby, 72 bpm, fingerpicked acoustic guitar, soft upright bass, light brushed snare, a gentle breathy lead vocal, cosy foggy night feel."
+          },
+          {
+            "label": "Music video \u00b7 Music Video Generator \u00b7 prompt",
+            "text": "Gentle, slow performance music video of the grey owl singing softly on the lighthouse balcony at night, slow drifting camera, sweeping lighthouse beam through the fog, keep the same owl in every shot, no people."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "text",
+            "src": "song-to-music-video/alternates/owl-lighthouse-lullaby/lyrics-text.txt",
+            "sha256": "2aab5bf1d0065e119e0be66e8c8622e133ec5b7f23d2ba2e90ef3f0503035b81",
+            "label": "1. Lyricist: the words"
+          },
+          {
+            "kind": "audio",
+            "src": "song-to-music-video/alternates/owl-lighthouse-lullaby/song-audio.mp3",
+            "sha256": "8cd8b3920af7f9092c92856a19cd7e34d7f154ba7331517aae6e2580857e5e87",
+            "label": "2. MiniMax Music: the whole song"
+          },
+          {
+            "kind": "image",
+            "src": "song-to-music-video/alternates/owl-lighthouse-lullaby/still-image.webp",
+            "sha256": "24c2225caa5aa7c447eb5de9ea570a90c96dacbbbfe5c8db1cdfb233e2819b98",
+            "label": "3. FLUX.3 Klein: the performer"
+          },
+          {
+            "kind": "video",
+            "src": "song-to-music-video/alternates/owl-lighthouse-lullaby/final-video.mp4",
+            "sha256": "6fa6b89b27cec49b3dd01c2a29b4295e0b3041ac7b552fe79faeae0fca2277d1",
+            "label": "4. The 15-second music video with the original song"
+          }
+        ],
+        "preview": "song-to-music-video/alternates/owl-lighthouse-lullaby/preview.webp",
+        "previewSha256": "25f30854394c3803e0aad85b4ae41db8f572fd8402205e616ed1e86e72ee2cde",
+        "previewSource": "song-to-music-video/alternates/owl-lighthouse-lullaby/still-image.webp",
+        "graph": "song-to-music-video/alternates/owl-lighthouse-lullaby/graph.json",
+        "graphSha256": "ce1cbfed213c43dade75c73f67adb97d2e838f25f729ef77cb5eaee1dcdeada0",
+        "workflow": "song-to-music-video/alternates/owl-lighthouse-lullaby/graph.json",
+        "workflowSha256": "ce1cbfed213c43dade75c73f67adb97d2e838f25f729ef77cb5eaee1dcdeada0",
+        "sourceGraph": "song-to-music-video/alternates/owl-lighthouse-lullaby/source-graph.json",
+        "sourceGraphSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a",
+        "inputOverrides": "song-to-music-video/alternates/owl-lighthouse-lullaby/inputs.json",
+        "inputOverridesSha256": "1bb5694915de07b6a3d1b5a96855d459a531c242f3a222f284a45137331cc648",
+        "sourceRun": "song-to-music-video/alternates/owl-lighthouse-lullaby/source-run.json",
+        "sourceRunSha256": "162582c72c1ee4b8c7a58eda5199bbf16e2f46b15c469f496bd59b1ae348e29a",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/blob/main/CURATION.md",
+        "evidencePath": "CURATION.md",
+        "fieldOverrides": [
+          {
+            "node": "song",
+            "field": "prompt",
+            "label": "Song \u00b7 MiniMax Music 2.6 \u00b7 prompt"
+          },
+          {
+            "node": "mv",
+            "field": "prompt",
+            "label": "Music video \u00b7 Music Video Generator \u00b7 prompt"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "composer-watches-your-film",
+    "title": "A composer that watches your film",
+    "date": "2026-10-30",
+    "review": "The fitted score enters on the first spark and is still playing when the lanterns rise; the blind one fades out early",
+    "note": "MiniMax H3 Max Turbo films 10 silent seconds of a lantern on a still mountain lake at night: a firefly drifts down, the lantern lights, and a wave of lanterns lights and rises across the water. Frames pulls one still per second, and Elorian Glimpse reads them and writes a composer's brief with tempo, key, instruments and cue points (\"at 4 s, when the lantern ignites, strings swell\"). ElevenLabs Music composes from that brief and Soundtrack lays it on the film. A second branch scores the same film from a text description only, so you can hear what watching adds. All four of Glimpse's cue points land within about half a second of the picture, and the fitted cue tracks the asked 60 BPM. Flaws: ElevenLabs ignored the 10 s duration on the fitted call and returned 19 s, so the fitted version stops at 10 s while still at full level. The hush asked for at 3 s is only a small dip. Glimpse sees 1 fps stills, so it called the firefly a spark. The clips were re-encoded for the gallery. Every sampled frame was checked and is SFW (lanterns on a lake, no people).",
+    "layout": "sequence",
+    "costUsd": 0.468,
+    "costExact": true,
+    "models": [
+      "minimax/h3-max-turbo",
+      "elorian/glimpse",
+      "elevenlabs/music"
+    ],
+    "graphSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17",
+    "inputs": [
+      {
+        "label": "Shot",
+        "text": "Night on a perfectly still mountain lake, deep blue darkness, stars reflected in the water. A single small unlit paper lantern floats in the centre. A firefly drifts down and lands on it, and the lantern glows warm orange. Then, one after another in a spreading wave, dozens of paper lanterns across the lake light up, and finally they all lift slowly off the water and rise into the sky. No people. Slow gentle push-in, one continuous shot."
+      },
+      {
+        "label": "Ask",
+        "text": "Score this 10-second clip."
+      },
+      {
+        "label": "Blind brief (no frames)",
+        "text": "An instrumental film score cue, exactly 10 seconds long, no vocals, for this scene: night on a still mountain lake; a firefly lights a paper lantern, a wave of lanterns lights up across the lake, and they all rise into the sky."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "composer-watches-your-film/composer-brief.txt",
+        "kind": "text",
+        "label": "Composer's brief: Elorian Glimpse from 10 frames · reported $0.018",
+        "costUsd": 0.018,
+        "sha256": "f0db110c6f4643c8450eb78185ee96589d81a679a8ff85e8893c42ff0e92d8b3"
+      },
+      {
+        "src": "composer-watches-your-film/fitted-score.mp4",
+        "kind": "video",
+        "label": "Film + fitted score: H3 Max Turbo 10 s ($0.25) + ElevenLabs Music from the brief · reported $0.35",
+        "costUsd": 0.35,
+        "sha256": "c74abc381e846529a71e879373501fd5fbf96180fad6fba547c1178883e2efd8"
+      },
+      {
+        "src": "composer-watches-your-film/blind-score.mp4",
+        "kind": "video",
+        "label": "Film + blind score: ElevenLabs Music from a text description only · reported $0.10",
+        "costUsd": 0.1,
+        "sha256": "67b3bd056089d5a7b12f77ee3c276de9b04b4aa9319f6f81615e94e33a937910"
+      }
+    ],
+    "preview": "composer-watches-your-film/preview.webp",
+    "workflow": "composer-watches-your-film/workflow.json",
+    "workflowSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17",
+    "alternates": [
+      {
+        "id": "domino-chain-bell",
+        "case": "domino-chain-bell",
+        "title": "Dominoes and a silver bell",
+        "date": "2026-10-30",
+        "recordedAt": "2026-10-30T16:53:15.948Z",
+        "review": "Frames and both scores checked; the film misses the brief",
+        "note": "Partial. Same graph, a different shot: a curving chain of coloured dominoes on a sunny kitchen table that should end by knocking over a small silver bell. The film does not do that. The front row knocks the bell over at about 3\u20134 s rather than the last domino, the back row stays standing, and a second bell shows up at the right edge later on. The composer describes what is actually on screen (bell at 4 s, rolling until 6 s, still by 7 s) and asks for 112 bpm in C major. The fitted score comes in at that tempo, with a hit near 4 s and a swell near 6.5 s, but it is loud from the first second, where the brief asked for sparse. The blind score builds steadily to about 7 s and then fades, without matching any on-screen event. Both are instrumental.",
+        "costUsd": 0.46826055,
+        "costExact": true,
+        "elapsedMs": 47435,
+        "models": [
+          "minimax/h3-max-turbo",
+          "elorian/glimpse",
+          "elevenlabs/music"
+        ],
+        "inputs": [
+          {
+            "label": "Shot",
+            "text": "Bright daytime on a sunny wooden kitchen table. A long curving line of colourful wooden dominoes stands still for a moment, then the first domino is tipped and they topple one after another in a fast chain reaction around the curve, and the very last domino knocks over a small silver bell, which rings and rolls. No people, no hands visible. Static camera, slight high angle, one continuous shot."
+          },
+          {
+            "label": "Ask",
+            "text": "Score this 10-second clip."
+          },
+          {
+            "label": "Blind brief (no frames)",
+            "text": "An instrumental film score cue, exactly 10 seconds long, no vocals, for this scene: on a sunny kitchen table a curving line of colourful dominoes topples in a fast chain reaction and the last one knocks over a small silver bell."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "video",
+            "src": "composer-watches-your-film/alternates/domino-chain-bell/film-video.mp4",
+            "sha256": "50d0515ea22ace789611984d58b8873dd0efa8fdaa0de2caa86d6f18b83bd2f8",
+            "label": "1. H3 Max Turbo: the silent film"
+          },
+          {
+            "kind": "text",
+            "src": "composer-watches-your-film/alternates/domino-chain-bell/composer-text.txt",
+            "sha256": "5b79a8f71dc0c191ac85d72a009dc68ea3b74dfd5366386d598661be8051e88b",
+            "label": "2. Glimpse: the composer\u2019s brief from the frames"
+          },
+          {
+            "kind": "video",
+            "src": "composer-watches-your-film/alternates/domino-chain-bell/final-video.mp4",
+            "sha256": "4baa6a8600b6fdd082bdc902e4326bb31c10df3eded01d6cb374059ef9b1fb26",
+            "label": "3. Film + fitted score"
+          },
+          {
+            "kind": "video",
+            "src": "composer-watches-your-film/alternates/domino-chain-bell/final-blind-video.mp4",
+            "sha256": "94651e2f673ac51d71c207f29471f2bfa4f502b4093f9cde9dfad2c64d2be819",
+            "label": "4. Film + blind score (no frames)"
+          }
+        ],
+        "preview": "composer-watches-your-film/alternates/domino-chain-bell/preview.webp",
+        "previewSha256": "69fdc68a17c03d176020650c6698750469cfa46c4004da8c72a0af2a2ada9271",
+        "previewSource": "composer-watches-your-film/alternates/domino-chain-bell/film-video.mp4",
+        "graph": "composer-watches-your-film/alternates/domino-chain-bell/graph.json",
+        "graphSha256": "a4535a5425e3dcc3af7a1a1075714e9fcce2bcaa97f05ea17bcd7b4f94918bb4",
+        "workflow": "composer-watches-your-film/alternates/domino-chain-bell/graph.json",
+        "workflowSha256": "a4535a5425e3dcc3af7a1a1075714e9fcce2bcaa97f05ea17bcd7b4f94918bb4",
+        "sourceGraph": "composer-watches-your-film/alternates/domino-chain-bell/source-graph.json",
+        "sourceGraphSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17",
+        "inputOverrides": "composer-watches-your-film/alternates/domino-chain-bell/inputs.json",
+        "inputOverridesSha256": "83bb16ffd90b27d0b8d67d97c9da2c7f9debfba4227efcfa7d0abc1c5b44676b",
+        "sourceRun": "composer-watches-your-film/alternates/domino-chain-bell/source-run.json",
+        "sourceRunSha256": "7021f17aa17de756b5a90fed100b3a1d56ad160c91040b8eea3a5c6d0fcb5ee2",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/blob/main/CURATION.md",
+        "evidencePath": "CURATION.md"
+      }
+    ]
+  },
+  {
+    "slug": "sketch-to-svg",
+    "title": "Prompt to an editable SVG sticker",
+    "date": "2026-10-30",
+    "review": "A baby dragon sticker as a real SVG, 122 vector shapes and no embedded raster",
+    "note": "FLUX.3 Klein paints a sticker of a baby dragon holding a paper lantern in a flat style on a white background. Ideogram Vector, in convert mode with a blank prompt, turns that image into an SVG with 122 vector shapes and no embedded raster, so you can zoom to 8× and the edges stay crisp, then edit the shapes in any vector tool. Flaws: the prompt asked for four flat colours, but FLUX added soft shading and a white sticker border, and the vectorizer kept them faithfully, so the SVG has about 25 fills and 5 gradients rather than a minimal palette. The sticker PNG was re-encoded to WebP for the gallery; the SVG is as returned. Inspired by @AllaAisling's Ideogram Vector post (https://x.com/AllaAisling/status/2113305041906061472). No media from that post is used. Every image was checked and is SFW (a cartoon dragon).",
+    "layout": "sequence",
+    "costUsd": 0.179,
+    "costExact": true,
+    "models": [
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "ideogram/vector"
+    ],
+    "graphSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff",
+    "inputs": [
+      {
+        "label": "Sticker concept",
+        "text": "A friendly cartoon baby dragon sticker, sitting and holding a tiny paper lantern. Flat vector illustration style, exactly four flat colours (mint green body, cream belly, warm orange lantern, dark navy outline), thick even navy outline, clearly separated scales on the back, small rounded wings, big friendly eyes. Centered on a plain white background, no gradients, no texture, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "sketch-to-svg/sticker.webp",
+        "kind": "image",
+        "label": "Raster sticker: FLUX.3 Klein 1024² · reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "ba7927dd3014b758aead6d95377c6543e07ca430baf2df18ad6d360a45882861"
+      },
+      {
+        "src": "sketch-to-svg/dragon.svg",
+        "kind": "image",
+        "label": "SVG: Ideogram Vector convert · reported $0.17",
+        "costUsd": 0.17,
+        "sha256": "8406429012b53af3d67e5fcdc034981484b0e0e876194f0f36e9680d43a39f39"
+      }
+    ],
+    "preview": "sketch-to-svg/preview.webp",
+    "workflow": "sketch-to-svg/workflow.json",
+    "workflowSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff",
+    "alternates": [
+      {
+        "id": "camp-badge",
+        "case": "camp-badge",
+        "title": "A round CAMP badge",
+        "date": "2026-10-30",
+        "recordedAt": "2026-10-30T16:47:00.000Z",
+        "review": "SVG opened, zoomed 8\u00d7 and compared with the raster",
+        "note": "Partial (within-tolerance fail). Same graph, a different concept: a round camping badge with a pine tree, an orange tent and the word CAMP. The SVG is real vector art (16 paths, 8 flat fills, no gradients, no embedded image), the lettering reads CAMP and stays sharp at 8\u00d7, and the layout matches the raster. Flaws: the circle is about 3% taller than it is wide (the raster was drawn that way and the SVG copies it), CAMP sits almost straight rather than curving with the badge, and the tent uses two orange tones.",
+        "costUsd": 0.179,
+        "costExact": true,
+        "elapsedMs": 22723,
+        "models": [
+          "blackforestlabs/flux-3/klein/text-to-image",
+          "ideogram/vector"
+        ],
+        "inputs": [
+          {
+            "label": "Sticker concept",
+            "text": "A round outdoor camping badge logo: a perfect circle border, a single dark green pine tree and a small orange triangular tent under a pale yellow sun, the word \"CAMP\" in bold block capital letters curved along the bottom of the circle. Flat vector logo style, exactly three flat colours (dark green, orange, pale yellow) on a plain white background, crisp geometric shapes, no gradients, no shading, no texture, no other text."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "image",
+            "src": "sketch-to-svg/alternates/camp-badge/paint-image.webp",
+            "sha256": "1dd83b53df1d428f8b1b6ac3349809bb87f587c4c27e884307c74f718cd2bb5e",
+            "label": "1. FLUX.3 Klein: the raster sticker"
+          },
+          {
+            "kind": "image",
+            "src": "sketch-to-svg/alternates/camp-badge/vec-image.svg",
+            "sha256": "5a621481b228c76f0e00dcfc3daf8ee119d45caa53dd5262ed6e3a0ed522df51",
+            "label": "2. Ideogram Vector: the SVG"
+          }
+        ],
+        "preview": "sketch-to-svg/alternates/camp-badge/preview.webp",
+        "previewSha256": "2035898e8b1a5137c5de2ec75abcaf1beead8c61ed8ac21ed966124c2f23e462",
+        "previewSource": "sketch-to-svg/alternates/camp-badge/vec-image.svg",
+        "graph": "sketch-to-svg/alternates/camp-badge/graph.json",
+        "graphSha256": "f8a9a23f26a290a3d6c3036bdfaec3ab13a097eb6f23d5c8989ac8b586bd7217",
+        "workflow": "sketch-to-svg/alternates/camp-badge/graph.json",
+        "workflowSha256": "f8a9a23f26a290a3d6c3036bdfaec3ab13a097eb6f23d5c8989ac8b586bd7217",
+        "sourceGraph": "sketch-to-svg/alternates/camp-badge/source-graph.json",
+        "sourceGraphSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff",
+        "inputOverrides": "sketch-to-svg/alternates/camp-badge/inputs.json",
+        "inputOverridesSha256": "48f098a46eea6dfee3fe0297fdaa89fc6231201777bc5e9c236dfa9f15e9c68b",
+        "sourceRun": "sketch-to-svg/alternates/camp-badge/source-run.json",
+        "sourceRunSha256": "a7a20302b45bcc220d7a29ee2dc04456c22c86f4314010ed3b0eb0180834290a",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/blob/main/CURATION.md",
+        "evidencePath": "CURATION.md"
+      }
+    ]
   }
 ]
