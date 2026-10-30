@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 32,
-  "edgeCount": 229,
+  "graphCount": 31,
+  "edgeCount": 220,
   "typeToType": {
     "text→image": 32,
     "image→ivideo": 10,
     "text→ivideo": 9,
     "ivideo→vedit": 3,
-    "text→vedit": 2,
+    "text→vedit": 1,
     "text→llm": 13,
     "llm→image": 5,
     "text→join": 15,
@@ -17,11 +17,11 @@
     "image→edit": 15,
     "edit→ivideo": 4,
     "join→ivideo": 1,
-    "text→edit": 11,
+    "text→edit": 10,
     "edit→edit": 4,
     "image→resize": 3,
-    "text→tvideo": 6,
-    "tvideo→vframes": 2,
+    "text→tvideo": 5,
+    "tvideo→vframes": 1,
     "vframes→llm": 10,
     "llm→music": 3,
     "tvideo→soundtrack": 2,
@@ -31,15 +31,11 @@
     "llm→decide": 3,
     "join→tvideo": 4,
     "decide→tvideo": 3,
-    "tvideo→combine": 4,
+    "tvideo→combine": 3,
     "combine→soundtrack": 1,
     "join→image": 1,
     "image→model3d": 1,
     "llm→ivideo": 1,
-    "vframes→edit": 1,
-    "tvideo→vedit": 1,
-    "edit→vedit": 1,
-    "vedit→combine": 1,
     "join→llm": 5,
     "edit→inpaint": 1,
     "upload→inpaint": 1,
@@ -67,7 +63,7 @@
     "image.image→ivideo.image": 9,
     "text.text→ivideo.prompt": 9,
     "ivideo.video→vedit.video": 3,
-    "text.text→vedit.prompt": 2,
+    "text.text→vedit.prompt": 1,
     "text.text→llm.prompt": 13,
     "llm.text→image.prompt": 5,
     "text.text→join.a": 10,
@@ -76,12 +72,12 @@
     "image.image→edit.image": 11,
     "edit.image→ivideo.image": 2,
     "join.text→ivideo.prompt": 1,
-    "text.text→edit.prompt": 11,
+    "text.text→edit.prompt": 10,
     "edit.image→edit.image": 4,
     "edit.image→ivideo.endframe": 2,
     "image.image→resize.image": 3,
-    "text.text→tvideo.prompt": 6,
-    "tvideo.video→vframes.video": 2,
+    "text.text→tvideo.prompt": 5,
+    "tvideo.video→vframes.video": 1,
     "vframes.frame1→llm.img1": 1,
     "vframes.frame2→llm.img2": 1,
     "vframes.frame3→llm.img3": 1,
@@ -100,7 +96,7 @@
     "llm.text→decide.text": 3,
     "join.text→tvideo.prompt": 4,
     "decide.text→tvideo.model": 3,
-    "tvideo.video→combine.vid1": 2,
+    "tvideo.video→combine.vid1": 1,
     "tvideo.video→combine.vid2": 1,
     "tvideo.video→combine.vid3": 1,
     "combine.video→soundtrack.video": 1,
@@ -112,10 +108,6 @@
     "image.image→edit.image3": 1,
     "image.image→edit.image4": 1,
     "llm.text→ivideo.prompt": 1,
-    "vframes.frame2→edit.image": 1,
-    "tvideo.video→vedit.video": 1,
-    "edit.image→vedit.ref1": 1,
-    "vedit.video→combine.vid2": 1,
     "join.text→llm.prompt": 5,
     "edit.image→inpaint.image": 1,
     "upload.image→inpaint.mask": 1,
@@ -146,11 +138,11 @@
     "text|text": {
       "image|prompt": 32,
       "ivideo|prompt": 9,
-      "vedit|prompt": 2,
+      "vedit|prompt": 1,
       "llm|prompt": 13,
       "join|a": 10,
-      "edit|prompt": 11,
-      "tvideo|prompt": 6,
+      "edit|prompt": 10,
+      "tvideo|prompt": 5,
       "music|prompt": 1,
       "join|b": 5,
       "inpaint|prompt": 1,
@@ -201,25 +193,22 @@
       "ivideo|image": 2,
       "edit|image": 4,
       "ivideo|endframe": 2,
-      "vedit|ref1": 1,
       "inpaint|image": 1,
       "llm|img2": 2,
       "resize|image": 2
     },
     "tvideo|video": {
-      "vframes|video": 2,
+      "vframes|video": 1,
       "soundtrack|video": 2,
-      "combine|vid1": 2,
+      "combine|vid1": 1,
       "combine|vid2": 1,
-      "combine|vid3": 1,
-      "vedit|video": 1
+      "combine|vid3": 1
     },
     "vframes|frame1": {
       "llm|img1": 1
     },
     "vframes|frame2": {
-      "llm|img2": 1,
-      "edit|image": 1
+      "llm|img2": 1
     },
     "vframes|frame3": {
       "llm|img3": 1
@@ -254,9 +243,6 @@
     },
     "combine|video": {
       "soundtrack|video": 1
-    },
-    "vedit|video": {
-      "combine|vid2": 1
     },
     "upload|image": {
       "inpaint|mask": 1
@@ -303,12 +289,9 @@
       "inputs": [
         "image",
         "prompt",
-        "ref1",
         "video"
       ],
-      "outputs": [
-        "video"
-      ]
+      "outputs": []
     },
     "llm": {
       "inputs": [

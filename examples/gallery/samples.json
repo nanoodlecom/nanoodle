@@ -1728,63 +1728,6 @@
     "workflowSha256": "95918db4d5efc8893618015c0017d608f9ac9a02aac57c3f8ec7afbfc440de17"
   },
   {
-    "slug": "new-angle-same-take",
-    "title": "A second camera on the same take",
-    "date": "2026-10-30",
-    "review": "The same train, table, teapot and oranges, now filmed head-on from a low second camera",
-    "note": "Grok Imagine 1.5 Lite films 5 seconds of a red-and-black toy steam train crossing a wooden trestle on a sunlit kitchen table, next to a blue teapot and a bowl of oranges. Frames pulls the still at 2.5 s, and Seedream 5.0 Flash Edit redraws it from a low front angle on the track. MiniMax H3 Lite gets the original clip as a video reference and that still as an image reference and re-films the same run head-on, so you get a second camera on a shot that only had one. Combine cuts A then C. Flaws: the redraw is plausible rather than 3D-correct, so the teapot moves from behind the bridge to beside the track, and near the lens the trestle turns into a flat curved track. Grok drew three carriages, not two. The saved run also made an unused overhead still ($0.027), which is not in this graph, and its Combine step dropped audio after 6.8 s, so the cut is not shipped here; the two camera clips are. The clips were re-encoded for the gallery. Inspired by @jerrod_lew's multi-angle workflow (https://x.com/jerrod_lew/status/2112889004928692268). No media from that post is used. Every still and sampled frame was checked and is SFW (a toy train, no people).",
-    "layout": "sequence",
-    "costUsd": 0.5945,
-    "costExact": false,
-    "models": [
-      "grok-imagine-video-1.5-lite",
-      "bytedance/seedream-v5.0-flash/edit",
-      "minimax/h3-lite"
-    ],
-    "graphSha256": "d8287bc66578cb579b1cdfd915370ada465a7ad99f8e54781d404dea422985e7",
-    "inputs": [
-      {
-        "label": "Shot",
-        "text": "A small red-and-black toy steam locomotive pulling two little wooden carriages chugs from left to right across a wooden toy trestle bridge on a sunlit farmhouse kitchen table, puffs of white steam rising from its chimney. A blue teapot and a bowl of oranges sit beside the track. Medium side shot at table height, steady camera, warm morning light. No people."
-      },
-      {
-        "label": "Angle C · low front",
-        "text": "Show this exact same moment from a low camera on the track just ahead of the locomotive, looking back at it head-on as it comes across the bridge towards the lens, the steam rising above it, the teapot and oranges soft in the background. Same objects, same colours, same warm morning light. No people, no hands."
-      },
-      {
-        "label": "Re-film brief C",
-        "text": "Re-film the action of the reference video from the camera angle of the reference image: a low camera on the track ahead of the small red-and-black toy steam locomotive, which comes head-on across the wooden trestle bridge towards the lens pulling its two wooden carriages, white steam puffing from the chimney, the blue teapot and the bowl of oranges soft in the background. Same train, same table, same warm morning light, same pace as the reference video. No people, no hands."
-      }
-    ],
-    "outputs": [
-      {
-        "src": "new-angle-same-take/camera-a.mp4",
-        "kind": "video",
-        "label": "Camera A: Grok Imagine 1.5 Lite 480p 5 s · reported $0.10",
-        "costUsd": 0.1,
-        "sha256": "267e926b0f09f4f4d1ec668e05001f3cec388c39bb6f7f2df6efc12ef4c7a95f"
-      },
-      {
-        "src": "new-angle-same-take/angle-c.webp",
-        "kind": "image",
-        "label": "New angle still: Seedream 5.0 Flash Edit · reported $0.027",
-        "costUsd": 0.027,
-        "sha256": "8476be0009d02de4a5db3bb9a6027bb04ea9f61b854ab72b10ebf2619c88afb7"
-      },
-      {
-        "src": "new-angle-same-take/camera-c.mp4",
-        "kind": "video",
-        "label": "Camera C: MiniMax H3 Lite with the clip and the still as references · reported $0.4675",
-        "costUsd": 0.4675,
-        "sha256": "70544395cd843eb21b8a9db55db279e38798cdf97a51809e0ea455afa4475a1a"
-      }
-    ],
-    "preview": "new-angle-same-take/preview.webp",
-    "workflow": "new-angle-same-take/workflow.json",
-    "workflowSha256": "719fbc39d58d31074ddb7f664e199e1d229afbedd88714ecbb6f9e474701ea6e",
-    "workflowNote": "The Seedream edit node now asks for the 2k size the current catalog lists; the saved run used the older 16:9 setting."
-  },
-  {
     "slug": "sketch-to-svg",
     "title": "Prompt to an editable SVG sticker",
     "date": "2026-10-30",

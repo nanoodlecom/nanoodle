@@ -247,14 +247,6 @@ const HOWTO = {
     inspect: "Read the brief against the frames, then play both versions and listen at each cue point. Check the music's length, since music models can ignore the requested duration.",
     costHow: "H3 Max Turbo 10 s at 480p $0.25 + Glimpse $0.018 + two ElevenLabs Music cues at $0.10 each. Scoring your own clip costs about $0.12. The saved run was $0.468.",
   },
-  "new-angle-same-take": {
-    headline: "A second camera on the same take",
-    job: "Add a second camera angle to a single AI video take, so you have something to cut to.",
-    purpose: "Show reference-to-video with a video reference. The clip pins the action and the look, and an edited still pins the new camera position, so H3 Lite re-films the same action from there.",
-    edit: "Change <em>Shot</em> for your take, or wire a 📹 Video input in place of Camera A. Describe the new camera in <em>Angle C · low front</em>, and duplicate the Frames → Edit → Video edit branch with another angle text for more cameras. <em>Re-film brief C</em> tells the video model to keep the action and change only the camera.",
-    inspect: "Compare A and C at the same moments: the props, colours and light should match. Check the set geometry, since the new angle is a redraw, and watch the cut at the end of A for audio.",
-    costHow: "Grok Imagine 1.5 Lite $0.10 + Seedream 5.0 Flash Edit $0.027 + H3 Lite reference-to-video at 480p, which billed $0.4675. With your own clip, each extra angle costs about $0.49.",
-  },
   "sketch-to-svg": {
     headline: "Prompt to an editable SVG sticker",
     job: "Get a logo, sticker or icon as a real vector file from one prompt.",
@@ -320,7 +312,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "composer-watches-your-film", "new-angle-same-take", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "director-picks-the-model", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
