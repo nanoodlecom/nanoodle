@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "exampleCount": 28,
+  "exampleCount": 31,
   "recipes": [
     {
       "id": "add-snow-to-a-clip",
@@ -117,6 +117,31 @@
         "text": 2,
         "image": 1,
         "edit": 1
+      }
+    },
+    {
+      "id": "composer-watches-your-film",
+      "slug": "composer-watches-your-film",
+      "title": "A composer that watches your film",
+      "sequence": [
+        "text",
+        "tvideo",
+        "vframes",
+        "text",
+        "llm",
+        "music",
+        "soundtrack",
+        "text",
+        "music",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 3,
+        "tvideo": 1,
+        "vframes": 1,
+        "llm": 1,
+        "music": 2,
+        "soundtrack": 2
       }
     },
     {
@@ -427,6 +452,45 @@
         "join": 3,
         "llm": 3,
         "music": 1
+      }
+    },
+    {
+      "id": "sketch-to-svg",
+      "slug": "sketch-to-svg",
+      "title": "Prompt to an editable SVG sticker",
+      "sequence": [
+        "text",
+        "image",
+        "edit"
+      ],
+      "multiset": {
+        "text": 1,
+        "image": 1,
+        "edit": 1
+      }
+    },
+    {
+      "id": "song-to-music-video",
+      "slug": "song-to-music-video",
+      "title": "Song in, music video out",
+      "sequence": [
+        "text",
+        "llm",
+        "music",
+        "trim",
+        "text",
+        "image",
+        "lipsync",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 2,
+        "llm": 1,
+        "music": 1,
+        "trim": 1,
+        "image": 1,
+        "lipsync": 1,
+        "soundtrack": 1
       }
     },
     {

@@ -1,52 +1,54 @@
 {
   "unigram": {
-    "add:text": 353,
-    "add:image": 195,
-    "set:model": 453,
-    "wire": 888,
+    "add:text": 411,
+    "add:image": 207,
+    "set:model": 533,
+    "wire": 968,
     "add:ivideo": 55,
     "add:vedit": 19,
-    "add:comment": 129,
-    "run": 121,
-    "add:llm": 66,
+    "add:comment": 153,
+    "run": 145,
+    "add:llm": 88,
     "add:join": 60,
-    "add:edit": 90,
+    "add:edit": 92,
     "add:resize": 46,
+    "add:music": 36,
     "add:tts": 14,
-    "add:lipsync": 12,
-    "add:music": 2
+    "add:lipsync": 22
   },
   "bigram": {
     "add:text": {
-      "add:text": 179,
-      "add:image": 111,
+      "add:text": 199,
+      "add:image": 121,
       "add:ivideo": 12,
-      "add:llm": 19,
+      "add:llm": 35,
       "add:join": 19,
       "add:edit": 6,
+      "add:music": 10,
       "add:tts": 6,
-      "add:comment": 1
+      "add:comment": 1,
+      "add:lipsync": 2
     },
     "add:image": {
-      "set:model": 195
+      "set:model": 207
     },
     "set:model": {
-      "wire": 453
+      "wire": 533
     },
     "wire": {
       "add:ivideo": 43,
       "wire": 329,
       "add:vedit": 19,
-      "add:comment": 120,
-      "add:text": 53,
-      "add:image": 84,
+      "add:comment": 144,
+      "add:text": 67,
+      "add:image": 86,
       "add:join": 41,
-      "add:llm": 47,
-      "add:edit": 84,
+      "add:llm": 53,
+      "add:edit": 86,
       "add:resize": 46,
-      "add:lipsync": 12,
-      "add:tts": 8,
-      "add:music": 2
+      "add:music": 26,
+      "add:lipsync": 20,
+      "add:tts": 8
     },
     "add:ivideo": {
       "set:model": 55
@@ -55,36 +57,36 @@
       "set:model": 19
     },
     "add:comment": {
-      "run": 121,
+      "run": 145,
       "add:comment": 8
     },
     "add:llm": {
-      "set:model": 66
+      "set:model": 88
     },
     "add:join": {
       "wire": 60
     },
     "add:edit": {
-      "set:model": 90
+      "set:model": 92
     },
     "add:resize": {
       "wire": 46
+    },
+    "add:music": {
+      "set:model": 36
     },
     "add:tts": {
       "set:model": 14
     },
     "add:lipsync": {
-      "set:model": 12
-    },
-    "add:music": {
-      "set:model": 2
+      "set:model": 22
     }
   },
   "coldStart": {
-    "add:text": 121
+    "add:text": 145
   },
   "firstNode": {
-    "add:text": 121
+    "add:text": 145
   },
   "firstTrio": [
     {
@@ -93,7 +95,7 @@
         "add:text",
         "add:text"
       ],
-      "count": 56
+      "count": 60
     },
     {
       "actions": [
@@ -101,15 +103,7 @@
         "add:text",
         "add:image"
       ],
-      "count": 19
-    },
-    {
-      "actions": [
-        "add:text",
-        "add:image",
-        "add:image"
-      ],
-      "count": 11
+      "count": 21
     },
     {
       "actions": [
@@ -117,7 +111,7 @@
         "add:image",
         "add:text"
       ],
-      "count": 11
+      "count": 13
     },
     {
       "actions": [
@@ -125,13 +119,37 @@
         "add:text",
         "add:llm"
       ],
-      "count": 6
+      "count": 12
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:image",
+        "add:image"
+      ],
+      "count": 11
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:llm",
+        "add:text"
+      ],
+      "count": 5
     },
     {
       "actions": [
         "add:text",
         "add:llm",
         "add:image"
+      ],
+      "count": 4
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:music",
+        "add:text"
       ],
       "count": 4
     },
@@ -146,18 +164,26 @@
     {
       "actions": [
         "add:text",
-        "add:llm",
-        "add:text"
+        "add:text",
+        "add:tts"
       ],
       "count": 3
     },
     {
       "actions": [
         "add:text",
-        "add:text",
-        "add:tts"
+        "add:image",
+        "add:edit"
       ],
-      "count": 3
+      "count": 2
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:image",
+        "add:lipsync"
+      ],
+      "count": 2
     },
     {
       "actions": [
@@ -168,5 +194,5 @@
       "count": 1
     }
   ],
-  "total": 2503
+  "total": 2849
 }

@@ -1,0 +1,75 @@
+{
+  "slug": "sketch-to-svg",
+  "case": "camp-badge",
+  "recordedAt": "2026-10-30T16:47:00.000Z",
+  "elapsedMs": 22723,
+  "graphSha256": "f9b6d657808269f4c2265a17460a4dc859e14e9585e5724f604c4d348f2382ff",
+  "executedGraphSha256": "835d97845703dd8b7a659182144c1873a8732d013739d668f35ef56b8a9e9ffd",
+  "executedGraphNote": "The executed graph differs from graph.json here only in the layout size of the intro comment.",
+  "costUsd": 0.179,
+  "costExact": true,
+  "errors": [],
+  "captureErrors": [],
+  "runner": "nanoodle-js",
+  "mediaNote": "Displayed media are size-reduced re-encodes of the run outputs; the originals are linked per output.",
+  "nodes": [
+    {
+      "id": "c-intent",
+      "name": null,
+      "type": "comment",
+      "status": "skipped",
+      "outputs": []
+    },
+    {
+      "id": "concept",
+      "name": "Sticker concept",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "concept-text.txt",
+          "bytes": 426,
+          "sha256": "caa0208fbcb7cacaa69e142eb73e8f9c31c08a332bc196b374a3d4ddd426b1f3"
+        }
+      ]
+    },
+    {
+      "id": "paint",
+      "name": "Raster sticker",
+      "type": "image",
+      "model": "blackforestlabs/flux-3/klein/text-to-image",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "paint-image.webp",
+          "bytes": 31896,
+          "sha256": "1dd83b53df1d428f8b1b6ac3349809bb87f587c4c27e884307c74f718cd2bb5e",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-sketch-to-svg/raster.png"
+        }
+      ]
+    },
+    {
+      "id": "vec",
+      "name": "Vectorize (SVG)",
+      "type": "edit",
+      "model": "ideogram/vector",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "vec-image.svg",
+          "bytes": 6267,
+          "sha256": "5a621481b228c76f0e00dcfc3daf8ee119d45caa53dd5262ed6e3a0ed522df51"
+        }
+      ]
+    }
+  ]
+}
