@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 30,
-  "edgeCount": 196,
+  "graphCount": 31,
+  "edgeCount": 206,
   "typeToType": {
-    "text→image": 32,
+    "text→image": 34,
     "image→ivideo": 10,
     "text→ivideo": 9,
     "ivideo→vedit": 3,
     "text→vedit": 1,
-    "text→llm": 12,
+    "text→llm": 13,
     "llm→image": 5,
     "text→join": 12,
     "llm→join": 9,
     "join→edit": 3,
-    "image→edit": 15,
+    "image→edit": 17,
     "edit→ivideo": 4,
     "join→ivideo": 1,
-    "text→edit": 10,
+    "text→edit": 11,
     "edit→edit": 4,
     "image→resize": 3,
     "text→tvideo": 5,
@@ -27,6 +27,10 @@
     "tvideo→soundtrack": 2,
     "music→soundtrack": 3,
     "text→music": 1,
+    "llm→tts": 1,
+    "edit→lipsync": 1,
+    "tts→lipsync": 2,
+    "text→lipsync": 2,
     "join→image": 1,
     "image→model3d": 1,
     "llm→ivideo": 1,
@@ -50,25 +54,23 @@
     "edit→resize": 2,
     "image→vedit": 1,
     "text→tts": 1,
-    "tts→lipsync": 1,
-    "text→lipsync": 1,
     "image→tvideo": 3
   },
   "portPair": {
-    "text.text→image.prompt": 32,
+    "text.text→image.prompt": 34,
     "image.image→ivideo.image": 9,
     "text.text→ivideo.prompt": 9,
     "ivideo.video→vedit.video": 3,
     "text.text→vedit.prompt": 1,
-    "text.text→llm.prompt": 12,
+    "text.text→llm.prompt": 13,
     "llm.text→image.prompt": 5,
     "text.text→join.a": 7,
     "llm.text→join.b": 7,
     "join.text→edit.prompt": 3,
-    "image.image→edit.image": 11,
+    "image.image→edit.image": 12,
     "edit.image→ivideo.image": 2,
     "join.text→ivideo.prompt": 1,
-    "text.text→edit.prompt": 10,
+    "text.text→edit.prompt": 11,
     "edit.image→edit.image": 4,
     "edit.image→ivideo.endframe": 2,
     "image.image→resize.image": 3,
@@ -88,11 +90,15 @@
     "tvideo.video→soundtrack.video": 2,
     "music.audio→soundtrack.audio": 3,
     "text.text→music.prompt": 1,
+    "image.image→edit.image2": 3,
+    "llm.text→tts.prompt": 1,
+    "edit.image→lipsync.image": 1,
+    "tts.audio→lipsync.audio": 2,
+    "text.text→lipsync.prompt": 2,
     "llm.text→join.a": 2,
     "text.text→join.b": 5,
     "join.text→image.prompt": 1,
     "image.image→model3d.image": 1,
-    "image.image→edit.image2": 2,
     "image.image→edit.image3": 1,
     "image.image→edit.image4": 1,
     "llm.text→ivideo.prompt": 1,
@@ -118,33 +124,31 @@
     "edit.image→resize.image": 2,
     "image.image→vedit.image": 1,
     "text.text→tts.prompt": 1,
-    "tts.audio→lipsync.audio": 1,
-    "text.text→lipsync.prompt": 1,
     "image.image→tvideo.ref1": 1,
     "image.image→tvideo.ref2": 1,
     "image.image→tvideo.ref3": 1
   },
   "topTargets": {
     "text|text": {
-      "image|prompt": 32,
+      "image|prompt": 34,
       "ivideo|prompt": 9,
       "vedit|prompt": 1,
-      "llm|prompt": 12,
+      "llm|prompt": 13,
       "join|a": 7,
-      "edit|prompt": 10,
+      "edit|prompt": 11,
       "tvideo|prompt": 5,
       "music|prompt": 1,
+      "lipsync|prompt": 2,
       "join|b": 5,
       "inpaint|prompt": 1,
-      "tts|prompt": 1,
-      "lipsync|prompt": 1
+      "tts|prompt": 1
     },
     "image|image": {
       "ivideo|image": 9,
-      "edit|image": 11,
+      "edit|image": 12,
       "resize|image": 3,
+      "edit|image2": 3,
       "model3d|image": 1,
-      "edit|image2": 2,
       "edit|image3": 1,
       "edit|image4": 1,
       "ivideo|endframe": 1,
@@ -163,6 +167,7 @@
       "image|prompt": 5,
       "join|b": 7,
       "music|prompt": 1,
+      "tts|prompt": 1,
       "join|a": 2,
       "ivideo|prompt": 1,
       "llm|prompt": 1,
@@ -182,6 +187,7 @@
       "ivideo|image": 2,
       "edit|image": 4,
       "ivideo|endframe": 2,
+      "lipsync|image": 1,
       "inpaint|image": 1,
       "llm|img2": 2,
       "resize|image": 2
@@ -224,6 +230,9 @@
       "soundtrack|audio": 3,
       "trim|audio": 1
     },
+    "tts|audio": {
+      "lipsync|audio": 2
+    },
     "upload|image": {
       "inpaint|mask": 1
     },
@@ -235,9 +244,6 @@
     },
     "lipsync|video": {
       "soundtrack|video": 1
-    },
-    "tts|audio": {
-      "lipsync|audio": 1
     }
   },
   "portCatalog": {
@@ -362,6 +368,24 @@
       ],
       "outputs": []
     },
+    "tts": {
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": [
+        "audio"
+      ]
+    },
+    "lipsync": {
+      "inputs": [
+        "audio",
+        "image",
+        "prompt"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
     "model3d": {
       "inputs": [
         "image"
@@ -384,30 +408,12 @@
         "image"
       ]
     },
-    "tts": {
-      "inputs": [
-        "prompt"
-      ],
-      "outputs": [
-        "audio"
-      ]
-    },
     "trim": {
       "inputs": [
         "audio"
       ],
       "outputs": [
         "audio"
-      ]
-    },
-    "lipsync": {
-      "inputs": [
-        "audio",
-        "image",
-        "prompt"
-      ],
-      "outputs": [
-        "video"
       ]
     }
   }

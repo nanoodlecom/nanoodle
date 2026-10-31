@@ -1945,5 +1945,192 @@
         "evidencePath": "CURATION.md"
       }
     ]
+  },
+  {
+    "slug": "creator-ad",
+    "title": "A creator ad for your product",
+    "date": "2026-10-30",
+    "review": "Every sampled frame keeps the same face and the same pot; a Whisper pass on the ad's audio matched the script word for word",
+    "note": "Muse paints a stand-in product: a terracotta self-watering herb pot with basil, sitting in a sage-green reservoir with a round water-level window. It also paints an invented creator in a mustard sweater filming a selfie in a sunny kitchen. Muse Edit puts that exact pot in her hand at chest height in a 9:16 frame, keeping her face, the kitchen and the pot's reservoir and window. GLM writes a 37-word first-person script from a two-line product brief: \"I used to kill every basil I brought home. This little terracotta pot sits in a water reservoir, so it drinks on its own, and a tiny window shows me when to refill—like every two weeks. Honestly, get one.\" MiniMax Speech 2.8 HD reads it in 13 seconds, and LongCat Avatar 1.5 makes her say it at 480p while she holds the pot steady beside her shoulder. Flaws: the prompt asked for shoulder-length hair and she has longer curls. Her expressions run a little big, with a few wide-mouthed frames. The ad is 480p. The script ran 13.1 s against a 10 to 12 s target, so LongCat billed 14 s ($0.56). The editor's estimate for this node follows the voice length (script words before a run, the measured clip after). The creator is an invented person and the ad is AI-generated, so label it that way if you post it. Swap the product Image for a 📷 Image input to use your own product photo. Every still and sampled video frame was checked and is SFW (a clothed invented adult and a plant pot, no text or logos). Inspired by @teddarling's AI Creator Lab for ComfyUI (https://x.com/teddarling/status/2116187911850701017). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.614,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "z-ai/glm-5.3-flash",
+      "Minimax-Speech-2.8-HD",
+      "longcat-avatar-1.5"
+    ],
+    "graphSha256": "48b68f2dd19a9f234986e23722bf45723ec8908bff244b6f61f4de0aa289c2fc",
+    "inputs": [
+      {
+        "label": "Product · stand-in",
+        "text": "Product photo of a small handmade terracotta self-watering herb pot: a round matte clay pot with a fresh basil plant, sitting inside a slightly larger glazed sage-green ceramic water reservoir with a tiny round water-level window on the front. Centered on a plain off-white background, soft even studio light, the whole product visible. No text, no letters, no logos, no labels, no people."
+      },
+      {
+        "label": "Creator · look",
+        "text": "A fictional friendly woman in her late twenties with shoulder-length curly dark hair, wearing a plain mustard-yellow knit sweater, filming a casual vertical selfie video in her bright small apartment kitchen with a sunny windowsill and a few plants behind her. Chest-up, front-facing, eyes to camera, warm natural smile with lips closed, face and mouth fully visible, natural window light, phone-camera look. No glasses, no hat, no jewelry, no text, no logos."
+      },
+      {
+        "label": "Hold the product · instruction",
+        "text": "Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact woman, same face, curly hair, mustard sweater, kitchen and window light, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: she holds exactly one of this herb pot in one hand at chest height beside her shoulder, showing it to the camera, with the same terracotta pot, basil plant, sage-green reservoir and small round water-level window. The pot must not cover her face, chin or mouth. One person, one product, no other copies, no text, no logos, no stickers."
+      },
+      {
+        "label": "Product brief",
+        "text": "Product: a small terracotta self-watering herb pot. The clay pot sits in a ceramic water reservoir, so the basil drinks on its own; a little window shows when to refill, about once every two weeks."
+      },
+      {
+        "label": "Delivery",
+        "text": "Casual, upbeat selfie-video delivery, like talking to a friend. Natural blinks, small nods and head movements, a warm smile between sentences. She keeps holding the herb pot steady beside her shoulder; the pot, the basil and her hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "creator-ad/product.webp",
+        "kind": "image",
+        "label": "Product: Muse 1:1 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "77c2d9df307b0c821cfdc8cdae0477ae998cd1be5029c529aa100478bc479c69"
+      },
+      {
+        "src": "creator-ad/creator.webp",
+        "kind": "image",
+        "label": "Creator: Muse 9:16 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "ecb41cc67bf316845f6d4ca33ae82dab1aa299a7239c6628302f82cbdf231164"
+      },
+      {
+        "src": "creator-ad/selfie-frame.webp",
+        "kind": "image",
+        "label": "Creator holds the product: Muse Edit 9:16 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "1dea347b1e05aa5f14f189dc6458a5789f0e215fe61cbfb9950bffeecb0a929c"
+      },
+      {
+        "src": "creator-ad/voice.mp3",
+        "kind": "audio",
+        "label": "Script: GLM 5.3 Flash ($0.0009) → MiniMax Speech 2.8 HD, 13.1 s · $0.0204 by balance",
+        "costUsd": 0.0213,
+        "sha256": "92e90af8299223d5bd5efabba9a0bed7e1f559c46f8a63bf5b0b825efb5b7187"
+      },
+      {
+        "src": "creator-ad/creator-ad.mp4",
+        "kind": "video",
+        "label": "Creator ad: LongCat Avatar 1.5, 480p, 13.1 s (billed 14 s) · reported $0.56",
+        "costUsd": 0.56,
+        "sha256": "61d1166cca40c0b7ba4aa26f4b2dbf715ed1d8502d845532cc044f420b272b0e"
+      }
+    ],
+    "preview": "creator-ad/preview.webp",
+    "workflow": "creator-ad/workflow.json",
+    "workflowSha256": "48b68f2dd19a9f234986e23722bf45723ec8908bff244b6f61f4de0aa289c2fc",
+    "alternates": [
+      {
+        "id": "workshop-lunchbox",
+        "case": "workshop-lunchbox",
+        "title": "A woodworker’s lunchbox ad",
+        "date": "2026-10-30",
+        "recordedAt": "2026-10-30T19:07:44.091Z",
+        "review": "All 280 frames and the spoken script checked against the brief",
+        "note": "Partial. Same graph, a second input: a sage-green bamboo-fibre lunchbox, a fictional woodworker in his sixties (grey hair and beard, navy apron over flannel) filming a selfie in his workshop, and a calm, warm male voice (MiniMax Patient_Man). Besides the text inputs, the “Hold the product” instruction was adapted to a man and a lunchbox, and the voice was changed; both are listed below. The script is 28 words and the ad runs 11.2 s against a ~10 s brief. It says the box keeps food warm for about four hours and that the silicone seal stops leaks, but it leaves out two brief points, dishwasher-safe and bamboo fibre, so the brief is only partly met. The mouth moves in time with the voice, the lunchbox stays steady by his shoulder in every frame, and there are no cuts, extra people or text. Cost is the NanoGPT balance change across the run: $0.033 for the three Muse images and GLM, about $0.0145 for the speech and $0.4814 for LongCat (11.3 s billed as 12 s).",
+        "costUsd": 0.52914279,
+        "costExact": true,
+        "elapsedMs": 490523,
+        "models": [
+          "meta/muse-image/text-to-image",
+          "meta/muse-image/edit",
+          "z-ai/glm-5.3-flash",
+          "Minimax-Speech-2.8-HD",
+          "longcat-avatar-1.5"
+        ],
+        "inputs": [
+          {
+            "label": "Product · stand-in",
+            "text": "a matte sage-green insulated bamboo-fibre lunchbox with a natural bamboo lid, a silicone seal and a fold-down carry handle, on a light wooden workbench, as a soft daylight product photo."
+          },
+          {
+            "label": "Creator · look",
+            "text": "a fictional cheerful man in his sixties with short grey hair and a trimmed grey beard, wearing a plain navy work apron over a flannel shirt, filming a selfie in a bright woodworking workshop. Invented person, no logos or text."
+          },
+          {
+            "label": "Hold the product · instruction",
+            "text": "Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact man, same face, short grey hair, trimmed grey beard, navy work apron over the flannel shirt, workshop and daylight, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: he holds exactly one of this lunchbox in one hand at chest height beside his shoulder, showing it to the camera, with the same matte sage-green body, natural bamboo lid, silicone seal and fold-down carry handle. The lunchbox must not cover his face, beard or mouth. One person, one product, no other copies, no text, no logos, no stickers."
+          },
+          {
+            "label": "Product brief",
+            "text": "the lunchbox keeps food warm for about 4 hours, is leak-proof thanks to the silicone seal, can go in the dishwasher, and is made from bamboo fibre. Aim for about 10 seconds and 28 words."
+          },
+          {
+            "label": "Delivery",
+            "text": "Relaxed and friendly selfie-video delivery, with small nods. Natural blinks and a calm, warm smile between sentences. He keeps holding the lunchbox steady beside his shoulder; the lunchbox and his hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."
+          },
+          {
+            "label": "Voice · voice",
+            "text": "Patient_Man"
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "image",
+            "src": "creator-ad/alternates/workshop-lunchbox/product-image.webp",
+            "sha256": "2cbc2b67baaa411d518fa0c6968813717274129630e085002f4ec8129cdef680",
+            "label": "1. Muse: the product shot"
+          },
+          {
+            "kind": "image",
+            "src": "creator-ad/alternates/workshop-lunchbox/creator-image.webp",
+            "sha256": "b7bbd0f0320c7ad1f8b15537205ed4c3baf0d2af8b59519442b9cae0acc7a5f1",
+            "label": "2. Muse: the creator"
+          },
+          {
+            "kind": "image",
+            "src": "creator-ad/alternates/workshop-lunchbox/mix-image.webp",
+            "sha256": "f9db66fb0d9cce2ca4ae8aa06cbcfa6ddff01ae6135e29a36349cb5368ed4358",
+            "label": "3. Muse Edit: he holds the lunchbox"
+          },
+          {
+            "kind": "text",
+            "src": "creator-ad/alternates/workshop-lunchbox/script-text.txt",
+            "sha256": "3f06458bedbf0065e1e423ea7bb625b18f6cafe8049d13a72817194f31ecb035",
+            "label": "4. GLM 5.3 Flash: the 28-word script"
+          },
+          {
+            "kind": "audio",
+            "src": "creator-ad/alternates/workshop-lunchbox/voice-audio.mp3",
+            "sha256": "07a4af5d975534c91fe565f6048ce284354e63d769c3b9d2ea33cff5f233e01a",
+            "label": "5. MiniMax Speech 2.8 HD: the voice, 11.3 s"
+          },
+          {
+            "kind": "video",
+            "src": "creator-ad/alternates/workshop-lunchbox/ad-video.mp4",
+            "sha256": "1bd6ba560b67c5f3ae57cf548aa35b2558693006268074d38731c1bcf35f95ca",
+            "label": "6. LongCat Avatar 1.5: the creator ad, 11.2 s"
+          }
+        ],
+        "preview": "creator-ad/alternates/workshop-lunchbox/preview.webp",
+        "previewSha256": "60dc1f98d17be13e8b0a204981dcafcb23fbe8b26639c48efde50bf287f1c88b",
+        "previewSource": "creator-ad/alternates/workshop-lunchbox/mix-image.webp",
+        "graph": "creator-ad/alternates/workshop-lunchbox/graph.json",
+        "graphSha256": "7bd3dc4d167550083123f7fce5aba8e8f34021c9805082f14b05b87253bcd745",
+        "workflow": "creator-ad/alternates/workshop-lunchbox/graph.json",
+        "workflowSha256": "7bd3dc4d167550083123f7fce5aba8e8f34021c9805082f14b05b87253bcd745",
+        "sourceGraph": "creator-ad/alternates/workshop-lunchbox/source-graph.json",
+        "sourceGraphSha256": "48b68f2dd19a9f234986e23722bf45723ec8908bff244b6f61f4de0aa289c2fc",
+        "inputOverrides": "creator-ad/alternates/workshop-lunchbox/inputs.json",
+        "inputOverridesSha256": "716482ef538c3dab38080c67123296e2aaf4fd5c84950f98d1bd81f318fd91d7",
+        "sourceRun": "creator-ad/alternates/workshop-lunchbox/source-run.json",
+        "sourceRunSha256": "757b1ae8c3cf7806d33e592af94fdf49346872344d48169c736d84cc063ec364",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/blob/main/CURATION.md",
+        "evidencePath": "CURATION.md",
+        "fieldOverrides": [
+          {
+            "node": "voice",
+            "field": "voice",
+            "label": "Voice · voice"
+          }
+        ]
+      }
+    ]
   }
 ]

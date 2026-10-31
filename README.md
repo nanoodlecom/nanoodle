@@ -22,6 +22,9 @@ the inputs and outputs together for next time, then share or export it.
 - **Browser-based editor and app runtime** — no nanoodle model proxy,
   analytics, or tracking; model requests go directly to NanoGPT.
 - **Six UI languages** — EN/ES/FR/DE/PT/JA, auto-detected with a switcher.
+- **Recent Updates** — the unseen badge covers the 12 most recent changes and
+  three newest field notes. Older entries remain in the expandable archive and
+  full changelog; archived history intentionally does not increase the badge.
 
 ## Privacy architecture
 
