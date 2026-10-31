@@ -1,0 +1,258 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -260,
+      "w": 760,
+      "sizes": {
+        "text": 190
+      },
+      "fields": {
+        "text": "Turn a product into a vertical creator-style ad. Muse paints a stand-in product shot and an invented creator in her kitchen; Muse Edit puts that exact product in her hand in a 9:16 selfie frame. GLM writes a short first-person script from your product brief (only claims from the brief), MiniMax Speech reads it, and LongCat Avatar 1.5 makes her say it while holding the product. Swap the product Image for a 📷 Image input with your own product photo and rewrite the brief. LongCat bills by the length of the voice (about $0.04 per second at 480p), so keep the script near 10 seconds. Inspired by @teddarling's AI Creator Lab for ComfyUI (https://x.com/teddarling/status/2116187911850701017).",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-product",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "w": 300,
+      "fields": {
+        "text": "a matte sage-green insulated bamboo-fibre lunchbox with a natural bamboo lid, a silicone seal and a fold-down carry handle, on a light wooden workbench, as a soft daylight product photo."
+      },
+      "name": "Product · stand-in"
+    },
+    {
+      "id": "product",
+      "type": "image",
+      "x": 380,
+      "y": 40,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      },
+      "name": "Product shot"
+    },
+    {
+      "id": "p-creator",
+      "type": "text",
+      "x": 40,
+      "y": 480,
+      "w": 300,
+      "fields": {
+        "text": "a fictional cheerful man in his sixties with short grey hair and a trimmed grey beard, wearing a plain navy work apron over a flannel shirt, filming a selfie in a bright woodworking workshop. Invented person, no logos or text."
+      },
+      "name": "Creator · look"
+    },
+    {
+      "id": "creator",
+      "type": "image",
+      "x": 380,
+      "y": 460,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "9:16",
+        "variations": "1"
+      },
+      "name": "Creator"
+    },
+    {
+      "id": "p-mix",
+      "type": "text",
+      "x": 760,
+      "y": 40,
+      "w": 320,
+      "fields": {
+        "text": "Make one vertical selfie-video frame from the two images. Image 1 is the creator: keep this exact man, same face, short grey hair, trimmed grey beard, navy work apron over the flannel shirt, workshop and daylight, same chest-up framing, eyes to camera, mouth relaxed and fully visible. Image 2 is the product: he holds exactly one of this lunchbox in one hand at chest height beside his shoulder, showing it to the camera, with the same matte sage-green body, natural bamboo lid, silicone seal and fold-down carry handle. The lunchbox must not cover his face, beard or mouth. One person, one product, no other copies, no text, no logos, no stickers."
+      },
+      "name": "Hold the product · instruction"
+    },
+    {
+      "id": "mix",
+      "type": "edit",
+      "x": 760,
+      "y": 400,
+      "fields": {
+        "model": "meta/muse-image/edit",
+        "size": "9:16",
+        "prompt": ""
+      },
+      "name": "Selfie frame · Muse Edit"
+    },
+    {
+      "id": "p-brief",
+      "type": "text",
+      "x": 40,
+      "y": 900,
+      "w": 300,
+      "fields": {
+        "text": "the lunchbox keeps food warm for about 4 hours, is leak-proof thanks to the silicone seal, can go in the dishwasher, and is made from bamboo fibre. Aim for about 10 seconds and 28 words."
+      },
+      "name": "Product brief"
+    },
+    {
+      "id": "script",
+      "type": "llm",
+      "x": 380,
+      "y": 880,
+      "w": 340,
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "You write the spoken script for a short vertical UGC-style product video. The speaker is holding the product and talking to her phone camera like a friend. Write 2 or 3 short casual first-person sentences, 30 to 40 words total, about 10 to 12 seconds out loud. Open with a quick hook, say one concrete benefit from the brief, end with a light recommendation. Only claim what the brief says. No prices, no discount codes, no brand names, no hashtags, no emojis, no stage directions. Return only the words she says.",
+        "prompt": ""
+      },
+      "name": "Write the script"
+    },
+    {
+      "id": "voice",
+      "type": "tts",
+      "x": 760,
+      "y": 940,
+      "fields": {
+        "model": "Minimax-Speech-2.8-HD",
+        "voice": "Patient_Man",
+        "response_format": "mp3"
+      },
+      "name": "Voice"
+    },
+    {
+      "id": "p-delivery",
+      "type": "text",
+      "x": 1140,
+      "y": 40,
+      "w": 300,
+      "fields": {
+        "text": "Relaxed and friendly selfie-video delivery, with small nods. Natural blinks and a calm, warm smile between sentences. He keeps holding the lunchbox steady beside his shoulder; the lunchbox and his hand stay the same. Face and mouth stay visible, eyes toward the camera, handheld phone framing with only slight natural sway. No cuts, no extra people, no text."
+      },
+      "name": "Delivery"
+    },
+    {
+      "id": "ad",
+      "type": "lipsync",
+      "x": 1140,
+      "y": 400,
+      "fields": {
+        "model": "longcat-avatar-1.5",
+        "resolution": "480p"
+      },
+      "name": "Creator ad · LongCat Avatar 1.5"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-product",
+        "port": "text"
+      },
+      "to": {
+        "node": "product",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "p-creator",
+        "port": "text"
+      },
+      "to": {
+        "node": "creator",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "creator",
+        "port": "image"
+      },
+      "to": {
+        "node": "mix",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "product",
+        "port": "image"
+      },
+      "to": {
+        "node": "mix",
+        "port": "image2"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "p-mix",
+        "port": "text"
+      },
+      "to": {
+        "node": "mix",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "p-brief",
+        "port": "text"
+      },
+      "to": {
+        "node": "script",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "script",
+        "port": "text"
+      },
+      "to": {
+        "node": "voice",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "mix",
+        "port": "image"
+      },
+      "to": {
+        "node": "ad",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "voice",
+        "port": "audio"
+      },
+      "to": {
+        "node": "ad",
+        "port": "audio"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "p-delivery",
+        "port": "text"
+      },
+      "to": {
+        "node": "ad",
+        "port": "prompt"
+      }
+    }
+  ]
+}
