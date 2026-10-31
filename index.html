@@ -239,6 +239,10 @@
   .update-items li::before{ content:"–"; position:absolute; left:0; color:var(--accent) }
   .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
   .update-items a:hover{ color:var(--ink); text-decoration:underline }
+  /* updates.json "examples": links to the gallery example (or alternate run) an entry announces */
+  .update-examples{ display:flex; flex-wrap:wrap; gap:.25rem .8rem; margin-top:.3rem; font-size:.82rem }
+  .update-examples a{ color:var(--accent); text-decoration:none }
+  .update-examples a:hover{ text-decoration:underline }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
   /* an entry's usage clip (updates.json "media"): a small muted loop under the line,
      lazy-loaded only while it's in view; click opens it large in #updclipbox. */
@@ -20164,11 +20168,31 @@ function renderMixedUpdates(body, list, articles){
         li.appendChild(a);
       } else if(part) li.appendChild(document.createTextNode(part));
     });
+    const exLinks = updExampleLinks(e);
+    if(exLinks) li.appendChild(exLinks);
     const clip = updClip(e);
     if(clip) li.appendChild(clip);
     ul.appendChild(li);
   }
   return rendered;
+}
+// An entry may name the gallery examples it announces: examples:[{id,title}], where id is
+// the gallery section id (slug) or an alternate run's id (slug--alternate). Each becomes a
+// link to examples/gallery/#id; the gallery opens that alternate's details on arrival.
+// scripts/check-updates-example-links.mjs checks every id and title against the gallery.
+const UPD_EXAMPLE_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?$/;
+function updExampleLinks(e){
+  const list = Array.isArray(e && e.examples) ? e.examples.filter(x=> x && typeof x.id==="string" && UPD_EXAMPLE_ID_RE.test(x.id) && typeof x.title==="string" && x.title.trim()) : [];
+  if(!list.length) return null;
+  const wrap = document.createElement("span"); wrap.className = "update-examples";
+  for(const x of list){
+    const a = document.createElement("a");
+    a.href = "examples/gallery/#" + x.id; a.target = "_blank"; a.rel = "noopener";
+    a.dataset.example = x.id;
+    a.textContent = "↗ " + x.title;
+    wrap.appendChild(a);
+  }
+  return wrap;
 }
 let updatesOpenGen = 0;
 async function openUpdates(){
