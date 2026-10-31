@@ -85,10 +85,14 @@ function safeUrl(value){
   try{ const u = new URL(value); return u.protocol==="https:" && u.hostname && !u.username && !u.password ? u.href : null; }catch{ return null; }
 }
 const linkifyHtml = (s) => s.split(/(https?:\/\/[^\s<>"']+)/).map(part=>{
-  const clean = part.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
-    const opens = (part.match(/\(/g)||[]).length, closes = (part.match(/\)/g)||[]).length;
-    return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
-  });
+  let clean = part, previous;
+  do{
+    previous = clean;
+    clean = clean.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
+      const opens = (clean.match(/\(/g)||[]).length, closes = (clean.match(/\)/g)||[]).length;
+      return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
+    });
+  }while(clean!==previous);
   const href = safeUrl(clean);
   return href ? `<a href="${escHtml(href)}">${escHtml(clean.replace(/^https:\/\//, ""))}</a>${escHtml(part.slice(clean.length))}` : escHtml(part);
 }).join("");
@@ -205,7 +209,7 @@ function fieldNotesHtml() {
             <p>${escHtml(a.blurb)}</p>
             <span class="fn-read">Read the run →</span>
           </span>
-        </a>${clipHtml(a)}`).join("\n");
+        </a>`).join("\n");
   const links = guides.map((g) => `          <li><a href="${escHtml(g.href)}">${escHtml(g.title)}</a></li>`).join("\n");
   const n = articles.length;
   return `    <aside class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
