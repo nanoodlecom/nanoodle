@@ -66,6 +66,9 @@ const REQUIRED = [
   ['New gallery example: Same shot, three looks', ['same-shot-three-looks']],
   ['New Examples card: Neon shrine duel', ['neon-shrine-duel']],
   ['New Examples card: Character sprites', ['character-sprites']],
+  ['Gallery first-click punch — image model arena is Light Rail', ['image-model-arena']],
+  ['Gallery first-click punch — talking avatar is a Hongyadong', ['talking-avatar']],
+  ['Talking avatar gallery example now first-click Runs', ['talking-avatar']],
   ['Examples shelf cut to five useful workflows', ['character-sprites', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar']],
 ];
 for (const [prefix, ids] of REQUIRED) {
