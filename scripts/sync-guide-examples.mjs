@@ -248,6 +248,14 @@ const HOWTO = {
     inspect: "Open the SVG and zoom in: the edges should stay sharp. Count the colours and gradients if you need a minimal palette, since shading in the raster becomes extra shapes.",
     costHow: "FLUX.3 Klein 1024² $0.009 + Ideogram Vector convert $0.17 = $0.179 per run. Vectorizing your own image costs $0.17.",
   },
+  "creator-ad": {
+    headline: "A creator ad for your product",
+    job: "Turn a product and a two-line brief into a vertical, creator-style talking ad.",
+    purpose: "Show how to chain a reference mix into a talking avatar. Muse Edit makes one frame with the creator holding the product, an LLM turns the brief into a short spoken script, and LongCat Avatar animates that frame to the voice, so the product stays in her hand for the whole ad.",
+    edit: "Rewrite <em>Product · stand-in</em> for your product, or swap the <em>Product shot</em> Image for a 📷 Image input with your own product photo. Put what it really does in <em>Product brief</em>, because the script only claims what the brief says. Change <em>Creator · look</em> for a different invented creator or setting, keep \"face and mouth fully visible\" in <em>Hold the product · instruction</em> so the lip sync has a clear mouth, and set the tone in <em>Delivery</em>. Pick another voice on the <em>Voice</em> node.",
+    inspect: "Check that the selfie frame keeps your product's shape and details and doesn't cover her mouth, read the script for claims the brief doesn't make, and watch the ad with sound to judge the lip sync and whether the product stays steady.",
+    costHow: "Muse 1:1 $0.011 + Muse 9:16 $0.011 + Muse Edit 9:16 $0.011 + GLM 5.3 Flash under $0.001 + MiniMax Speech about $0.02 + LongCat Avatar 1.5 at $0.04 per second of voice at 480p, billed in whole seconds ($0.56 for 14 s). The saved run was $0.614. The editor prices LongCat off the voice length: the script's words (about 2.8 per second) before a run, the measured clip after one. When the script length is unknown (nothing wired into Speech yet), the estimate assumes 40 s of voice. LongCat bills at least 3 s and at most 30 s of voice, so the chip clamps the seconds first and then prices them: $0.12–$1.20 at 480p ($0.04/s) and $0.24–$2.40 at 720p ($0.08/s). A second saved input (a woodworker's lunchbox, 11.3 s of voice billed as 12 s) cost $0.529.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -305,7 +313,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
