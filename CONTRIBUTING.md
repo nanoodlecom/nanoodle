@@ -190,9 +190,14 @@ size for `w` and `h`:
 - **One clip per entry.** `media` has no language, so all six languages
   show the same clip.
 
-The editor loads a clip only while it is on screen in the panel. It plays
-as a small muted loop, and a click opens it large. The changelog page shows
-the poster, linking to the mp4.
+The editor initially shows 12 recent changes and three newest field notes in
+date order. Older entries remain in the expandable archive and full changelog;
+do not delete them just to shorten the feed. Bare HTTPS links are parsed and
+rendered as inert text or safe anchors.
+
+Clips load near view and use native inline controls. They start paused and
+muted; users choose play, sound and fullscreen. Field notes may carry the same
+`media` shape under `updates-media/`. The changelog shows a linked poster.
 
 #### Narrated clips (voiceover, captions, logo)
 
@@ -226,9 +231,8 @@ node scripts/gen-changelog.mjs
 ```
 
 `--attach` writes `media` with `audio: true`, `captions: {en, es, …}` and
-`burned: "en"`. In the 📣 panel the clip still loops muted. The enlarged
-view plays it once with sound and shows the caption track for the UI
-language, unless that language is the one burned into the picture.
+`burned: "en"`. In the 📣 panel clips start paused and muted, with native controls and the
+caption track for the UI language available unless it is already burned in.
 
 How to write the voiceover:
 

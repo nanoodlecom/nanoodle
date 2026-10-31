@@ -80,12 +80,18 @@ const escXml = escHtml;
 // Bare https:// URLs in an entry render as real links on the HTML page (each
 // fragment still escaped; trailing punctuation stays text). Mirrors the in-app
 // 📣 modal's linkifier. The Atom feed keeps plain escaped text.
-const linkifyHtml = (s) =>
-  s.split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/)
-    .map((part) => /^https:\/\//.test(part)
-      ? `<a href="${escHtml(part)}">${escHtml(part.replace(/^https:\/\//, ""))}</a>`
-      : escHtml(part))
-    .join("");
+function safeUrl(value){
+  if(typeof value!=="string" || /[\u0000-\u0020\u007f]/.test(value)) return null;
+  try{ const u = new URL(value); return u.protocol==="https:" && u.hostname && !u.username && !u.password ? u.href : null; }catch{ return null; }
+}
+const linkifyHtml = (s) => s.split(/(https?:\/\/[^\s<>"']+)/).map(part=>{
+  const clean = part.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
+    const opens = (part.match(/\(/g)||[]).length, closes = (part.match(/\)/g)||[]).length;
+    return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
+  });
+  const href = safeUrl(clean);
+  return href ? `<a href="${escHtml(href)}">${escHtml(clean.replace(/^https:\/\//, ""))}</a>${escHtml(part.slice(clean.length))}` : escHtml(part);
+}).join("");
 
 // An entry's optional usage clip (media:{src,poster,w,h}, files under updates-media/,
 // validated by check-updates.mjs + check-updates-media.mjs). The page has zero
@@ -97,11 +103,11 @@ function clipHtml(e) {
   if (m === undefined) return "";
   if (!m || !MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src) || !MEDIA_RE.test(m.poster || "") ||
       !(Number.isInteger(m.w) && m.w > 0 && Number.isInteger(m.h) && m.h > 0)) {
-    console.error(`✗ gen-changelog: bad media on ${e.date} "${e.text.slice(0, 60)}" — run node scripts/check-updates.mjs`);
+    console.error(`✗ gen-changelog: bad media on ${e.date} "${(e.text || e.title || "").slice(0, 60)}" — run node scripts/check-updates.mjs`);
     process.exit(1);
   }
   return `<a class="clip" href="/${m.src}" title="Play the usage clip">` +
-    `<img src="/${m.poster}" width="${m.w}" height="${m.h}" loading="lazy" decoding="async" alt="Usage clip: ${escHtml(e.text)}" /></a>`;
+    `<img src="/${m.poster}" width="${m.w}" height="${m.h}" loading="lazy" decoding="async" alt="Usage clip: ${escHtml(e.text || e.title)}" /></a>`;
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
@@ -138,7 +144,7 @@ function loadArticles() {
       if (typeof a[k] !== "string" || !a[k].trim()) die(`${where} needs a non-empty ${k}`);
       if (/[\r\n]/.test(a[k])) die(`${where} ${k} must be a single line`);
     }
-    if (!/^https:\/\/subnano\.ai\/@nano_maxi(?:\/|$)/.test(a.url)) die(`${where} url must be an https://subnano.ai/@nano_maxi link`);
+    if (!safeUrl(a.url) || !/^https:\/\/subnano\.ai\/@nano_maxi(?:\/|$)/.test(a.url)) die(`${where} url must be an https://subnano.ai/@nano_maxi link`);
     if (!ART_RE.test(a.thumb) || !existsSync(path.join(ROOT, a.thumb))) die(`${where} thumb must be an existing articles-media image (${a.thumb})`);
     if (seen.has(a.key)) die(`duplicate article key ${a.key}`);
     seen.add(a.key);
@@ -199,7 +205,7 @@ function fieldNotesHtml() {
             <p>${escHtml(a.blurb)}</p>
             <span class="fn-read">Read the run →</span>
           </span>
-        </a>`).join("\n");
+        </a>${clipHtml(a)}`).join("\n");
   const links = guides.map((g) => `          <li><a href="${escHtml(g.href)}">${escHtml(g.title)}</a></li>`).join("\n");
   const n = articles.length;
   return `    <aside class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">

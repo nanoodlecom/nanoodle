@@ -30,6 +30,8 @@ function createEl(tag) {
     children: [],
     dataset: {},
     style: {},
+    listeners: {},
+    open:false,
     attrs: {},
     appendChild(ch) { this.children.push(ch); return ch; },
     replaceChildren(...nodes) { this.children = nodes.flat(); },
@@ -38,7 +40,7 @@ function createEl(tag) {
     },
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k]; },
-    addEventListener() {},
+    addEventListener(k, fn) { this.listeners[k] = fn; },
     removeAttribute(k) { delete this.attrs[k]; },
     querySelectorAll() { return []; },
     querySelector() { return null; },
@@ -115,16 +117,17 @@ function boot({ updates, articles, articlesGate }) {
     updClip: () => null,
     updClipObs: null,
     console,
+    URL,
   };
   vm.createContext(sandbox);
   vm.runInContext(
-    src + "\nglobalThis.__api = { openUpdates, interleaveArticles, unseenArticleCount, ARTICLE_SLOTS, artKey };",
+    src + "\nglobalThis.__api = { openUpdates, interleaveArticles, unseenArticleCount, ARTICLE_SLOTS, artKey, updSafeUrl };",
     sandbox,
   );
   return { api: sandbox.__api, updateslist, updatesmodal, store };
 }
 
-const U = (n) => Array.from({ length: n }, (_, i) => ({ date: "2026-10-2" + (i % 2), text: "u" + i }));
+const U = (n) => Array.from({ length: n }, (_, i) => ({ date: "2026-10-22", text: "u" + i }));
 const A = (n) => Array.from({ length: n }, (_, i) => ({
   date: "2026-10-2" + (9 - i),
   url: "https://subnano.ai/@nano_maxi/note-" + i,
@@ -137,11 +140,11 @@ const kinds = (rows) => rows.map((r) => (r.kind === "article" ? "a:" + r.item.ti
 
 const api0 = boot({ updates: [], articles: [] }).api;
 assert.equal(api0.ARTICLE_SLOTS, 3);
-assert.equal(kinds(api0.interleaveArticles(U(8), A(5))), "u:u0,u:u1,u:u2,a:a0,u:u3,u:u4,u:u5,a:a1,u:u6,u:u7,a:a2");
-assert.equal(kinds(api0.interleaveArticles(U(2), A(3))), "u:u0,u:u1,a:a0,a:a1,a:a2");
+assert.equal(kinds(api0.interleaveArticles(U(8), A(5))), "a:a0,a:a1,a:a2,u:u0,u:u1,u:u2,u:u3,u:u4,u:u5,u:u6,u:u7");
+assert.equal(kinds(api0.interleaveArticles(U(2), A(3))), "a:a0,a:a1,a:a2,u:u0,u:u1");
 assert.equal(kinds(api0.interleaveArticles(U(0), A(2))), "a:a0,a:a1");
-assert.equal(kinds(api0.interleaveArticles(U(3), A(1))), "u:u0,u:u1,u:u2,a:a0");
-assert.equal(kinds(api0.interleaveArticles(U(4), A(3))), "u:u0,u:u1,u:u2,a:a0,u:u3,a:a1,a:a2");
+assert.equal(kinds(api0.interleaveArticles(U(3), A(1))), "a:a0,u:u0,u:u1,u:u2");
+assert.equal(kinds(api0.interleaveArticles(U(4), A(3))), "a:a0,a:a1,a:a2,u:u0,u:u1,u:u2,u:u3");
 
 // Shown in the open panel: notes render in those positions and become seen.
 {
@@ -167,6 +170,28 @@ assert.equal(kinds(api0.interleaveArticles(U(4), A(3))), "u:u0,u:u1,u:u2,a:a0,u:
   assert.deepEqual(seen, A(3).map(ctx.api.artKey));
   assert.equal(ctx.api.unseenArticleCount(A(4)), 0);
 }
+
+// Keep the initial feed short without deleting older changes or field notes.
+{
+  const ctx = boot({updates:U(20),articles:A(6)});
+  await ctx.api.openUpdates();
+  assert.equal(painted(ctx.updateslist).filter(x=>x.startsWith("u:")).length,12);
+  assert.equal(painted(ctx.updateslist).filter(x=>x.startsWith("a:")).length,3);
+  const archive = findClass(ctx.updateslist,"updates-archive");
+  assert.ok(archive && !archive.open);
+  const content = findClass(archive,"updates-archive-body");
+  assert.equal(content.children.length,0,"older rows do not mount until requested");
+  archive.open=true; archive.listeners.toggle();
+  assert.equal(painted(content).filter(x=>x.startsWith("u:")).length,8);
+  assert.equal(painted(content).filter(x=>x.startsWith("a:")).length,3);
+  archive.listeners.toggle();
+  assert.equal(painted(content).length,11,"reopening cannot duplicate old entries");
+  assert.equal(JSON.parse(ctx.store.get("noodle_seen_articles")).length,6);
+}
+for(const bad of ["javascript:alert(1)","data:text/html,hi","https://user:secret@example.com/x","https://", "https://a b.test", "https://example.com/\npath"]){
+  assert.equal(api0.updSafeUrl(bad),null,bad);
+}
+assert.equal(api0.updSafeUrl("https://example.com/clip?q=a&b=c"),"https://example.com/clip?q=a&b=c");
 
 // Slow fetch, then the panel closes before it resolves: notes stay unseen and unrendered.
 {
@@ -214,4 +239,4 @@ assert.equal(kinds(api0.interleaveArticles(U(4), A(3))), "u:u0,u:u1,u:u2,a:a0,u:
   assert.ok(index.includes('const ARTICLE_SLOTS = 3'));
 }
 
-console.log("✓ check-field-notes: slots interleaved, seen only while the panel is open, changelog entries intact");
+console.log("✓ check-field-notes: recent chronological feed + lazy archive, safe URLs, seen only while the panel is open, changelog entries intact");
