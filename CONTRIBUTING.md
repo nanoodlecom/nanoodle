@@ -195,6 +195,11 @@ date order. Older entries remain in the expandable archive and full changelog;
 do not delete them just to shorten the feed. Bare HTTPS links are parsed and
 rendered as inert text or safe anchors.
 
+The unseen badge deliberately counts only those 12 recent changes and three
+newest field notes. Older archive entries do not inflate it. The latest seen
+change is stored locally; field notes are marked seen only when rendered in an
+open panel, including older notes when the archive is opened.
+
 Clips load near view and use native inline controls. They start paused and
 muted; users choose play, sound and fullscreen. Field notes may carry the same
 `media` shape under `updates-media/`. The changelog shows a linked poster.
