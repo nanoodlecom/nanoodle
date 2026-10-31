@@ -1,5 +1,5 @@
-/* data-hash=1d00c07dfab05ae3 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-7e14be627055 (20 modules) */
+/* data-hash=4063440239665d10 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-67ac0179a601 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -154,7 +154,9 @@ class RunResult {
     /** { [friendlyKey | nodeId]: value } — sink node primary outputs (a sink skipped by a closed gate has none) */
     this.outputs = outputs;
     /**
-     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms }.
+     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms, runId }.
+     * runId: the provider's async video/3D/audio job ID, or null when none was returned.
+     * Retained on failure/timeout too, so an accepted job can be traced without resubmitting.
      * "gated": a ⚖️ Decide yes/no gate that answered no — it ran and billed, `out` holds its answer
      * ({ text: "no", decision }), and it carries `gate: { yes, message }`. Not an error.
      * "skipped" + `gatedBy: <decide node id>`: downstream of a closed gate — never ran, never billed.
@@ -397,7 +399,14 @@ class Workflow {
         if (c.balance != null) cost.balance = c.balance;
       };
       const onPoll = (info) => frozen(rec) ? undefined : emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
-      const io = { onCost, onPoll, signal: nodeSignal };
+      const onRunId = (job) => {
+        if (frozen(rec)) return;
+        const runId = job && typeof job === "object" ? (job.runId || job.id) : job;
+        if (runId == null) return;
+        rec.runId = runId;
+        emit({ type: "node-run-id", nodeId: node.id, name: displayName(node), runId });
+      };
+      const io = { onCost, onPoll, onRunId, signal: nodeSignal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
         decide: (body) => this.client.decide(body, io),
@@ -569,8 +578,8 @@ class Workflow {
 
     try {
       for (const n of order) {
-        if (NODE_TYPES[n.type].note) { nodesRec[n.id] = { status: "skipped", out: null, error: null, costUsd: null, ms: null }; continue; }
-        nodesRec[n.id] = { status: "pending", out: null, error: null, costUsd: null, ms: null };
+        if (NODE_TYPES[n.type].note) { nodesRec[n.id] = { status: "skipped", out: null, error: null, costUsd: null, ms: null, runId: null }; continue; }
+        nodesRec[n.id] = { status: "pending", out: null, error: null, costUsd: null, ms: null, runId: null };
         promises.set(n.id, execNode(n)); // siblings run concurrently; a node starts when ITS deps finish
       }
       await Promise.allSettled([...promises.values()]);
@@ -783,7 +792,7 @@ const EXT_MIME = {
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
   ".aac": "audio/aac", ".flac": "audio/flac", ".m4a": "audio/mp4",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
-  ".glb": "model/gltf-binary",
+  ".glb": "model/gltf-binary", ".ply": "model/ply",
   ".txt": "text/plain", ".json": "application/json",
 };
 
@@ -792,7 +801,7 @@ const MIME_EXT = {
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/aac": "aac",
   "audio/flac": "flac", "audio/mp4": "m4a",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
-  "model/gltf-binary": "glb",
+  "model/gltf-binary": "glb", "model/ply": "ply", "application/ply": "ply", "application/x-ply": "ply",
   "text/plain": "txt", "application/json": "json",
 };
 
@@ -840,6 +849,7 @@ function sniffMime(bytes) {
   if (b.length >= 12 && ascii(4, "ftyp")) return "video/mp4";
   if (b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "video/webm";
   if (b.length >= 4 && ascii(0, "glTF")) return "model/gltf-binary";
+  if (/^ply\r?\nformat (?:ascii|binary_little_endian|binary_big_endian) 1\.0\r?\n/.test(new TextDecoder().decode(b.subarray(0, 64)))) return "model/ply";
   return "application/octet-stream";
 }
 
@@ -860,6 +870,47 @@ function dataUrlBytes(url) {
     ? base64ToBytes(body)
     : new TextEncoder().encode(decodeURIComponent(body));
   return { bytes, mime };
+}
+
+/**
+ * Internal hosted-media GET. Retry connection/body interruptions from scratch,
+ * never generation POSTs. Keep errors redacted even when fetch includes a signed
+ * URL in its exception. HTTP rejections and deliberate cancellation are final.
+ */
+async function downloadMedia(url, { fetch: fetchFn = globalThis.fetch, signal, what = "media" } = {}) {
+  const checkAbort = () => {
+    if (signal && signal.aborted) throw signal.reason || new NanoodleError("download aborted", { code: "aborted" });
+  };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    checkAbort();
+    try {
+      if (typeof fetchFn !== "function") throw new NanoodleError("can't download media: no fetch available");
+      const r = await fetchFn(url, { signal }); // CDN: no credentials or API auth headers
+      if (!r.ok) throw new NanoodleError(`couldn't download ${what} (${r.status}): ${redactUrl(url)}`, { status: r.status });
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      checkAbort();
+      return { bytes, response: r };
+    } catch (e) {
+      checkAbort();
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      if (e instanceof NanoodleError) throw e;
+      if (attempt === 3) throw new NanoodleError(`couldn't download ${what}: ${redactUrl(url)}`, { code: "download", attempts: attempt });
+    }
+    // Short, bounded backoff; cancellation also interrupts the retry delay.
+    await new Promise((resolve, reject) => {
+      const done = () => { if (signal) signal.removeEventListener("abort", cancel); resolve(); };
+      const timer = setTimeout(done, 100 * attempt);
+      const cancel = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", cancel);
+        reject(signal.reason || new NanoodleError("download aborted", { code: "aborted" }));
+      };
+      if (signal) {
+        signal.addEventListener("abort", cancel, { once: true });
+        if (signal.aborted) cancel();
+      }
+    });
+  }
 }
 
 /**
@@ -890,26 +941,30 @@ class MediaRef {
 
   /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
   async bytes() {
-    if (this.url.startsWith("data:")) return dataUrlBytes(this.url).bytes;
-    let r;
-    try {
-      r = await this._fetch(this.url);
-    } catch (e) {
-      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
-      throw new NanoodleError("couldn't download media: " + redactUrl(this.url));
+    let bytes;
+    if (this.url.startsWith("data:")) bytes = dataUrlBytes(this.url).bytes;
+    else {
+      const downloaded = await downloadMedia(this.url, { fetch: this._fetch });
+      bytes = downloaded.bytes;
+      if (!this._mime) {
+        const r = downloaded.response;
+        const ct = r.headers && r.headers.get && r.headers.get("content-type");
+        if (ct) this._mime = ct.split(";")[0].trim();
+      }
     }
-    if (!r.ok) throw new NanoodleError("couldn't download media (" + r.status + "): " + redactUrl(this.url));
-    if (!this._mime) {
-      const ct = r.headers && r.headers.get && r.headers.get("content-type");
-      if (ct) this._mime = ct.split(";")[0].trim();
-    }
-    return new Uint8Array(await r.arrayBuffer());
+    // CDNs commonly serve model assets as generic binary. Sniff their actual
+    // format before the CLI or save() chooses a filename extension.
+    if (!this._mime || /^(?:application|binary)\/octet-stream$/i.test(this._mime)) this._mime = sniffMime(bytes);
+    return bytes;
   }
 
-  /** Write the media bytes to `path` (Node only); resolves to the path. */
+  /** Write bytes (Node only); append a media extension if absent, and return the saved path. */
   async save(path) {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile(path, await this.bytes());
+    const { extname } = await import("node:path");
+    const bytes = await this.bytes();
+    if (typeof path === "string" && !extname(path)) path += "." + extForMime(this.mime);
+    await writeFile(path, bytes);
     return path;
   }
 }
@@ -974,12 +1029,12 @@ function coerceMediaInput(value, what, opts = {}) {
   return url;
 }
 
-__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.redactUrl = redactUrl; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
+__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.redactUrl = redactUrl; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.downloadMedia = downloadMedia; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
 });
 __def("client.mjs", function (__x, __req) {
 const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
-const { b64ImageMime, bytesToDataUrl, dataUrlBytes, redactUrl, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { b64ImageMime, bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.mjs");
 
 const AUDIO_MIME = { mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", wav: "audio/wav", pcm: "audio/wav" };
@@ -1060,15 +1115,17 @@ function sleep(ms, signal) {
  * pollIntervals / timeouts are per-media-kind knobs (ms).
  */
 /**
- * GLB URL from a 3D status poll. A completed payload is 3D only when
+ * Model URL from a 3D status poll. A completed payload is 3D only when
  * output.kind is "3d" or output.format is "glb" — a bare video url is not a model.
- * Prefers model_url, then model.url, video.url, then videoUrls[0].
+ * Idol's model_url is only a point-cloud preview: its real Gaussian splat is
+ * model_mesh.url. Other models retain model_url, model.url, video.url, videoUrls[0].
  */
-function model3dStatusUrl(s) {
+function model3dStatusUrl(s, model) {
   const out = (s && s.data && s.data.output) || (s && s.output) || {};
   const kind = String(out.kind || "").toLowerCase();
   const format = String(out.format || "").toLowerCase();
   if (kind !== "3d" && format !== "glb") return "";
+  if (model === "speridlabs/idol") return (out.model_mesh && out.model_mesh.url) || "";
   const list = Array.isArray(out.videoUrls) ? out.videoUrls : [];
   const first = list.length ? list[0] : null;
   const fromList = typeof first === "string" ? first : (first && first.url) || "";
@@ -1313,7 +1370,7 @@ class NanoClient {
       if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
       if (st === "COMPLETED" || st === "SUCCEEDED") {
         if (is3d) {
-          const url = model3dStatusUrl(s);
+          const url = model3dStatusUrl(s, model);
           if (!url) throw new NanoodleError("completed but no model url");
           return url;
         }
@@ -1412,15 +1469,9 @@ class NanoClient {
     if (/^data:/i.test(audioUrl)) {
       ({ bytes, mime } = dataUrlBytes(audioUrl));
     } else {
-      let r;
-      try { r = await this.fetch(audioUrl, { signal }); } // media CDN — no auth headers
-      catch (e) {
-        if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
-        if (signal && signal.aborted) throw e;
-        throw new NanoodleError("couldn't download the audio to transcribe: " + redactUrl(audioUrl));
-      }
-      if (!r.ok) throw new NanoodleError("couldn't download the audio to transcribe (" + r.status + "): " + redactUrl(audioUrl));
-      bytes = new Uint8Array(await r.arrayBuffer());
+      const downloaded = await downloadMedia(audioUrl, { fetch: this.fetch, signal, what: "the audio to transcribe" });
+      const r = downloaded.response;
+      bytes = downloaded.bytes;
       mime = ((r.headers && r.headers.get && r.headers.get("content-type")) || "audio/mpeg").split(";")[0];
     }
     if (bytes.length > 3.5 * 1024 * 1024) {
@@ -1448,15 +1499,7 @@ class NanoClient {
    * Used when a chat audio part needs base64 bytes but the upstream node produced an https URL.
    */
   async fetchMediaDataUrl(url, { signal } = {}) {
-    let r;
-    try { r = await this.fetch(url, { signal }); }
-    catch (e) {
-      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
-      if (signal && signal.aborted) throw e;
-      throw new NanoodleError("couldn't download media to inline: " + redactUrl(url));
-    }
-    if (!r.ok) throw new NanoodleError("couldn't download media to inline (" + r.status + "): " + redactUrl(url));
-    const bytes = new Uint8Array(await r.arrayBuffer());
+    const { bytes, response: r } = await downloadMedia(url, { fetch: this.fetch, signal, what: "media to inline" });
     const ct = (((r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0] || "").trim().toLowerCase();
     const mime = ct && ct !== "application/octet-stream" && ct !== "binary/octet-stream" ? ct : undefined;
     return bytesToDataUrl(bytes, mime); // sniffs magic bytes when the CDN's content-type is generic
@@ -2666,7 +2709,7 @@ const RUNNERS = {
     return cleanVoiceRun(model, inp, n.fields, (m, extra) => ctx.audio(m, "", extra));
   },
 
-  // 🧊 3D model: image and/or text → GLB via the video submit/poll API (mediaKind model3d).
+  // 🧊 3D model: image and/or text → model asset via the video submit/poll API.
   async model3d(n, inp, ctx) {
     const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
     const mods = model3dInputMods(ctx && ctx.catalog, model);
@@ -3417,7 +3460,7 @@ __def("local-media.mjs", function (__x, __req) {
  */
 const { inflate, deflate } = __req("zlib.mjs");
 const { NanoodleError } = __req("errors.mjs");
-const { bytesToDataUrl, dataUrlBytes, redactUrl, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { MP4CAT } = __req("mp4cat.mjs");
 
 const MAX_FRAMES = 12;
@@ -3516,28 +3559,21 @@ async function withTemp(fn) {
 }
 
 /** data:/https URL (or raw string MediaRef url) → bytes. */
-async function urlBytes(url, fetchFn) {
+async function urlBytes(url, fetchFn, signal) {
   if (url == null) throw new NanoodleError("no media input");
   const u = typeof url === "object" && url.url != null ? url.url : String(url);
   if (/^data:/i.test(u)) return dataUrlBytes(u).bytes;
   if (/^https?:/i.test(u)) {
     const fetchImpl = fetchFn || globalThis.fetch;
     if (!fetchImpl) throw new NanoodleError("can't download media: no fetch available");
-    let r;
-    try { r = await fetchImpl(u); }
-    catch (e) {
-      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
-      throw new NanoodleError(`couldn't download media: ${redactUrl(u)}`);
-    }
-    if (!r.ok) throw new NanoodleError(`couldn't download media (${r.status}): ${redactUrl(u)}`);
-    return new Uint8Array(await r.arrayBuffer());
+    return (await downloadMedia(u, { fetch: fetchImpl, signal })).bytes;
   }
   throw new NanoodleError("media must be a data: or http(s) URL");
 }
 
-async function writeInput(dir, name, url, fetchFn) {
+async function writeInput(dir, name, url, fetchFn, signal) {
   await ensureNodeDeps();
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   // preserve a sensible extension so ffmpeg picks the demuxer
   let ext = ".bin";
   if (/^data:/i.test(String(typeof url === "object" ? url.url : url))) {
@@ -3781,9 +3817,9 @@ async function maskToSource(maskUrl, sourceUrl, { fetch: fetchFn, signal } = {})
   if (!maskUrl) throw new NanoodleError("couldn't read the mask");
   if (!sourceUrl) throw new NanoodleError("couldn't read the source image");
 
-  const srcBytes = await urlBytes(sourceUrl, fetchFn);
+  const srcBytes = await urlBytes(sourceUrl, fetchFn, signal);
   throwIfAborted(signal);
-  const maskBytes = await urlBytes(maskUrl, fetchFn);
+  const maskBytes = await urlBytes(maskUrl, fetchFn, signal);
   throwIfAborted(signal);
 
   const srcMime = sniffMime(srcBytes);
@@ -3852,8 +3888,8 @@ async function maskToSourcePngPure(maskBytes, srcBytes) {
 async function maskToSourceFfmpeg(maskUrl, sourceUrl, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const srcPath = await writeInput(dir, "src", sourceUrl, fetchFn);
-    const maskPath = await writeInput(dir, "mask", maskUrl, fetchFn);
+    const srcPath = await writeInput(dir, "src", sourceUrl, fetchFn, signal);
+    const maskPath = await writeInput(dir, "mask", maskUrl, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", srcPath,
@@ -4070,7 +4106,7 @@ async function resizeCropImage(url, mode, tw, th, { fetch: fetchFn, signal } = {
   if (!w && !h) throw new NanoodleError("set a width or height to resize to");
   const m = mode || "fit";
 
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   throwIfAborted(signal);
   const mime = sniffMime(bytes);
 
@@ -4145,7 +4181,7 @@ async function fitImageInline(url, { budget = INLINE_IMAGE_BUDGET, fetch: fetchF
 async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
@@ -4177,7 +4213,7 @@ async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}
 async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
@@ -4221,7 +4257,7 @@ async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = 
  */
 async function trimAudioToWav(url, start, len, rate = 16000, { fetch: fetchFn, wholeIfBlank = false, signal } = {}) {
   throwIfAborted(signal);
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   throwIfAborted(signal);
   const mime = sniffMime(bytes);
 
@@ -4247,7 +4283,7 @@ async function trimAudioToWav(url, start, len, rate = 16000, { fetch: fetchFn, w
 async function trimAudioToWavFfmpeg(url, start, len, rate = 16000, { fetch: fetchFn, wholeIfBlank = false, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const outPath = join(dir, "out.wav");
     const s = Math.max(0, Number(start) || 0);
 
@@ -4310,7 +4346,7 @@ async function extractVideoFrames(url, { count = 1, gap = 0.5, dir = "end", fetc
   const fromEnd = (dir || "end") === "end";
 
   return withTemp(async (dir) => {
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     throwIfAborted(signal);
     const pr = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
@@ -4379,7 +4415,7 @@ async function concatVideos(urls, dedup = true, { fetch: fetchFn, onProgress, si
     for (let i = 0; i < urls.length; i++) {
       throwIfAborted(signal);
       if (onProgress) onProgress(`loading clip ${i + 1}/${urls.length}…`);
-      bufs.push(await urlBytes(urls[i], fetchFn));
+      bufs.push(await urlBytes(urls[i], fetchFn, signal));
     }
     if (bufs.every((b) => MP4CAT.isMp4(b)) && MP4CAT.mp4ParamsMatch(bufs)) {
       if (onProgress) onProgress("combining…");
@@ -4405,7 +4441,7 @@ async function concatVideosFfmpeg(urls, dedup = true, { fetch: fetchFn, onProgre
     for (let i = 0; i < urls.length; i++) {
       throwIfAborted(signal);
       if (onProgress) onProgress(`loading clip ${i + 1}/${urls.length}…`);
-      paths.push(await writeInput(dir, `c${i}`, urls[i], fetchFn));
+      paths.push(await writeInput(dir, `c${i}`, urls[i], fetchFn, signal));
     }
 
     // When dedup: trim ~1/30s from the start of clips 2..N (approximate seam-frame drop —
@@ -4459,8 +4495,8 @@ async function muxSoundtrack(videoUrl, audioUrl, loop = false, { fetch: fetchFn,
   return withTemp(async (dir) => {
     throwIfAborted(signal);
     if (onProgress) onProgress("adding soundtrack…");
-    const vPath = await writeInput(dir, "v", videoUrl, fetchFn);
-    const aPath = await writeInput(dir, "a", audioUrl, fetchFn);
+    const vPath = await writeInput(dir, "v", videoUrl, fetchFn, signal);
+    const aPath = await writeInput(dir, "a", audioUrl, fetchFn, signal);
     const outPath = join(dir, "out.mp4");
 
     let vdur = null;
@@ -6241,5 +6277,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-7e14be627055";
+  window.NanoodleEngine.version = "src-67ac0179a601";
 })();
