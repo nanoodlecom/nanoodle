@@ -193,6 +193,15 @@ for(const bad of ["javascript:alert(1)","data:text/html,hi","https://user:secret
 }
 assert.equal(api0.updSafeUrl("https://example.com/clip?q=a&b=c"),"https://example.com/clip?q=a&b=c");
 
+// URL punctuation is peeled until stable without losing balanced parentheses.
+{
+  const ctx = boot({updates:[{date:"2026-10-31",text:"https://x.y/a.) https://x.y/a_(b).) https://x.y/a_(b))."}],articles:[]});
+  await ctx.api.openUpdates();
+  const li = findClass(ctx.updateslist,"update-items").children[0];
+  const links = li.children.filter(n=>n.tag==="a").map(n=>n.href);
+  assert.deepEqual(links,["https://x.y/a","https://x.y/a_(b)","https://x.y/a_(b)"]);
+}
+
 // Slow fetch, then the panel closes before it resolves: notes stay unseen and unrendered.
 {
   let release;

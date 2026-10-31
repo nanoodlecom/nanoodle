@@ -20201,11 +20201,15 @@ function renderUpdateRows(body, list, articles, articleLimit=ARTICLE_SLOTS){
     // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
     const li = document.createElement("li");
     updText(e).split(/(https?:\/\/[^\s<>"']+)/).forEach(part=>{
-      const clean = part.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
-        const opens = (part.match(/\(/g)||[]).length;
-        const closes = (part.match(/\)/g)||[]).length;
-        return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
-      });
+      let clean = part, previous;
+      do{
+        previous = clean;
+        clean = clean.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
+          const opens = (clean.match(/\(/g)||[]).length;
+          const closes = (clean.match(/\)/g)||[]).length;
+          return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
+        });
+      }while(clean!==previous);
       const href = updSafeUrl(clean);
       if(href){
         const a = document.createElement("a");
@@ -20286,7 +20290,6 @@ function updClip(e){
   const btn = document.createElement("div");
   btn.className = "update-clip";
   const label = updText(e);
-  btn.title = label; btn.setAttribute("aria-label", label);
   const clipVid = document.createElement("video");
   clipVid.muted = true; clipVid.controls = true; clipVid.playsInline = true; clipVid.preload = "none";
   clipVid.setAttribute("muted", ""); clipVid.setAttribute("playsinline", ""); clipVid.setAttribute("aria-label", label); clipVid.setAttribute("controls", "");
@@ -20313,6 +20316,10 @@ function closeUpdates(){
 $("updates").onclick = openUpdates;
 $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
+// Updates media stops when its document is hidden.
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) document.querySelectorAll("#updateslist video").forEach(v=> v.pause());
+});
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden){ closeUpdates(); } });
 refreshUpdatesBadge();
 
