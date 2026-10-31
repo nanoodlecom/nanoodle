@@ -1847,6 +1847,8 @@ const I18N = {
     "Loading…":"Cargando…",
     "No updates yet — check back soon.":"Aún no hay novedades — vuelve pronto.",
     "Field note":"Nota de campo",
+    "Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer.":"Splat gaussiano listo (.ply). Guárdalo para abrirlo en un visor de splats gaussianos 3D.",
+    "save .ply":"guardar .ply",
     "Recent changes and field notes.":"Cambios recientes y notas de campo.",
     "Older updates":"Novedades anteriores",
     "Full changelog":"Registro completo de cambios",
@@ -2615,6 +2617,8 @@ const I18N = {
     "Loading…":"Chargement…",
     "No updates yet — check back soon.":"Pas encore de nouveautés — revenez bientôt.",
     "Field note":"Note de terrain",
+    "Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer.":"Splat gaussien prêt (.ply). Enregistrez-le pour l’ouvrir dans un visualiseur de splats gaussiens 3D.",
+    "save .ply":"enregistrer .ply",
     "Recent changes and field notes.":"Changements récents et notes de terrain.",
     "Older updates":"Anciennes mises à jour",
     "Full changelog":"Historique complet",
@@ -3260,6 +3264,8 @@ const I18N = {
     "Loading…":"Wird geladen…",
     "No updates yet — check back soon.":"Noch keine Neuigkeiten — schau bald wieder vorbei.",
     "Field note":"Feldnotiz",
+    "Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer.":"Gaußsplat bereit (.ply). Speichere ihn, um ihn in einem 3D-Gaußsplat-Betrachter zu öffnen.",
+    "save .ply":".ply speichern",
     "Recent changes and field notes.":"Aktuelle Änderungen und Feldnotizen.",
     "Older updates":"Ältere Neuigkeiten",
     "Full changelog":"Vollständiges Änderungsprotokoll",
@@ -4131,6 +4137,8 @@ const I18N = {
     "Loading…":"Carregando…",
     "No updates yet — check back soon.":"Ainda não há novidades — volte em breve.",
     "Field note":"Nota de campo",
+    "Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer.":"Splat gaussiano pronto (.ply). Salve-o para abrir em um visualizador de splats gaussianos 3D.",
+    "save .ply":"salvar .ply",
     "Recent changes and field notes.":"Alterações recentes e notas de campo.",
     "Older updates":"Atualizações anteriores",
     "Full changelog":"Histórico completo",
@@ -4889,6 +4897,8 @@ const I18N = {
     "Loading…":"読み込み中…",
     "No updates yet — check back soon.":"まだ更新はありません — またあとで確認してください。",
     "Field note":"フィールドノート",
+    "Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer.":"ガウシアンスプラットの準備ができました（.ply）。保存して、3Dガウシアンスプラットビューアーで開いてください。",
+    "save .ply":".plyを保存",
     "Recent changes and field notes.":"最近の変更とフィールドノート。",
     "Older updates":"過去のアップデート",
     "Full changelog":"すべての変更履歴",
@@ -5747,13 +5757,14 @@ const MODEL3D_TEXT_DEFAULT = "wavespeed-ai/hunyuan-3d-v3.1-rapid";
 const MODEL3D_TYPICAL_MS = 2 * 60 * 1000;
 const MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5;
 const MODEL3D_DEADLINE_MS = 25 * 60 * 1000;
-// Real completed 3D status: data.output.model_url, with kind/format set. There is no
-// output.model.url. A bare top-level url is a video payload and must not be mounted.
-function model3dStatusUrl(s){
+// Idol model_mesh.url is the Gaussian splat PLY; model_url is only its GLB preview.
+// Other 3D models keep their existing GLB URL preference. Bare video payloads are refused.
+function model3dStatusUrl(s, model){
   const out = s?.data?.output || s?.output || {};
   const kind = String(out.kind || "").toLowerCase();
   const format = String(out.format || "").toLowerCase();
   if(kind!=="3d" && format!=="glb") return "";
+  if(model==="speridlabs/idol") return out.model_mesh?.url || "";
   const list = Array.isArray(out.videoUrls) ? out.videoUrls : [];
   const first = list.length ? list[0] : null;
   const fromList = typeof first==="string" ? first : (first?.url || "");
@@ -5770,9 +5781,9 @@ function fmtUsdPlain(n){
   else if(s.split(".")[1].length < 2) s += "0".repeat(2 - s.split(".")[1].length);
   return s;
 }
-// Picker shows "$min–$max" only when per_run_by_variant spans. The card stays on per_run
-// until a knob leaves the catalog default — then it shows that same range. No invented map.
-function model3dPriceLabels(pricing, fields, defaults){
+// Picker spans the advertised variant prices. TRELLIS.2 cards resolve its documented
+// resolution and 4K-texture tiers; unknown model contracts retain the honest range.
+function model3dPriceLabels(pricing, fields, defaults, params){
   const p = pricing || {};
   const per = _num(p.per_run);
   let card = per!=null ? "$"+fmtUsdPlain(per) : "";
@@ -5797,7 +5808,19 @@ function model3dPriceLabels(pricing, fields, defaults){
       }
     }
   }
-  return { card, picker, per, span };
+  let selected = null;
+  if(fields?.model==="wavespeed-ai/trellis-2/image-to-3d" && by && typeof by==="object"){
+    const opts = fields.modelOpts || {}, defs = defaults || {}, pp = params || {};
+    const pick = key=> opts[key] ?? defs[key] ?? pp[key]?.default;
+    const resolution = pick("resolution") ?? p.default_variant;
+    const texture = pick("texture_size");
+    if(["1024", "2048", "4096"].includes(String(texture))){
+      const key = String(resolution)+(String(texture)==="4096" ? "+4k-texture" : "");
+      if(Object.hasOwn(by, key)) selected = _num(by[key]);
+    }
+    if(selected!=null) card = "$"+fmtUsdPlain(selected);
+  }
+  return { card, picker, per, span, selected };
 }
 function norm3d(m){
   const arch = m.architecture || {};
@@ -8115,7 +8138,7 @@ function livePrice(kind, fields, nodeFilter, n){
     const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
-  if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
+  if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).card;
   if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
     const u = nodeUnitUsd(n);
     if(u!=null) return u<0.0001 ? "<$0.0001/decision" : `~$${u.toFixed(4)}/decision`;
@@ -8651,7 +8674,7 @@ function nodeUnitUsd(n){
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
     const songs = audioBilledSongs(it.params, fields||{});   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
     return u*songs*pricingMultiplier(it.pricing, fields||{}); }   // × num_samples (pricing.multiplier_parameter — SFX 2.0 bills every sample)
-  if(kind==="model3d") return _num(it.pricing && it.pricing.per_run);
+  if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).selected ?? _num(it.pricing && it.pricing.per_run);
   return null;
 }
 // total across the whole graph — matches ▶ Run all (every disconnected flow fires)
@@ -8666,9 +8689,9 @@ function workflowCost(){
     if(t.modelKind==="model3d"){
       const fields = effectiveModelFields(n);
       const it = catItem("model3d", fields.model);
-      const lab = it ? model3dPriceLabels(it.pricing, fields, it.defaults) : null;
-      // A spanning catalog is not an exact bill, even while every knob is still on its default.
-      if(lab && lab.span){
+      const lab = it ? model3dPriceLabels(it.pricing, fields, it.defaults, it.params) : null;
+      // A documented, resolved tier is exact; unknown variant contracts keep their range.
+      if(lab && lab.span && lab.selected==null){
         range3d = true; exact = false;
         if(String(lab.card).indexOf("–")>=0){ off3d = true; lo += lab.span.lo; hi += lab.span.hi; }
         else { lo += u; hi += u; }
@@ -9853,8 +9876,8 @@ const NODE_TYPES = {
   },
 
   model3d: {
-    em:"🧊", title:"3D model", desc:"Image and/or text → a GLB you can orbit", group:"3D",
-    kw:"3d glb mesh model three dimensional geometry",
+    em:"🧊", title:"3D model", desc:"Image and/or text → a 3D mesh or Gaussian splat", group:"3D",
+    kw:"3d glb ply splat mesh model three dimensional geometry",
     modelKind:"model3d",
     inputs:[{name:"image", type:"image"}],
     outputs:[{name:"model", type:"model3d"}], preview:"model3d",
@@ -11147,6 +11170,14 @@ function glbFilename(n){
   const safe = raw.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || ("noodle-"+(n && n.id || "model"));
   return /\.glb$/i.test(safe) ? safe : safe+".glb";
 }
+function isSplatOutput(n, url){
+  const value = String(url || "");
+  // Stored pre-fix Idol results may still be .glb previews: leave those viewable.
+  // Generated signed PLY URLs may lack a suffix, so the current Idol selection
+  // identifies them unless the URL explicitly names the older GLB preview.
+  if(/\.ply(?:[?#]|$)/i.test(value) || /^data:(?:model\/ply|application\/(?:x-)?ply)[;,]/i.test(value)) return true;
+  return n && effectiveModelFields(n).model==="speridlabs/idol" && !/\.glb(?:[?#]|$)/i.test(value);
+}
 function model3dInputMods(id){
   const it = (typeof catItem==="function") ? catItem("model3d", id) : null;
   if(it && Array.isArray(it.modalities)) return { image: it.modalities.includes("image"), text: it.modalities.includes("text") };
@@ -11853,6 +11884,14 @@ function showResult(n){
     if(!glbPreviewUrl(url, { allowRemote: !!remote })){ releaseGlb(n, "out"); r.classList.remove("show"); r.innerHTML=""; return; }
     releaseGlb(n, "out");
     const cap = sample ? `<div class="fhint">${esc(t("sample — ▶ Run to build yours"))}</div>` : "";
+    // PLY is a Gaussian splat, not a polygon mesh. Keep the real downloadable
+    // output and do not hand it to the GLTF-only orbit viewer.
+    if(isSplatOutput(n, url)){
+      r.innerHTML = `<div class="fhint" role="status">${esc(t("Gaussian splat ready (.ply). Save it to open in a 3D Gaussian splat viewer."))}</div><div class="acts"><button data-dl>⬇ ${esc(t("save .ply"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
+      r.querySelector("[data-dl]").onclick = ()=> downloadUrl(url, glbFilename(n).replace(/(?:\.ply)?\.glb$/i, ".ply"));
+      r.querySelector("[data-open]").onclick = ()=> openUrl(url);
+      return;
+    }
     r.innerHTML = `<div class="glb-stage" data-glb></div>${cap}<div class="acts"><button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(url, glbFilename(n));
     r.querySelector("[data-open]").onclick = ()=> openUrl(url);
@@ -14215,7 +14254,7 @@ const CTX = {
       if(st==="COMPLETED" || st==="SUCCEEDED"){
         const out = s.data?.output || s.output || {};
         const url = opts.mediaKind==="model3d"
-          ? model3dStatusUrl(s)
+          ? model3dStatusUrl(s, model)
           : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
         if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
         applyPollSettlement(s, pr, false);
