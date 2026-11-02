@@ -2132,5 +2132,52 @@
         ]
       }
     ]
+  },
+  {
+    "slug": "anime-to-cosplay",
+    "title": "Anime art to a cosplay photo",
+    "date": "2026-11-02",
+    "review": "The photo keeps the hair colour, jacket stripes and lining, trousers, sneakers, umbrella and pocket watch; Gemini misread one braid as two",
+    "note": "Muse paints an original anime character: a young adult woman with long straight teal hair, blunt bangs and a braid tied with a brass ring, amber eyes, a cropped cobalt-blue bomber jacket with white sleeve stripes and an orange quilted lining, a black high-neck top, charcoal cargo trousers with knee pads, white high-tops, a closed clear umbrella with an orange handle on her shoulder and a brass pocket watch at her hip, on a rainy rooftop at dusk. Gemini 3.8 Flash looks at that picture and writes a feature list (hair, eyes, face, outfit, props, pose, background) and a photo prompt for an invented adult cosplayer wearing the outfit as a real costume. Muse renders the photo from that text alone; the drawing itself never reaches the photo model, so everything carried over went through the written features. The photo keeps the teal wig and bangs, the cobalt jacket with white stripes and orange quilted lining, the black top, the knee-pad cargo trousers, the white high-tops, the pocket watch on a chain, the clear umbrella with orange ends on her shoulder, and the wet rooftop and city lights at dusk. Flaws: the drawing shows one braid, but Gemini read two, so the photo has two. The wig is longer than the drawn hair, down to her knees. The eyes come out a glowing orange-red instead of amber. The umbrella grows orange tips on its ribs and an orange strap. The jacket hangs a little lower than the cropped drawing. Gemini also picked an ethnicity for the cosplayer that the drawing doesn't state; edit its system prompt if you want to choose that yourself. Swap the Anime art Image for a 📷 Image input to read your own original drawing; use characters you made, not real people or existing IP. Both stills were checked and are SFW (a fully clothed invented adult, no text or logos). Inspired by @SuskyH99882's Anime → Realistic Cosplay ComfyUI workflow (https://x.com/SuskyH99882/status/2116568710563717316), where a vision LLM extracts the features and rebuilds them as a photo. No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.024317,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "google/gemini-3.8-flash"
+    ],
+    "graphSha256": "ffca8d8cb3bfbb3133f723ff9f1300e720090a1638ed3778b3a22825f27f2112",
+    "inputs": [
+      {
+        "label": "Anime character · invent",
+        "text": "Original anime character illustration, an invented character (not from any existing anime, manga or game). A young adult woman, about 25, standing in a three-quarter pose on a rainy city rooftop at dusk. Long straight teal hair with blunt bangs and one thin braid on the left side tied with a small brass ring; amber eyes. She wears a cropped cobalt-blue bomber jacket with a wide white stripe across each sleeve and an orange quilted lining, over a black high-neck top, high-waisted charcoal cargo trousers with knee pads and white high-top sneakers. Fully clothed. She holds a closed clear vinyl umbrella with a bright orange handle resting on her shoulder, and a small round brass pocket-watch charm hangs from her belt loop. Confident small smile. Clean cel-shaded anime style, crisp line art, soft rim light, full body visible from head to sneakers. No text, no letters, no logos, no watermark, no signature."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "anime-to-cosplay/anime.webp",
+        "kind": "image",
+        "label": "1. Anime art: Muse 2:3 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "92eb23a254c275c18c77b4eaddf0088d82b2e02ff90fddec9d36a5d5ab4a948b"
+      },
+      {
+        "src": "anime-to-cosplay/features.txt",
+        "kind": "text",
+        "label": "2. What Gemini 3.8 Flash read from the drawing · reported $0.0023",
+        "costUsd": 0.002317,
+        "sha256": "71e36d4dbbc372908d9756af43c58575569d1285f8dd5e45634d14b12d692274"
+      },
+      {
+        "src": "anime-to-cosplay/cosplay-photo.webp",
+        "kind": "image",
+        "label": "3. Cosplay photo: Muse 2:3 from the written features only · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "f987c9cb8a0a784e79fc57c4c5af4b97e0309bd96a57154e9e99a6763b97fd50"
+      }
+    ],
+    "preview": "anime-to-cosplay/preview.webp",
+    "workflow": "anime-to-cosplay/workflow.json",
+    "workflowSha256": "ffca8d8cb3bfbb3133f723ff9f1300e720090a1638ed3778b3a22825f27f2112"
   }
 ]

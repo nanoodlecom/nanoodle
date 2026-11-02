@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 31,
-  "edgeCount": 206,
+  "graphCount": 32,
+  "edgeCount": 209,
   "typeToType": {
-    "text→image": 34,
+    "text→image": 35,
     "image→ivideo": 10,
     "text→ivideo": 9,
     "ivideo→vedit": 3,
     "text→vedit": 1,
+    "image→llm": 3,
+    "llm→image": 6,
     "text→llm": 13,
-    "llm→image": 5,
     "text→join": 12,
     "llm→join": 9,
     "join→edit": 3,
@@ -49,7 +50,6 @@
     "trim→lipsync": 1,
     "lipsync→soundtrack": 1,
     "join→tvideo": 1,
-    "image→llm": 2,
     "edit→llm": 2,
     "edit→resize": 2,
     "image→vedit": 1,
@@ -57,13 +57,14 @@
     "image→tvideo": 3
   },
   "portPair": {
-    "text.text→image.prompt": 34,
+    "text.text→image.prompt": 35,
     "image.image→ivideo.image": 9,
     "text.text→ivideo.prompt": 9,
     "ivideo.video→vedit.video": 3,
     "text.text→vedit.prompt": 1,
+    "image.image→llm.img1": 3,
+    "llm.text→image.prompt": 6,
     "text.text→llm.prompt": 13,
-    "llm.text→image.prompt": 5,
     "text.text→join.a": 7,
     "llm.text→join.b": 7,
     "join.text→edit.prompt": 3,
@@ -119,7 +120,6 @@
     "trim.audio→lipsync.audio": 1,
     "lipsync.video→soundtrack.video": 1,
     "join.text→tvideo.prompt": 1,
-    "image.image→llm.img1": 2,
     "edit.image→llm.img2": 2,
     "edit.image→resize.image": 2,
     "image.image→vedit.image": 1,
@@ -130,7 +130,7 @@
   },
   "topTargets": {
     "text|text": {
-      "image|prompt": 34,
+      "image|prompt": 35,
       "ivideo|prompt": 9,
       "vedit|prompt": 1,
       "llm|prompt": 13,
@@ -145,6 +145,7 @@
     },
     "image|image": {
       "ivideo|image": 9,
+      "llm|img1": 3,
       "edit|image": 12,
       "resize|image": 3,
       "edit|image2": 3,
@@ -153,7 +154,6 @@
       "edit|image4": 1,
       "ivideo|endframe": 1,
       "lipsync|image": 2,
-      "llm|img1": 2,
       "vedit|image": 1,
       "tvideo|ref1": 1,
       "tvideo|ref2": 1,
@@ -164,7 +164,7 @@
       "vframes|video": 1
     },
     "llm|text": {
-      "image|prompt": 5,
+      "image|prompt": 6,
       "join|b": 7,
       "music|prompt": 1,
       "tts|prompt": 1,
