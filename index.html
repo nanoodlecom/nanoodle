@@ -7614,28 +7614,51 @@ function videoOptDefs(model, nodeType){
       let opts = (d.options||[]).filter(o=> o && o.value!=null && (kind==="model3d" || o.value!==""));
       if(key==="mode") opts = opts.filter(modeOK);             // hide generation-type modes this node can't satisfy
       if(opts.length<2) continue;                              // nothing meaningful to choose
-      defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
+      defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description, sw:d.showWhen });
     } else if(d.type==="switch" || d.type==="boolean"){
-      defs.push({ key, label:d.label||key, type:"bool", def, desc:d.description });
+      defs.push({ key, label:d.label||key, type:"bool", def, desc:d.description, sw:d.showWhen });
     } else if((d.type==="text" || d.type==="string" || d.type==="number") && !videoFreetextSkip(key,d)){
       // free-text/number knobs (negative_prompt, seed, cfg_scale, num_inference_steps…) — sent
       // only-when-nonempty (see refreshModelOpts), so the model's own default applies when blank.
       const long = d.type!=="number" && /prompt|description|instruction/i.test(key);
       defs.push({ key, label:d.label||key, type:(d.type==="number"?"number":(long?"textarea":"text")),
-        def, desc:d.description, min:d.min, max:d.max, step:d.step, ph:d.placeholder });
+        def, desc:d.description, min:d.min, max:d.max, step:d.step, ph:d.placeholder, sw:d.showWhen });
     }
   }
   return defs;
+}
+/* Catalog `showWhen` gate. A param descriptor may carry showWhen:{otherKey: value | [values]}
+   (OpenJutsu: target/change_to only when swap_type is "object", role_1..4 only when it is
+   "character"; P-Video 2 Pro, LTX extend_mode, PixVerse effect/cameraMovement do the same).
+   The knob applies only when EVERY referenced param's current value — the stored modelOpts value,
+   else the catalog default, else a select's first option — is one of the allowed values. A
+   controller the catalog doesn't describe can't be judged, so it never hides anything. */
+function showWhenOK(sw, cur, it){
+  if(!sw || typeof sw!=="object") return true;
+  const p = (it && it.params) || {}, dflt = (it && it.defaults) || {};
+  for(const [k, allowed] of Object.entries(sw)){
+    const d = p[k];
+    let v = (cur && cur[k]!=null && cur[k]!=="") ? cur[k]
+          : dflt[k]!=null ? dflt[k]
+          : (d && d.default!=null) ? d.default
+          : (d && d.type==="select" && Array.isArray(d.options) && d.options[0]) ? d.options[0].value
+          : (d && (d.type==="switch" || d.type==="boolean")) ? false
+          : undefined;
+    if(v===undefined) continue;                                 // unknown controller → permissive
+    const list = Array.isArray(allowed) ? allowed : [allowed];
+    if(!list.some(a=> String(a)===String(v))) return false;
+  }
+  return true;
 }
 // rebuild the ⚙️ Model options disclosure for a video node from its current model
 function refreshModelOpts(n){
   if(!VIDEO_OPT_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
-  const defs = videoOptDefs(n.fields.model, n.type);
-  if(!defs.length){ box.innerHTML=""; return; }
+  const allDefs = videoOptDefs(n.fields.model, n.type);
+  if(!allDefs.length){ box.innerHTML=""; return; }
   const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
-  for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
-  for(const d of defs){               // quality / mode / similar selects: same clamp as duration/size
+  for(const k of Object.keys(cur)) if(!allDefs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
+  for(const d of allDefs){            // quality / mode / similar selects: same clamp as duration/size
     if(d.type!=="select") continue;
     const v = cur[d.key];
     if(v==null || v==="") continue;
@@ -7646,6 +7669,15 @@ function refreshModelOpts(n){
       else cur[d.key] = next;
     }
   }
+  // showWhen: render only the knobs that apply to the current controller values, and drop a hidden
+  // knob's stored value so it never rides in the request (editor run, njs and play.html exports all
+  // send fields.modelOpts as-is).
+  const swItem = catItem((NODE_TYPES[n.type] && NODE_TYPES[n.type].modelKind) || "video", n.fields.model) || {};
+  const visible = ()=> allDefs.filter(d=> showWhenOK(d.sw, cur, swItem));
+  const defs = visible();
+  for(const d of allDefs) if(!defs.includes(d)) delete cur[d.key];
+  if(!defs.length){ box.innerHTML=""; return; }
+  const visSig = defs.map(d=>d.key).join("\n");
   const ctl = (d)=>{
     const v = cur[d.key];
     const hint = d.desc ? `<div class="fhint">${esc(d.desc)}</div>` : "";   // the catalog's own explanation
@@ -7684,6 +7716,8 @@ function refreshModelOpts(n){
       else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
       else if(el.type==="number"){ const num=Number(el.value); cur[key] = isNaN(num) ? el.value : num; }
       else cur[key] = el.value;                                    // select / text / textarea
+      // a showWhen controller (e.g. Edit type) changed which knobs apply → re-render now (prunes the hidden ones)
+      if(allDefs.some(d=> d.sw && key in d.sw) && visible().map(d=>d.key).join("\n")!==visSig) refreshModelOpts(n);
       // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
       updateNodePrice(n); refreshRunEstimate();
       save();
