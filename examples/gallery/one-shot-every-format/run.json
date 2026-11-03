@@ -1,0 +1,41 @@
+{
+  "label": "2026-11-03 one-shot-every-format (Muse 16:9 wide shot → three Bria FIBO Generate 1.5 expand nodes at 9:16, 4:5 and 1:1)",
+  "startedAt": "2026-11-03T18:46:49.107Z",
+  "finishedAt": "2026-11-03T18:47:50.792Z",
+  "costUsd": 0.131,
+  "costExact": true,
+  "balanceBefore": 46.15729556,
+  "balanceAfter": 46.02629556,
+  "balanceDelta": 0.131,
+  "nodes": {
+    "wide": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "wide-16x9.webp"
+      }
+    },
+    "tall": {
+      "status": "done",
+      "costUsd": 0.04,
+      "files": {
+        "image": "tall-9x16.webp"
+      }
+    },
+    "feed": {
+      "status": "done",
+      "costUsd": 0.04,
+      "files": {
+        "image": "feed-4x5.webp"
+      }
+    },
+    "square": {
+      "status": "done",
+      "costUsd": 0.04,
+      "files": {
+        "image": "square-1x1.webp"
+      }
+    }
+  },
+  "note": "One pass of this graph from the box with nanoodle-js against the live catalog, no retakes. Muse returned 2048×1152. FIBO returned 2048×3640 (9:16), 2048×2560 (4:5) and 2048×2048 (1:1) PNGs. In each one the Muse picture sits unscaled in the vertical center: the mean per-channel difference from the Muse picture over that area is 1.7–2.0 out of 255 (compression level), so the original pixels are kept and only the strips above and below are new. Before this run, one $0.04 probe of the same 9:16 expand on an earlier Muse picture ($0.011) checked that fibo_operation:expand works through the Edit node; it is not part of this example. Images were re-saved as WebP for the gallery."
+}

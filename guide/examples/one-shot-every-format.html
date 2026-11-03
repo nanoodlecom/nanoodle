@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>One shot, every format — nanoodle</title>
+<meta name="description" content="Turn one wide picture into tall, feed and square versions without cropping anything out of it. Reported saved run: $0.131." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="One shot, every format — nanoodle" />
+<meta property="og:description" content="Turn one wide picture into tall, feed and square versions without cropping anything out of it. Reported saved run: $0.131." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/one-shot-every-format" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="One shot, every format — nanoodle" />
+<meta name="twitter:description" content="Turn one wide picture into tall, feed and square versions without cropping anything out of it. Reported saved run: $0.131." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/one-shot-every-format" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>One shot, every format</span></nav>
+
+  <main>
+    <h1><span class="grad">One shot, every format</span></h1>
+    <p class="lede">Turn one wide picture into tall, feed and square versions without cropping anything out of it.</p>
+
+    <section>
+      <p class="meta-row">All three formats keep the original picture pixel for pixel in the middle and extend it seamlessly; the 9:16 adds a second village · 2026-11-03 · Reported saved run: $0.131. <code>meta/muse-image/text-to-image</code> · <code>bria/fibo-generate-1.5/text-to-image</code></p>
+      <p>Show the Edit node doing outpainting instead of cropping. FIBO Generate 1.5 in expand mode keeps the source picture as it is and paints only the new space, so one finished shot can fill Stories, a feed post and a square tile.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/one-shot-every-format/wide-16x9.webp"><img src="/examples/gallery/one-shot-every-format/wide-16x9.webp" alt="1. Wide shot: Muse 16:9 · reported $0.011 — One shot, every format" loading="lazy" /></a><figcaption>1. Wide shot: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/one-shot-every-format/wide-16x9.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/one-shot-every-format/tall-9x16.webp"><img src="/examples/gallery/one-shot-every-format/tall-9x16.webp" alt="2. Tall 9:16: FIBO expand, original kept in the middle · reported $0.04 — One shot, every format" loading="lazy" /></a><figcaption>2. Tall 9:16: FIBO expand, original kept in the middle · reported $0.04 · <a href="/examples/gallery/one-shot-every-format/tall-9x16.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/one-shot-every-format/feed-4x5.webp"><img src="/examples/gallery/one-shot-every-format/feed-4x5.webp" alt="3. Feed 4:5: FIBO expand · reported $0.04 — One shot, every format" loading="lazy" /></a><figcaption>3. Feed 4:5: FIBO expand · reported $0.04 · <a href="/examples/gallery/one-shot-every-format/feed-4x5.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/one-shot-every-format/square-1x1.webp"><img src="/examples/gallery/one-shot-every-format/square-1x1.webp" alt="4. Square 1:1: FIBO expand · reported $0.04 — One shot, every format" loading="lazy" /></a><figcaption>4. Square 1:1: FIBO expand · reported $0.04 · <a href="/examples/gallery/one-shot-every-format/square-1x1.webp" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse draws one wide 16:9 banner picture: a paper-craft hot-air balloon in orange and cream stripes over a patchwork valley of felt fields, a blue paper river and a cluster of white paper houses with red roofs, under a pale sky with two cotton clouds at golden hour. Three Edit nodes then send that same picture to Bria FIBO Generate 1.5 in expand mode, one at 9:16, one at 4:5 and one at 1:1. Each keeps the Muse picture unchanged and unscaled in the middle (the pixels match it to within compression noise) and paints new scene above and below it: more pale sky and paper texture on top, more stitched felt fields and river at the bottom. Nothing in the original is cropped away, so the balloon, the clouds and the village stay where they were in every format. Flaws: the 9:16 version invents a second, nearer cluster of red-roofed houses in the new lower strip, so the village appears twice. The new sky is a plain wall-like texture with no extra clouds. The expand setting rides on each FIBO node as fibo_operation: expand; the editor doesn&#39;t show it as a knob yet, so duplicate one of these nodes (or change its aspect) when you want another format. Swap the Wide 16:9 Image for a 📷 Image input to reframe your own finished shot. All four stills were checked and are SFW (no people, no text, no logos). Inspired by @VFXDESK&#39;s openreframe ComfyUI node (https://x.com/VFXDESK/status/2117636342565990433): one finished edit in, 9:16, 4:5 and 1:1 out. No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Wide shot · prompt</em>, or swap the <em>Wide 16:9</em> Image for a 📷 Image input with your own finished shot. Change the aspect on any FIBO node for another format, or duplicate a FIBO node to add one. Edit <em>Expand · instruction</em> to steer what fills the new space.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Muse 16:9 $0.011 + three FIBO Generate 1.5 expands at $0.04 each. The saved run was $0.131.</li>
+        <li>Compare the middle of each format with the wide shot: it should be the same picture, not a redraw. Then check the new strips above and below for repeated objects (here, the 9:16 adds a second village) and for seams.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA9VX227bRhB9z1cc6CUxQMmWr7H60qRNiiBIAtTpBWiKYkUOxYWWO-zu0LQa5N-LWUqK5NiJYhRG-mKT3N2Zs2fmzIzePwAGl4MJxpk-eS4oDib44wEAvE9_gYEtBhMM8qH1Ql4G2eq7LBpKK1zXWwtXgwmOD9avi8EEw8PDjx869XiwsaO05Ar1vPIJteo4qPkFOcfd2ro6pivRlTeeECuWDHRJYYGSQ21khFdmTmBP6GxBGJ9OztHYXNpAGaQijxkJDMQ4h_PJ-BSPLoSDpZjhZyIXM1xUHCTuZTA4npzgUUlUoOEoezC-gEH8uzWBMJ6MUQauYQWdlYpbQR64aayfwfiFVPrArYww3sOrNhKKYLoI02ObGu8prNAhsuIDXZm6cYTQ-gj2sBLBnf8OsTONuio5wOBdWzw-Kt61RV6e4UVtZgTrm7ZHggW3QU-htN7GiopE1QiHe3hbBSI8Ddbg-Yunb_ATeQpGCOPRCZ4VVpAyQf3DetBVo5euuaAJyOQV5kRNTFA52Jn1xq2v0Pq8Mn5GhZ7UHbUtCkeJtsZYLxGeOsScPMFM-bJfmpLjTq8mjJB86KVNbCiXEX5IJmESroer77o3RdKzVBTW4X_hY2MDFZgu8P2vz3__8dnFy4cR3JAPVAZTE37gulz88iLZwyNNlTVLpPe3PkuZkaXwK0CNNLeyN0El0sTJ_v7VKOd6f2l_P4qRNu4fjsdnp0enR8eHJ6cn5-cHx0dHg2Xifkj_P2Q3iasZajp8Kq2U6Z_T1em2qo42VOZNnWz8pommsce79uBgeoYmcN1smL1JfSuJPdnQUG491UZsvkrbZNR6GFTGF7UpCI1pKAzzYEpBlIWjEZ4g1qq0imVobMDUOMfskfZziZJdQQVEQxyspyGHPtq-QB7I1L1RRAm2UY2m9DZwVsQROr4kj87mc1LbcU6SoXRsJK5SMCcvFNSXvvUZwJekGmqM5FXHYY5L4xwtEiBygp4UtRBVWLNA5DPUbRQTioRNKASTs4hZQ-qsL1TwU9cuqUCwyVEqGmL9ApfWObXIJbrKympfxW2k2BvS3A3MZRzhgkvBTBnyw0oV7eyskr7m6GUclaJVqqQOioX9sGN2yB23hXJlQt0zaVw9wtuK1vxH-5GhpUi3GEpQVDSIjckJJnDrC1gZ4TWjIW4cZfAMzZX04EiEQuyfecb9U2eEQm3CfLSLEm7WgdXqdl0I20o43lbC4eNblJBSeakELcif14EWPadnaxKzX7eRhgnLvl56KDzcRgYMov0nOVM_m98vTbBGLPuYVtdcrN3rwWvel0qd4GCnGtIX6t2qyDXyDr_M3rO-DSypsz5KaHO90G6VZHlc82vVK7iVTtUkjNI6l9a0OaT8G-ElUXNzk6Erk4tbwERtGTZmfYqzF-tbSmeipnDqMllfiDKkiSKmrb2KGhMl9RkqZlpYlu1XIQg3GaYqqF4-0WpDdMxzODtPLhboKBCM68wiojFBVvrpG-3rLypjyqGgEHfShQ4rn0ZWm9V2ZM9Orw9eX47s2_UgtAzuchxavaYh4XpyfVYt02DNfmmnPJwtZ4vheHSyg2jqZvNz3-d1QdFtrqyVMdj8mvy_aWQbVgI75b-4USSasMpcf531pg__uR51ZrxLxI52qGTPdR7V0eTbidDx5OR_FqB-hr9LiM4Ovhyii4-_EL6dII0n4283SA-AP9PvUGf9_NbfoW68QV7getu2DvQ3DNTqlYOsm-EnMIVvtnObleUddsgyd7gL3tv89CHeGe5Wl7jVzOfQHu3G7rU0vjO_twH-Cn6P75HfrZp-J35P7pff2wB_Bb-n98jvtZJ8J4bP7pfh2yHfyLEWuQcf_gVOjNXDeRMAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#one-shot-every-format">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/one-shot-every-format/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/one-shot-every-format/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#one-shot-every-format">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/creator-ad">A creator ad for your product</a>
+        <a href="/guide/examples/swap-the-character">Swap the character, keep the performance →</a>
+        <a href="/examples/gallery/#one-shot-every-format">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

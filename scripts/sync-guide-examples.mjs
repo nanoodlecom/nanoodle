@@ -256,6 +256,14 @@ const HOWTO = {
     inspect: "Check that the selfie frame keeps your product's shape and details and doesn't cover her mouth, read the script for claims the brief doesn't make, and watch the ad with sound to judge the lip sync and whether the product stays steady.",
     costHow: "Muse 1:1 $0.011 + Muse 9:16 $0.011 + Muse Edit 9:16 $0.011 + GLM 5.3 Flash under $0.001 + MiniMax Speech about $0.02 + LongCat Avatar 1.5 at $0.04 per second of voice at 480p, billed in whole seconds ($0.56 for 14 s). The saved run was $0.614. The editor prices LongCat off the voice length: the script's words (about 2.8 per second) before a run, the measured clip after one. When the script length is unknown (nothing wired into Speech yet), the estimate assumes 40 s of voice. LongCat bills at least 3 s and at most 30 s of voice, so the chip clamps the seconds first and then prices them: $0.12–$1.20 at 480p ($0.04/s) and $0.24–$2.40 at 720p ($0.08/s). A second saved input (a woodworker's lunchbox, 11.3 s of voice billed as 12 s) cost $0.529.",
   },
+  "one-shot-every-format": {
+    headline: "One shot, every format",
+    job: "Turn one wide picture into tall, feed and square versions without cropping anything out of it.",
+    purpose: "Show the Edit node doing outpainting instead of cropping. FIBO Generate 1.5 in expand mode keeps the source picture as it is and paints only the new space, so one finished shot can fill Stories, a feed post and a square tile.",
+    edit: "Rewrite <em>Wide shot · prompt</em>, or swap the <em>Wide 16:9</em> Image for a 📷 Image input with your own finished shot. Change the aspect on any FIBO node for another format, or duplicate a FIBO node to add one. Edit <em>Expand · instruction</em> to steer what fills the new space.",
+    inspect: "Compare the middle of each format with the wide shot: it should be the same picture, not a redraw. Then check the new strips above and below for repeated objects (here, the 9:16 adds a second village) and for seams.",
+    costHow: "Muse 16:9 $0.011 + three FIBO Generate 1.5 expands at $0.04 each. The saved run was $0.131.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -313,7 +321,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-shot-every-format", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
