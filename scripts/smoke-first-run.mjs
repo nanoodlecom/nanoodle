@@ -745,6 +745,99 @@ try {
         throw error;
       }finally{await closeContext.close();}
     }
+    {
+      const renameContext = await newContext();
+      const renamePage = await renameContext.newPage();
+      renamePage.setDefaultTimeout(15000);
+      await renamePage.addInitScript(() => {
+        if(localStorage.getItem("context-rename-seeded")) return;
+        const empty = JSON.stringify({v:1,nodes:[],links:[],nid:1,lid:1});
+        localStorage.setItem("noodle_graph", empty);
+        localStorage.setItem("noodle_ws_w2", empty);
+        localStorage.setItem("noodle_workspaces", JSON.stringify({v:1,seq:2,active:"w1",tabs:[
+          {id:"w1",name:"Active",app:null},{id:"w2",name:"Other",app:null}]}));
+        localStorage.setItem("context-rename-seeded", "1");
+        localStorage.setItem("noodle_hint_dismissed", "1");
+        localStorage.setItem("noodle_connect_hint_dismissed", "1");
+      });
+      const tab = id => renamePage.locator(`#wstabs .wstab[data-id="${id}"]`);
+      const input = () => renamePage.locator("#wstabs input.wsrename");
+      const active = () => renamePage.evaluate(() => readWorkspaces().active);
+      const name = id => renamePage.evaluate(id => readWorkspaces().tabs.find(t=>t.id===id)?.name, id);
+      try {
+        await renamePage.goto(origin + "/?product=off&na=0", {waitUntil:"networkidle"});
+        await renamePage.waitForFunction(() => !wsRestorePending && readWorkspaces()?.tabs.length===2);
+        if(mobile) {
+          await renamePage.locator("#wsdrop").press("F2");
+          const mobileInput = renamePage.locator("#wsdropmenu input.wsrename");
+          await mobileInput.fill("Mobile label");
+          await mobileInput.press("Enter");
+          assert.equal(await name("w1"), "Mobile label");
+          await renamePage.keyboard.press("Escape");
+          await renamePage.reload({waitUntil:"networkidle"});
+          assert.equal(await name("w1"), "Mobile label", "mobile rename persists");
+          // The strip is hidden on phones. At tablet width, exercise the
+          // existing touch-hold rename and its follow-on click suppression.
+          await renamePage.setViewportSize({width:880,height:900});
+          const box = await tab("w2").locator(".wslabel").boundingBox();
+          assert.ok(box);
+          const client = await renameContext.newCDPSession(renamePage);
+          try {
+            await client.send("Input.dispatchTouchEvent", {type:"touchStart",touchPoints:[{x:box.x+8,y:box.y+8}]});
+            await input().waitFor();
+            await client.send("Input.dispatchTouchEvent", {type:"touchEnd",touchPoints:[]});
+          } finally { await client.detach(); }
+          assert.equal(await active(), "w1", "touch-hold does not switch an inactive tab");
+          assert.equal(await input().count(), 1, "native touch contextmenu never duplicates the editor");
+          await input().fill("Touch label");
+          await input().press("Enter");
+          assert.equal(await name("w2"), "Touch label");
+        } else {
+          await tab("w2").locator(".wslabel").click({button:"right"});
+          assert.equal(await input().inputValue(), "Other");
+          assert.equal(await active(), "w1", "right-click does not select an inactive tab");
+          await input().fill("Right-click label");
+          await input().press("Enter");
+          assert.equal(await name("w2"), "Right-click label");
+          await tab("w1").locator(".wslabel").click({button:"right"});
+          await input().fill("Blur label");
+          await renamePage.locator("#wsadd").click();
+          assert.equal(await name("w1"), "Blur label", "blur commits the label");
+          await renamePage.keyboard.press("Escape");
+          await tab("w2").locator(".wslabel").click({button:"right"});
+          await input().click({button:"right"});
+          assert.equal(await input().count(), 1, "repeated right-click keeps one editor");
+          const nativeMenu = await input().evaluate(el => {
+            const e = new MouseEvent("contextmenu", {bubbles:true,cancelable:true});
+            el.dispatchEvent(e); return !e.defaultPrevented;
+          });
+          assert.equal(nativeMenu, true, "the rename input keeps its native edit menu");
+          await input().fill("Canceled label");
+          await input().press("Escape");
+          assert.equal(await name("w2"), "Right-click label", "Escape cancels");
+          await tab("w2").click();
+          assert.equal(await active(), "w2", "ordinary click still switches tabs");
+          await tab("w2").press("F2");
+          await input().fill("F2 label");
+          await input().press("Enter");
+          await tab("w2").locator(".wslabel").dblclick();
+          await input().fill("Double-click label");
+          await input().press("Enter");
+          await tab("w1").locator(".wsx").click({button:"right"});
+          assert.equal(await input().count(), 0, "right-click on close does not rename");
+          assert.equal(await tab("w1").count(), 1, "right-click on close does not delete");
+          await renamePage.reload({waitUntil:"networkidle"});
+          assert.equal(await name("w1"), "Blur label");
+          assert.equal(await name("w2"), "Double-click label");
+          assert.equal(await active(), "w2", "rename and selection survive reload");
+          await tab("w1").locator(".wsx").click();
+          assert.equal(await tab("w1").count(), 0, "ordinary close still works");
+        }
+        assert.deepEqual(errors, [], "rename produces no browser exceptions");
+        assert.deepEqual(forbidden, [], "rename makes no paid or unexpected requests");
+        console.log(`✓ workspace rename ${label}: right-click/native edit menu, Enter/blur/Escape, repeat, inactive selection, F2/double-click/touch, close and reload`);
+      } finally { await renameContext.close(); }
+    }
   }
   const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));
   const cspContext = await browser.newContext({ viewport:{ width:1440, height:900 } });
