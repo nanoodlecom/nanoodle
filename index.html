@@ -19417,7 +19417,19 @@ function bindWorkspaceChrome(){
     let wsHoldTimer = null;
     const clearWsHold = ()=>{ if(wsHoldTimer){ clearTimeout(wsHoldTimer); wsHoldTimer = null; } };
     tabs.addEventListener("contextmenu", (e)=>{
-      if(e.target.closest && e.target.closest(".wstab")) e.preventDefault();
+      const b = e.target.closest && e.target.closest(".wstab");
+      // Keep the native text-edit menu and leave the close control alone.
+      if(!b || e.target.closest("input, textarea, .wsx")) return;
+      e.preventDefault();
+      clearWsHold();
+      if(wsDrag){
+        wsDrag.el.style.transform = "";
+        wsDrag.el.style.zIndex = "";
+        wsDrag = null;
+      }
+      if(e.pointerType==="touch" || e.pointerType==="pen") wsSuppressClick = true;
+      // Rename this tab in place, including inactive tabs, without switching.
+      beginWorkspaceRename(b);
     });
     tabs.addEventListener("pointerdown", (e)=>{
       if(e.button!=null && e.button!==0) return;
