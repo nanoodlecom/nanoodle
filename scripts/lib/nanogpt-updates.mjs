@@ -262,8 +262,11 @@ export function classifyCard(card) {
   const description = markdownToPlain(rawText);
   // "Try it at [nano-gpt.com/media](…?model=longstories%2Fstory-fast)" (#1433):
   // link text that is a URL is not a model name — use the title head instead.
+  // Require an alphabetic TLD (…\.com) so dotted version names like Qwen3.8 /
+  // GLM-5.3 are not treated as hosts (that used to rewrite "New Model: Qwen3.8"
+  // into "New LLM model: New Model").
   for (const m of models) {
-    if (/^(?:https?:\/\/)?(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:\/\S*)?$/i.test(String(m.name || "").trim())) {
+    if (/^(?:https?:\/\/)?(?:www\.)?[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/\S*)?$/i.test(String(m.name || "").trim())) {
       const head = title.split(/\s*[:—–]\s+|\s+-\s+/)[0].trim();
       m.name = models.length === 1 && head ? head : m.slug;
     }

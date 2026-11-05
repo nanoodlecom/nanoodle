@@ -117,6 +117,47 @@ const ok = (m) => console.log("✓ " + m);
   else ok("URL link text falls back to the title head (LongStories)");
 }
 
+{
+  // Dotted version names (Qwen3.8, GLM-5.3) must not be treated as URL hosts.
+  // NanoGPT titles are often "New Model: <name>"; the old host regex rewrote
+  // the link text to the title head ("New Model") and shipped
+  // "New LLM model: New Model".
+  const qwen = classifyCard({
+    id: "dotted-qwen38",
+    title: "New Model: Qwen3.8",
+    text: "[Qwen3.8](https://nano-gpt.com/conversation?model=qwen%2Fqwen3.8) is now available.",
+    date: "2026-11-05",
+  });
+  if (qwen.skip || qwen.kind !== "chat")
+    fail("Qwen3.8 card must be New LLM, got kind=" + qwen.kind + " skip=" + qwen.skip);
+  else if (!qwen.models.length || qwen.models[0].name !== "Qwen3.8")
+    fail("Qwen3.8 dotted name must stay the model name, got " + JSON.stringify(qwen.models));
+  else ok("dotted Qwen3.8 keeps its model name (not New Model)");
+
+  const glm = classifyCard({
+    id: "dotted-glm53",
+    title: "New Model: GLM-5.3",
+    text: "[GLM-5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) is now available.",
+    date: "2026-11-05",
+  });
+  if (glm.skip || glm.kind !== "chat")
+    fail("GLM-5.3 card must be New LLM, got kind=" + glm.kind + " skip=" + glm.skip);
+  else if (!glm.models.length || glm.models[0].name !== "GLM-5.3")
+    fail("GLM-5.3 dotted name must stay the model name, got " + JSON.stringify(glm.models));
+  else ok("dotted GLM-5.3 keeps its model name (not New Model)");
+
+  // URL-shaped link text with a real TLD+path must still fall back to the title head.
+  const urlish = classifyCard({
+    id: "urlish-still",
+    title: "LongStories: Turn One Idea Into a Short Film",
+    text: "Try it at [nano-gpt.com/media](https://nano-gpt.com/media?model=longstories%2Fstory-fast).",
+    date: "2026-11-05",
+  });
+  if (!urlish.models.length || urlish.models[0].name !== "LongStories")
+    fail("real URL link text must still fall back to title head, got " + JSON.stringify(urlish.models));
+  else ok("real URL link text still falls back to title head after TLD tighten");
+}
+
 if (failed) {
   console.error("\n✗ check-title-intent-edges: " + failed + " failed");
   process.exit(1);
