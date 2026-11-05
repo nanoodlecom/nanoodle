@@ -1,7 +1,8 @@
 /**
  * Partial matches of the live graph against Examples-gallery recipes.
- * A confident match can re-rank the add menu and the Examples shelf.
- * Empty canvases and close disagreements stay quiet. No chips.
+ * A confident match can re-rank the add menu and the Examples shelf, and
+ * pin that next type to the top of an existing search hit list.
+ * Empty canvases and close disagreements stay quiet. No chips, no extra row.
  */
 
 /**
@@ -213,6 +214,7 @@ export function mergeRecipeHint(hint, recipe, maxAdds = 3) {
     action: recipe.action,
     share: Math.max(base.adds[0]?.share || 0, 0.5),
     reason: recipe.reason,
+    source: "recipe",
   }];
   for (const a of base.adds || []) {
     if (!a || a.type === recipe.type || adds.length >= maxAdds) continue;
@@ -228,6 +230,26 @@ export function mergeRecipeHint(hint, recipe, maxAdds = 3) {
       slug: recipe.slug,
       title: recipe.title,
       reason: recipe.reason,
+      type: recipe.type,
     },
   };
+}
+
+/**
+ * Move a confident recipe's next type to the front of an existing id list.
+ * Null when there is nothing to pin, the type is already first, or it is not
+ * already in the list — callers must not insert a row or retag today's order.
+ * @param {string[]} ids
+ * @param {string | null | undefined} nextType
+ * @returns {string[] | null}
+ */
+export function liftRecipeType(ids, nextType) {
+  if (!nextType || typeof nextType !== "string") return null;
+  if (!Array.isArray(ids) || ids.length < 2) return null;
+  const i = ids.indexOf(nextType);
+  if (i <= 0) return null;
+  const next = ids.slice();
+  next.splice(i, 1);
+  next.unshift(nextType);
+  return next;
 }
