@@ -34,7 +34,8 @@
 // double-add (an id: key also survives a title edit). Existing chat date|slug
 // keys are kept. The first run that understands media/retired/pricing only
 // ingests those cards with date >= 2026-08-01 (the chat path stays as-is,
-// already walked); after that we walk newest-first until a seen API id.
+// already walked); after that we walk newest-first, skipping already-seen API
+// ids so a missing card between seen neighbors can still backfill.
 //
 // Usage (safe to run repeatedly / on a cron):
 //   node scripts/sync-nanogpt-model-updates.mjs                 # writes+commits if anything new; no-op otherwise

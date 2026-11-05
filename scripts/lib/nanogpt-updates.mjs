@@ -207,12 +207,56 @@ function subjectModels(title, models, intent) {
   return mentioned.length ? mentioned : [];
 }
 
+// Generic "Model Availability Changes" cards (#1417 / #1423) often have no
+// subject-model links — only list pages or a replacement. Pull the retired
+// subjects from the body bullets so the changelog headline names them.
+export function availabilitySubjectTitles(title, description) {
+  if (!/\bavailability changes?\b/i.test(String(title || ""))) return null;
+  const text = String(description || "");
+  let raw = [];
+  // Prefer real newline bullets. A single flattened line matching ^- … must NOT
+  // win here: markdownToPlain turns "- A. - B." into one line, and .+? would
+  // swallow the later bullets.
+  if (/\n/.test(text)) {
+    for (const line of text.split(/\n+/)) {
+      const m = line.match(/^\s*[-•*]\s+(.+?)\s*$/);
+      if (m) raw.push(m[1]);
+    }
+  }
+  if (!raw.length) {
+    // Flattened: "lead-in: - item - item" or "- item - item"
+    const parts = text.split(/(?:^|\s)-\s+/).map(s => s.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      raw = /\bfollowing models\b/i.test(parts[0]) || /:\s*$/.test(parts[0])
+        ? parts.slice(1)
+        : parts;
+    }
+  }
+  const subjects = [];
+  for (const b of raw) {
+    let s = String(b || "").trim();
+    s = s.replace(/\s+(?:If your app|Perplexity)\b[\s\S]*$/i, "").trim();
+    const sentence = s.match(/^(.+?[.!?])(?:\s+[A-Z][\s\S]*)?$/);
+    if (sentence) s = sentence[1];
+    s = s
+      .replace(/\s+(?:is|are)\s+no longer available\.?$/i, "")
+      .replace(/\s+(?:is|are|has been|have been)\s+deprecated\b[\s\S]*$/i, "")
+      .replace(/,?\s+following\b[\s\S]*$/i, "")
+      .replace(/\.?\s*$/, "")
+      .trim();
+    if (s && !/^if your app\b/i.test(s) && !/^perplexity\b/i.test(s) && !/\bfollowing models\b/i.test(s)) subjects.push(s);
+  }
+  return subjects.length ? subjects : null;
+}
+
 function displayTitles(card, models, intent) {
   const title = String(card && card.title || "").trim();
   if (intent === "retired") {
     const cleaned = stripRetiredSuffix(title) || title;
     const mentioned = (models || []).filter(m => nameInTitle(cleaned, m.name));
     if (mentioned.length) return mentioned.map(m => m.name);
+    const fromBody = availabilitySubjectTitles(title, card && card.description);
+    if (fromBody && fromBody.length) return fromBody;
     return [cleaned];
   }
   if (models.length) return models.map(m => m.name);
@@ -321,9 +365,10 @@ export function isChatPath(info) {
 }
 
 // Newest-first walk. After the first media expansion (seen file has id: keys)
-// we stop at the first already-seen API id. Until then, chat uses the existing
-// "stop adding historical chat once we hit a seen date|slug" rule, and
-// media/retired/pricing cards are only ingested from MEDIA_FLOOR_DATE onward.
+// already-seen API ids are skipped so a missing older card (e.g. NanoGPT #1417
+// sitting between seen neighbors) can still backfill. Until expansion, chat uses
+// the existing "stop adding historical chat once we hit a seen date|slug" rule,
+// and media/retired/pricing cards are only ingested from MEDIA_FLOOR_DATE onward.
 export function selectPending(cards, seen, opts = {}) {
   const seenList = Array.isArray(seen) ? seen : [];
   const seenSet = new Set(seenList);
@@ -358,7 +403,9 @@ export function selectPending(cards, seen, opts = {}) {
     if (!info.date) continue;
 
     const idKey = seenKeyForId(info.id);
-    if (expanded && idKey && seenSet.has(idKey)) break;
+    // Skip (do not break): a hard stop at the first seen id blocked backfill of
+    // gaps like #1417 when newer neighbors were already recorded.
+    if (expanded && idKey && seenSet.has(idKey)) continue;
 
     if (info.skip) continue;
 
