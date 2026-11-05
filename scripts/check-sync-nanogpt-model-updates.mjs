@@ -195,13 +195,24 @@ console.log("sync-nanogpt-model-updates (fixture)");
   check("first expansion still adds Ling retired", ids.includes("1013"), ids.join(","));
 }
 
-// After expansion, walk stops at the first seen API id (newer cards above still count)
+// After expansion, already-seen API ids are skipped (not a hard stop) so a gap
+// between seen neighbors can still backfill. Seen cards are never re-added.
 {
   const seen = ["id:1016"];
   const pending = selectPending(fixture.updates, seen);
   const ids = pending.map(p => p.id);
-  check("walk-until-seen-id adds cards above 1016", ids.includes("1023"), ids.join(","));
-  check("walk-until-seen-id stops at 1016 (no Wan)", !ids.includes("1007") && !ids.includes("1016"), ids.join(","));
+  check("seen-id skip still adds cards above 1016", ids.includes("1023"), ids.join(","));
+  check("seen-id skip does not re-add 1016", !ids.includes("1016"), ids.join(","));
+  check("seen-id skip backfills older unseen Wan below 1016", ids.includes("1007"), ids.join(","));
+}
+
+// Gap backfill: missing middle id between two seen neighbors is pending
+{
+  const seen = ["id:1023", "id:1013"];
+  const pending = selectPending(fixture.updates, seen);
+  const ids = pending.map(p => p.id);
+  check("gap backfill adds unseen 1016 between seen neighbors", ids.includes("1016"), ids.join(","));
+  check("gap backfill skips seen 1023 and 1013", !ids.includes("1023") && !ids.includes("1013"), ids.join(","));
 }
 
 // Title edit of a seen API id must not double-post

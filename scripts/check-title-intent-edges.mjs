@@ -8,7 +8,7 @@
 // flip a Remover launch, and an isolated Remover card is still New video.
 // Offline, zero API spend. New file so it does not collide with
 // check-sync-nanogpt-model-updates.
-import { classifyCard, titleIntent } from "./lib/nanogpt-updates.mjs";
+import { classifyCard, titleIntent, groupPending, availabilitySubjectTitles } from "./lib/nanogpt-updates.mjs";
 
 let failed = 0;
 const fail = (m) => { console.error("✗ " + m); failed++; };
@@ -186,6 +186,33 @@ const ok = (m) => console.log("✓ " + m);
   else if (info.keys.some(k => /mimo-v2\.6-pro/i.test(k)))
     fail("replacement slug must not enter seen keys, got " + JSON.stringify(info.keys));
   else ok("availability change with switching-to link is Retired (not a MiMo launch)");
+}
+
+{
+  // NanoGPT #1417: same availability title, no model links — subjects come from
+  // body bullets (o3-mini / o4-mini / GPT-4 Turbo / Laguna / LLM Tech Decider).
+  const info = classifyCard({
+    id: "1417",
+    title: "Model Availability Changes",
+    date: "2026-11-02",
+    category: "pricing-availability",
+    text: "The following models are no longer available on NanoGPT:\n\n"
+      + "- OpenAI o3-mini and o4-mini, including their High variants, and GPT-4 Turbo.\n"
+      + "- Poolside Laguna S 2.1 and Laguna S 2.1 Thinking.\n"
+      + "- LLM Tech Decider 0.8B, 2B and 4B, following LLM Tech's API shutdown.\n\n"
+      + "If your app uses one of these model IDs, switch to an available model from the "
+      + "[text model list](https://nano-gpt.com/models/text) or "
+      + "[decision model list](https://nano-gpt.com/models/decisions). Perplexity PPLX Decider is unaffected.",
+  });
+  const subjects = availabilitySubjectTitles(info.title, info.description) || [];
+  const line = groupPending([info])[0] && groupPending([info])[0].text;
+  if (info.intent !== "retired" || info.kind !== "retired" || info.skip)
+    fail("1417 availability card must be retired, got intent=" + info.intent + " kind=" + info.kind);
+  else if (!subjects.some(s => /o3-mini/i.test(s)) || !subjects.some(s => /Laguna/i.test(s)) || !subjects.some(s => /Decider/i.test(s)))
+    fail("1417 subjects must name o3-mini / Laguna / Decider, got " + JSON.stringify(subjects));
+  else if (!line || !/^Retired:/.test(line) || !/o3-mini/i.test(line) || /New LLM/i.test(line))
+    fail("1417 changelog line must be Retired naming o3-mini, got " + JSON.stringify(line));
+  else ok("1417 availability card retires o3-mini/o4-mini + Laguna + Decider (not a launch)");
 }
 
 if (failed) {
