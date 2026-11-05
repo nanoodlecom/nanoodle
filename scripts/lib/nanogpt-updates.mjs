@@ -86,13 +86,18 @@ export function titleIntent(title) {
   // "remov" must be the verb (removed/removal/removing), not a product noun:
   // 2026-10-01's "HeyGen Video 1 and Video Music Remover" launch shipped as
   // "Retired: …" because /remov/ matched "Remover".
-  if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset/.test(t)) return "retired";
+  // "availability changes" (NanoGPT #1423 / #1417) is retirement guidance, not a
+  // launch — distinct from "now available" product nouns, which stay "new".
+  if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset|\bavailability changes?\b/.test(t)) return "retired";
   if (/\bnow use\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
   if (/\bpric(?:e|es|ing)\b|\bcheaper\b|\bdiscount\b|\b\d+%\s*off\b/.test(t)) return "pricing";
   return "new";
 }
 
-// "For X, try [Y]" / "try [A] or [B]" — Y/A/B are substitutes, not the subject.
+// "For X, try [Y]" / "try [A] or [B]" / "recommend switching to [Y]" —
+// Y/A/B are substitutes, not the subject. NanoGPT #1423 said "deprecated …
+// recommend switching to [MiMo V2.6 Pro]"; without the switch(ing) to prefix
+// that recommendation became the "New LLM model" headline.
 export function isReplacementLinkPrefix(prefix) {
   const plain = String(prefix || "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -101,6 +106,7 @@ export function isReplacementLinkPrefix(prefix) {
     .replace(/\s+/g, " ")
     .trimEnd();
   if (/\btry(?:\s+the)?$/i.test(plain)) return true;
+  if (/\b(?:recommend(?:ed)?\s+)?switch(?:ing)?\s+to$/i.test(plain)) return true;
   if (!/\btry\b/i.test(plain) || !/(?:,|and|or|&)$/i.test(plain)) return false;
   const afterTry = plain.slice(plain.toLowerCase().lastIndexOf("try"));
   return !/[.!?]\s+\S/.test(afterTry);

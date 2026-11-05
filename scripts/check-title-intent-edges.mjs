@@ -158,6 +158,36 @@ const ok = (m) => console.log("✓ " + m);
   else ok("real URL link text still falls back to title head after TLD tighten");
 }
 
+{
+  // NanoGPT #1423 "Model Availability Changes" recommends switching to a live
+  // model. That must be Retired guidance, never "New LLM model: <replacement>".
+  if (titleIntent("Model Availability Changes") !== "retired")
+    fail("Model Availability Changes title must be retired, got " + titleIntent("Model Availability Changes"));
+  else if (titleIntent("FLUX.1 Pro Erase Now Available") !== "new")
+    fail("Now Available launch must stay new, got " + titleIntent("FLUX.1 Pro Erase Now Available"));
+  else ok("availability changes is retired; Now Available stays a launch");
+
+  const info = classifyCard({
+    id: "1423",
+    title: "Model Availability Changes",
+    date: "2026-11-04",
+    category: "pricing-availability",
+    text: "- Qwen Long 10M is no longer available.\n"
+      + "- Imagen V3 is no longer available.\n"
+      + "- MiMo V2.5 Pro and MiMo V2.5 Pro Thinking are deprecated. Their model IDs keep working, "
+      + "but we recommend switching to [MiMo V2.6 Pro](https://nano-gpt.com/conversation?model=xiaomi%2Fmimo-v2.6-pro).\n\n"
+      + "If your app uses Qwen Long 10M or Imagen V3, switch to an available model from the "
+      + "[text model list](https://nano-gpt.com/models/text) or the Studio image models.",
+  });
+  if (info.intent !== "retired" || info.kind !== "retired" || info.skip)
+    fail("availability+switch-to card must be retired, got intent=" + info.intent + " kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.length !== 0)
+    fail("switching-to link must not be a subject model, got " + JSON.stringify(info.models));
+  else if (info.keys.some(k => /mimo-v2\.6-pro/i.test(k)))
+    fail("replacement slug must not enter seen keys, got " + JSON.stringify(info.keys));
+  else ok("availability change with switching-to link is Retired (not a MiMo launch)");
+}
+
 if (failed) {
   console.error("\n✗ check-title-intent-edges: " + failed + " failed");
   process.exit(1);
