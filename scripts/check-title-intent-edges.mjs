@@ -76,6 +76,118 @@ const ok = (m) => console.log("✓ " + m);
   else ok("isolated Remover launch is New video even when the body says removes");
 }
 
+{
+  // 2026-11-05 NanoGPT #1435 links bare /media?model= (no mode=); it used to be skipped.
+  const info = classifyCard({
+    id: "1435",
+    title: "GPT Image 2.6 Flare and Sunburst",
+    text: "[GPT Image 2.6 Flare](https://nano-gpt.com/media?model=gpt-image-2.6-flare) and [GPT Image 2.6 Sunburst](https://nano-gpt.com/media?model=gpt-image-2.6-sunburst) generate and edit images with up to 16 references. The image API also generates animated GIFs with 2–64 frames.",
+    date: "2026-11-05",
+    category: "media",
+  });
+  if (info.skip || info.kind !== "image")
+    fail("bare /media?model= card must be New image, got kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.map(m => m.slug + ":" + m.kind).join(",") !== "gpt-image-2.6-flare:image,gpt-image-2.6-sunburst:image")
+    fail("bare /media?model= card must keep both models as image, got " + JSON.stringify(info.models));
+  else ok("bare /media?model= card is New image with both models");
+
+  const vid = classifyCard({
+    id: "bare-video",
+    title: "Example Motion 2",
+    text: "[Example Motion 2](https://nano-gpt.com/media?model=example-motion-2) turns a still image into a 5 second video.",
+    date: "2026-11-05",
+  });
+  if (vid.skip || vid.kind !== "video")
+    fail("bare /media?model= video card must be video, got kind=" + vid.kind + " skip=" + vid.skip);
+  else ok("bare /media?model= card that says video is New video");
+}
+
+{
+  const info = classifyCard({
+    id: "1433",
+    title: "LongStories: Turn One Idea Into a Short Film",
+    text: "LongStories is now on NanoGPT. It animates the shots and edits a finished short film.\n\nTry it at [nano-gpt.com/media](https://nano-gpt.com/media?model=longstories%2Fstory-fast).",
+    date: "2026-11-05",
+    category: "media",
+  });
+  if (info.skip || info.kind !== "video")
+    fail("LongStories card must be New video, got kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.length !== 1 || info.models[0].name !== "LongStories")
+    fail("URL link text must not become the model name, got " + JSON.stringify(info.models));
+  else ok("URL link text falls back to the title head (LongStories)");
+}
+
+{
+  // Dotted version names (Qwen3.8, GLM-5.3) must not be treated as URL hosts.
+  // NanoGPT titles are often "New Model: <name>"; the old host regex rewrote
+  // the link text to the title head ("New Model") and shipped
+  // "New LLM model: New Model".
+  const qwen = classifyCard({
+    id: "dotted-qwen38",
+    title: "New Model: Qwen3.8",
+    text: "[Qwen3.8](https://nano-gpt.com/conversation?model=qwen%2Fqwen3.8) is now available.",
+    date: "2026-11-05",
+  });
+  if (qwen.skip || qwen.kind !== "chat")
+    fail("Qwen3.8 card must be New LLM, got kind=" + qwen.kind + " skip=" + qwen.skip);
+  else if (!qwen.models.length || qwen.models[0].name !== "Qwen3.8")
+    fail("Qwen3.8 dotted name must stay the model name, got " + JSON.stringify(qwen.models));
+  else ok("dotted Qwen3.8 keeps its model name (not New Model)");
+
+  const glm = classifyCard({
+    id: "dotted-glm53",
+    title: "New Model: GLM-5.3",
+    text: "[GLM-5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) is now available.",
+    date: "2026-11-05",
+  });
+  if (glm.skip || glm.kind !== "chat")
+    fail("GLM-5.3 card must be New LLM, got kind=" + glm.kind + " skip=" + glm.skip);
+  else if (!glm.models.length || glm.models[0].name !== "GLM-5.3")
+    fail("GLM-5.3 dotted name must stay the model name, got " + JSON.stringify(glm.models));
+  else ok("dotted GLM-5.3 keeps its model name (not New Model)");
+
+  // URL-shaped link text with a real TLD+path must still fall back to the title head.
+  const urlish = classifyCard({
+    id: "urlish-still",
+    title: "LongStories: Turn One Idea Into a Short Film",
+    text: "Try it at [nano-gpt.com/media](https://nano-gpt.com/media?model=longstories%2Fstory-fast).",
+    date: "2026-11-05",
+  });
+  if (!urlish.models.length || urlish.models[0].name !== "LongStories")
+    fail("real URL link text must still fall back to title head, got " + JSON.stringify(urlish.models));
+  else ok("real URL link text still falls back to title head after TLD tighten");
+}
+
+{
+  // NanoGPT #1423 "Model Availability Changes" recommends switching to a live
+  // model. That must be Retired guidance, never "New LLM model: <replacement>".
+  if (titleIntent("Model Availability Changes") !== "retired")
+    fail("Model Availability Changes title must be retired, got " + titleIntent("Model Availability Changes"));
+  else if (titleIntent("FLUX.1 Pro Erase Now Available") !== "new")
+    fail("Now Available launch must stay new, got " + titleIntent("FLUX.1 Pro Erase Now Available"));
+  else ok("availability changes is retired; Now Available stays a launch");
+
+  const info = classifyCard({
+    id: "1423",
+    title: "Model Availability Changes",
+    date: "2026-11-04",
+    category: "pricing-availability",
+    text: "- Qwen Long 10M is no longer available.\n"
+      + "- Imagen V3 is no longer available.\n"
+      + "- MiMo V2.5 Pro and MiMo V2.5 Pro Thinking are deprecated. Their model IDs keep working, "
+      + "but we recommend switching to [MiMo V2.6 Pro](https://nano-gpt.com/conversation?model=xiaomi%2Fmimo-v2.6-pro).\n\n"
+      + "If your app uses Qwen Long 10M or Imagen V3, switch to an available model from the "
+      + "[text model list](https://nano-gpt.com/models/text) or the Studio image models.",
+  });
+  if (info.intent !== "retired" || info.kind !== "retired" || info.skip)
+    fail("availability+switch-to card must be retired, got intent=" + info.intent + " kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.length !== 0)
+    fail("switching-to link must not be a subject model, got " + JSON.stringify(info.models));
+  else if (info.keys.some(k => /mimo-v2\.6-pro/i.test(k)))
+    fail("replacement slug must not enter seen keys, got " + JSON.stringify(info.keys));
+  else ok("availability change with switching-to link is Retired (not a MiMo launch)");
+}
+
 if (failed) {
   console.error("\n✗ check-title-intent-edges: " + failed + " failed");
   process.exit(1);
