@@ -76,6 +76,47 @@ const ok = (m) => console.log("✓ " + m);
   else ok("isolated Remover launch is New video even when the body says removes");
 }
 
+{
+  // 2026-11-05 NanoGPT #1435 links bare /media?model= (no mode=); it used to be skipped.
+  const info = classifyCard({
+    id: "1435",
+    title: "GPT Image 2.6 Flare and Sunburst",
+    text: "[GPT Image 2.6 Flare](https://nano-gpt.com/media?model=gpt-image-2.6-flare) and [GPT Image 2.6 Sunburst](https://nano-gpt.com/media?model=gpt-image-2.6-sunburst) generate and edit images with up to 16 references. The image API also generates animated GIFs with 2–64 frames.",
+    date: "2026-11-05",
+    category: "media",
+  });
+  if (info.skip || info.kind !== "image")
+    fail("bare /media?model= card must be New image, got kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.map(m => m.slug + ":" + m.kind).join(",") !== "gpt-image-2.6-flare:image,gpt-image-2.6-sunburst:image")
+    fail("bare /media?model= card must keep both models as image, got " + JSON.stringify(info.models));
+  else ok("bare /media?model= card is New image with both models");
+
+  const vid = classifyCard({
+    id: "bare-video",
+    title: "Example Motion 2",
+    text: "[Example Motion 2](https://nano-gpt.com/media?model=example-motion-2) turns a still image into a 5 second video.",
+    date: "2026-11-05",
+  });
+  if (vid.skip || vid.kind !== "video")
+    fail("bare /media?model= video card must be video, got kind=" + vid.kind + " skip=" + vid.skip);
+  else ok("bare /media?model= card that says video is New video");
+}
+
+{
+  const info = classifyCard({
+    id: "1433",
+    title: "LongStories: Turn One Idea Into a Short Film",
+    text: "LongStories is now on NanoGPT. It animates the shots and edits a finished short film.\n\nTry it at [nano-gpt.com/media](https://nano-gpt.com/media?model=longstories%2Fstory-fast).",
+    date: "2026-11-05",
+    category: "media",
+  });
+  if (info.skip || info.kind !== "video")
+    fail("LongStories card must be New video, got kind=" + info.kind + " skip=" + info.skip);
+  else if (info.models.length !== 1 || info.models[0].name !== "LongStories")
+    fail("URL link text must not become the model name, got " + JSON.stringify(info.models));
+  else ok("URL link text falls back to the title head (LongStories)");
+}
+
 if (failed) {
   console.error("\n✗ check-title-intent-edges: " + failed + " failed");
   process.exit(1);

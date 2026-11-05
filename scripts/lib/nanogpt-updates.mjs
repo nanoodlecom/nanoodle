@@ -30,7 +30,10 @@ export const MONTHS = {
 // NanoGPT also links new launches as /chat?model= (GPT-6.1 Terra, 2026-10-26) and
 // /studio/image|video|audio?model= (Qwen Image 3 Uncensored, 2026-10-25); the
 // classifier used to skip those cards, so the launches never reached 📣.
-const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?((?:conversation|chat)\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=|studio\/(image|video|audio)\?model=)([^)\s"'&]+)/i;
+// 2026-11-05 (#1435 GPT Image 2.6 Flare & Sunburst): NanoGPT also links bare
+// /media?model= with no mode=. Those parse as kind "media" and classifyCard
+// resolves image/video/audio from the card's own words (mediaKindFromText).
+const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?((?:conversation|chat)\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=|studio\/(image|video|audio)\?model=|media\?model=)([^)\s"'&]+)/i;
 
 export function seenKeyForId(id) {
   return id != null && String(id) !== "" ? `${ID_PREFIX}${id}` : null;
@@ -145,10 +148,24 @@ export function extractHtmlModelLinks(html) {
 export function parseModelUrl(url) {
   const m = String(url || "").match(MODEL_PATH_RE);
   if (!m) return null;
-  const kind = /^(conversation|chat)\?/i.test(m[1]) ? "chat" : (m[2] || m[3]).toLowerCase();
+  const kind = /^(conversation|chat)\?/i.test(m[1]) ? "chat" : (m[2] || m[3] || "media").toLowerCase();
   const slug = decodeSlug(m[4]);
   if (!slug) return null;
   return { slug, kind };
+}
+
+// A bare /media?model= link carries no mode, so read the card: the title wins,
+// then the body. Video before audio before image, because video cards often say
+// "turns an image into video" and audio cards rarely mention video. Default image.
+export function mediaKindFromText(title, text) {
+  const pick = (t) => {
+    const s = String(t || "");
+    if (/\b(video|videos|footage|clip|clips|film|films|movie|movies|animation)\b/i.test(s)) return "video";
+    if (/\b(audio|music|song|songs|voice|speech|sound|sfx|tts)\b/i.test(s)) return "audio";
+    if (/\b(image|images|photo|photos|picture|pictures|gif|gifs)\b/i.test(s)) return "image";
+    return null;
+  };
+  return pick(title) || pick(text) || "image";
 }
 
 function cardKindFromModels(models) {
@@ -242,8 +259,20 @@ export function classifyCard(card) {
   // caller passes card.knownSlugs) every linked model is already known.
   if (intent === "new" && isProviderCard(rawText) && !addsNewModels(title, rawText, extracted, card && card.knownSlugs)) intent = "provider";
   const models = subjectModels(title, extracted, intent);
-  const linkKind = cardKindFromModels(models);
   const description = markdownToPlain(rawText);
+  // "Try it at [nano-gpt.com/media](…?model=longstories%2Fstory-fast)" (#1433):
+  // link text that is a URL is not a model name — use the title head instead.
+  for (const m of models) {
+    if (/^(?:https?:\/\/)?(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:\/\S*)?$/i.test(String(m.name || "").trim())) {
+      const head = title.split(/\s*[:—–]\s+|\s+-\s+/)[0].trim();
+      m.name = models.length === 1 && head ? head : m.slug;
+    }
+  }
+  let linkKind = cardKindFromModels(models);
+  if (linkKind === "media") {
+    linkKind = mediaKindFromText(title, description);
+    for (const m of models) if (m.kind === "media") m.kind = linkKind;
+  }
 
   let skip = false;
   let kind = linkKind;
