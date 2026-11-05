@@ -361,9 +361,13 @@ const producerCands = [
       { type: "text", ports: [] },
     ],
   });
+  // Live corpus: stay quiet while image-out targets are tied; once one type
+  // clearly leads (e.g. image→edit after one-shot-every-format), it must lead.
+  const imgTop = Object.entries(portTables.topTargets?.["image|image"] || {})
+    .sort((a, b) => b[1] - a[1])[0]?.[0]?.split("|")[0];
   toy(
-    "image-out-live-quiet-when-tied",
-    imgLive === null,
+    "image-out-live-quiet-or-corpus-leader",
+    imgLive === null || imgLive?.order?.[0] === imgTop,
     imgLive?.order?.join(",") || "null"
   );
   const imgPeaked = {

@@ -2132,5 +2132,63 @@
         ]
       }
     ]
+  },
+  {
+    "slug": "one-shot-every-format",
+    "title": "One shot, every format",
+    "date": "2026-11-03",
+    "review": "All three formats keep the original picture pixel for pixel in the middle and extend it seamlessly; the 9:16 adds a second village",
+    "note": "Muse draws one wide 16:9 banner picture: a paper-craft hot-air balloon in orange and cream stripes over a patchwork valley of felt fields, a blue paper river and a cluster of white paper houses with red roofs, under a pale sky with two cotton clouds at golden hour. Three Edit nodes then send that same picture to Bria FIBO Generate 1.5 in expand mode, one at 9:16, one at 4:5 and one at 1:1. Each keeps the Muse picture unchanged and unscaled in the middle (the pixels match it to within compression noise) and paints new scene above and below it: more pale sky and paper texture on top, more stitched felt fields and river at the bottom. Nothing in the original is cropped away, so the balloon, the clouds and the village stay where they were in every format. Flaws: the 9:16 version invents a second, nearer cluster of red-roofed houses in the new lower strip, so the village appears twice. The new sky is a plain wall-like texture with no extra clouds. The expand setting rides on each FIBO node as fibo_operation: expand; the editor doesn't show it as a knob yet, so duplicate one of these nodes (or change its aspect) when you want another format. Swap the Wide 16:9 Image for a 📷 Image input to reframe your own finished shot. All four stills were checked and are SFW (no people, no text, no logos). Inspired by @VFXDESK's openreframe ComfyUI node (https://x.com/VFXDESK/status/2117636342565990433): one finished edit in, 9:16, 4:5 and 1:1 out. No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.131,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "bria/fibo-generate-1.5/text-to-image"
+    ],
+    "graphSha256": "23183a66ab753ca8f90f4f2caf4c95dcbbf6b8f5b768d20a72a7531f792d8e8b",
+    "inputs": [
+      {
+        "label": "Wide shot · prompt",
+        "text": "A wide 16:9 cinematic banner shot in a handmade paper-craft style. A small hot-air balloon made of folded tangerine-orange and cream paper stripes, with a little woven wicker basket, floats in the center of the frame over a patchwork valley of felt fields in sage green, mustard and terracotta, with a winding blue paper river and a tiny village of white paper houses with red roofs. Soft golden-hour light from the left, a few cotton-wool clouds, warm and calm. The balloon sits in the middle of the frame with open space around it. No people, no text, no letters, no logos, no watermark."
+      },
+      {
+        "label": "Expand · instruction",
+        "text": "Expand the picture outward to fill the new frame. Keep the original picture exactly as it is, and continue the same scene, style, colors and light past its edges, so the new top, bottom and sides look like they were always part of the shot. No text, no letters, no logos, no borders."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "one-shot-every-format/wide-16x9.webp",
+        "kind": "image",
+        "label": "1. Wide shot: Muse 16:9 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "ca83870b7a54fc3d0a33af7b5484fd5b5b78e6700f9d30981f215670cd935a87"
+      },
+      {
+        "src": "one-shot-every-format/tall-9x16.webp",
+        "kind": "image",
+        "label": "2. Tall 9:16: FIBO expand, original kept in the middle · reported $0.04",
+        "costUsd": 0.04,
+        "sha256": "6ada0b2fcf9fec33d6be8b550fb4403f29071b5995e2314796a0f5a974ed5493"
+      },
+      {
+        "src": "one-shot-every-format/feed-4x5.webp",
+        "kind": "image",
+        "label": "3. Feed 4:5: FIBO expand · reported $0.04",
+        "costUsd": 0.04,
+        "sha256": "6429f444fc7a966272b357d0fa3409387b69fe0a6f1ab4508a9354bb82171c57"
+      },
+      {
+        "src": "one-shot-every-format/square-1x1.webp",
+        "kind": "image",
+        "label": "4. Square 1:1: FIBO expand · reported $0.04",
+        "costUsd": 0.04,
+        "sha256": "819f6760fae1bbfb7b93a96c21a33f00efc8a798426b06e1f049ff2a00df1942"
+      }
+    ],
+    "preview": "one-shot-every-format/preview.webp",
+    "workflow": "one-shot-every-format/workflow.json",
+    "workflowSha256": "23183a66ab753ca8f90f4f2caf4c95dcbbf6b8f5b768d20a72a7531f792d8e8b"
   }
 ]

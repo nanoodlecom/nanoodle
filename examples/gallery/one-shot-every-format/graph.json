@@ -1,0 +1,193 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -220,
+      "w": 1040,
+      "fields": {
+        "color": "yellow",
+        "text": "One shot, every format. Make one wide 16:9 picture, then get a tall 9:16 (Stories, Reels, Shorts), a 4:5 (feed post) and a square 1:1 from it without cropping anything out. 1) Muse draws a wide banner picture so the example runs on its own; swap it for a \ud83d\udcf7 Image input with your own finished shot. 2) Three Bria FIBO Generate 1.5 Edit nodes run in expand mode: each keeps the original picture unchanged in the middle and paints new scene above and below it to reach its aspect. Change a node's aspect to get another format. Inspired by @VFXDESK's openreframe ComfyUI node (one finished edit in, 9:16, 4:5 and 1:1 out): https://x.com/VFXDESK/status/2117636342565990433"
+      }
+    },
+    {
+      "id": "p-wide",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "name": "Wide shot \u00b7 prompt",
+      "fields": {
+        "text": "A wide 16:9 cinematic banner shot in a handmade paper-craft style. A small hot-air balloon made of folded tangerine-orange and cream paper stripes, with a little woven wicker basket, floats in the center of the frame over a patchwork valley of felt fields in sage green, mustard and terracotta, with a winding blue paper river and a tiny village of white paper houses with red roofs. Soft golden-hour light from the left, a few cotton-wool clouds, warm and calm. The balloon sits in the middle of the frame with open space around it. No people, no text, no letters, no logos, no watermark."
+      }
+    },
+    {
+      "id": "wide",
+      "type": "image",
+      "x": 400,
+      "y": 40,
+      "w": 280,
+      "name": "Wide 16:9 \u00b7 Muse",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "p-expand",
+      "type": "text",
+      "x": 400,
+      "y": 420,
+      "w": 280,
+      "name": "Expand \u00b7 instruction",
+      "fields": {
+        "text": "Expand the picture outward to fill the new frame. Keep the original picture exactly as it is, and continue the same scene, style, colors and light past its edges, so the new top, bottom and sides look like they were always part of the shot. No text, no letters, no logos, no borders."
+      }
+    },
+    {
+      "id": "tall",
+      "type": "edit",
+      "x": 760,
+      "y": -20,
+      "w": 280,
+      "name": "Tall 9:16 \u00b7 Stories \u00b7 FIBO expand",
+      "fields": {
+        "model": "bria/fibo-generate-1.5/text-to-image",
+        "size": "1mp",
+        "aspect": "9:16",
+        "prompt": "",
+        "modelOpts": {
+          "fibo_operation": "expand"
+        }
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "feed",
+      "type": "edit",
+      "x": 760,
+      "y": 340,
+      "w": 280,
+      "name": "Feed 4:5 \u00b7 FIBO expand",
+      "fields": {
+        "model": "bria/fibo-generate-1.5/text-to-image",
+        "size": "1mp",
+        "aspect": "4:5",
+        "prompt": "",
+        "modelOpts": {
+          "fibo_operation": "expand"
+        }
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "square",
+      "type": "edit",
+      "x": 760,
+      "y": 700,
+      "w": 280,
+      "name": "Square 1:1 \u00b7 FIBO expand",
+      "fields": {
+        "model": "bria/fibo-generate-1.5/text-to-image",
+        "size": "1mp",
+        "aspect": "1:1",
+        "prompt": "",
+        "modelOpts": {
+          "fibo_operation": "expand"
+        }
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-wide",
+        "port": "text"
+      },
+      "to": {
+        "node": "wide",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "wide",
+        "port": "image"
+      },
+      "to": {
+        "node": "tall",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "p-expand",
+        "port": "text"
+      },
+      "to": {
+        "node": "tall",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "wide",
+        "port": "image"
+      },
+      "to": {
+        "node": "feed",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "p-expand",
+        "port": "text"
+      },
+      "to": {
+        "node": "feed",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "wide",
+        "port": "image"
+      },
+      "to": {
+        "node": "square",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "p-expand",
+        "port": "text"
+      },
+      "to": {
+        "node": "square",
+        "port": "prompt"
+      }
+    }
+  ]
+}
