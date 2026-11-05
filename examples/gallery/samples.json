@@ -2132,5 +2132,54 @@
         ]
       }
     ]
+  },
+  {
+    "slug": "one-prompt-looping-gif",
+    "title": "One prompt, one looping GIF",
+    "date": "2026-11-05",
+    "review": "Two 12-frame looping GIFs from one line, one image call each; the pedalling is cartoon-approximate and Flare's pelican looks more like a stork",
+    "note": "You type one line, \"a pelican riding a bicycle\". GLM 5.3 Flash rewrites it as a loop-ready animation brief: sticker style, side view, one pedalling cycle that ends on the pose it started from, a still camera and a plain light-blue background. The same brief goes to the two new GPT Image 2.6 models, Flare (fast) and Sunburst (detailed), and each Image node returns a 12-frame animated GIF (512×512, 100 ms a frame, a 1.2 s loop that repeats forever) from a single image call. There is no video model, no frame stitching and no ffmpeg in the graph. This is the first nanoodle example whose output is an animated GIF, and the first to use GPT Image 2.6. The GIF settings ride in each Image node's model options: output_format gif, frame_count 12, frame_duration_ms 100, background opaque, quality medium. Both GIFs below are the files the API returned, untouched. Flaws: Flare's bird has no throat pouch, so it reads more like a stork or gull than a pelican; Sunburst's has the pouch and pink cheeks. In both GIFs the feet often miss the pedals, a leg passes through the frame tube in some frames and the crank doesn't turn a clean circle, so it only reads as pedalling at speed. Sunburst's head and body shift a few pixels between frames, so it looks slightly jittery; Flare is steadier. The loop seam is about as big as any other frame step, so there's no visible jump, but at 10 fps the motion is stepped. A transparent background isn't possible: GIF plus background transparent returns a 400 (\"Transparent backgrounds require PNG or WebP output\"), so key out the flat blue yourself for a real sticker. Each 1.2 s GIF is over 700 KB, heavy for a sticker. Sunburst took 28.8 s against Flare's 12.3 s at the same price. Every one of the 24 GIF frames was checked at full size and is SFW (a cartoon bird on a bicycle; no people, text or logos). Inspired by @SSHCodes trying \"gpt image 2.6 generate a gif of a pelican riding a bicycle\" (https://x.com/SSHCodes/status/2118127375481504100), a riff on Simon Willison's pelican-on-a-bicycle benchmark, and by @maker_evan's sprite GIFs (https://x.com/maker_evan/status/2118235531608039709). No media from those posts is used. Write-up: https://subnano.me/@nano_maxi/one-prompt-one-looping-gif-pelican-on-a-bicycle-for-19-cents-with-gpt-image-26",
+    "layout": "sequence",
+    "costUsd": 0.19,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "gpt-image-2.6-flare",
+      "gpt-image-2.6-sunburst"
+    ],
+    "graphSha256": "8ff22809f5f122712e0a1ab2b02df08b602084d5c8738551f36157ce0c2e1555",
+    "inputs": [
+      {
+        "label": "Idea (one line)",
+        "text": "a pelican riding a bicycle"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "one-prompt-looping-gif/brief.txt",
+        "kind": "text",
+        "label": "1. Loop brief: GLM 5.3 Flash · reported $0.0005",
+        "costUsd": 0.0005,
+        "sha256": "ea112787cb19d7bcd41d29116c7903140a39e593cd695fd6136f9e998033df15"
+      },
+      {
+        "src": "one-prompt-looping-gif/flare.gif",
+        "kind": "image",
+        "label": "2. Looping GIF: GPT Image 2.6 Flare, 12 frames × 100 ms, 512² medium · reported $0.0948",
+        "costUsd": 0.0948,
+        "sha256": "194e7a21a397af873ead6872ac4b0ad4f2e0d3b65d40db507e0ca3a46728a9b5"
+      },
+      {
+        "src": "one-prompt-looping-gif/sunburst.gif",
+        "kind": "image",
+        "label": "3. Looping GIF: GPT Image 2.6 Sunburst, same settings · reported $0.0948",
+        "costUsd": 0.0948,
+        "sha256": "d996725c03a322fca6fe4877877ef42e5b1c6897bbe64f9b223044995c14dde5"
+      }
+    ],
+    "preview": "one-prompt-looping-gif/preview.webp",
+    "workflow": "one-prompt-looping-gif/workflow.json",
+    "workflowSha256": "c611092ac3bcd9295532d3ad602a78f34727bc619abfc7a8e2e4364255f3ae45",
+    "workflowNote": "The saved run asked for 12-frame 512×512 GIFs. The editor's size list only offers the sizes NanoGPT's catalog lists for GPT Image 2.6, the smallest being 1024×1024, and OpenAI's aggregate request pixel budget (8,294,400) allows at most 7 frames at 1024×1024 with n=1 (7×1024×1024 = 7,340,032 ≤ 8,294,400; 12×1024×1024 = 12,582,912 would exceed it), so the editor workflow uses 7 frames at 1024×1024. Background stays opaque. A 1024² GIF has four times the pixels of each 512² frame, so expect it to cost more than the saved run's $0.19; that size wasn't run for this example."
   }
 ]

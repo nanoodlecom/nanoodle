@@ -25,6 +25,13 @@ const portTables = JSON.parse(
 const index = readFileSync(join(ROOT, "index.html"), "utf8");
 const known = new Set(Object.keys(portTables.portCatalog));
 
+// The LLM→Join preference toys below run on a synthetic prior, not the live corpus: the
+// gallery's real LLM consumers shift as examples land (one-prompt-looping-gif wires one brief
+// into two Image prompts, so Join 9 / Image 7 no longer clears the lead and the live corpus
+// rightly stays quiet). These are the counts the toys were written against.
+const llmJoinLead = { ...portTables, topTargets: { ...portTables.topTargets,
+  "llm|text": { "image|prompt": 5, "join|b": 7, "music|prompt": 1, "tts|prompt": 1, "join|a": 2, "ivideo|prompt": 1, "llm|prompt": 1, "music|lyrics": 2 } } };
+
 let failed = 0;
 const fail = (m) => { console.error("✗ " + m); failed++; };
 const ok = (m) => console.log("✓ " + m);
@@ -83,7 +90,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const hits = rankSelectedOutputConsumers(
-    portTables,
+    llmJoinLead,
     graph([{ id: "l", type: "llm" }], [], "l"),
     { nodeTypes: known }
   );

@@ -38,6 +38,8 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
+    image('gpt-image-2.6-flare', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
+    image('gpt-image-2.6-sunburst', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
   ],
   video: [

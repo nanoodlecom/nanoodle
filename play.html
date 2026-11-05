@@ -7213,6 +7213,7 @@ window.NoodleApp = (function () {
   "generations":{es:"generaciones",fr:"générations",de:"Generierungen",pt:"gerações",ja:"生成"},
   "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
   "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
+  "subtotal + unknown GIF":{es:"subtotal + GIF desconocido",fr:"sous-total + GIF inconnu",de:"Zwischensumme + unbekannter GIF",pt:"subtotal + GIF desconhecido",ja:"小計 + 不明なGIF"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
   "Sign in":{es:"Iniciar sesión",fr:"Se connecter",de:"Anmelden",pt:"Entrar",ja:"サインイン"},
   "search models or paste an id…":{es:"busca modelos o pega un id…",fr:"cherchez un modèle ou collez un id…",de:"Modelle suchen oder eine ID einfügen…",pt:"busque modelos ou cole um id…",ja:"モデルを検索、またはIDを貼り付け…"},
@@ -8009,6 +8010,13 @@ window.NoodleApp = (function () {
     if(n.fields && n.fields.model === id) return n.fields;
     return Object.assign({}, n.fields || {}, { model: id });
   }
+  // Animated GIF output rides in modelOpts.output_format. Catalog sizePrices are still-image
+  // rates — NanoGPT settles GIF runs from token usage — so never treat those as an exact GIF price.
+  // Twin of index.html imageOutputIsGif. Kept pure (no STATE) so check-pricing can extract it.
+  function imageOutputIsGif(fields){
+    const o = fields && fields.modelOpts;
+    return !!(o && typeof o==="object" && String(o.output_format||"").toLowerCase()==="gif");
+  }
   // one node's USD/run from its chosen model + settings (pricing pulled from the public catalog)
   async function nodeUnitUsdPlay(n){
     const kind = SETTING_MODEL_KIND[n.type]; if(!kind) return null;
@@ -8016,7 +8024,10 @@ window.NoodleApp = (function () {
     const id = f && f.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
     const pricing = applyVideoQuotePricing(id, m.pricing);
-    if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
+    if(kind==="image"){
+      // GIF output has no listed still-equivalent estimate — mark unpriced (twin of editor nodeUnitUsd).
+      if(imageOutputIsGif(f)) return null;
+      const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
       // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
       // fixed>1 is the ONE predicate for "the model dictates the count" — twin of the editor's nodeUnitUsd and of
@@ -8070,7 +8081,8 @@ window.NoodleApp = (function () {
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
-    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact };
+    // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay() };
     paintRunCost();
   }
   // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
@@ -8084,12 +8096,16 @@ window.NoodleApp = (function () {
     if(!rc || !rc.priced){ el.hidden = true; return; }
     const n = RUNS_N || 1;
     const total = rc.usd * n;
+    // GIF is token-settled; don't paint the priced subtotal as a complete /run total.
+    // Read from the forecast (set by refreshRunCost) so this fn stays harness-extractable.
+    const gifUnknown = !!rc.gifUnknown;
     el.hidden = false;
     el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
-      + '<span class="rc-lbl">' + t("/run") + (n>1 ? " · " + n + "×" : "") + '</span>';
+      + '<span class="rc-lbl">' + (gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
     var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
     if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
     if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
+    if(gifUnknown) tip += ". GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill";
     tip += rc.exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
     el.title = tip;
   }
@@ -8101,6 +8117,14 @@ window.NoodleApp = (function () {
     const btn = $("app-run");
     if(btn && btn.nextSibling) rr.insertBefore(el, btn.nextSibling); else rr.appendChild(el);
     return el;
+  }
+
+  function graphHasGifImageNodesPlay(){
+    const g = STATE && STATE.graph; if(!g || !g.nodes) return false;
+    return g.nodes.some(function(n){
+      if(SETTING_MODEL_KIND[n.type]!=="image") return false;
+      return imageOutputIsGif(effectiveModelFieldsPlay(n));
+    });
   }
 
   /* ---------- mdl (verbatim) ---------- */
@@ -8332,7 +8356,9 @@ function imgExtra(n){
       if(!rawUrls.length) throw new Error("no image in response");
       // Record cost before the content read: if that read fails, the paid request is still on the meter.
       const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
-      if(c.usd==null){ const est = await estImageUsd(model, size, rawUrls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
+      // GIF output is token-settled: never invent a still catalog amount when settlement is absent.
+      const gifOut = !!(extra && typeof extra==="object" && String(extra.output_format||"").toLowerCase()==="gif");
+      if(c.usd==null && !gifOut){ const est = await estImageUsd(model, size, rawUrls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
       onCost(c);
       const urls = [];
       for(const u of rawUrls){
@@ -14182,6 +14208,10 @@ const PROMPT_CAPS = {
     const _forecast = COST.estUsd!=null ? COST.estUsd * N : null;   // N lanes this press
     if(COST.balance!=null && _forecast!=null && _forecast>0 && COST.balance < _forecast){
       statusLine("__lowbal__","warn", t("balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com").replace("{bal}",()=>fmtUsd(COST.balance)).replace("{usd}",()=>fmtUsd(_forecast)));
+    }
+    // Twin of the editor's warnGifUnknownCost: still-image catalog price is not the GIF bill.
+    if(graphHasGifImageNodesPlay()){
+      statusLine("__gifcost__","warn", t("GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill"));
     }
     const outIds = new Set(STATE.outputs.map(n=>n.id));
 
