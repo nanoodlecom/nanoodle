@@ -1,0 +1,346 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -200,
+      "w": 1160,
+      "fields": {
+        "text": "Extend the shot. One clip, made longer twice without a cut: H3 Max Turbo animates the opening still for 5 s, then two Video edit nodes on MiniMax H3 Max Turbo Extend each add 5 s more, continuing from the real end of the clip they're given (Return: Full extended video), so you end with one 15 s continuous shot. The Style bible is joined onto every prompt so the look never drifts, and each beat moves the story on. Inspired by @ai_hakase_'s long-video ComfyUI thread (MiniMax H3 + OBVPM Timeline, Extend): https://x.com/ai_hakase_/status/2117856442866905109",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "style",
+      "type": "text",
+      "x": 40,
+      "y": 40,
+      "w": 340,
+      "fields": {
+        "text": "Style bible (keep identical in every shot): warm macro tabletop photography of a small wind-up tin robot toy with a rounded copper body, one round glass eye, a brass wind-up key on its back and tiny black rubber feet. Setting: a pale oak kitchen table by a window in early morning, soft golden side light from the left, shallow depth of field, muted teal and copper palette, gentle 35mm film grain. One continuous shot, smooth slow camera that stays low at table height. No people, no hands, no text, no logos."
+      },
+      "name": "Style bible"
+    },
+    {
+      "id": "p-open",
+      "type": "text",
+      "x": 40,
+      "y": 330,
+      "w": 340,
+      "fields": {
+        "text": "Opening frame: the tin robot stands at the left end of the oak table, facing right. A few steps in front of it sits one white sugar cube, and farther right a white teacup full of tea sits on a saucer with a thin curl of steam. Wide, low, eye-level with the robot, lots of soft background blur."
+      },
+      "name": "Opening frame"
+    },
+    {
+      "id": "p-b1",
+      "type": "text",
+      "x": 40,
+      "y": 560,
+      "w": 340,
+      "fields": {
+        "text": "Shot 1 of 3: the brass key on the robot's back starts turning, and the robot waddles forward in small stiff clockwork steps toward the sugar cube. The camera dollies slowly to the right alongside it. The robot stops right in front of the sugar cube."
+      },
+      "name": "Beat 1"
+    },
+    {
+      "id": "p-b2",
+      "type": "text",
+      "x": 40,
+      "y": 790,
+      "w": 340,
+      "fields": {
+        "text": "Shot 2 of 3, continue the same shot: the robot bends at the waist, picks the sugar cube up in both hands, straightens up and carries it toward the teacup, wobbling a little with each step. The camera keeps tracking right with it."
+      },
+      "name": "Beat 2"
+    },
+    {
+      "id": "p-b3",
+      "type": "text",
+      "x": 40,
+      "y": 1020,
+      "w": 340,
+      "fields": {
+        "text": "Shot 3 of 3, continue the same shot: the robot stops at the saucer, lifts the sugar cube over the rim and drops it into the tea with a small splash, then turns toward the camera and raises one arm in a little wave as its key slows and stops. The camera settles and holds."
+      },
+      "name": "Beat 3"
+    },
+    {
+      "id": "j-open",
+      "type": "join",
+      "x": 420,
+      "y": 330,
+      "w": 220,
+      "fields": {
+        "sep": "\\n\\n"
+      },
+      "name": "Style + opening"
+    },
+    {
+      "id": "j-b1",
+      "type": "join",
+      "x": 420,
+      "y": 560,
+      "w": 220,
+      "fields": {
+        "sep": "\\n\\n"
+      },
+      "name": "Style + beat 1"
+    },
+    {
+      "id": "j-b2",
+      "type": "join",
+      "x": 420,
+      "y": 790,
+      "w": 220,
+      "fields": {
+        "sep": "\\n\\n"
+      },
+      "name": "Style + beat 2"
+    },
+    {
+      "id": "j-b3",
+      "type": "join",
+      "x": 420,
+      "y": 1020,
+      "w": 220,
+      "fields": {
+        "sep": "\\n\\n"
+      },
+      "name": "Style + beat 3"
+    },
+    {
+      "id": "still",
+      "type": "image",
+      "x": 680,
+      "y": 300,
+      "w": 280,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "name": "Opening still · Muse 16:9"
+    },
+    {
+      "id": "clip",
+      "type": "ivideo",
+      "x": 1000,
+      "y": 420,
+      "w": 300,
+      "fields": {
+        "model": "minimax/h3-max-turbo",
+        "prompt": "",
+        "resolution": "768p",
+        "duration": "5",
+        "loras": []
+      },
+      "name": "Shot 0–5 s · H3 Max Turbo"
+    },
+    {
+      "id": "ext1",
+      "type": "vedit",
+      "x": 1340,
+      "y": 640,
+      "w": 300,
+      "fields": {
+        "model": "minimax/h3-max-turbo/extend-video",
+        "prompt": "",
+        "resolution": "768p",
+        "duration": "5",
+        "modelOpts": {
+          "output": "extended"
+        },
+        "loras": []
+      },
+      "name": "Extend to 10 s · H3 Max Turbo Extend"
+    },
+    {
+      "id": "ext2",
+      "type": "vedit",
+      "x": 1680,
+      "y": 860,
+      "w": 300,
+      "fields": {
+        "model": "minimax/h3-max-turbo/extend-video",
+        "prompt": "",
+        "resolution": "768p",
+        "duration": "5",
+        "modelOpts": {
+          "output": "extended"
+        },
+        "loras": []
+      },
+      "name": "Extend to 15 s · H3 Max Turbo Extend"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "style",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-open",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "p-open",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-open",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "style",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b1",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "p-b1",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b1",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "style",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b2",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "p-b2",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b2",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "style",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b3",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "p-b3",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-b3",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "j-open",
+        "port": "text"
+      },
+      "to": {
+        "node": "still",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "still",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l11",
+      "from": {
+        "node": "j-b1",
+        "port": "text"
+      },
+      "to": {
+        "node": "clip",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l12",
+      "from": {
+        "node": "clip",
+        "port": "video"
+      },
+      "to": {
+        "node": "ext1",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l13",
+      "from": {
+        "node": "j-b2",
+        "port": "text"
+      },
+      "to": {
+        "node": "ext1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l14",
+      "from": {
+        "node": "ext1",
+        "port": "video"
+      },
+      "to": {
+        "node": "ext2",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l15",
+      "from": {
+        "node": "j-b3",
+        "port": "text"
+      },
+      "to": {
+        "node": "ext2",
+        "port": "prompt"
+      }
+    }
+  ]
+}

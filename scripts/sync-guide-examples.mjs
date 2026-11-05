@@ -256,6 +256,14 @@ const HOWTO = {
     inspect: "Check that the selfie frame keeps your product's shape and details and doesn't cover her mouth, read the script for claims the brief doesn't make, and watch the ad with sound to judge the lip sync and whether the product stays steady.",
     costHow: "Muse 1:1 $0.011 + Muse 9:16 $0.011 + Muse Edit 9:16 $0.011 + GLM 5.3 Flash under $0.001 + MiniMax Speech about $0.02 + LongCat Avatar 1.5 at $0.04 per second of voice at 480p, billed in whole seconds ($0.56 for 14 s). The saved run was $0.614. The editor prices LongCat off the voice length: the script's words (about 2.8 per second) before a run, the measured clip after one. When the script length is unknown (nothing wired into Speech yet), the estimate assumes 40 s of voice. LongCat bills at least 3 s and at most 30 s of voice, so the chip clamps the seconds first and then prices them: $0.12–$1.20 at 480p ($0.04/s) and $0.24–$2.40 at 720p ($0.08/s). A second saved input (a woodworker's lunchbox, 11.3 s of voice billed as 12 s) cost $0.529.",
   },
+  "extend-the-shot": {
+    headline: "Extend the shot",
+    job: "Make one AI clip longer, beat by beat, without a cut.",
+    purpose: "Show the Video edit node extending a clip. H3 Max Turbo Extend continues from the real end of the video it's given and returns the old footage plus the new, so you can chain extends to build one long continuous shot and steer each new stretch with its own beat.",
+    edit: "Rewrite the <em>Style bible</em> once to change the whole look, <em>Opening frame</em> to change the first picture, and <em>Beat 1</em>, <em>Beat 2</em> and <em>Beat 3</em> to change what happens in each 5 s stretch. Swap the Opening still Image for a 📷 Image input, or wire a 📹 Video input into the first Video edit node to extend a clip you already have. Duplicate the last Video edit node (plus a Beat Text and a Join) to keep going.",
+    inspect: "Scrub across 5 s and 10.8 s in the final video: there should be no jump or cut. Then check each beat actually happened (here the walk in beat 1 doesn't), and watch for things that appear from nowhere, like the robot's arms.",
+    costHow: "Muse 16:9 $0.011 + H3 Max Turbo 768p 5 s $0.20 + two H3 Max Turbo Extend passes at $0.04 per new second at 768p ($0.20 each). The saved run was $0.611.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -313,7 +321,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "extend-the-shot", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

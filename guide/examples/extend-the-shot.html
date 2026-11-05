@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Extend the shot — nanoodle</title>
+<meta name="description" content="Make one AI clip longer, beat by beat, without a cut. Reported saved run: $0.611." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Extend the shot — nanoodle" />
+<meta property="og:description" content="Make one AI clip longer, beat by beat, without a cut. Reported saved run: $0.611." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/extend-the-shot" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Extend the shot — nanoodle" />
+<meta name="twitter:description" content="Make one AI clip longer, beat by beat, without a cut. Reported saved run: $0.611." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/extend-the-shot" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Extend the shot</span></nav>
+
+  <main>
+    <h1><span class="grad">Extend the shot</span></h1>
+    <p class="lede">Make one AI clip longer, beat by beat, without a cut.</p>
+
+    <section>
+      <p class="meta-row">One continuous 16.5 s shot built in three 5 s pieces: the robot picks up the sugar, drops it in the tea and turns to the camera, with no cut or seam · 2026-11-05 · Reported saved run: $0.611. <code>meta/muse-image/text-to-image</code> · <code>minimax/h3-max-turbo</code> · <code>minimax/h3-max-turbo/extend-video</code></p>
+      <p>Show the Video edit node extending a clip. H3 Max Turbo Extend continues from the real end of the video it&#39;s given and returns the old footage plus the new, so you can chain extends to build one long continuous shot and steer each new stretch with its own beat.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/extend-the-shot/opening-still.webp"><img src="/examples/gallery/extend-the-shot/opening-still.webp" alt="1. Opening still: Muse 16:9 · reported $0.011 — Extend the shot" loading="lazy" /></a><figcaption>1. Opening still: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/extend-the-shot/opening-still.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/extend-the-shot/preview.webp" aria-label="2. First 5 s: H3 Max Turbo, 768p · reported $0.20 — Extend the shot"><source src="/examples/gallery/extend-the-shot/shot-5s.mp4" type="video/mp4"></video><figcaption>2. First 5 s: H3 Max Turbo, 768p · reported $0.20 · <a href="/examples/gallery/extend-the-shot/shot-5s.mp4" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/extend-the-shot/preview.webp" aria-label="3. Extended to 10.8 s: H3 Max Turbo Extend, +5 s · reported $0.20 — Extend the shot"><source src="/examples/gallery/extend-the-shot/extended-10s.mp4" type="video/mp4"></video><figcaption>3. Extended to 10.8 s: H3 Max Turbo Extend, +5 s · reported $0.20 · <a href="/examples/gallery/extend-the-shot/extended-10s.mp4" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/extend-the-shot/preview.webp" aria-label="4. Extended to 16.5 s: H3 Max Turbo Extend, +5 s · reported $0.20 — Extend the shot"><source src="/examples/gallery/extend-the-shot/extended-16s.mp4" type="video/mp4"></video><figcaption>4. Extended to 16.5 s: H3 Max Turbo Extend, +5 s · reported $0.20 · <a href="/examples/gallery/extend-the-shot/extended-16s.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse paints one 16:9 opening still in warm macro tabletop photography: a small copper wind-up tin robot with one round glass eye, a brass key on its back and black rubber feet stands at the left of a pale oak kitchen table, with one sugar cube in front of it and a steaming white teacup on a saucer to the right, against a blurred teal kitchen window. A Style bible Text is joined onto every prompt (the still and all three beats), so the look stays the same from start to finish. MiniMax H3 Max Turbo animates the still for the first 5 s (768p). Then two Video edit nodes on MiniMax H3 Max Turbo Extend each add 5 s more. Each one receives the whole clip so far and continues from its real last moment, and with Return set to Full extended video it hands back the old footage plus the new, so the second extend gets the 10 s video and returns the final one. Beat 1 (0–5 s): the key turns and the robot rocks and turns toward the sugar cube. Beat 2 (5–11 s): it grows two small brass claw arms, picks up the cube and carries it to the cup. Beat 3 (11–16.5 s): it lifts the cube over the rim and drops it into the tea with a small splash, then turns to face the camera, its eye glowing warm orange, and raises its claws. The first 5 s and 10 s inside the final video are the earlier clips&#39; own frames, not a redraw, and there is no visible seam at either join. Flaws: in beat 1 the robot barely moves forward and the camera hardly dollies, so the walk the prompt asks for doesn&#39;t happen. The claw arms appear at 5.5 s, though the still has none. The eye starts glowing orange at the end, which wasn&#39;t asked for. Each continuation runs about 0.6 s long, so the final video is 16.5 s, not 15. The sound is a quiet music bed from the model with no splash sound. Swap the Opening still for a 📷 Image input, or wire your own clip straight into the first Video edit node, to extend your own shot. Every still and sampled video frame was checked and is SFW (a toy robot and a teacup; no people, text or logos). Inspired by @ai_hakase_&#39;s ComfyUI thread on long MiniMax H3 videos with Extend (https://x.com/ai_hakase_/status/2117856442866905109). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite the <em>Style bible</em> once to change the whole look, <em>Opening frame</em> to change the first picture, and <em>Beat 1</em>, <em>Beat 2</em> and <em>Beat 3</em> to change what happens in each 5 s stretch. Swap the Opening still Image for a 📷 Image input, or wire a 📹 Video input into the first Video edit node to extend a clip you already have. Duplicate the last Video edit node (plus a Beat Text and a Join) to keep going.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Muse 16:9 $0.011 + H3 Max Turbo 768p 5 s $0.20 + two H3 Max Turbo Extend passes at $0.04 per new second at 768p ($0.20 each). The saved run was $0.611.</li>
+        <li>Scrub across 5 s and 10.8 s in the final video: there should be no jump or cut. Then check each beat actually happened (here the walk in beat 1 doesn't), and watch for things that appear from nowhere, like the robot's arms.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA-1YzZLbuBG--ym6dLFdS83oZ0Ye65RsKqnswXEq62wO8dYWSDZFWCCaBTSlYbZclXfIw-x9HyVPkmqQ0oga_VDjWZ9ymZEEsvHh-77uBvDzC4DBajCHcSSfLKXoB3P45wsAgJ_DX4CBTgdzGCRDbRktD6LN71yXGEaoKDoD94M53Iy2X-vBHIaT0cMPa5lxPHv4IdNoUpl5M6dEx3uW6H-8Z7QpcI7gc-IreG8REqPLCAqVIhiyC3TAa50grDXnVDEoSCqew5-n8E7dw4fKxQTK6kIx-hCKSrTaLsCzNgYycnALPpIhC7wm-EGnSICpZgisAFl4p62WcJ2oLTxUSQ4qTSUMFOQwgoQsa1vJLJmjIkzrUBmQ5ykL32Ud8qF-6RAWeoUWXv0NuXJ2Dn-qjAEM4TGFlQB6HYEnqKkKMWSxQBZhLJO201HlW54-5Ajfc20QYh0bBO3hE2mLKZBlAlyhq6F0VJQsUQWOIVqClRFInc7YR6A2i4tRMRS0agn0TK4GslfwnfWldphCXMPvlP4pV0vl8aeXPkgzDMDhD1Rk9d-_A84dqhRe7XD5Dbz_9oe_voMPukCjLUYtp6_nkDOXfn59fX-VUHH9EPvas-LKX0_G4zd3t7Obm8ndbPZ2dDsevd26EMSYhpx4qEZjaD1oRz6H_5-jQy73QthjiwcznvL3Tdfd05t-5t7V59USsQSdomWdKAPathqJnK_nsFaugEIljoBVbJCphDInpoVTZV6LpRT4QhkDa23TYVUCawuOYmJgqhu_KHBUBUclVJboIKa0joKNwgAsjPIesMYIFMROvmzCLVEUB80eYpUsgzdY2xpiI19dFcfoIEPkK_gembVdzEFBqQwCqSUsNSchwQS-2EWF0LQOa1XO1JI6kpfi84xhQSZFC15LnutFzg-ZZDDjCHyuRFlIsZRcyCCQHUFRMabAkm0Csl2qAGHGCBZo2SBMb4sCMm0KWDilbVtaunkUgS-IOAcv8ySqQKeAc8XgWdXi8TUobpeUo4C8gr8QlEilwQgsQa5s6sMnkT18MLQgf7U15NYrVhW454vBCbeWQ6ljT7DrdPo0v75vy2bmVIHzIMSDxzzLQgMbrUC7pU4MEFiKIFOJBHENWb-HDNfgGUsvPsgcWZaXNIMXq4k117lmBF8tlIOkirGpS5lynKNrAomZwlOMKqlKyKR8ytyoNnEkP1SVoNukAufaQlK58KBnVMUV_EOnGImskSTB0OAKTfN8KOCyUhmWgFnjUsmFRZM8sancCVk79J0WNh4_Qdbb2RPLUE4MY1nQtBG1yfs237frftnmvWfl2IO0qZCrqu3PjQ3WKk0Nemmqa-VS0bSpSp51lkFiKFmuyS1byZnCU6GnbPVtulebbSkZo9GHDDQ1cNOrWtGlx4T6oNuWt_Eilb59ZtdUe9Mcl-pbaXfjMxpNnqDRm7dfoNEkaLTdW2CzHlU0e6P5jgox7uTiWmnPEZQ6Wfo9CqAqhaBYSlxbqDw7JcSh9TIaCqhyTiTQvKtXk2kRrCmOjfhagdEslTXkS9g2iMgdNaXLeWCnkuW2CDTPaz6nx-SMHtMn6DEeTb5AkGlvQRpHtoI0ZSgCI5usfUVI9l-NxYvAfurkVS1Obs0vRa2tYW1ulUb5fLOBrZztJFZLvcRySntsiqrsJ7TdEU2tEJQP_V1SX_LNh5cC9o6KHuWVZjQnk55qZkG66SnpPh3pY7Jf3RNvcrqRTSanxfNYSuCPH-3Hj_Zc__1mc0w4jf1QqT6PfL9WPzPy-Gz9-nSwfp0Hvl_AfgvgJxP908FEPw_8Uab_FshP-jycNh9D14VaYBf77G7P53vH58ndaegFpWgkdoGsrovK4zDMci3Va8g07M4pi9X_CmDGs3nnELVSTivWZH0YPb-5aY7Uv_4C7yqPEMKdoEROwAcYCafGLiXj0WjvzLVfuEd9OdFyFXB_nU-Hhbofshzkd5fcHIrlyd1fHXoylTAhI29md-XuaFo5tRm73R0w5FS4VPnxuIGkk4z---__yDn-1186FwynuMN7PlB6VnJrsUfddK_pzfbPq19C3XVzSTHsavbcPAYI70vuIgMYUMVlxS0f4bJksB3-fJkQm7smgvHosRTtvcQZRQ7U1EOK7Cf43f7W_f-K7ClyIDm6irwA-DHcYxptl0fvMc1OyshtQpdWuex7fA8kzJHj7X7yEVymw2H2NjY7cVSf2ygz6YO1PDrJc4GNe4GdflVid3ZdF9N604_Ww1M8D9B-lN5-XUonT6d01pPSg1M8D9B-lL75upROn07pXU9KD07xPED7Ufq2D9Dj1eUyqN099E6Ytrf1ATwe9TPBkZmavXNvxJ0t7tEwJ_H26lnHSs1l_B5Dewm9vdrWsYmaTUtvvJ1N8NEwJ-H2alzHqs5l7B5Dewm7vbpXP1r64D246gvY7dXDjhWgi9k9iPYgu7JdfPH5f8yn8j8DHwAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#extend-the-shot">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/extend-the-shot/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/extend-the-shot/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#extend-the-shot">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/creator-ad">A creator ad for your product</a>
+        <a href="/guide/examples/swap-the-character">Swap the character, keep the performance →</a>
+        <a href="/examples/gallery/#extend-the-shot">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
