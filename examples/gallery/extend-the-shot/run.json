@@ -1,0 +1,41 @@
+{
+  "label": "2026-11-05 extend-the-shot (Muse 16:9 opening still → MiniMax H3 Max Turbo 768p 5 s → two Video edit nodes on MiniMax H3 Max Turbo Extend, +5 s each, Return: Full extended video)",
+  "startedAt": "2026-11-05T18:46:10.240Z",
+  "finishedAt": "2026-11-05T18:48:44.802Z",
+  "costUsd": 0.611,
+  "costExact": true,
+  "balanceBefore": 44.82379351,
+  "balanceAfter": 44.21279351,
+  "balanceDelta": 0.611,
+  "nodes": {
+    "still": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "opening-still.webp"
+      }
+    },
+    "clip": {
+      "status": "done",
+      "costUsd": 0.2,
+      "files": {
+        "video": "shot-5s.mp4"
+      }
+    },
+    "ext1": {
+      "status": "done",
+      "costUsd": 0.2,
+      "files": {
+        "video": "extended-10s.mp4"
+      }
+    },
+    "ext2": {
+      "status": "done",
+      "costUsd": 0.2,
+      "files": {
+        "video": "extended-16s.mp4"
+      }
+    }
+  },
+  "note": "One pass of this graph from the box with nanoodle-js against the live catalog, no retakes. Muse returned 2048×1152. H3 Max Turbo returned 1344×768 at 24 fps, 5.18 s; the first extend returned the full video at 10.83 s and the second at 16.50 s (each continuation runs about 0.6 s past the 5 s asked for, billed as 5 s). The extended videos keep the source footage: over the first 10 s the 16.5 s video differs from the 10.8 s one by 0.3/255 on average and from the 5 s clip by 1.5/255 (re-encode level), so the extend continues the real clip instead of redrawing it. Every video carries a quiet music bed from the model; a Whisper check ($0.001, not part of this graph) heard only music. Image re-saved as WebP (max 1280 px) and the clips re-encoded (H.264 CRF 26, AAC 96k) for size; same frames."
+}

@@ -2132,5 +2132,76 @@
         ]
       }
     ]
+  },
+  {
+    "slug": "extend-the-shot",
+    "title": "Extend the shot",
+    "date": "2026-11-05",
+    "review": "One continuous 16.5 s shot built in three 5 s pieces: the robot picks up the sugar, drops it in the tea and turns to the camera, with no cut or seam",
+    "note": "Muse paints one 16:9 opening still in warm macro tabletop photography: a small copper wind-up tin robot with one round glass eye, a brass key on its back and black rubber feet stands at the left of a pale oak kitchen table, with one sugar cube in front of it and a steaming white teacup on a saucer to the right, against a blurred teal kitchen window. A Style bible Text is joined onto every prompt (the still and all three beats), so the look stays the same from start to finish. MiniMax H3 Max Turbo animates the still for the first 5 s (768p). Then two Video edit nodes on MiniMax H3 Max Turbo Extend each add 5 s more. Each one receives the whole clip so far and continues from its real last moment, and with Return set to Full extended video it hands back the old footage plus the new, so the second extend gets the 10 s video and returns the final one. Beat 1 (0–5 s): the key turns and the robot rocks and turns toward the sugar cube. Beat 2 (5–11 s): it grows two small brass claw arms, picks up the cube and carries it to the cup. Beat 3 (11–16.5 s): it lifts the cube over the rim and drops it into the tea with a small splash, then turns to face the camera, its eye glowing warm orange, and raises its claws. The first 5 s and 10 s inside the final video are the earlier clips' own frames, not a redraw, and there is no visible seam at either join. Flaws: in beat 1 the robot barely moves forward and the camera hardly dollies, so the walk the prompt asks for doesn't happen. The claw arms appear at 5.5 s, though the still has none. The eye starts glowing orange at the end, which wasn't asked for. Each continuation runs about 0.6 s long, so the final video is 16.5 s, not 15. The sound is a quiet music bed from the model with no splash sound. Swap the Opening still for a 📷 Image input, or wire your own clip straight into the first Video edit node, to extend your own shot. Every still and sampled video frame was checked and is SFW (a toy robot and a teacup; no people, text or logos). Inspired by @ai_hakase_'s ComfyUI thread on long MiniMax H3 videos with Extend (https://x.com/ai_hakase_/status/2117856442866905109). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.611,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max-turbo",
+      "minimax/h3-max-turbo/extend-video"
+    ],
+    "graphSha256": "ec2f75352dc2b021b460f54db57987d9323e6c4a363619662dc23936dd25076e",
+    "inputs": [
+      {
+        "label": "Style bible",
+        "text": "Style bible (keep identical in every shot): warm macro tabletop photography of a small wind-up tin robot toy with a rounded copper body, one round glass eye, a brass wind-up key on its back and tiny black rubber feet. Setting: a pale oak kitchen table by a window in early morning, soft golden side light from the left, shallow depth of field, muted teal and copper palette, gentle 35mm film grain. One continuous shot, smooth slow camera that stays low at table height. No people, no hands, no text, no logos."
+      },
+      {
+        "label": "Opening frame",
+        "text": "Opening frame: the tin robot stands at the left end of the oak table, facing right. A few steps in front of it sits one white sugar cube, and farther right a white teacup full of tea sits on a saucer with a thin curl of steam. Wide, low, eye-level with the robot, lots of soft background blur."
+      },
+      {
+        "label": "Beat 1",
+        "text": "Shot 1 of 3: the brass key on the robot's back starts turning, and the robot waddles forward in small stiff clockwork steps toward the sugar cube. The camera dollies slowly to the right alongside it. The robot stops right in front of the sugar cube."
+      },
+      {
+        "label": "Beat 2",
+        "text": "Shot 2 of 3, continue the same shot: the robot bends at the waist, picks the sugar cube up in both hands, straightens up and carries it toward the teacup, wobbling a little with each step. The camera keeps tracking right with it."
+      },
+      {
+        "label": "Beat 3",
+        "text": "Shot 3 of 3, continue the same shot: the robot stops at the saucer, lifts the sugar cube over the rim and drops it into the tea with a small splash, then turns toward the camera and raises one arm in a little wave as its key slows and stops. The camera settles and holds."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "extend-the-shot/opening-still.webp",
+        "kind": "image",
+        "label": "1. Opening still: Muse 16:9 · reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "f01b8879ac7683cd9de5489f59433fca75308e2ea5f58088011c0b7f9bf6949f"
+      },
+      {
+        "src": "extend-the-shot/shot-5s.mp4",
+        "kind": "video",
+        "label": "2. First 5 s: H3 Max Turbo, 768p · reported $0.20",
+        "costUsd": 0.2,
+        "sha256": "2e519993d12f96eb44a50155e89d39c9da72ed8bc364435ede16031c6fdd409d"
+      },
+      {
+        "src": "extend-the-shot/extended-10s.mp4",
+        "kind": "video",
+        "label": "3. Extended to 10.8 s: H3 Max Turbo Extend, +5 s · reported $0.20",
+        "costUsd": 0.2,
+        "sha256": "c51fc8b31c61a664eac25820d57b853cdac1b7404c2c166a66b21d75aefb15b3"
+      },
+      {
+        "src": "extend-the-shot/extended-16s.mp4",
+        "kind": "video",
+        "label": "4. Extended to 16.5 s: H3 Max Turbo Extend, +5 s · reported $0.20",
+        "costUsd": 0.2,
+        "sha256": "21367dea1d99a2509661fc8dc222b9c193964f86db58b34a06932a7c962e1446"
+      }
+    ],
+    "preview": "extend-the-shot/preview.webp",
+    "workflow": "extend-the-shot/workflow.json",
+    "workflowSha256": "ec2f75352dc2b021b460f54db57987d9323e6c4a363619662dc23936dd25076e"
   }
 ]
