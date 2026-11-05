@@ -256,6 +256,14 @@ const HOWTO = {
     inspect: "Check that the selfie frame keeps your product's shape and details and doesn't cover her mouth, read the script for claims the brief doesn't make, and watch the ad with sound to judge the lip sync and whether the product stays steady.",
     costHow: "Muse 1:1 $0.011 + Muse 9:16 $0.011 + Muse Edit 9:16 $0.011 + GLM 5.3 Flash under $0.001 + MiniMax Speech about $0.02 + LongCat Avatar 1.5 at $0.04 per second of voice at 480p, billed in whole seconds ($0.56 for 14 s). The saved run was $0.614. The editor prices LongCat off the voice length: the script's words (about 2.8 per second) before a run, the measured clip after one. When the script length is unknown (nothing wired into Speech yet), the estimate assumes 40 s of voice. LongCat bills at least 3 s and at most 30 s of voice, so the chip clamps the seconds first and then prices them: $0.12–$1.20 at 480p ($0.04/s) and $0.24–$2.40 at 720p ($0.08/s). A second saved input (a woodworker's lunchbox, 11.3 s of voice billed as 12 s) cost $0.529.",
   },
+  "anime-to-cosplay": {
+    headline: "Anime art to a cosplay photo",
+    job: "Turn an anime character drawing into a realistic cosplay photo of an invented adult cosplayer.",
+    purpose: "Show how a vision LLM can sit between two image models. Gemini looks at the drawing and writes its features down as text, and the photo model renders only that text, so you can read, fix or reuse the feature list before paying for the photo.",
+    edit: "Rewrite <em>Anime character · invent</em> for a different original character, or swap the <em>Anime art</em> Image for a 📷 Image input with your own drawing (characters you made, not real people or existing IP). Edit the system prompt on <em>Read the features · Gemini</em> to change the cosplayer, the location or the photo style, and change the size on <em>Cosplay photo</em> for a different frame.",
+    inspect: "Read the feature list against the drawing first, since anything Gemini misreads (here, one braid became two) carries into the photo. Then compare hair, outfit colours, stripes, props and pose between the drawing and the photo.",
+    costHow: "Muse 2:3 $0.011 + Gemini 3.8 Flash about $0.002 + Muse 2:3 $0.011. The saved run was $0.024.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -313,7 +321,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "anime-to-cosplay", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

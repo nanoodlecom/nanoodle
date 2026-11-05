@@ -22,7 +22,7 @@ const catalogs = {
     ...(['google/gemini-3.8-flash', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
   image: [
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9', '9:16'], true),
-    image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9', '9:16']),
+    image('meta/muse-image/text-to-image', ['1:1', '2:3', '3:2', '3:4', '16:9', '9:16']),
     image('nano-banana-edit', ['auto'], true),
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
