@@ -7213,6 +7213,7 @@ window.NoodleApp = (function () {
   "generations":{es:"generaciones",fr:"générations",de:"Generierungen",pt:"gerações",ja:"生成"},
   "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
   "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
+  "subtotal + unknown GIF":{es:"subtotal + GIF desconocido",fr:"sous-total + GIF inconnu",de:"Zwischensumme + unbekannter GIF",pt:"subtotal + GIF desconhecido",ja:"小計 + 不明なGIF"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
   "Sign in":{es:"Iniciar sesión",fr:"Se connecter",de:"Anmelden",pt:"Entrar",ja:"サインイン"},
   "search models or paste an id…":{es:"busca modelos o pega un id…",fr:"cherchez un modèle ou collez un id…",de:"Modelle suchen oder eine ID einfügen…",pt:"busque modelos ou cole um id…",ja:"モデルを検索、またはIDを貼り付け…"},
@@ -8080,7 +8081,8 @@ window.NoodleApp = (function () {
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
-    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact };
+    // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay() };
     paintRunCost();
   }
   // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
@@ -8094,12 +8096,16 @@ window.NoodleApp = (function () {
     if(!rc || !rc.priced){ el.hidden = true; return; }
     const n = RUNS_N || 1;
     const total = rc.usd * n;
+    // GIF is token-settled; don't paint the priced subtotal as a complete /run total.
+    // Read from the forecast (set by refreshRunCost) so this fn stays harness-extractable.
+    const gifUnknown = !!rc.gifUnknown;
     el.hidden = false;
     el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
-      + '<span class="rc-lbl">' + t("/run") + (n>1 ? " · " + n + "×" : "") + '</span>';
+      + '<span class="rc-lbl">' + (gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
     var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
     if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
     if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
+    if(gifUnknown) tip += ". GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill";
     tip += rc.exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
     el.title = tip;
   }
@@ -8350,7 +8356,9 @@ function imgExtra(n){
       if(!rawUrls.length) throw new Error("no image in response");
       // Record cost before the content read: if that read fails, the paid request is still on the meter.
       const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
-      if(c.usd==null){ const est = await estImageUsd(model, size, rawUrls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
+      // GIF output is token-settled: never invent a still catalog amount when settlement is absent.
+      const gifOut = !!(extra && typeof extra==="object" && String(extra.output_format||"").toLowerCase()==="gif");
+      if(c.usd==null && !gifOut){ const est = await estImageUsd(model, size, rawUrls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
       onCost(c);
       const urls = [];
       for(const u of rawUrls){

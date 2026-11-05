@@ -1703,6 +1703,7 @@ const I18N = {
     "write a note…":"escribe una nota…",
     "remove":"quitar",
     "to run":"para ejecutar",
+    "subtotal + unknown GIF":"subtotal + GIF desconocido",
     "to run for real":"para ejecutar de verdad",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Los resultados de muestra son pregrabados, así que esta ejecución no se cobra. Esto es lo que cuesta ejecutar el flujo con tu propia clave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
@@ -2468,6 +2469,7 @@ const I18N = {
     "write a note…":"écrire une note…",
     "remove":"retirer",
     "to run":"pour exécuter",
+    "subtotal + unknown GIF":"sous-total + GIF inconnu",
     "to run for real":"pour exécuter vraiment",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Les résultats d’exemple sont préenregistrés, donc cette exécution n’est pas facturée. Voici ce que coûte l’exécution du graphe avec votre propre clé.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
@@ -3233,6 +3235,7 @@ const I18N = {
     "write a note…":"Notiz schreiben…",
     "remove":"entfernen",
     "to run":"zum Ausführen",
+    "subtotal + unknown GIF":"Zwischensumme + unbekannter GIF",
     "to run for real":"um wirklich auszuführen",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Die Beispielergebnisse sind vorbereitet, deshalb wird dieser Lauf nicht berechnet. So viel kostet es, den Graphen mit eigenem Schlüssel auszuführen.",
     "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
@@ -3998,6 +4001,7 @@ const I18N = {
     "write a note…":"escreva uma nota…",
     "remove":"remover",
     "to run":"para executar",
+    "subtotal + unknown GIF":"subtotal + GIF desconhecido",
     "to run for real":"para executar de verdade",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Os resultados de amostra são pré-gravados, por isso esta execução não é cobrada. Isto é o que custa executar o fluxo com a sua própria chave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
@@ -4763,6 +4767,7 @@ const I18N = {
     "write a note…":"メモを書く…",
     "remove":"削除",
     "to run":"で実行",
+    "subtotal + unknown GIF":"小計 + 不明なGIF",
     "to run for real":"を実際に実行",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"サンプル結果はあらかじめ用意されたものなので、この実行は課金されません。自分のキーでこのグラフを実行するとこの費用がかかります。",
     "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
@@ -8772,15 +8777,20 @@ function refreshRunEstimate(){
   const { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi } = workflowCost();
   if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
+  const gifUnknown = graphHasGifImageNodes();   // GIF is token-settled; never paint the LLM/still subtotal as a complete total
   const ranged = off3d && hi>lo;
   const figure = ranged ? `$${fmtUsdPlain(lo)}–$${fmtUsdPlain(hi)}` : `${exact?"":"~"}${fmtUsd(usd)}`;
   const amt = `<span class="rn-run" aria-hidden="true">▶</span><b>${figure}</b>&nbsp;`;
-  el.innerHTML = demo ? amt + `${esc(t("to run for real"))}` : amt + `${esc(t("to run"))}`;
+  // When any image node asks for GIF, the dollar figure is only the priced subtotal — label it so.
+  el.innerHTML = gifUnknown
+    ? amt + `${esc(t("subtotal + unknown GIF"))}`
+    : (demo ? amt + `${esc(t("to run for real"))}` : amt + `${esc(t("to run"))}`);
   el.title = (demo
       ? t("The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.")
       : t(priced>1 ? "Estimated cost to ▶ Run all — {n} paid nodes" : "Estimated cost to ▶ Run all — {n} paid node").replace("{n}",()=>priced)
         + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
         + ".")
+    + (gifUnknown ? "\n" + t("GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill") : "")
     + (estimate ? "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.") : "")
     + (range3d ? "\n" + t("3D variants bill differently, so this isn’t an exact price.") : "");
 }
@@ -14164,7 +14174,9 @@ const CTX = {
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
     // Bill as soon as the paid request returns: a failed content load below must not drop the charge.
-    const unit = imageUnitUsd(model, size);
+    // GIF output is token-settled: never invent a still sizePrices amount when settlement is absent.
+    const gifOut = !!(extra && typeof extra==="object" && String(extra.output_format||"").toLowerCase()==="gif");
+    const unit = gifOut ? null : imageUnitUsd(model, size);
     accrue(j, unit!=null ? unit*rawUrls.length : null, r);
     const urls = [];
     for(const u of rawUrls){
@@ -20936,14 +20948,14 @@ const EXAMPLES = [
            {id:"l8",from:{node:"mix",port:"image"},to:{node:"ad",port:"image"}},
            {id:"l9",from:{node:"voice",port:"audio"},to:{node:"ad",port:"audio"}},
            {id:"l10",from:{node:"p-delivery",port:"text"},to:{node:"ad",port:"prompt"}} ] } },
- { em:"🚲", slug:"one-prompt-looping-gif", title:"One prompt, one looping GIF", desc:"Type one line; a small LLM writes a loop-ready brief and GPT Image 2.6 Flare and Sunburst each return a 12-frame looping animated GIF in one image call.",
+ { em:"🚲", slug:"one-prompt-looping-gif", title:"One prompt, one looping GIF", desc:"Type one line; a small LLM writes a loop-ready brief and GPT Image 2.6 Flare and Sunburst each return a 7-frame looping animated GIF in one image call.",
    thumb:"examples/gallery/one-prompt-looping-gif/preview.webp",
    graph:{ v:1,
-   nodes:[ {id:"c-intent",type:"comment",x:40,y:-240,w:1200,fields:{"color":"yellow","text":"One prompt, one animated GIF. A small LLM turns a one-line idea into a loop-ready animation brief (a pose to return to, a still camera). The new GPT Image 2.6 models (Flare = fast, Sunburst = detailed) return a 12-frame looping GIF straight from the image endpoint: a sticker, emoji or game sprite in one call. Same brief, both models, side by side. Change the idea and ▶ Run."}},
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-240,w:1200,fields:{"color":"yellow","text":"One prompt, one animated GIF. A small LLM turns a one-line idea into a loop-ready animation brief (a pose to return to, a still camera). The new GPT Image 2.6 models (Flare = fast, Sunburst = detailed) return a 7-frame looping GIF straight from the image endpoint: a sticker, emoji or game sprite in one call. Same brief, both models, side by side. Change the idea and ▶ Run."}},
            {id:"idea",type:"text",x:40,y:40,w:340,fields:{"text":"a pelican riding a bicycle"},name:"Idea (one line)"},
-           {id:"brief",type:"llm",x:420,y:40,w:380,fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"default","maxTokens":"1200","temperature":"0.5","system":"You write prompts for an image model that outputs a short looping animated GIF (12 frames). Turn the user's idea into ONE prompt of 60-110 words. Rules: a cute, clean cartoon sticker style with bold outlines and flat colours; the whole subject fully in frame, centred, side view; a plain flat solid light-blue background with nothing else in the scene (no ground, no shadow, no text); describe ONE simple repeating motion cycle and say that the last frame returns exactly to the starting pose so it loops seamlessly; say the camera stays perfectly still. Family friendly. Output only the prompt, no quotes, no preamble."},name:"Loop brief writer · GLM 5.3 Flash"},
-           {id:"flare",type:"image",x:860,y:-40,w:340,fields:{"model":"gpt-image-2.6-flare","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":12,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Flare (fast)"},
-           {id:"sunburst",type:"image",x:860,y:220,w:340,fields:{"model":"gpt-image-2.6-sunburst","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":12,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Sunburst (detailed)"} ],
+           {id:"brief",type:"llm",x:420,y:40,w:380,fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"default","maxTokens":"1200","temperature":"0.5","system":"You write prompts for an image model that outputs a short looping animated GIF (7 frames). Turn the user's idea into ONE prompt of 60-110 words. Rules: a cute, clean cartoon sticker style with bold outlines and flat colours; the whole subject fully in frame, centred, side view; a plain flat solid light-blue background with nothing else in the scene (no ground, no shadow, no text); describe ONE simple repeating motion cycle and say that the last frame returns exactly to the starting pose so it loops seamlessly; say the camera stays perfectly still. Family friendly. Output only the prompt, no quotes, no preamble."},name:"Loop brief writer · GLM 5.3 Flash"},
+           {id:"flare",type:"image",x:860,y:-40,w:340,fields:{"model":"gpt-image-2.6-flare","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Flare (fast)"},
+           {id:"sunburst",type:"image",x:860,y:220,w:340,fields:{"model":"gpt-image-2.6-sunburst","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Sunburst (detailed)"} ],
    links:[ {id:"l1",from:{node:"idea",port:"text"},to:{node:"brief",port:"prompt"}},
            {id:"l2",from:{node:"brief",port:"text"},to:{node:"flare",port:"prompt"}},
            {id:"l3",from:{node:"brief",port:"text"},to:{node:"sunburst",port:"prompt"}} ] } },

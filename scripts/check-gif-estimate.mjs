@@ -64,8 +64,10 @@ else {
     "guide edit: tells users to edit GIF knobs in modelOpts JSON");
   ok(!/Open the model options on either Image node to change <em>frame_count<\/em>/.test(edit),
     "guide edit: no longer claims frame_count is an Image-node options control");
-  ok(/Quality may be changed via the Image node's model options/.test(edit),
-    "guide edit: quality may use Image-node model options");
+  ok(!/Quality may be changed via the Image node's model options/.test(edit),
+    "guide edit: does not claim quality is an Image-node UI control");
+  ok(/<em>quality<\/em>/.test(edit) && /modelOpts/.test(edit),
+    "guide edit: includes quality in the JSON-editing instructions with the other GIF knobs");
 }
 ok(/still-image catalog price is not the GIF bill/.test(GUIDE_SRC),
   "guide costHow: still catalog price is not the GIF bill");
@@ -135,8 +137,115 @@ try {
   fail("play behavioural harness: " + (e && e.message));
 }
 
+
+console.log("\naggregate chip honesty (LLM + GIF)");
+try {
+  // refreshRunEstimate / paintRunCost must not present a priced subtotal as a complete total
+  // when GIF image nodes make part of the bill unknown.
+  ok(/const gifUnknown = graphHasGifImageNodes\(\);/.test(IDX),
+    "editor refreshRunEstimate computes gifUnknown");
+  ok(/subtotal \+ unknown GIF/.test(IDX),
+    "editor chip labels GIF graphs as subtotal + unknown GIF");
+  ok(/gifUnknown[\s\S]*?subtotal \+ unknown GIF[\s\S]*?t\("to run"\)/.test(IDX.slice(IDX.indexOf("function refreshRunEstimate("), IDX.indexOf("function refreshRunEstimate(")+2400)),
+    "editor uses subtotal label when GIF unknown (not plain 'to run')");
+  ok(/gifUnknown: graphHasGifImageNodesPlay\(\)/.test(PLAY),
+    "play refreshRunCost stamps gifUnknown on the forecast");
+  ok(/const gifUnknown = !!rc\.gifUnknown;/.test(PLAY),
+    "play paintRunCost reads gifUnknown from the forecast (harness-extractable)");
+  ok(/gifUnknown \? t\("subtotal \+ unknown GIF"\) : t\("\/run"\)/.test(PLAY),
+    "play /run chip uses subtotal label when GIF unknown");
+
+  // Behavioural: a graph with LLM + GIF must not paint a confident total that omits GIF unknown.
+  // Pin via source: when gifUnknown, the suffix is the subtotal label (never bare "to run").
+  const refreshSlice = IDX.slice(IDX.indexOf("function refreshRunEstimate("), IDX.indexOf("function refreshRunEstimate(") + 2200);
+  ok(/gifUnknown[\s\S]*?t\("subtotal \+ unknown GIF"\)[\s\S]*?t\("to run for real"\)[\s\S]*?t\("to run"\)/.test(refreshSlice),
+    "editor: GIF path uses subtotal label; non-GIF keeps 'to run'");
+  ok(!/el\.innerHTML = demo \? amt \+ `\$\{esc\(t\("to run for real"\)\)\}` : amt \+ `\$\{esc\(t\("to run"\)\)\}`;/.test(refreshSlice),
+    "editor: no longer always paints confident 'to run' total (regression gate)");
+} catch (e) {
+  fail("aggregate chip honesty: " + (e && e.message));
+}
+
+console.log("\npost-run GIF fallback (no still settlement)");
+try {
+  // When response omits settled cost, GIF must NOT fall back to still imageUnitUsd / estImageUsd.
+  ok(/const gifOut = !!\(extra && typeof extra==="object" && String\(extra\.output_format\|\|""\)\.toLowerCase\(\)==="gif"\);/.test(IDX),
+    "editor genImage detects gifOut from extra.output_format");
+  ok(/const unit = gifOut \? null : imageUnitUsd\(model, size\);/.test(IDX),
+    "editor genImage: GIF leaves unit null (no still imageUnitUsd fallback)");
+  ok(/const gifOut = !!\(extra && typeof extra==="object" && String\(extra\.output_format\|\|""\)\.toLowerCase\(\)==="gif"\);/.test(PLAY),
+    "play genImage detects gifOut from extra.output_format");
+  ok(/if\(c\.usd==null && !gifOut\)\{ const est = await estImageUsd/.test(PLAY),
+    "play genImage: skips estImageUsd still fallback when gifOut");
+
+  // Sandbox: mirror the genImage fallback decision without pulling the whole CTX.
+  const bundle = [
+    extractFn(IDX, "imageOutputIsGif"),
+    "function gifFallbackUnit(extra, stillUnit){ var gifOut = !!(extra && typeof extra===\"object\" && String(extra.output_format||\"\").toLowerCase()===\"gif\"); return gifOut ? null : stillUnit; }",
+    "this.imageOutputIsGif=imageOutputIsGif; this.gifFallbackUnit=gifFallbackUnit;",
+  ].join("\n");
+  const sb = {};
+  vm.createContext(sb);
+  vm.runInContext(bundle, sb);
+  ok(sb.gifFallbackUnit({ output_format: "gif" }, 0.04) === null,
+    "fallback: GIF + missing settlement → null (not still 0.04)");
+  ok(sb.gifFallbackUnit({ output_format: "GIF" }, 0.04) === null,
+    "fallback: GIF case-insensitive → null");
+  ok(sb.gifFallbackUnit({ output_format: "png" }, 0.04) === 0.04,
+    "fallback: still png keeps catalog unit");
+  ok(sb.gifFallbackUnit({}, 0.04) === 0.04,
+    "fallback: no output_format keeps catalog unit");
+} catch (e) {
+  fail("post-run GIF fallback: " + (e && e.stack || e.message));
+}
+
+console.log("\npixel-budget-compatible preset");
+try {
+  const WF = JSON.parse(fs.readFileSync(path.join(ROOT, "examples/gallery/one-prompt-looping-gif/workflow.json"), "utf8"));
+  const GRAPH = JSON.parse(fs.readFileSync(path.join(ROOT, "examples/gallery/one-prompt-looping-gif/graph.json"), "utf8"));
+  const BUDGET = 8294400;
+  const imgNodes = (g) => g.nodes.filter((n) => n.type === "image");
+  for (const n of imgNodes(WF)) {
+    const mo = n.fields.modelOpts || {};
+    const [w, h] = String(n.fields.size || "").split("x").map(Number);
+    const fc = +mo.frame_count || 0;
+    const nOut = Math.max(1, parseInt(n.fields.variations, 10) || 1);
+    const px = fc * w * h * nOut;
+    ok(String(mo.output_format || "").toLowerCase() === "gif", n.id + " workflow output_format=gif");
+    ok(n.fields.size === "1024x1024", n.id + " workflow size is 1024x1024 (editor catalog floor)");
+    ok(fc === 7, n.id + " workflow frame_count is 7 (was 12; 12×1024² exceeds budget)");
+    ok(px <= BUDGET, n.id + " workflow pixels " + px + " ≤ " + BUDGET + " (7×1024×1024=" + (7*1024*1024) + ")");
+    ok(mo.background === "opaque", n.id + " workflow background stays opaque");
+  }
+  // Saved graph documents the real 512² × 12 run (within budget at 512).
+  for (const n of imgNodes(GRAPH)) {
+    const mo = n.fields.modelOpts || {};
+    const [w, h] = String(n.fields.size || "").split("x").map(Number);
+    const fc = +mo.frame_count || 0;
+    const px = fc * w * h;
+    ok(n.fields.size === "512x512", n.id + " graph.json keeps saved 512×512");
+    ok(fc === 12, n.id + " graph.json keeps saved 12 frames");
+    ok(px <= BUDGET, n.id + " graph pixels " + px + " ≤ budget");
+  }
+  // EXAMPLES card in index.html must match the compatible workflow numbers.
+  const ex = IDX.match(/slug:"one-prompt-looping-gif"[\s\S]*?graph:\{[\s\S]*?links:\[[\s\S]*?\] \} \}/);
+  if (!ex) fail("could not locate EXAMPLES card for one-prompt-looping-gif");
+  else {
+    ok(/"frame_count":7/.test(ex[0]) && !/"frame_count":12/.test(ex[0]),
+      "EXAMPLES card uses frame_count 7 (not 12)");
+    ok(/"size":"1024x1024"/.test(ex[0]), "EXAMPLES card uses 1024x1024");
+    ok(/7-frame looping/.test(ex[0]), "EXAMPLES desc mentions 7-frame");
+  }
+  // 12×1024² would be over budget — pin the arithmetic so a future bump can't silently regress.
+  ok(12 * 1024 * 1024 > BUDGET, "pin: 12×1024² = " + (12*1024*1024) + " exceeds " + BUDGET);
+  ok(7 * 1024 * 1024 <= BUDGET, "pin: 7×1024² = " + (7*1024*1024) + " fits " + BUDGET);
+} catch (e) {
+  fail("pixel-budget preset: " + (e && e.stack || e.message));
+}
+
+
 if (failed) {
   console.error("\n✗ gif-estimate: " + failed + " failure(s)");
   process.exit(1);
 }
-console.log("\n✓ GIF nodes are unpriced / warned; still sizePrices are not used as exact GIF estimates.");
+console.log("\n✓ GIF nodes are unpriced / warned; aggregate chips honest; post-run fallback leaves GIF unknown; preset fits pixel budget.");

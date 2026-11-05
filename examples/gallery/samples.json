@@ -2179,7 +2179,7 @@
     ],
     "preview": "one-prompt-looping-gif/preview.webp",
     "workflow": "one-prompt-looping-gif/workflow.json",
-    "workflowSha256": "2ac7bf94af2a0803f5031c9f2650ea8ca95b1ef73c4878dc01f1f70e3649ce65",
-    "workflowNote": "The saved run asked for 512×512 GIFs, but the editor's size list only offers the sizes NanoGPT's catalog lists for GPT Image 2.6, the smallest being 1024×1024, so the editor workflow uses 1024×1024. Everything else, including the GIF options, is unchanged. A 1024² GIF has four times the pixels of each 512² frame, so expect it to cost several times the saved run's $0.19; that size wasn't run for this example."
+    "workflowSha256": "c611092ac3bcd9295532d3ad602a78f34727bc619abfc7a8e2e4364255f3ae45",
+    "workflowNote": "The saved run asked for 12-frame 512×512 GIFs. The editor's size list only offers the sizes NanoGPT's catalog lists for GPT Image 2.6, the smallest being 1024×1024, and OpenAI's aggregate request pixel budget (8,294,400) allows at most 7 frames at 1024×1024 with n=1 (7×1024×1024 = 7,340,032 ≤ 8,294,400; 12×1024×1024 = 12,582,912 would exceed it), so the editor workflow uses 7 frames at 1024×1024. Background stays opaque. A 1024² GIF has four times the pixels of each 512² frame, so expect it to cost more than the saved run's $0.19; that size wasn't run for this example."
   }
 ]
