@@ -142,6 +142,8 @@ vm.createContext(ctx);
 const helpers = [
   'function catItem(kind, id){ return (catalogs[kind]||[]).find(function(m){ return m.id===id; }); }',
   'function modelHasImageRole(n, role){ return role==="refs"; }',  // H3 is ref-capable in this harness
+  'function t(s){ return s; }',
+  extractFunction(IDX, "imageOutputIsGif"),
   extractFunction(IDX, "livePrice"),
 ].join("\n");
 

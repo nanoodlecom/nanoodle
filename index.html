@@ -1708,6 +1708,8 @@ const I18N = {
     "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Coste estimado de ▶ Ejecutar todo — {n} nodos de pago",
     ", plus {n} with no listed price":", más {n} sin precio listado",
+    "GIF · billed on tokens":"GIF · facturado por tokens",
+    "GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill":"El coste del GIF es desconocido hasta la liquidación — se factura por tokens; el precio de imagen fija del catálogo no es la factura del GIF",
     "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vídeo, texto y audio son estimaciones: la factura real depende de la duración del clip, los tokens y los caracteres.",
     "Drag a":"Arrastra un",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"puerto sobre otro compatible para conectar — o suelta un cable en el lienzo vacío para añadir rápido.",
@@ -2471,6 +2473,8 @@ const I18N = {
     "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Coût estimé de ▶ Tout exécuter — {n} nœuds payants",
     ", plus {n} with no listed price":", plus {n} sans prix affiché",
+    "GIF · billed on tokens":"GIF · facturé au jeton",
+    "GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill":"Le coût du GIF est inconnu jusqu’au règlement — facturé au jeton ; le prix d’image fixe du catalogue n’est pas la facture du GIF",
     "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vidéo, texte et audio sont des estimations : la facture réelle dépend de la durée du clip, des tokens et des caractères.",
     "Drag a":"Glissez un",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"port sur un port compatible pour connecter — ou déposez un fil sur le canevas vide pour un ajout rapide.",
@@ -3234,6 +3238,8 @@ const I18N = {
     "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtige Nodes",
     ", plus {n} with no listed price":", plus {n} ohne gelisteten Preis",
+    "GIF · billed on tokens":"GIF · tokenbasiert abgerechnet",
+    "GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill":"GIF-Kosten sind bis zur Abrechnung unbekannt — tokenbasiert; der Stillbild-Katalogpreis ist nicht die GIF-Rechnung",
     "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Video, Text & Audio sind Schätzungen: die tatsächliche Rechnung hängt von Cliplänge, Tokens und Zeichen ab.",
     "Drag a":"Ziehe einen",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"Port auf einen passenden, um zu verbinden — oder lass eine Verbindung auf dem leeren Canvas los zum Schnell-Hinzufügen.",
@@ -3997,6 +4003,8 @@ const I18N = {
     "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Custo estimado de ▶ Executar tudo — {n} nós pagos",
     ", plus {n} with no listed price":", mais {n} sem preço listado",
+    "GIF · billed on tokens":"GIF · cobrado por tokens",
+    "GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill":"O custo do GIF é desconhecido até a liquidação — cobrado por tokens; o preço de imagem estática do catálogo não é a fatura do GIF",
     "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vídeo, texto e áudio são estimativas: a cobrança real depende da duração do clipe, dos tokens e dos caracteres.",
     "Drag a":"Arraste uma",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"porta sobre outra compatível para conectar — ou solte um fio na tela vazia para adicionar rápido.",
@@ -4760,6 +4768,8 @@ const I18N = {
     "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
     "Estimated cost to ▶ Run all — {n} paid nodes":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
     ", plus {n} with no listed price":"、ほかに価格未掲載 {n} 個",
+    "GIF · billed on tokens":"GIF · トークン課金",
+    "GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill":"GIFの費用は精算まで不明です — トークン課金。カタログの静止画価格はGIFの請求ではありません",
     "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"動画・テキスト・音声は概算です。実際の請求はクリップの長さ、トークン数、文字数で変わります。",
     "Drag a":"接続するには",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"ポートを対応するポートへドラッグしてください — 空のキャンバスに線をドロップするとクイック追加できます。",
@@ -8112,12 +8122,20 @@ function refreshTranscribeLang(n){
     inp.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while editing
   });
 }
+// Animated GIF output rides in modelOpts.output_format. Catalog sizePrices are still-image
+// rates — NanoGPT settles GIF runs from token usage — so never treat those as an exact GIF price.
+function imageOutputIsGif(fields){
+  const o = fields && fields.modelOpts;
+  return !!(o && typeof o==="object" && String(o.output_format||"").toLowerCase()==="gif");
+}
 // live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
 // other pricing shapes keep the catalog's precomputed string.
 // nodeFilter is the node's t2v/i2v/v2v filter, so per-mode video prices (Kandinsky 6) match what Run bills.
 function livePrice(kind, fields, nodeFilter, n){
   const it = catItem(kind, fields.model); if(!it) return "";
   if(kind==="image"){
+    // GIF is token-billed; do not show the still $/img as if it were the GIF price.
+    if(imageOutputIsGif(fields)) return t("GIF · billed on tokens");
     const per = it.sizePrices||{};
     const v = per[fields.size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
     if(v==null) return it.price||"";
@@ -8632,7 +8650,10 @@ function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const fields = effectiveModelFields(n);
   const kind = t.modelKind, it = catItem(kind, fields.model); if(!it) return null;
-  if(kind==="image"){ const u = imageUnitUsd(fields.model, fields.size); if(u==null) return null;
+  if(kind==="image"){
+    // GIF output has no listed still-equivalent estimate — mark unpriced (workflowCost.unpriced++).
+    if(imageOutputIsGif(fields)) return null;
+    const u = imageUnitUsd(fields.model, fields.size); if(u==null) return null;
     // Price the images the run will ACTUALLY be billed for (genImage accrues unit×urls.length): fixed_image_count
     // models (midjourney/higgsfield) always return N regardless of the request; otherwise clamp the requested
     // variations to what the model can return, so a stale/over-set count can't inflate the estimate either.
@@ -10406,6 +10427,7 @@ function buildNodeEl(n){
     // A second press on the seed that started this run stops THAT run only — a
     // sibling branch started with its own ▶ keeps going (its own AbortController).
     if(seedRuns.has(n.id)){ stopSeedRun(n.id); return; }
+    warnGifUnknownCost();
     runGroup([n.id]);
   });   // input/source kinds and notes have no ▶ (they never run)
   // selection + drag
@@ -13903,12 +13925,25 @@ function warnLowBalance(){
   if(!priced || !(usd>0) || bal>=usd) return;            // nothing priced, $0, or covered → no warning
   toast(t("balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com").replace("{bal}", fmtUsd(bal)).replace("{usd}", fmtUsd(usd)), "warn");
 }
+// Non-blocking heads-up before Run when any image node asks for GIF output. Still-image catalog
+// sizePrices are not the GIF bill (token-settled); never pretend the chip/estimate covered them.
+function graphHasGifImageNodes(){
+  return graph.nodes.some(n=>{
+    const ty = NODE_TYPES[n.type]; if(!ty || ty.modelKind!=="image") return false;
+    return imageOutputIsGif(effectiveModelFields(n));
+  });
+}
+function warnGifUnknownCost(){
+  if(!graphHasGifImageNodes()) return;
+  toast(t("GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill"), "warn");
+}
 // Run every idle group at once (busy ones keep going untouched).
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
+  warnGifUnknownCost();
   for(const c of components()){
     if(groupBusy(c)) continue;
     const arr = [...c];

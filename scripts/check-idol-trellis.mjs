@@ -26,7 +26,7 @@ const ctx = vm.createContext({
   effectiveModelFields: n => n.effective || n.fields,
   releaseGlb() {},
 });
-vm.runInContext(["fmtUsdPlain", "model3dPriceLabels", "norm3d", "model3dStatusUrl", "isSplatOutput", "glbFilename", "glbPreviewUrl", "showResult", "nodeUnitUsd", "workflowCost"].map(fn).join("\n"), ctx);
+vm.runInContext(["fmtUsdPlain", "model3dPriceLabels", "norm3d", "model3dStatusUrl", "isSplatOutput", "glbFilename", "glbPreviewUrl", "showResult", "imageOutputIsGif", "nodeUnitUsd", "workflowCost"].map(fn).join("\n"), ctx);
 const trellis = ctx.norm3d(catalog.find(m => m.id.includes("trellis-2")));
 ctx.catItem = (_kind, id) => id === trellis.id ? trellis : null;
 for (const [resolution, base] of [[512, 0.1], [1024, 0.2], [1536, 0.4]]) {
