@@ -1,0 +1,115 @@
+{
+ "v": 1,
+ "nodes": [
+  {
+   "id": "c-intent",
+   "type": "comment",
+   "x": 40,
+   "y": -240,
+   "w": 1200,
+   "fields": {
+    "color": "yellow",
+    "text": "One prompt, one animated GIF. A small LLM turns a one-line idea into a loop-ready animation brief (a pose to return to, a still camera). The new GPT Image 2.6 models (Flare = fast, Sunburst = detailed) return a 12-frame looping GIF straight from the image endpoint: a sticker, emoji or game sprite in one call. Same brief, both models, side by side. Change the idea and ▶ Run."
+   }
+  },
+  {
+   "id": "idea",
+   "type": "text",
+   "x": 40,
+   "y": 40,
+   "w": 340,
+   "name": "Idea (one line)",
+   "fields": {
+    "text": "a pelican riding a bicycle"
+   }
+  },
+  {
+   "id": "brief",
+   "type": "llm",
+   "x": 420,
+   "y": 40,
+   "w": 380,
+   "name": "Loop brief writer · GLM 5.3 Flash",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "default",
+    "maxTokens": "1200",
+    "temperature": "0.5",
+    "system": "You write prompts for an image model that outputs a short looping animated GIF (12 frames). Turn the user's idea into ONE prompt of 60-110 words. Rules: a cute, clean cartoon sticker style with bold outlines and flat colours; the whole subject fully in frame, centred, side view; a plain flat solid light-blue background with nothing else in the scene (no ground, no shadow, no text); describe ONE simple repeating motion cycle and say that the last frame returns exactly to the starting pose so it loops seamlessly; say the camera stays perfectly still. Family friendly. Output only the prompt, no quotes, no preamble."
+   }
+  },
+  {
+   "id": "flare",
+   "type": "image",
+   "x": 860,
+   "y": -40,
+   "w": 340,
+   "name": "Looping GIF · GPT Image 2.6 Flare (fast)",
+   "fields": {
+    "model": "gpt-image-2.6-flare",
+    "size": "1024x1024",
+    "modelOpts": {
+     "output_format": "gif",
+     "frame_count": 12,
+     "frame_duration_ms": 100,
+     "background": "opaque",
+     "quality": "medium"
+    }
+   }
+  },
+  {
+   "id": "sunburst",
+   "type": "image",
+   "x": 860,
+   "y": 220,
+   "w": 340,
+   "name": "Looping GIF · GPT Image 2.6 Sunburst (detailed)",
+   "fields": {
+    "model": "gpt-image-2.6-sunburst",
+    "size": "1024x1024",
+    "modelOpts": {
+     "output_format": "gif",
+     "frame_count": 12,
+     "frame_duration_ms": 100,
+     "background": "opaque",
+     "quality": "medium"
+    }
+   }
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "idea",
+    "port": "text"
+   },
+   "to": {
+    "node": "brief",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "brief",
+    "port": "text"
+   },
+   "to": {
+    "node": "flare",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "brief",
+    "port": "text"
+   },
+   "to": {
+    "node": "sunburst",
+    "port": "prompt"
+   }
+  }
+ ]
+}

@@ -256,6 +256,14 @@ const HOWTO = {
     inspect: "Check that the selfie frame keeps your product's shape and details and doesn't cover her mouth, read the script for claims the brief doesn't make, and watch the ad with sound to judge the lip sync and whether the product stays steady.",
     costHow: "Muse 1:1 $0.011 + Muse 9:16 $0.011 + Muse Edit 9:16 $0.011 + GLM 5.3 Flash under $0.001 + MiniMax Speech about $0.02 + LongCat Avatar 1.5 at $0.04 per second of voice at 480p, billed in whole seconds ($0.56 for 14 s). The saved run was $0.614. The editor prices LongCat off the voice length: the script's words (about 2.8 per second) before a run, the measured clip after one. When the script length is unknown (nothing wired into Speech yet), the estimate assumes 40 s of voice. LongCat bills at least 3 s and at most 30 s of voice, so the chip clamps the seconds first and then prices them: $0.12–$1.20 at 480p ($0.04/s) and $0.24–$2.40 at 720p ($0.08/s). A second saved input (a woodworker's lunchbox, 11.3 s of voice billed as 12 s) cost $0.529.",
   },
+  "one-prompt-looping-gif": {
+    headline: "One prompt, one looping GIF",
+    job: "Type one line and get two looping animated GIFs, a sticker, emoji or simple game sprite, from GPT Image 2.6 Flare and Sunburst.",
+    purpose: "Show that an ordinary Image node can return an animation. A small LLM writes the brief so the motion ends on its starting pose, and the GIF settings in each Image node's model options (output format gif, 12 frames, 100 ms a frame) make GPT Image 2.6 send back a looping GIF from one call, with no video model or frame stitching.",
+    edit: "Change <em>Idea (one line)</em> to animate something else. Open the model options on either Image node to change <em>frame_count</em> (2–16 in practice), <em>frame_duration_ms</em> (20–2000) or <em>quality</em>. Keep the background opaque: a transparent GIF is rejected. Delete one Image node if you only want one model.",
+    inspect: "Watch each GIF loop a few times: check that the last frame flows back into the first without a jump, that the subject stays in place, and that the motion reads at full speed. Here Flare is steadier but its bird looks more like a stork; Sunburst draws a clearer pelican but wobbles a little.",
+    costHow: "GLM 5.3 Flash $0.0005 + two 12-frame 512² medium GIFs at $0.0948 each (billed on 1835 image-output tokens). The saved run was $0.19. GPT Image 2.6 bills on returned tokens, so more frames, bigger sizes or higher quality cost more; the editor's smallest listed size is 1024×1024, which has four times the pixels per frame.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -313,7 +321,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

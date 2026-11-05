@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>One prompt, one looping GIF — nanoodle</title>
+<meta name="description" content="Type one line and get two looping animated GIFs, a sticker, emoji or simple game sprite, from GPT Image 2.6 Flare and Sunburst. Reported saved run: $0.19." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="One prompt, one looping GIF — nanoodle" />
+<meta property="og:description" content="Type one line and get two looping animated GIFs, a sticker, emoji or simple game sprite, from GPT Image 2.6 Flare and Sunburst. Reported saved run: $0.19." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/one-prompt-looping-gif" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="One prompt, one looping GIF — nanoodle" />
+<meta name="twitter:description" content="Type one line and get two looping animated GIFs, a sticker, emoji or simple game sprite, from GPT Image 2.6 Flare and Sunburst. Reported saved run: $0.19." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/one-prompt-looping-gif" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>One prompt, one looping GIF</span></nav>
+
+  <main>
+    <h1><span class="grad">One prompt, one looping GIF</span></h1>
+    <p class="lede">Type one line and get two looping animated GIFs, a sticker, emoji or simple game sprite, from GPT Image 2.6 Flare and Sunburst.</p>
+
+    <section>
+      <p class="meta-row">Two 12-frame looping GIFs from one line, one image call each; the pedalling is cartoon-approximate and Flare&#39;s pelican looks more like a stork · 2026-11-05 · Reported saved run: $0.19. <code>z-ai/glm-5.3-flash</code> · <code>gpt-image-2.6-flare</code> · <code>gpt-image-2.6-sunburst</code></p>
+      <p>Show that an ordinary Image node can return an animation. A small LLM writes the brief so the motion ends on its starting pose, and the GIF settings in each Image node&#39;s model options (output format gif, 12 frames, 100 ms a frame) make GPT Image 2.6 send back a looping GIF from one call, with no video model or frame stitching.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure class="sequence-text"><blockquote class="sample">A cute cartoon pelican riding a small red bicycle, drawn in a clean sticker style with bold black outlines and flat colours, side view, fully in frame and centred. The pelican pedals steadily, its legs tracing smooth circles while the wheels rotate and its body bobs gently up and down in place; the last frame returns exactly to the starting pose so the motion loops seamlessly. Plain flat solid light-blue background with nothing else in the scene, no ground, no shadow, no text. The camera stays perfectly still throughout. Family friendly, cheerful, simple repeating cycle of twelve frames.
+</blockquote><figcaption>1. Loop brief: GLM 5.3 Flash · reported $0.0005 · <a href="/examples/gallery/one-prompt-looping-gif/brief.txt" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/one-prompt-looping-gif/flare.gif"><img src="/examples/gallery/one-prompt-looping-gif/flare.gif" alt="2. Looping GIF: GPT Image 2.6 Flare, 12 frames × 100 ms, 512² medium · reported $0.0948 — One prompt, one looping GIF" loading="lazy" /></a><figcaption>2. Looping GIF: GPT Image 2.6 Flare, 12 frames × 100 ms, 512² medium · reported $0.0948 · <a href="/examples/gallery/one-prompt-looping-gif/flare.gif" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/one-prompt-looping-gif/sunburst.gif"><img src="/examples/gallery/one-prompt-looping-gif/sunburst.gif" alt="3. Looping GIF: GPT Image 2.6 Sunburst, same settings · reported $0.0948 — One prompt, one looping GIF" loading="lazy" /></a><figcaption>3. Looping GIF: GPT Image 2.6 Sunburst, same settings · reported $0.0948 · <a href="/examples/gallery/one-prompt-looping-gif/sunburst.gif" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>You type one line, &quot;a pelican riding a bicycle&quot;. GLM 5.3 Flash rewrites it as a loop-ready animation brief: sticker style, side view, one pedalling cycle that ends on the pose it started from, a still camera and a plain light-blue background. The same brief goes to the two new GPT Image 2.6 models, Flare (fast) and Sunburst (detailed), and each Image node returns a 12-frame animated GIF (512×512, 100 ms a frame, a 1.2 s loop that repeats forever) from a single image call. There is no video model, no frame stitching and no ffmpeg in the graph. This is the first nanoodle example whose output is an animated GIF, and the first to use GPT Image 2.6. The GIF settings ride in each Image node&#39;s model options: output_format gif, frame_count 12, frame_duration_ms 100, background opaque, quality medium. Both GIFs below are the files the API returned, untouched. Flaws: Flare&#39;s bird has no throat pouch, so it reads more like a stork or gull than a pelican; Sunburst&#39;s has the pouch and pink cheeks. In both GIFs the feet often miss the pedals, a leg passes through the frame tube in some frames and the crank doesn&#39;t turn a clean circle, so it only reads as pedalling at speed. Sunburst&#39;s head and body shift a few pixels between frames, so it looks slightly jittery; Flare is steadier. The loop seam is about as big as any other frame step, so there&#39;s no visible jump, but at 10 fps the motion is stepped. A transparent background isn&#39;t possible: GIF plus background transparent returns a 400 (&quot;Transparent backgrounds require PNG or WebP output&quot;), so key out the flat blue yourself for a real sticker. Each 1.2 s GIF is over 700 KB, heavy for a sticker. Sunburst took 28.8 s against Flare&#39;s 12.3 s at the same price. Every one of the 24 GIF frames was checked at full size and is SFW (a cartoon bird on a bicycle; no people, text or logos). Inspired by @SSHCodes trying &quot;gpt image 2.6 generate a gif of a pelican riding a bicycle&quot; (https://x.com/SSHCodes/status/2118127375481504100), a riff on Simon Willison&#39;s pelican-on-a-bicycle benchmark, and by @maker_evan&#39;s sprite GIFs (https://x.com/maker_evan/status/2118235531608039709). No media from those posts is used. Write-up: https://subnano.me/@nano_maxi/one-prompt-one-looping-gif-pelican-on-a-bicycle-for-19-cents-with-gpt-image-26</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change <em>Idea (one line)</em> to animate something else. Open the model options on either Image node to change <em>frame_count</em> (2–16 in practice), <em>frame_duration_ms</em> (20–2000) or <em>quality</em>. Keep the background opaque: a transparent GIF is rejected. Delete one Image node if you only want one model.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. GLM 5.3 Flash $0.0005 + two 12-frame 512² medium GIFs at $0.0948 each (billed on 1835 image-output tokens). The saved run was $0.19. GPT Image 2.6 bills on returned tokens, so more frames, bigger sizes or higher quality cost more; the editor&#39;s smallest listed size is 1024×1024, which has four times the pixels per frame.</li>
+        <li>Watch each GIF loop a few times: check that the last frame flows back into the first without a jump, that the subject stays in place, and that the motion reads at full speed. Here Flare is steadier but its bird looks more like a stork; Sunburst draws a clearer pelican but wobbles a little.</li>
+      </ol>
+
+      <p class="howto-note">The saved run asked for 512×512 GIFs, but the editor&#39;s size list only offers the sizes NanoGPT&#39;s catalog lists for GPT Image 2.6, the smallest being 1024×1024, so the editor workflow uses 1024×1024. Everything else, including the GIF options, is unchanged. A 1024² GIF has four times the pixels of each 512² frame, so expect it to cost several times the saved run&#39;s $0.19; that size wasn&#39;t run for this example.</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA9VWTW_bRhC961c88FIZEFlLjo3ARg5FEQcBnLpIfCmKIBiRQ3Hj_WB2l5GZwH-jP6W996f0lxSzpCzZtYKkQA-92ORq983bmfdm-HmC7GN2ivlsgsy6ikN2il8nwOcJgExV2SmyMlc2so3ZLC3GvuW07IzZrt5kp3hyODz32SnyxeZtLfiLw_GtVqwriZIiCIp2XuB61tqtBzRkkW-irF5aRuudaeMMzjLIKkORK7x4eV7gBwRDWuPi4hVi520Aya5cK8tQFROUjQ4E7Vybe6aqHxGUs1h6xTWmhNYFRnTwLCCIbgZCiEprlGTY00GBq4ZheY0XP1_hpaEVY1GcwLiKdcD0XJNnPENNIc7wprPLzoeIZ6g4ktJcHWzACfNFXnsynEgpu5KrIERPatVE1N4ZxIahUhC2VeuUjacDo_Ka_Qxs3HsF57ESmNB6FRnKpgSVpHWBN_JDut8MSxebkegMQVWMZZ_-F_ixIbviIZxki2yFv377Ha87W2RSiNsJcDt7oAfZ-kALqVyPC2FXBkebF0smnXspUafCW0p2kD2ukY0YCC1rVZKFV5VkjrBUZV9q3k82JeEBW63NLtnFPrZPH7C9cK4dVbOWnHv8-QdeXLzCcXGEc02h2XOBlH1B-JST-n6lTX5cHOX19gQyzxScVXb1vK6dT9etuKZOx80OQzdX7pqt4GZiqK1XTMueYucTy8PiePNL6ENkI4u_uG7gPLopoHYeZEeZJYKIDUW4LrZdFCeFxvl4p9Jd52E6XyCJOIg1kmkaRhfYfxd2jHf50_MxHlyNk8N8Pj_E2vkqFHjdaQ4i67KLPEOpmSxK8tE5u5E6Quw1Y61ig6XTlZAToYSk1FpThPSPzoezRGDdOM0I3fI9lxF1p3UvvkhMZyjZRs_VaIKPitdnILSaZItgBadVBS0-zJe6YyypvF5519lq4GBdbCQXrEMynMQMJVvG1DoMO2ewDqGhyq3To4j34AwVh9KrJaecBGVazfDcMkUBNC51pKTldLdA_VAOCaEpxOESYxcJ4Bsqo-6layUSkXwCSq0sOKihcAGByWgOQfdnIyiPTU0O9QEt-5oTVup4Bc7JKN2j9optpfsCl0kRcFYPxzf92Dp86FzkkB5bz2SWmr_QOGrpkg-8mPS348anJ7tD5IvN42Knf4oR73XmoSNPpSHvayt3rly1MU888kVxku-wRBbUpxRrfrh4ciN_7twohy_buMVDNljnXe28oeTglRpbj0SX-r0rXWdjGoj316vOp6H0zgjgfJyWQLaVoAC6lj50fIf5oSOtomQqM1ypzqTcp-Q_XoEwTqZvKcJi8a-LcDcIp3dz8NtqcZ_v_74cE7yVDy2t7PVjH1p6vsmOd2abG_kuuz93kbXjjEijMeGPFXX_PLczArcHBxPv96pefJHLo5hfQ-aeu76azNF_Q-ahvPbxmeDt5PZvBtes3ywLAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#one-prompt-looping-gif">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/one-prompt-looping-gif/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/one-prompt-looping-gif/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#one-prompt-looping-gif">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/creator-ad">A creator ad for your product</a>
+        <a href="/guide/examples/swap-the-character">Swap the character, keep the performance →</a>
+        <a href="/examples/gallery/#one-prompt-looping-gif">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
