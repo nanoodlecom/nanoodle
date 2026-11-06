@@ -7902,6 +7902,11 @@ window.NoodleApp = (function () {
         if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
       }
     }
+    // refundable reservation (Gemini Omni Flash v1.2+) — twin of the editor.
+    // Hold/floor before settle; do not let token rates leak into genericScanUsd as a clip price.
+    if(p.type==="refundable_reservation" || p.reservation_usd!=null){
+      v=_num(p.reservation_usd); if(v!=null) return v;
+    }
     return genericScanUsd(p, dur);
   }
   function genericScanUsd(p, dur){
@@ -11937,12 +11942,17 @@ const PROMPT_CAPS = {
   // docs — fal.ai/WaveSpeedAI document last_image/end_image_url on both). google/gemini-omni-flash/v1.1
   // ships the last_image gap (2026-09-01: video-models lists duration/aspect/resolution only;
   // marketing supportsLastImage + first-last-frame tag). v1 has neither — do not send last_image on v1.
-  // A billed reference_to_video MODE advertises refs (Omni; exact key only). Drop v1.1 once listed.
+  // google/gemini-omni-flash/v1.2 ships the same gap (2026-11-06: duration/resolution/aspect_ratio/mode
+  // only; marketing supportsLastImage:true). A billed reference_to_video MODE advertises refs (Omni;
+  // exact key only); a mode option value starting with "reference" does too (v1.2). Drop v1.1/v1.2 once listed.
   var VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
   function videoRefsModePriced(p){ return !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
     || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null))); }
-  function videoRefsPriced(m){ var p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }) || videoRefsModePriced(p)); }
-  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
+  // Twin of the editor: a mode option value starting with "reference" advertises refs (Omni v1.2).
+  function videoRefsModeOpt(m){ var pp = (m && m.params) || null; if(!pp && m && m.supported_parameters){ var sp = m.supported_parameters; pp = sp.parameters || sp; }
+    var opts = pp && pp.mode && pp.mode.options; return Array.isArray(opts) && opts.some(function(o){ return o && /^reference\b/i.test(String(o.value!=null?o.value:"")); }); }
+  function videoRefsPriced(m){ var p = m && m.pricing; return (!!p && (VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }) || videoRefsModePriced(p))) || videoRefsModeOpt(m); }
+  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1|google\/gemini-omni-flash\/v1\.2)$/i;
   // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
   // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
   // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.
@@ -11980,6 +11990,7 @@ const PROMPT_CAPS = {
     var id = String(model||"");
     if(/seedance/i.test(id)) return 9;
     if(/minimax-h3/i.test(id)) return 9;
+    if(/gemini-omni-flash\/v1\.2/i.test(id)) return 6;   // marketing: up to 6 refs (2026-11-06)
     if(/luma|ray/i.test(id)) return 4;
     var inc = +((pricing||{}).included_reference_images);
     return inc>0 ? inc : 4;

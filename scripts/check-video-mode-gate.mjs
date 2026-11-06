@@ -59,6 +59,7 @@ const bundle = [
   grab(/const VIDEO_IMG_ROLE_KEYS = \{[^}]*\};/, "VIDEO_IMG_ROLE_KEYS"),
   grab(/const VIDEO_REF_PRICE_KEYS = \[[^\]]*\];/, "VIDEO_REF_PRICE_KEYS"),
   grab(/const videoRefsModePriced = \(p\)=>[\s\S]*?;/, "videoRefsModePriced"),
+  grab(/const videoRefsModeOpt = \(m\)=>\{[^}]*\};/, "videoRefsModeOpt"),
   grab(/const videoRefsPriced = \(m\)=> \{[^}]*\};/, "videoRefsPriced"),
   extractFn(IDX, "videoFreetextSkip"),
   extractFn(IDX, "videoOptDefs"),
@@ -150,9 +151,12 @@ const modeValues = (nodeType) => {
     `vedit has no image port — "image-to-video" must be hidden, got ${JSON.stringify(vals)}`);
 }
 
-// ---- a model with no ref param at all: reference-to-video stays excluded on every node ----------
+// ---- a mode option value starting with "reference" advertises refs (no param / no price key) ----
+// Omni v1.2-style: the catalog lists mode.options including reference(-to-video) without a
+// reference_images param and without a billed reference_to_video rate. That option itself is
+// the advertising — same as a price key. Nodes with refInputs must offer it; ivideo must not.
 {
-  ctx.catItem = (_kind, id) => id === "no-ref-model" ? {
+  ctx.catItem = (_kind, id) => id === "mode-opt-ref-model" ? {
     params: {
       mode: {
         type: "select",
@@ -165,14 +169,40 @@ const modeValues = (nodeType) => {
     },
     defaults: {},
   } : null;
-  for (const nt of ["tvideo", "vedit"]) {
+  const tvideo = T.videoOptDefs("mode-opt-ref-model", "tvideo");
+  const tMode = tvideo.find((d) => d.key === "mode");
+  ok(tMode && tMode.options.some((o) => o.value === "reference-to-video"),
+    `tvideo: mode.options value reference-to-video advertises refs (no param/price key) — got ${JSON.stringify(tMode && tMode.options.map((o) => o.value))}`);
+  const vedit = T.videoOptDefs("mode-opt-ref-model", "vedit");
+  const vMode = vedit.find((d) => d.key === "mode");
+  ok(vMode && vMode.options.some((o) => o.value === "reference-to-video"),
+    `vedit: mode.options value reference-to-video advertises refs — got ${JSON.stringify(vMode && vMode.options.map((o) => o.value))}`);
+  const ivideo = T.videoOptDefs("mode-opt-ref-model", "ivideo");
+  const iMode = ivideo.find((d) => d.key === "mode");
+  ok(!(iMode && iMode.options.some((o) => o.value === "reference-to-video")),
+    `ivideo: still no refInputs — reference-to-video stays hidden even when mode.options advertises it, got ${JSON.stringify(iMode && iMode.options.map((o) => o.value))}`);
+}
+
+// ---- a model with no ref evidence at all (no param, no price key, no reference* mode) ----
+{
+  ctx.catItem = (_kind, id) => id === "no-ref-model" ? {
+    params: {
+      mode: {
+        type: "select",
+        options: [
+          { value: "auto", label: "Automatic" },
+          { value: "text-to-video", label: "Text to video" },
+          { value: "video-edit", label: "Video edit" },
+        ],
+      },
+    },
+    defaults: {},
+  } : null;
+  for (const nt of ["tvideo", "ivideo", "vedit"]) {
     const defs = T.videoOptDefs("no-ref-model", nt);
     const modeDef = defs.find((d) => d.key === "mode");
-    // vedit strips BOTH text-to-video (no video port fed by "text-to-video") and reference-to-video
-    // (no ref param) here, leaving only "auto" — under 2 options, so the whole control is dropped
-    // (nothing meaningful to choose). tvideo keeps auto+text-to-video, so the control still renders.
-    ok(!(modeDef && modeDef.options.some((o) => o.value === "reference-to-video")),
-      `${nt}: reference-to-video stays hidden without a ref-image param (unchanged canRef gate), got ${JSON.stringify(modeDef && modeDef.options.map((o) => o.value))}`);
+    ok(!(modeDef && modeDef.options.some((o) => /^reference\b/i.test(String(o.value || "")))),
+      `${nt}: no reference* mode without any refs advertising, got ${JSON.stringify(modeDef && modeDef.options.map((o) => o.value))}`);
   }
 }
 
@@ -221,8 +251,51 @@ const modeValues = (nodeType) => {
     `ivideo: still no refInputs — reference-to-video stays hidden even when pricing advertises r2v, got ${JSON.stringify(iMode && iMode.options.map((o) => o.value))}`);
 }
 
+// ---- Omni v1.2 short mode values (auto/reference/edit/extend) — 2026-11-06 ----------
+// No reference_images param and no reference_to_video price key; refs advertised via
+// mode.options value "reference". Short edit/extend gate like hyphenated video-edit/extend.
+{
+  ctx.catItem = (_kind, id) => id === "google/gemini-omni-flash/v1.2" ? {
+    params: {
+      mode: {
+        type: "select",
+        options: [
+          { value: "auto", label: "Automatic" },
+          { value: "reference", label: "Reference" },
+          { value: "edit", label: "Edit" },
+          { value: "extend", label: "Extend" },
+        ],
+        default: "auto",
+      },
+      duration: {}, resolution: {}, aspect_ratio: {},
+    },
+    pricing: { type: "refundable_reservation", reservation_usd: 15 },
+    defaults: { mode: "auto" },
+  } : null;
+
+  const tvideo = T.videoOptDefs("google/gemini-omni-flash/v1.2", "tvideo");
+  const tMode = tvideo.find((d) => d.key === "mode");
+  const tVals = tMode ? tMode.options.map((o) => o.value) : [];
+  ok(tMode && tVals.includes("auto") && tVals.includes("reference"),
+    `tvideo: Omni 1.2 offers auto+reference (refs via mode option), got ${JSON.stringify(tVals)}`);
+  ok(!(tVals.includes("edit") || tVals.includes("extend")),
+    `tvideo: Omni 1.2 hides edit/extend (need Video edit node), got ${JSON.stringify(tVals)}`);
+
+  const ivideo = T.videoOptDefs("google/gemini-omni-flash/v1.2", "ivideo");
+  const iMode = ivideo.find((d) => d.key === "mode");
+  // ivideo has no refInputs → reference hidden; edit/extend hidden → only auto → knob dropped
+  ok(!iMode || !(iMode.options.some((o) => o.value === "reference" || o.value === "edit" || o.value === "extend")),
+    `ivideo: Omni 1.2 must not offer reference/edit/extend, got ${JSON.stringify(iMode && iMode.options.map((o) => o.value))}`);
+
+  const vedit = T.videoOptDefs("google/gemini-omni-flash/v1.2", "vedit");
+  const vMode = vedit.find((d) => d.key === "mode");
+  const vVals = vMode ? vMode.options.map((o) => o.value) : [];
+  ok(vMode && vVals.includes("auto") && vVals.includes("edit") && vVals.includes("extend") && vVals.includes("reference"),
+    `vedit: Omni 1.2 offers auto+reference+edit+extend, got ${JSON.stringify(vVals)}`);
+}
+
 if (fail) {
   console.error(`\n✗ video-mode-gate: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ video-mode-gate: the `mode` knob only offers generation types the node can actually feed (auto/text-to-video on tvideo, image-to-video on ivideo, video-edit+video-extend+reference-to-video on vedit) — no dead-end selection silently ignores a wired input or sends an unfed mode.");
+console.log("\n✓ video-mode-gate: the `mode` knob only offers generation types the node can actually feed (auto/text-to-video on tvideo, image-to-video on ivideo, video-edit+video-extend+reference-to-video on vedit; Omni short reference/edit/extend too) — no dead-end selection silently ignores a wired input or sends an unfed mode.");

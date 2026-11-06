@@ -6251,7 +6251,9 @@ const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_
 //     google/gemini-omni-flash/v1.1 ships the same gap (2026-09-01): /api/v1/video-models lists
 //     duration/aspect/resolution only; marketing /api/models sets supportsLastImage on v1.1 and the
 //     video-models tags include first-last-frame. v1 has neither flag nor tag — do not send last_image
-//     on v1 (an ignored extra image is charged). Drop v1.1 once NanoGPT lists the param.
+//     on v1 (an ignored extra image is charged). google/gemini-omni-flash/v1.2 ships the same gap
+//     (2026-11-06): video-models params are duration/resolution/aspect_ratio/mode only; marketing
+//     /api/models sets supportsLastImage:true. Drop v1.1/v1.2 once NanoGPT lists the param.
 //     minimax/h3-max-turbo: live-verified 2026-10-22 (the same still on image + endframe came back
 //     as a closed loop, last frame 1.2/255 from the first). Its catalog entry now lists lastImageUrl, a
 //     key VIDEO_IMG_ROLE_KEYS doesn't read yet, so it rides the family list like h3-max.
@@ -6261,8 +6263,13 @@ const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image
 // reference_to_video_image / _video stay on the existing mode gate (different shape).
 const videoRefsModePriced = (p)=> !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
   || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null)));
-const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null) || videoRefsModePriced(p)); };
-const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
+// A mode option whose value starts with "reference" (Omni v1.2 `reference`, Omni v1 `reference-to-video`)
+// is the catalog advertising refs the same way a billed reference_to_video price key does — v1.2 uses
+// refundable_reservation pricing with no reference_to_video rate key (2026-11-06).
+const videoRefsModeOpt = (m)=>{ const opts = m && m.params && m.params.mode && m.params.mode.options;
+  return Array.isArray(opts) && opts.some(o=> o && /^reference\b/i.test(String(o.value!=null?o.value:""))); };
+const videoRefsPriced = (m)=> { const p = m && m.pricing; return (!!p && (VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null) || videoRefsModePriced(p))) || videoRefsModeOpt(m); };
+const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1|google\/gemini-omni-flash\/v1\.2)$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
@@ -6284,7 +6291,7 @@ function modelHasImageRole(n, role){
 // generic 4 silently sliced refs 5-9. minimax-h3 also takes 9 (refs 6-9 bill extra_reference_image each
 // on top of the 5 its pricing includes, so included_reference_images is a floor, not the cap).
 // luma ray/v3.2 = 4 (matches the generic default; listed for clarity).
-const VIDEO_REF_MAX = [ [/seedance/i, 9], [/minimax-h3/i, 9], [/luma|ray/i, 4] ];
+const VIDEO_REF_MAX = [ [/seedance/i, 9], [/minimax-h3/i, 9], [/gemini-omni-flash\/v1\.2/i, 6], [/luma|ray/i, 4] ];
 function videoRefSpec(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const m = catItem(t.modelKind, n.fields.model);
@@ -7608,9 +7615,13 @@ function videoOptDefs(model, nodeType){
   // node carries ref inputs AND this model actually advertises a ref-image param (else it stays hidden).
   const canRef = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].refInputs)
                  && (VIDEO_IMG_ROLE_KEYS.refs.some(k=> k in p) || videoRefsPriced(it));
+  // Omni v1.2 short values (reference/edit/extend) gate the same way as Kling-style hyphenated ones.
   const modeOK = (o)=> (o.value!=="reference-to-video" || canRef)
+                 && (o.value!=="reference" || canRef)
                  && (o.value!=="video-edit" || isVedit)
+                 && (o.value!=="edit" || isVedit)
                  && (o.value!=="video-extend" || isVedit)
+                 && (o.value!=="extend" || isVedit)
                  && (o.value!=="image-to-video" || isIvideo)
                  && (o.value!=="text-to-video" || !(isIvideo || isVedit));
   const defs = [];
@@ -8528,6 +8539,13 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
       const nf = (isFinite(chosenDur) && chosenDur>0) ? Math.round(chosenDur*fpsN)+1 : (_num(raw.defaultNumFrames) || (dur*fpsN));
       if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
     }
+  }
+  // ---- refundable reservation (Gemini Omni Flash v1.2+) ----
+  // Hold/floor users see before settle (reserve $N, settle measured tokens, refund unused).
+  // Without this branch genericScanUsd latches onto rates_per_million_tokens.input (e.g. 2.55) as a
+  // flat clip price, or rates_per_output_second on the upscale sibling. Quote the reservation hold.
+  if(p.type==="refundable_reservation" || p.reservation_usd!=null){
+    v=_num(p.reservation_usd); if(v!=null) return v;
   }
   return genericScanUsd(p, dur);
 }
