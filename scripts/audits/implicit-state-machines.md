@@ -23,7 +23,7 @@ exercise many of these; an inventory is not a proof over every interleaving.
 All reproductions use synthetic graphs, keys and provider responses. No
 generation, payment, top-up, real sign-in, or user-storage mutation is used.
 The generated SDK artifact and its embedded twin are refreshed with the official
-generator after SDK PR #56 merged during app verification. No generated payload
+generator after SDK PRs #56 and #57 merged during app verification. No generated payload
 is edited by hand.
 
 ## Execution and provider lifecycles
@@ -105,12 +105,14 @@ is edited by hand.
 - This inventory covers the app repository. NanoGPT server contracts and the
   sibling SDK/MCP projects have separate source owners.
 - Sibling SDK main used for parity:
-  `a13f5b7a44dc31b458931115e71e284da2f8ca67` (SDK PR #56). The original
+  `1791f5bd26d5e3a80f8c047d43e0ace9907c1213` (SDK PRs #56 and #57). The original
   app audit used `7734e7f6209f153a634b37bd1a691b67cc276817`; the promoted
   SDK is incorporated through the normal generated-bundle freshness workflow.
-- The live-catalog check currently identifies the new P-H3 Image LoRA model
-  as unhandled on the audited app main. That classification repair has separate
-  ownership and is a release prerequisite, rather than a reason to weaken the check.
+- The P-H3 Image LoRA prerequisite is incorporated by merging the already
+  published PR #793 at `bf04ad2973975723fa58c8e38185ea29b88c7cbc`, preserving
+  its original commits, six Updates cards and classifier/gate/cap/body changes.
+  The live-catalog check and CI workflow remain unchanged. The separately held
+  comment-repair branch is not incorporated or republished.
 - Browser crashes, cross-tab competing writes, provider terminal/refund
   contracts, stale auth rejection from an older generation, and service-worker
   termination are additional interleavings, not exhaustively model-checked here.
