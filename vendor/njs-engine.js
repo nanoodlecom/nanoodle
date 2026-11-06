@@ -1,5 +1,5 @@
-/* data-hash=4063440239665d10 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-67ac0179a601 (20 modules) */
+/* data-hash=4039c25fba3b719a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-c3b59f54e854 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -141,6 +141,18 @@ function abortReason(signal) {
 
 function throwIfAborted(signal) {
   if (signal && signal.aborted) throw abortReason(signal);
+}
+
+/** Bound an async stage even when injected I/O ignores AbortSignal. Always observe late rejection. */
+function withSignal(work, signal) {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve().then(() => {
+      throwIfAborted(signal);
+      return work();
+    }).then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 /** The outcome of Workflow.run(). Media values are MediaRef; text values plain strings. */
@@ -458,7 +470,7 @@ class Workflow {
             // resolved (authed redirect → absolute file URL, or inlined bytes)
             // before this node builds videoUrl / videoDataUrl / audio / image.
             inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
-              ? await this.client.resolveContentUrl(v, { signal: ac.signal })
+              ? await withSignal(() => this.client.resolveContentUrl(v, { signal: ac.signal }), ac.signal)
               : v;
           }
           // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
@@ -502,34 +514,28 @@ class Workflow {
           warnGraph(`node ${n.id}: prompt trimmed ${fit.trimmed.from} → ${fit.trimmed.to} characters — ` +
             `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
         }
+        throwIfAborted(ac.signal);
         const t0 = Date.now();
-        // Per-node timeout (fields.timeoutMs): a child controller linked to the run signal.
-        // The race guarantees the deadline even if a runner never observes its signal.
+        // The node deadline covers the runner AND publication of provider media.
+        // Race every active stage with cancellation so an injected fetch cannot hold the run open.
         const timeoutMs = Number(fields.timeoutMs);
-        let nodeSignal = ac.signal, deadline = null;
+        let nodeSignal = ac.signal;
         if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
           const nac = new AbortController();
           const onRunAbort = () => nac.abort(ac.signal.reason);
           ac.signal.addEventListener("abort", onRunAbort, { once: true });
           unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
           nodeSignal = nac.signal;
-          deadline = new Promise((_, reject) => {
-            nodeTimer = setTimeout(() => {
-              const err = new NanoodleError(`node timed out after ${timeoutMs}ms`, { code: "timeout" });
-              nac.abort(err);
-              reject(err);
-            }, timeoutMs);
-          });
-          deadline.catch(() => {});
+          nodeTimer = setTimeout(() => nac.abort(new NanoodleError(
+            `node timed out after ${timeoutMs}ms`, { code: "timeout" })), timeoutMs);
         }
         const nodeForRun = { ...n, fields };
-        const work = RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
-        const rawOut = deadline ? await Promise.race([work, deadline]) : await work;
-        if (deadline) throwIfAborted(nodeSignal);
-        throwIfAborted(ac.signal);
-        // Final outputs of this node are absolute usable URLs, not the relative
-        // content path the provider returned. Downstream reads this same object.
-        const out = await publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
+        const out = await withSignal(async () => {
+          const rawOut = await RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
+          throwIfAborted(nodeSignal);
+          return publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
+        }, nodeSignal);
+        throwIfAborted(nodeSignal);
         throwIfAborted(ac.signal);
         rec.final = true;
         rec.status = "done";
@@ -1164,10 +1170,12 @@ class NanoClient {
    * at most once; a second 402 after settling is an error, never a second send.
    */
   async _paidFetch(url, init, signal) {
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r = await this.fetch(url, init);
     if (r.status !== 402 || !this.payment || this.apiKey) return r;
     const settled = await this._settle402(r, signal);
     if (settled.response) return settled.response; // complete replayed the stored request
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r2 = await this.fetch(url, { ...init, headers: { ...init.headers, "x-x402-payment-id": settled.paymentId } });
     if (r2.status === 402) {
       throw new NanoodleError(
@@ -1187,10 +1195,15 @@ class NanoClient {
         "payment required, but the 402 response offered no usable Nano option" +
         (body ? " — " + JSON.stringify(body).slice(0, 200) : ""), { code: "x402", status: 402 });
     }
+    if (signal && signal.aborted) throw abortError(signal.reason);
+    if (invoice.expiresAt && invoice.expiresAt <= Date.now()) {
+      throw new NanoodleError("payment window expired before payment (" + invoice.paymentId + ", to " + invoice.payTo + ") — request a fresh invoice", { code: "x402-expired", paymentId: invoice.paymentId });
+    }
     await this.payment(invoice); // ← the callback does the actual XNO send
     // The complete endpoint doubles as the poll: 402 = not seen on-chain yet.
     const deadline = invoice.expiresAt || Date.now() + 15 * 60 * 1000;
     while (true) {
+      if (signal && signal.aborted) throw abortError(signal.reason);
       const cr = await this.fetch(invoice.completeUrl, {
         method: "POST", headers: { "Content-Type": "application/json", "x-x402": "true" }, body: "{}", signal,
       });
@@ -1218,7 +1231,13 @@ class NanoClient {
             { code: "x402", status: cr.status, paymentId: invoice.paymentId });
         }
         let cj = null;
-        if (ct.includes("json")) { try { cj = await cr.json(); } catch { /* treat as settle-only */ } }
+        if (mime.includes("json")) { try { cj = await cr.json(); } catch { /* fail closed below */ } }
+        if (!cj || typeof cj !== "object") {
+          throw new NanoodleError(
+            "payment " + invoice.paymentId + " was sent, but completion returned no readable JSON receipt — check " +
+            (invoice.statusUrl || "the payment status") + " before paying again",
+            { code: "x402", paymentId: invoice.paymentId });
+        }
         if (looksLikeResult(cj)) {
           // wrap so call sites keep their Response contract (ok/json/text/headers)
           const response = { ok: true, status: 200, headers: cr.headers, json: async () => cj, text: async () => JSON.stringify(cj) };
@@ -1249,6 +1268,35 @@ class NanoClient {
       body: payload,
       signal,
     }, signal);
+  }
+
+  async _pollJson(path, signal, remainingMs) {
+    const ac = new AbortController();
+    const onAbort = () => ac.abort(abortError(signal.reason));
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    }
+    const timer = Number.isFinite(remainingMs) ? setTimeout(() => ac.abort(
+      new NanoodleError("poll deadline reached", { code: "poll-timeout" })), Math.max(0, remainingMs)) : null;
+    let rejectAbort;
+    const aborted = new Promise((_, reject) => {
+      rejectAbort = () => reject(ac.signal.reason);
+      ac.signal.addEventListener("abort", rejectAbort, { once: true });
+      if (ac.signal.aborted) rejectAbort();
+    });
+    const work = Promise.resolve().then(async () => {
+      if (ac.signal.aborted) throw ac.signal.reason;
+      const r = await this._get(path, ac.signal);
+      if (!r.ok) throw httpError(r.status, await r.text());
+      return r.json();
+    });
+    try { return await Promise.race([work, aborted]); }
+    finally {
+      if (timer) clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+      ac.signal.removeEventListener("abort", rejectAbort);
+    }
   }
 
   async _get(path, signal) {
@@ -1353,39 +1401,50 @@ class NanoClient {
       if (onRunId) onRunId(runId);
     }
 
-    const t0 = Date.now();
-    const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
-    const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
-    // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
-    while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
-      await sleep(pollEvery, signal);
-      let s;
-      try {
-        s = await (await this._get("/api/video/status?requestId=" + encodeURIComponent(runId), signal)).json();
-      } catch (e) {
-        if (signal && signal.aborted) throw abortError(signal.reason);
-        continue; // transient poll failure — keep polling until complete or optional cap
-      }
-      const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
-      if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
-      if (st === "COMPLETED" || st === "SUCCEEDED") {
-        if (is3d) {
-          const url = model3dStatusUrl(s, model);
-          if (!url) throw new NanoodleError("completed but no model url");
+    try {
+      const t0 = Date.now();
+      const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
+      const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
+      // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
+      while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
+        await sleep(Number.isFinite(videoCap) ? Math.min(pollEvery, Math.max(0, videoCap - (Date.now() - t0))) : pollEvery, signal);
+        if (Number.isFinite(videoCap) && Date.now() - t0 >= videoCap) break;
+        let s;
+        try {
+          s = await this._pollJson("/api/video/status?requestId=" + encodeURIComponent(runId), signal, videoCap - (Date.now() - t0));
+        } catch (e) {
+          if (signal && signal.aborted) throw abortError(signal.reason);
+          if (e.code === "poll-timeout") break;
+          if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
+          continue; // transient poll failure — keep polling until complete or optional cap
+        }
+        const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
+        if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
+        if (st === "COMPLETED" || st === "SUCCEEDED") {
+          if (is3d) {
+            const url = model3dStatusUrl(s, model);
+            if (!url) throw new NanoodleError("completed but no model url");
+            return url;
+          }
+          const out = (s.data && s.data.output) || s.output || {};
+          const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
+          if (!url) throw new NanoodleError("completed but no video url");
           return url;
         }
-        const out = (s.data && s.data.output) || s.output || {};
-        const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
-        if (!url) throw new NanoodleError("completed but no video url");
-        return url;
+        if (["FAILED", "ERROR", "CANCELED", "CANCELLED", "CONTENT_POLICY_VIOLATION"].includes(st)) {
+          const why = (s.data && s.data.error) || st;
+          throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
+        }
       }
-      if (["FAILED", "ERROR", "CANCELED"].includes(st)) {
-        const why = (s.data && s.data.error) || st;
-        throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
-      }
+      const label = is3d ? "3D" : "video";
+      throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
+    } catch (e) {
+      if (signal && signal.aborted) throw e;
+      throw new NanoodleError(e && e.message ? e.message : String(e), {
+        ...(e && e.code ? { code: e.code } : {}),
+        ...(e && e.status ? { status: e.status } : {}), runId, cause: e,
+      });
     }
-    const label = is3d ? "3D" : "video";
-    throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
   }
 
   /**
@@ -1441,12 +1500,15 @@ class NanoClient {
     if (j.isApiRequest != null) qs.set("isApiRequest", String(j.isApiRequest));
     const t0 = Date.now();
     while (Date.now() - t0 < this.timeouts.audio) {
-      await sleep(this.pollIntervals.audio, signal);
+      await sleep(Math.min(this.pollIntervals.audio, Math.max(0, this.timeouts.audio - (Date.now() - t0))), signal);
+      if (Date.now() - t0 >= this.timeouts.audio) break;
       let s;
       try {
-        s = await (await this._get("/api/tts/status?" + qs, signal)).json();
+        s = await this._pollJson("/api/tts/status?" + qs, signal, this.timeouts.audio - (Date.now() - t0));
       } catch (e) {
         if (signal && signal.aborted) throw abortError(signal.reason);
+        if (e.code === "poll-timeout") break;
+        if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
         continue;
       }
       const st = String(s.status || "").toLowerCase();
@@ -1456,7 +1518,7 @@ class NanoClient {
         if (!url) throw new NanoodleError("completed but no audio url");
         return url;
       }
-      if (["error", "failed", "content_policy_violation"].includes(st)) {
+      if (["error", "failed", "canceled", "cancelled", "content_policy_violation"].includes(st)) {
         throw new NanoodleError("audio failed: " + (s.error || s.message || st));
       }
     }
@@ -1828,8 +1890,12 @@ function materialize(data) {
   }
   const warnings = [];
   const nodes = [];
+  const seenIds = new Set();
   for (const raw of data.nodes) {
     if (!raw || raw.id == null || !raw.type) continue;
+    const id = String(raw.id);
+    if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
+    seenIds.add(id);
     const type = raw.type === "audio" ? "tts" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
     if (!NODE_TYPES[type]) {
@@ -2660,7 +2726,7 @@ const RUNNERS = {
       } catch (e) {
         if (attempt > 0) throw e;
         const msg = (e && e.message) || "";
-        if (/^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
+        if ((e && e.runId != null) || /^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
         const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
         if (cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg)) {
           trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1)); // the model told us its real cap
@@ -6277,5 +6343,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-67ac0179a601";
+  window.NanoodleEngine.version = "src-c3b59f54e854";
 })();
