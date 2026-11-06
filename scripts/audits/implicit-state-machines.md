@@ -22,7 +22,9 @@ exercise many of these; an inventory is not a proof over every interleaving.
 
 All reproductions use synthetic graphs, keys and provider responses. No
 generation, payment, top-up, real sign-in, or user-storage mutation is used.
-The generated SDK artifact and its embedded twin are unchanged.
+The generated SDK artifact and its embedded twin are refreshed with the official
+generator after SDK PR #56 merged during app verification. No generated payload
+is edited by hand.
 
 ## Execution and provider lifecycles
 
@@ -103,7 +105,9 @@ The generated SDK artifact and its embedded twin are unchanged.
 - This inventory covers the app repository. NanoGPT server contracts and the
   sibling SDK/MCP projects have separate source owners.
 - Sibling SDK main used for parity:
-  `7734e7f6209f153a634b37bd1a691b67cc276817`. Its generated bundle is unchanged.
+  `a13f5b7a44dc31b458931115e71e284da2f8ca67` (SDK PR #56). The original
+  app audit used `7734e7f6209f153a634b37bd1a691b67cc276817`; the promoted
+  SDK is incorporated through the normal generated-bundle freshness workflow.
 - The live-catalog check currently identifies the new P-H3 Image LoRA model
   as unhandled on the audited app main. That classification repair has separate
   ownership and is a release prerequisite, rather than a reason to weaken the check.
