@@ -1,5 +1,5 @@
-/* data-hash=4039c25fba3b719a */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-c3b59f54e854 (20 modules) */
+/* data-hash=ea1f8f638040847d */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-48711de52f1d (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -392,7 +392,7 @@ class Workflow {
     }
 
     const emit = (evt) => { if (onProgress) { try { onProgress(evt); } catch { /* listener errors never kill the run */ } } };
-    const nodesRec = {};
+    const nodesRec = Object.fromEntries(graph.nodes.map(n => [n.id, null]));
     const errors = [];
     const cost = { total: 0, exact: true, balance: null };
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
@@ -604,15 +604,15 @@ class Workflow {
       cost.exact = false;
     }
     // ---- result ----
-    const outputsMap = {};
+    const outputEntries = [];
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
       if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
       const primary = o.ports[0];
       const value = this._wrapValue(rec.out[primary.name], primary.type);
-      outputsMap[o.key] = value;
-      outputsMap[o.nodeId] = value;
+      outputEntries.push([o.key, value], [o.nodeId, value]);
     }
+    const outputsMap = Object.fromEntries(outputEntries);
     const result = new RunResult({
       outputs: outputsMap,
       nodes: nodesRec,
@@ -2899,6 +2899,15 @@ const { NanoodleError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 
+// Allocate the final key, not just a count of the unsuffixed name: an authored
+// "Out 2" can otherwise collide with the suffix generated for a second "Out".
+function uniqueKey(base, used, reserved = new Set()) {
+  let key = base;
+  for (let suffix = 2; used.has(key.toLowerCase()) || reserved.has(key.toLowerCase()); suffix++) key = base + " " + suffix;
+  used.add(key.toLowerCase());
+  return key;
+}
+
 /* ============================== INPUTS ============================== */
 
 /** Which node types contribute user inputs, and with what fields (mirrors play.html INPUT_SPECS). */
@@ -2973,19 +2982,14 @@ function deriveInputs(graph) {
   // REQUIRED input (app PR #138) — or exactly one input at all, so an author-optional
   // renamed node (e.g. an optional "Style reference" upload) keeps its name as the key.
   // Otherwise the generic spec label. Dedupe with " 2", " 3".
-  const used = new Map();
+  const used = new Set();
   for (const e of entries) {
     const nodeEntries = entries.filter((x) => x.nodeId === e.nodeId);
     const required = nodeEntries.filter((x) => !x.optional);
     const custom = (e._node.name || "").trim();
     const names = (required.length === 1 && required[0] === e) ||
                   (required.length === 0 && nodeEntries.length === 1);
-    let key = custom && names ? custom : e.label;
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
-    e.key = key;
+    e.key = uniqueKey(custom && names ? custom : e.label, used);
   }
   for (const e of entries) delete e._node;
   return entries;
@@ -3052,13 +3056,10 @@ function deriveOutputs(graph) {
     if (!t.outputs || !t.outputs.length) return false;
     return !graph.links.some((l) => l.from.node === n.id);
   });
-  const used = new Map();
+  const used = new Set();
   return sinks.map((n) => {
-    let key = displayName(n);
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
+    const aliases = new Set(sinks.filter(other => other.id !== n.id).map(other => other.id.toLowerCase()));
+    const key = uniqueKey(displayName(n), used, aliases);
     const t = NODE_TYPES[n.type];
     let ports = t.outputs.map((p) => ({ ...p }));
     // vframes grows frame1..frameN from max(fields.frames, wired floor) (mirrors browser)
@@ -6343,5 +6344,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-c3b59f54e854";
+  window.NanoodleEngine.version = "src-48711de52f1d";
 })();
