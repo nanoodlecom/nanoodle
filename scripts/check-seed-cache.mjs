@@ -46,9 +46,11 @@ function scriptAwareDocument(ctx) {
   }});
 }
 const calls = [];
+let imageReply = null;
 function recordingFetch(url, opts = {}) {
   let body = null; try { body = opts.body ? JSON.parse(opts.body) : null; } catch { body = opts.body; }
   calls.push({ url: String(url), body });
+  if (/\/images\/generations/.test(url) && imageReply) return imageReply();
   let json = {};
   if (/\/images\/generations/.test(url)) { const cnt = Math.max(1, (body && Number(body.n)) || 1);
     json = { data: Array.from({ length: cnt }, (_, i) => ({ b64_json: "IMG" + i })) }; }
@@ -57,7 +59,8 @@ function recordingFetch(url, opts = {}) {
   return Promise.resolve({ ok: true, status: 200, json: async () => json, text: async () => JSON.stringify(json) });
 }
 function loadEngine() {
-  const code = prepare(extractScript(readFileSync(PLAY, "utf8")));
+  const code = prepare(extractScript(readFileSync(PLAY, "utf8"))).replace(
+    "let ABORT = null;", "let ABORT = null; window.__setTestAbort = ctl => { ABORT = ctl; };");
   const localStorage = { _k: "test-api-key", getItem(k){ return k === "ngpt_key" ? this._k : null; }, setItem(){}, removeItem(){} };
   const ctx = { localStorage, sessionStorage: localStorage,
     location: { origin: "", pathname: "", hash: "", href: "", replace(){} },
@@ -71,6 +74,7 @@ function loadEngine() {
   try { new vm.Script(code, { filename: "play.html#module" }).runInContext(ctx); }
   catch (e) { if (!String(e && e.message).includes("__RUN_TEST_HOOK_READY__")) throw e; }
   if (!ctx.__runTest || !ctx.__runTest.app) throw new Error("run-test hook did not initialize");
+  ctx.__runTest.app.setTestAbort = ctx.__setTestAbort;
   return ctx.__runTest.app;
 }
 
@@ -144,6 +148,40 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   ok(after2 === 1, `lipsync fixed seed: pass 2 must reuse cache (no new genVideo), total now ${after2}`);
   ok(r1.generated >= 1 && r2.generated === 0,
     `lipsync fixed seed: generated should be >=1 then 0, got ${r1.generated}/${r2.generated}`);
+}
+
+// A multi-count Run clones the graph per lane. The fixed-seed reservation must
+// exist BEFORE asynchronous model preflight yields to the next lane.
+for (const seed of ["42", ""]) {
+  calls.length = 0;
+  const raw = { nodes: [{ id: "parallel-" + seed, type: "image", x:0,y:0,
+    fields: { model: "x", prompt: "same request", size: "512x512", seed } }], links: [] };
+  const results = await Promise.all(Array.from({ length:8 }, (_, lane) =>
+    app.runGraph(app.materialize(JSON.parse(JSON.stringify(raw))), { lane })));
+  ok(imgCount() === (seed ? 1 : 8), `eight lanes, seed=${seed || "random"}: expected ${seed ? 1 : 8} paid requests, got ${imgCount()}`);
+  ok(results.reduce((sum, r) => sum + r.generated, 0) === (seed ? 1 : 8),
+    "only genuine generations count toward keep-mode pacing");
+}
+
+// Stop while seven lanes await the owner's fixed-seed request. All lane work
+// reservations must be removed, so the next Run can produce every lane again.
+{
+  calls.length = 0;
+  let rejectImage;
+  imageReply = () => new Promise((_, reject) => { rejectImage = reject; });
+  const raw = { nodes:[{id:"stop-retry",type:"image",fields:{model:"x",prompt:"cat",seed:"7"}}],links:[] };
+  const ctl = new AbortController(); app.setTestAbort(ctl);
+  const runs = Array.from({length:8}, (_,lane) => app.runGraph(app.materialize(JSON.parse(JSON.stringify(raw))),{lane}));
+  for(let i=0;i<100 && !rejectImage;i++) await Promise.resolve();
+  ok(typeof rejectImage === "function", "owner reaches the synthetic provider request");
+  ctl.abort(); rejectImage(new DOMException("Stopped", "AbortError"));
+  const stopped = await Promise.allSettled(runs);
+  ok(stopped.every(r=>r.status==="rejected"), "all stopped fixed-seed lanes halt");
+  app.setTestAbort(null); imageReply = null; calls.length = 0;
+  const graphs = Array.from({length:8},()=>app.materialize(JSON.parse(JSON.stringify(raw))));
+  await Promise.all(graphs.map((graph,lane)=>app.runGraph(graph,{lane})));
+  ok(imgCount()===1, "retry after Stop generates once");
+  ok(graphs.every(g=>g.byId("stop-retry").out.image), "all eight lanes recover after Stop without stale work reservations");
 }
 
 if (failed) { console.error(`✗ seed-cache: ${failed} assertion(s) failed`); process.exit(1); }
