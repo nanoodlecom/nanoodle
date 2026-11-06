@@ -5607,7 +5607,10 @@ function blockTariffUsd(pricing, size){
   for(const r of rows){
     for(const mode of Object.keys(r || {})){
       const t = r[mode], usd = t && typeof t==="object" ? num(t.usd_per_started_block) : null; if(usd==null) continue;
-      if(area!=null && mode!=="target") continue;      // a 2k/4k/8k pick bills the target tariff
+      // A 2k/4k/8k pick bills the target tariff — EXCEPT a target that is an exact integer 1–4× of the
+      // source bills the cheaper SCALE tariff where the algorithm has one (catalog target_integer_scale_tariff;
+      // e.g. Standard V2 1024→2K = 1×$0.08, 2048→8K = 3×$0.08 = $0.24, not $0.10/$0.30). A floor must count it.
+      if(area!=null && mode!=="target" && !(mode==="scale" && p.target_integer_scale_tariff)) continue;
       if(area==null && size && rows.some(x=> x && x[size]) && mode!==size) continue;   // scale/source pick → that mode
       const blocks = area!=null ? Math.ceil(area / (num(t.megapixels_per_block) || area)) : 1;
       const v = Math.round(usd * blocks * 1e6) / 1e6;

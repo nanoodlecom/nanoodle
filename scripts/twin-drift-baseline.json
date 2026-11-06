@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1708,
-  "occurrencesIndexHtml": 1796,
-  "occurrencesPlayHtml": 1862,
-  "digest": "e141f7dd79ceac20fbf7f43cffb59155",
+  "count": 1707,
+  "occurrencesIndexHtml": 1795,
+  "occurrencesPlayHtml": 1861,
+  "digest": "733066a70e23bdbc0afe3837590e1ec9",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -674,7 +674,6 @@
     "64940212711dde4f 1 1 - - <script>if(\"serviceWorker\" in navigator){addEventListener(\"load\",()=>navigator.serviceWorker.register(\"/sw.js\").catch(()=>{}));}</script>",
     "64d4ff71dcd9d80f 1 1 2a3fabad3210c8ff 2a3fabad3210c8ff d.rows = Object.keys(q.criteria).map(function(key, i){ return { label:\"image \" + (i+1), p:+probs[key] || 0, win:key===k }; });",
     "64ec20d158e524c1 1 1 - - return { url: normalizeLoraUrl(r.url), scale: (r.strength==null||r.strength===\"\") ? 1 : Number(r.strength) };",
-    "6517383f5be3e49a 1 1 - - if(area!=null && mode!==\"target\") continue;      // a 2k/4k/8k pick bills the target tariff",
     "654f6397f907c405 1 1 - - function videoDefaultFields(fields, ctx){",
     "6552cb2e39aa8a3d 1 1 - - const n = samples.length, dataLen = n*2, ab = new ArrayBuffer(44+dataLen), dv = new DataView(ab);",
     "6562139f4dad63e0 1 1 - - if(a===172 && b>=16 && b<=31) return true;",

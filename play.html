@@ -7991,7 +7991,7 @@ window.NoodleApp = (function () {
     for(const r of rows){
       for(const mode of Object.keys(r || {})){
         const t = r[mode], usd = t && typeof t==="object" ? num(t.usd_per_started_block) : null; if(usd==null) continue;
-        if(area!=null && mode!=="target") continue;      // a 2k/4k/8k pick bills the target tariff
+        if(area!=null && mode!=="target" && !(mode==="scale" && p.target_integer_scale_tariff)) continue;   // exact-integer target → scale tariff (see index.html)
         if(area==null && size && rows.some(x=> x && x[size]) && mode!==size) continue;   // scale/source pick → that mode
         const blocks = area!=null ? Math.ceil(area / (num(t.megapixels_per_block) || area)) : 1;
         const v = Math.round(usd * blocks * 1e6) / 1e6;
