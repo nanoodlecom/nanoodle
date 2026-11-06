@@ -90,7 +90,8 @@ vm.createContext(ctx);
 vm.runInContext([
   extractFn(INDEX, "blockTariffUsd"), extractFn(INDEX, "normImg"), extractFn(INDEX, "passesFilter"),
   extractFn(INDEX, "defModelFor"), extractFn(INDEX, "imageDefaultOk"), extractFn(INDEX, "imageUnitUsd"),
-  extractFn(INDEX, "livePrice"),
+  extractFn(INDEX, "imageOutputIsGif"), extractFn(INDEX, "livePrice"),
+  "const t = (s) => s;",  // livePrice i18n stub — Topaz path never hits the GIF string
   "const catItem = (kind, id) => (catalogs[kind] || []).find(m => m.id === id);",
   "this.normImg = normImg; this.defModelFor = defModelFor; this.livePrice = livePrice; this.imageUnitUsd = imageUnitUsd; this.blockTariffUsd = blockTariffUsd;",
 ].join("\n"), ctx);
