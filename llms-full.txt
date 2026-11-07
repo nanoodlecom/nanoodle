@@ -529,10 +529,11 @@ result = wf.run(
 )
 ```
 
-`timeout=` bounds the whole run. When it fires, `run()` returns straight away
-and the in-flight nodes stop polling within about a second, so the process is
+`timeout=` bounds the whole run (`None` waits without a run deadline; `0` starts no work).
+It must be a finite, non-negative number of seconds. Ctrl-C cancels pending work promptly.
+When the deadline fires, `run()` returns straight away and the in-flight nodes stop polling within about a second, so the process is
 free to exit. Without `timeout=`, each node still waits out its own limit
-(video 600 s, audio 300 s).
+(video has no default limit, audio 300 s, 3D 25 minutes).
 
 The deadline bounds the run, and nothing else. Media a node already produced
 stays fetchable after it: `result["Image"].save("out.png")` works once the
