@@ -5590,9 +5590,37 @@ const IMG_INPUT_ROLES = { "flux-pro/v1/vto": ["person", "garment"] };
 // seedream-v4.5, qwen-image-3 all verified generating from a bare prompt), so this is an id list by
 // necessity. Same curated-map contract as INPAINT_OK: verified per model, dated, catalog-first.
 const NEEDS_SRC_IDS = new Set(["hidream-e1-1", "wan-2.6-image-edit", "vidu-q2-reference"]);
+// NanoGPT's Topaz edit models (added 2026-11-01: topaz-image-upscale, -transparent-upscale, -denoise-max,
+// -super-focus) publish pricing.per_image:{} and bill per STARTED megapixel block instead
+// (billing "started_megapixel_blocks", one tariffs[] row per algorithm: scale / target / source modes,
+// each {usd_per_started_block, megapixels_per_block}; target sizes 2k/4k/8k carry their area in
+// target_megapixels). Reading only per_image priced them null, so the picker/node chip went blank and the
+// run total skipped them as $0. The real bill needs the SOURCE dimensions, which no estimate has before a
+// run, so this is the CHEAPEST bill for a size: a target size at the fewest blocks its area needs on the
+// cheapest algorithm, any other mode (scale/source) at one block. Never $0, never an overstatement; the
+// caller labels it "from". Falls back to pricing.starting_at. Twin: play.html.
+function blockTariffUsd(pricing, size){
+  const p = pricing || {}, rows = Array.isArray(p.tariffs) ? p.tariffs : [];
+  const num = (x)=> (x!=null && isFinite(+x) && +x>0) ? +x : null;
+  const area = num((p.target_megapixels || {})[size]);
+  let best = null;
+  for(const r of rows){
+    for(const mode of Object.keys(r || {})){
+      const t = r[mode], usd = t && typeof t==="object" ? num(t.usd_per_started_block) : null; if(usd==null) continue;
+      // A 2k/4k/8k pick bills the target tariff — EXCEPT a target that is an exact integer 1–4× of the
+      // source bills the cheaper SCALE tariff where the algorithm has one (catalog target_integer_scale_tariff;
+      // e.g. Standard V2 1024→2K = 1×$0.08, 2048→8K = 3×$0.08 = $0.24, not $0.10/$0.30). A floor must count it.
+      if(area!=null && mode!=="target" && !(mode==="scale" && p.target_integer_scale_tariff)) continue;
+      if(area==null && size && rows.some(x=> x && x[size]) && mode!==size) continue;   // scale/source pick → that mode
+      const blocks = area!=null ? Math.ceil(area / (num(t.megapixels_per_block) || area)) : 1;
+      const v = Math.round(usd * blocks * 1e6) / 1e6;
+      if(best==null || v<best) best = v;
+    }
+  }
+  return best!=null ? best : num(p.starting_at);
+}
 function normImg(m){
-  const per = m.pricing?.per_image||{};
-  const v = per.square ?? per.square_hd ?? Object.values(per)[0];
+  let per = m.pricing?.per_image||{};
   const mod = m.architecture?.modality || "";   // text->image | text+image->image | image->image
   // TODO(nanogpt): NanoGPT mislabels a few edit-only models as text->image with image_to_image:false,
   // so they'd surface as text-to-image generators and fail without a source image (verified live:
@@ -5619,6 +5647,15 @@ function normImg(m){
   // per_image — so the size control is driven from these, not a generic list.
   const resolutions = Array.isArray(m.supported_parameters?.resolutions)
     ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
+  // No per-size price but a block tariff / starting_at (Topaz) → a per-size FLOOR map, flagged priceFrom
+  // so every label reads "from $X/img" and the run total turns "~" (see blockTariffUsd).
+  let priceFrom = false;
+  if(!Object.keys(per).length){
+    const floor = {};
+    for(const r of (resolutions.length ? resolutions : [""])){ const u = blockTariffUsd(m.pricing, r); if(u!=null) floor[r || "default"] = u; }
+    if(Object.keys(floor).length){ per = floor; priceFrom = true; }
+  }
+  const v = priceFrom ? Math.min(...Object.values(per)) : (per.square ?? per.square_hd ?? Object.values(per)[0]);
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: v!=null ? +v : null,                                       // per-image $ → price sorts
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
@@ -5633,9 +5670,11 @@ function normImg(m){
     maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
     fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
+    priceFrom,                                                           // sizePrices are lower bounds (block-billed, source-size dependent) → "from"
+    promptNA: m.supported_parameters?.prompt_length?.status==="not_applicable",   // takes no instruction (eraser/upscaler/cutout) → never a default
     nsfw: !!m.capabilities?.nsfw,
     knobs: imageKnobSpec(m.supported_parameters),                      // negative prompt / steps / guidance / prompt expansion the catalog advertises (MOSS Image)
-    price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
+    price: v!=null ? `${priceFrom?"from ":""}$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
   const p=applyVideoQuotePricing(m.id, m.pricing||{}), c=m.capabilities||{};
@@ -6039,8 +6078,15 @@ function defModelFor(type){
     return pref ? pref.id : CLEANVOICE_DEFAULT_MODEL;   // pinned even before the catalog lands, like Decide
   }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
-  const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
+  const list = (catalogs[t.modelKind]||[]).filter(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
+  // Image/Edit: newest model that can actually serve a fresh node — priced per image, takes an instruction,
+  // and isn't an upscaler. Without this the 2026-11-01 Topaz drop (newest, unpriced, upscale-only) became
+  // every new ✂️ Edit node's model with a $0 estimate. Falls back to plain newest if nothing qualifies.
+  const m = (t.modelKind==="image" && list.find(imageDefaultOk)) || list[0];
   return m ? m.id : "";
+}
+function imageDefaultOk(x){
+  return x.sortUsd!=null && !x.priceFrom && !x.promptNA && !/upscal/i.test(x.id||"");
 }
 // A saved/shared graph's fields.model can name a model NanoGPT has since renamed or retired.
 // True only when the catalog for that kind is actually LOADED (non-empty) yet the id is absent —
@@ -8149,8 +8195,9 @@ function livePrice(kind, fields, nodeFilter, n){
     // A fixed_image_count model bills unit × N every single run, so "$0.020/img" is the headline lie
     // on the node chip — show what one Run actually costs, with the ×N that makes it.
     const fixed = it.fixedCount||0;
-    if(fixed>1) return `$${(+v*fixed).toFixed(3)}/run ×${fixed}`;
-    return `$${(+v).toFixed(3)}/img`;
+    const from = it.priceFrom ? "from " : "";   // block-billed (Topaz): a floor until the source size is known
+    if(fixed>1) return `${from}$${(+v*fixed).toFixed(3)}/run ×${fixed}`;
+    return `${from}$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
     // Pass the node's wired ref count (and source-video) so the chip tracks LoRA per-ref
@@ -8726,7 +8773,7 @@ function workflowCost(){
       } else { lo += u; hi += u; }
     } else {
       lo += u; hi += u;
-      if(t.modelKind!=="image"){ estimate = true; exact = false; }
+      if(t.modelKind!=="image" || catItem("image", effectiveModelFields(n).model)?.priceFrom){ estimate = true; exact = false; }
     }
   }
   return { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi };

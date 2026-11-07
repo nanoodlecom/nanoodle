@@ -8048,10 +8048,30 @@ window.NoodleApp = (function () {
     const songs = Math.max(1, parseInt(extra && (extra.number_of_songs || extra.n), 10) || 1);
     return unit * songs * pricingMultiplier(pricing, extra || {});   // the body carries num_samples unless it is the catalog default
   }
+  // Floor price for block-billed image models (Topaz: per_image:{} + started-megapixel-block tariffs).
+  // Twin of index.html blockTariffUsd — the why lives there; check-topaz-block-pricing.mjs pins both.
+  function blockTariffUsd(pricing, size){
+    const p = pricing || {}, rows = Array.isArray(p.tariffs) ? p.tariffs : [];
+    const num = (x)=> (x!=null && isFinite(+x) && +x>0) ? +x : null;
+    const area = num((p.target_megapixels || {})[size]);
+    let best = null;
+    for(const r of rows){
+      for(const mode of Object.keys(r || {})){
+        const t = r[mode], usd = t && typeof t==="object" ? num(t.usd_per_started_block) : null; if(usd==null) continue;
+        if(area!=null && mode!=="target" && !(mode==="scale" && p.target_integer_scale_tariff)) continue;   // exact-integer target → scale tariff (see index.html)
+        if(area==null && size && rows.some(x=> x && x[size]) && mode!==size) continue;   // scale/source pick → that mode
+        const blocks = area!=null ? Math.ceil(area / (num(t.megapixels_per_block) || area)) : 1;
+        const v = Math.round(usd * blocks * 1e6) / 1e6;
+        if(best==null || v<best) best = v;
+      }
+    }
+    return best!=null ? best : num(p.starting_at);
+  }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
     const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
-    return (v!=null && isFinite(+v)) ? +v*(count||1) : null;
+    const u = v!=null ? v : blockTariffUsd(pricing, size);   // per_image:{} + block tariff (Topaz) → the floor; refreshRunCost marks it "~"
+    return (u!=null && isFinite(+u)) ? +u*(count||1) : null;
   }
   // Live Choice/Text value on a field in-port — twin of index.html wiredFieldValue.
   // Lets "~$ / run" price the model id a Choice wire will send (not the leftover fields.model).
@@ -8083,6 +8103,12 @@ window.NoodleApp = (function () {
   function imageOutputIsGif(fields){
     const o = fields && fields.modelOpts;
     return !!(o && typeof o==="object" && String(o.output_format||"").toLowerCase()==="gif");
+  }
+  // true when an image node's model has no per_image price (block-billed Topaz): its forecast is a floor
+  async function imageFloorPricedPlay(n){
+    const f = effectiveModelFieldsPlay(n), m = f && f.model ? await rawCatItem("image", f.model) : null;
+    const per = m && m.pricing && m.pricing.per_image;
+    return !!m && !(per && Object.keys(per).length);
   }
   // one node's USD/run from its chosen model + settings (pricing pulled from the public catalog)
   async function nodeUnitUsdPlay(n){
@@ -8145,7 +8171,7 @@ window.NoodleApp = (function () {
       const u = await nodeUnitUsdPlay(n);
       if(token !== _runCostToken) return;   // a newer refresh started → drop this stale pass
       if(u==null){ unpriced++; continue; }
-      usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
+      usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image" || await imageFloorPricedPlay(n)) exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
     // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
