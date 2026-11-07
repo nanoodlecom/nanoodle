@@ -7608,10 +7608,10 @@ window.NoodleApp = (function () {
       .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("check-balance")); })
       .then(function(j){
         var usd = j ? parseFloat(j.usd_balance) : NaN;
-        if(started === _playBalSeq && !isNaN(usd)){ COST.balance = usd; COST.balStale = false; paintCost(); notifyParentCost(); }
-        else if(started === _playBalSeq && needCorrective){ COST.balStale = true; paintCost(); }
+        if(started === _playBalSeq && k === getKey() && !isNaN(usd)){ COST.balance = usd; COST.balStale = false; paintCost(); notifyParentCost(); }
+        else if(started === _playBalSeq && k === getKey() && needCorrective){ COST.balStale = true; paintCost(); }
       }).catch(function(){
-        if(needCorrective && started === _playBalSeq){ COST.balStale = true; paintCost(); }
+        if(needCorrective && started === _playBalSeq && k === getKey()){ COST.balStale = true; paintCost(); }
       }).then(function(){
         _playBalPending = false;
         if(_playBalAgain) return refreshPlayBalance(_playBalAgainCorrective);
@@ -11608,8 +11608,9 @@ const PROMPT_CAPS = {
           catch(err){
             if(settleWork) settleWork.res(null);   // resolve, never reject — no waiter must not see an unhandled abort
             if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
+          } finally {
+            if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           }
-          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           return;
         }
         onStatus && onStatus(id, "run", "running…");
@@ -11629,10 +11630,15 @@ const PROMPT_CAPS = {
           // Fixed seed: register the IN-FLIGHT generation BEFORE awaiting so a concurrent multi-count
           // lane finds {sig,pending} and awaits THIS call rather than issuing a byte-identical paid
           // one. Read→register is synchronous (no await between), so exactly one lane ever generates.
-          await assertModelAvailable(rn);   // run preflight: block a drifted (renamed/retired) model id before any paid request (twin of the editor's mdl() guard)
-          const noteCb = (msg)=> onStatus && onStatus(id, "run", msg);
-          const njsR = njsRunFor(n.type, rn, inp, runKey);   // flag-gated nanoodle-js delegation + per-run vetoes (see the block above runGraph)
-          p = njsR ? njsR(rn, inp, onCostCb, runKey, noteCb) : t.run(rn, inp, ctx, noteCb);
+          // Reserve the full preflight+generation promise synchronously. Awaiting
+          // preflight here let every lane miss RUN_CACHE and submit the same seed.
+          p = (async ()=>{
+            await assertModelAvailable(rn);   // no paid request before model preflight
+            if(runAborted()) throw abortError();
+            const noteCb = (msg)=> onStatus && onStatus(id, "run", msg);
+            const njsR = njsRunFor(n.type, rn, inp, runKey);
+            return njsR ? njsR(rn, inp, onCostCb, runKey, noteCb) : t.run(rn, inp, ctx, noteCb);
+          })();
           if(seeded) RUN_CACHE.set(id, { sig, pending: p });
           n.out = await p || {};
           n._sig = sig;   // so a later sibling Play can reuse this ancestor (PR #391) without a second charge
@@ -16972,7 +16978,8 @@ let _balPending = false, _balSeq = 0;
 let _balAgain = false;
 let _balAgainCorrective = false;
 async function refreshBal(corrective){
-  if(!getKey()) return;
+  const key = getKey();
+  if(!key) return;
   if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
   const started = _balSeq, needCorrective = !!corrective;
@@ -16984,14 +16991,14 @@ async function refreshBal(corrective){
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" });
     if(!r.ok){               // rejected key → no seed; key validity is probeKey's job, not ours
                              // (check-balance is CORS-enabled since ~2026-07: ACAO * on 200 AND 401 — live-probed 2026-07-05)
-      if(needCorrective && started === _balSeq){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+      if(needCorrective && started === _balSeq && key === getKey()){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
       return;
     }
     const usd = parseFloat((await r.json()).usd_balance);
-    if(started === _balSeq && !isNaN(usd)) noteBalance(usd);
-    else if(started === _balSeq && needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+    if(started === _balSeq && key === getKey() && !isNaN(usd)) noteBalance(usd);
+    else if(started === _balSeq && key === getKey() && needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
   }catch(_){
-    if(needCorrective && started === _balSeq){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+    if(needCorrective && started === _balSeq && key === getKey()){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
   }finally{
     _balPending = false;
     if(_balAgain) return refreshBal(_balAgainCorrective);

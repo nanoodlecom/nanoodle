@@ -5966,7 +5966,9 @@ catalogFetchedAt.model3d = 0;
 let _model3dCatP = null;
 function ensureModel3dCatalog(){
   if(_model3dCatP) return _model3dCatP;
-  _model3dCatP = refreshCatalog("model3d").catch(()=>false).then(()=> catalogs.model3d || []);
+  if(catalogFetchedAt.model3d && !catalogIsStale("model3d")) return Promise.resolve(catalogs.model3d || []);
+  _model3dCatP = refreshCatalog("model3d").catch(()=>false).then(()=> catalogs.model3d || [])
+    .finally(()=>{ _model3dCatP = null; });   // retain only in-flight work; a failed first load must be retryable
   return _model3dCatP;
 }
 function watchedCatalogKinds(){
@@ -13161,7 +13163,8 @@ let _balPending = false, _balSeq = 0;
 let _balAgain = false;
 let _balAgainCorrective = false;
 async function refreshBalance(corrective){
-  if(!getKey()) return;
+  const key = getKey();
+  if(!key) return;
   if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
   const needCorrective = !!corrective, started = _balSeq;
@@ -13170,11 +13173,11 @@ async function refreshBalance(corrective){
   try{
     const r = await fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" });
     // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth), not here.
-    if(!r.ok){ if(needCorrective && started === _balSeq){ stats.balStale = true; paintCost(); } return; }
+    if(!r.ok){ if(needCorrective && started === _balSeq && key === getKey()){ stats.balStale = true; paintCost(); } return; }
     const usd = parseFloat((await r.json()).usd_balance);
-    if(started === _balSeq && !isNaN(usd)){ stats.balance = usd; stats.balStale = false; cacheBalance(); paintCost(); }
-    else if(started === _balSeq && needCorrective){ stats.balStale = true; paintCost(); }
-  }catch(_){ if(needCorrective && started === _balSeq){ stats.balStale = true; paintCost(); } }
+    if(started === _balSeq && key === getKey() && !isNaN(usd)){ stats.balance = usd; stats.balStale = false; cacheBalance(); paintCost(); }
+    else if(started === _balSeq && key === getKey() && needCorrective){ stats.balStale = true; paintCost(); }
+  }catch(_){ if(needCorrective && started === _balSeq && key === getKey()){ stats.balStale = true; paintCost(); } }
   finally{
     _balPending = false;
     if(_balAgain) return refreshBalance(_balAgainCorrective);
@@ -13893,7 +13896,7 @@ async function runGroup(seedIds, ctx){
           try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
-            if(workCancelled || seedAlone){ setStopped(n); return; }   // Stop cancelled THIS work — don't stamp done
+            if(workCancelled || seedAlone){ failed.add(id); setStopped(n); return; }   // Stop invalidates this output for dependents too
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
             if(ctx.demo) delete n._sig; else n._sig = sig;
@@ -13909,7 +13912,7 @@ async function runGroup(seedIds, ctx){
           catch(err){
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
-            if(workCancelled || seedAlone || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+            if(workCancelled || seedAlone || err?.name==="AbortError"){ failed.add(id); setStopped(n); }   // neutral Stop UI; dependents still have no valid input
             else if(err && err.gate){ failed.add(id); gated.add(id); n.out = {}; delete n._sig; setGated(n, err); }   // ⚖️ Decide said no: stop here, dependents skip unbilled
             else {
               // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
