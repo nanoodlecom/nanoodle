@@ -14,7 +14,7 @@ const item = { id: model, pricing: { type: "refundable_reservation", reservation
   supported_parameters: { parameters: { mode: { type: "select", default: "auto", options:
     ["auto", "reference", "edit", "extend"].map(value => ({ value })) } } } };
 const refs = Array.from({ length: 6 }, (_, i) => `https://cdn.example/ref${i + 1}.png`);
-const plain = value => JSON.parse(JSON.stringify(value));
+const plain = value => value == null ? value : JSON.parse(JSON.stringify(value));
 for (const [label, source] of [["Play embedded", block[1]],
   ["vendor", readFileSync(ROOT + "/vendor/njs-engine.js", "utf8")]]) {
   const w = {};
