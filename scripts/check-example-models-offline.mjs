@@ -95,6 +95,7 @@ const catalogs = {
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
     { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
     { id: 'gpt-4o-mini-tts', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] } },
+    { id: 'elevenlabs/eleven-v4-turbo', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Alicia', 'Aria', 'Roger', 'Sarah', 'Laura', 'Charlie', 'George', 'Callum', 'River', 'Liam', 'Charlotte', 'Alice', 'Matilda', 'Will', 'Jessica', 'Eric', 'Chris', 'Brian', 'Daniel', 'Lily', 'Bill'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
     { id: 'mureka-ai/mureka-v7.6/generate-bgm', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true } },
     { id: 'Minimax-Music-2.6', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true }, supported_parameters: { min_duration: 10, max_duration: 300 } },

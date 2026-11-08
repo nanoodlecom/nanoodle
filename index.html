@@ -14499,7 +14499,7 @@ const CTX = {
    two real ways in — Sign in with NanoGPT, or paste a key. The canned results were
    generated once by running the shipped starter graph itself for real (gemini-3.8-flash
    reads the sketch → glm-5.3-flash reimagines it → muse-image paints it →
-   seedance-v1-pro-fast moves it → gpt-4o-mini-tts narrates it), so what a first-timer
+   seedance-v1-pro-fast moves it → elevenlabs/eleven-v4-turbo narrates it), so what a first-timer
    watches is exactly what a real run of the starter produces.
 
    Two sigs, set at boot from the canonical starter:
@@ -20256,7 +20256,7 @@ function seed(){
   nameNode(img, "Painted");
   const vid = addNode("ivideo", 1380, 210, { model:"bytedance-seedance-v1-pro-fast", prompt:"Gentle storybook motion: sun rays shimmer, the cat pads a few steps through the grass, leaves sway, the round window glows warm. Slow, dreamy, seamless calm.", resolution:"720p", aspect:"16:9", duration:"5" });
   nameNode(vid, "It moves");
-  const voice = addNode("tts", 1710, 210, { model:"gpt-4o-mini-tts", voice:"nova", response_format:"mp3" });
+  const voice = addNode("tts", 1710, 210, { model:"elevenlabs/eleven-v4-turbo", voice:"Sarah", response_format:"mp3" });
   nameNode(voice, "Told aloud");
   connect(sketch.id, "image", vision.id, "image");
   connect(vision.id, "text", llm.id, "prompt");

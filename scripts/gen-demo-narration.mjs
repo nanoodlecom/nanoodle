@@ -10,13 +10,16 @@
  * model reading DEMO_LLM_TEXT — the exact brief the canned 🧠 LLM node shows.
  *
  * PROVENANCE OF THE COMMITTED FILE
- *   model       gpt-4o-mini-tts, voice "nova", response_format mp3
- *   text        DEMO_LLM_TEXT verbatim (the brief from the same live run)
- *   captured    as the Speech node's output of a full live run of the shipped starter
- *               graph on 2026-11-07 (chain total 0.1362 USD; the TTS leg was not
- *               itemized by the provider — catalog price is 0.0133 USD / 1k chars,
- *               i.e. about 0.008 USD for this 608-char text)
- *   result      MP3, 128 kbps, 24 kHz mono, ~39 s, 622 KB
+ *   model       elevenlabs/eleven-v4-turbo, voice "Sarah", response_format mp3
+ *   text        DEMO_LLM_TEXT verbatim (the brief from the winning live run —
+ *               the words did not change when the voice did)
+ *   captured    standalone on 2026-11-07 via this script's endpoint flow, after the
+ *               starter's Speech pin moved off gpt-4o-mini-tts ("really old").
+ *               Measured cost 0.041344 USD balance-true for this 608-char text
+ *               (catalog price 0.068 USD / 1k chars). A google/gemini-3.8-flash-tts
+ *               take (voice "Sulafat") was rendered the same day for comparison —
+ *               WAV-only on the speech endpoint and a slower 47.5 s read — and not used.
+ *   result      MP3, 128 kbps, ~42.8 s, 686 KB
  *
  * THIS SCRIPT SPENDS REAL MONEY (a few tenths of a cent). It is hand-run only.
  * No hook, no CI job calls it. Use it to regenerate an equivalent narration
@@ -27,8 +30,8 @@
  *   NANOGPT_API_KEY=<redacted> node scripts/gen-demo-narration.mjs
  *
  * OPTIONS (env)
- *   MODEL   tts model id   (default gpt-4o-mini-tts — the starter's Speech model)
- *   VOICE   voice name     (default nova — the starter's voice)
+ *   MODEL   tts model id   (default elevenlabs/eleven-v4-turbo — the starter's Speech model)
+ *   VOICE   voice name     (default Sarah — the starter's voice)
  */
 
 import fs from "node:fs";
@@ -38,8 +41,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUT = path.join(ROOT, "demo-narration.mp3");
 const NANOGPT = "https://nano-gpt.com";
-const MODEL = process.env.MODEL || "gpt-4o-mini-tts";
-const VOICE = process.env.VOICE || "nova";
+const MODEL = process.env.MODEL || "elevenlabs/eleven-v4-turbo";
+const VOICE = process.env.VOICE || "Sarah";
 const SIZE_CAP = 2 * 1024 * 1024;          // same discipline as gen-demo-clip: visitors fetch this
 
 const die = (msg) => { console.error("✗ " + msg); process.exit(1); };
