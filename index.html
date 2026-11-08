@@ -949,10 +949,16 @@
   @keyframes sp{to{transform:rotate(360deg)}}
 
   /* ---------- comment / sticky note (editor-only annotation, no ports, never runs) ---------- */
-  .node.note{ min-width:150px; }
-  .node.note header .ttl{ color:var(--cmt,#f5d76e) }
+  /* A resting note is just a title and its text: a faint wash of the note colour sets it
+     apart from machine nodes, and all formatting chrome stays hidden until the note is
+     selected, hovered or being edited. */
+  .node.note{ min-width:150px; background:color-mix(in srgb, var(--cmt,#f5d76e) 6%, var(--panel));
+              border-color:color-mix(in srgb, var(--cmt,#f5d76e) 38%, var(--line)) }
+  .node.note.sel{ border-color:var(--accent) }
+  .node.note header .ttl{ color:var(--cmt,#f5d76e); font-size:.95rem }
   .node.note .body{ padding:.4rem .55rem .55rem; gap:.35rem }
-  .node.note .cmtbar{ display:flex; align-items:center; gap:.3rem; flex-wrap:wrap }
+  .node.note .cmtbar{ display:none; align-items:center; gap:.3rem; flex-wrap:wrap }
+  .node.note.sel .cmtbar, .node.note:hover .cmtbar, .node.note.editing .cmtbar{ display:flex }
   .node.note .cmtsws{ display:flex; gap:.2rem; margin-right:.1rem }
   .node.note .cmtsw{ width:15px; height:15px; padding:0; border-radius:50%; border:2px solid transparent; cursor:pointer }
   .node.note .cmtsw:hover{ transform:scale(1.12) }
@@ -963,7 +969,13 @@
   .node.note .cmtbtn.cmtbold{ font-weight:800 }
   .node.note .cmtbtn.on{ color:var(--ink); border-color:var(--accent); background:#ffffff14 }
   .node.note .cmtbtn:disabled{ opacity:.35; cursor:default; color:var(--dim); border-color:var(--line) }
-  .node.note textarea.cmttext{ min-height:52px; background:transparent; border:1px dashed var(--line); border-radius:.45rem; line-height:1.4 }
+  /* read view: the whole note text, wrapped — no box, no scrollbar, nothing cut off.
+     Clicking it swaps in the textarea (the .editing rules below). */
+  .node.note .cmtview{ white-space:pre-wrap; overflow-wrap:break-word; line-height:1.45; cursor:text; min-height:1.45em }
+  .node.note .cmtview .cmtph{ color:var(--dim) }
+  .node.note textarea.cmttext{ display:none; min-height:52px; background:transparent; border:1px dashed var(--line); border-radius:.45rem; line-height:1.4 }
+  .node.note.editing textarea.cmttext{ display:block }
+  .node.note.editing .cmtview{ display:none }
   .node.note textarea.cmttext::placeholder{ color:var(--dim) }
   .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
 
@@ -10367,7 +10379,7 @@ function buildNodeEl(n){
   const outRows = outputsOf(n).map(p=>portRowHTML(n.id, p, "out")).join("");
   el.innerHTML = `
     <header class="t-${n.type}">
-      <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
+      <span class="em">${t.em}</span>${isNote && n.name && n.name.trim() ? `<span class="ttl" data-no-i18n>${esc(n.name.trim())}</span>` : `<span class="ttl">${t.title}</span>`}
       ${isNote ? "" : `<span class="dot"></span>${hidePlay ? "" : `<button class="hbtn" data-act="run" title="run this branch">▶</button>`}`}
       <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
@@ -10728,6 +10740,7 @@ function prepTextareas(n){
       const h = ta.offsetHeight;
       if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
       if(ta.hidden || h < 1) return;       // a wired field collapses to display:none — don't store 0 over a real height
+      if(ta.classList.contains("cmttext")) return;   // a note's editor height is content-derived (mountComment) — never persist it
       lastH = h; (n.sizes ||= {})[field] = h; save();
     }).observe(ta);
   });
@@ -11010,6 +11023,11 @@ function commentBody(n){
   const cur = n.fields.color || "yellow";
   const sws = COMMENT_COLORS.map(([k,hex,label])=>
     `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(t(label))}" style="background:${esc(hex)}" aria-label="${esc(t(label))}"></button>`).join("");
+  const txt = n.fields.text || "";
+  const ph = esc(t("write a note…"));
+  // Two projections of the same text: .cmtview is what a resting note shows (the full
+  // text, wrapped); the textarea is the editor and only appears while editing. The
+  // textarea stays the [data-f="text"] field, so storage and saving are untouched.
   return `
     <div class="cmtbar">
       <div class="cmtsws">${sws}</div>
@@ -11017,7 +11035,8 @@ function commentBody(n){
       <button type="button" class="cmtbtn" data-cmt="smaller" title="Smaller text" aria-label="Smaller text">A−</button>
       <button type="button" class="cmtbtn" data-cmt="bigger" title="Bigger text" aria-label="Bigger text">A+</button>
     </div>
-    <textarea class="cmttext" data-f="text" placeholder="write a note…">${esc(n.fields.text||"")}</textarea>`;
+    <div class="cmtview" data-no-i18n data-ph="${ph}">${txt ? esc(txt) : `<span class="cmtph">${ph}</span>`}</div>
+    <textarea class="cmttext" data-f="text" placeholder="write a note…">${esc(txt)}</textarea>`;
 }
 // Reflect the note's colour / weight / size onto its DOM. Idempotent — safe to call after any change or on load.
 function applyCommentStyle(n){
@@ -11027,6 +11046,8 @@ function applyCommentStyle(n){
   n.el.style.setProperty("--cmt-tint", hex+"22");   // 0x22 alpha → the header wash, matching the other node headers
   const ta = n.el.querySelector(".cmttext");
   if(ta){ ta.style.color = hex; ta.style.fontWeight = n.fields.bold ? "700" : "400"; ta.style.fontSize = commentSize(n)+"px"; }
+  const view = n.el.querySelector(".cmtview");
+  if(view){ view.style.color = hex; view.style.fontWeight = n.fields.bold ? "700" : "400"; view.style.fontSize = commentSize(n)+"px"; }
 }
 // Wire the sticky-note toolbar (colour swatches + bold + size). pointerdown is stopped so a toolbar
 // click never starts a node drag (mirrors the [data-f] fields and upload buttons).
@@ -11115,6 +11136,45 @@ function mountComment(n){
       applyCommentStyle(n); save();
     };
   });
+  // Read/edit swap: at rest the note shows .cmtview (full text, no chrome, no scrollbar);
+  // clicking it swaps in the textarea. Leaving the note — blur to outside it, Esc, or a
+  // pointerdown anywhere else — syncs the view from the textarea and returns to rest.
+  // The textarea remains the only [data-f="text"] field, so editing and saving are
+  // exactly as before; the view is a pure projection of it.
+  const view = n.el.querySelector(".cmtview");
+  const ta = n.el.querySelector(".cmttext");
+  if(view && ta){
+    const syncView = ()=>{
+      const v = ta.value;
+      view.textContent = "";
+      if(v) view.textContent = v;
+      else { const s = document.createElement("span"); s.className = "cmtph"; s.textContent = view.dataset.ph || "write a note…"; view.appendChild(s); }
+    };
+    const fitEditor = ()=>{   // open the editor at the note's full height — never a collapsed, scrolling box
+      const floor = (n.sizes && n.sizes.text) || 0;   // an author-stretched height stays a floor
+      const border = ta.offsetHeight - ta.clientHeight;   // style height is border-box; scrollHeight is not
+      ta.style.height = Math.max(52, floor, ta.scrollHeight + border) + "px";
+    };
+    const enterEdit = ()=>{
+      if(n.el.classList.contains("editing")) return;
+      n.el.classList.add("editing");
+      fitEditor();
+      ta.focus();
+      try{ ta.setSelectionRange(ta.value.length, ta.value.length); }catch(_){}
+    };
+    const exitEdit = ()=>{ if(!n.el.classList.contains("editing")) return; n.el.classList.remove("editing"); syncView(); };
+    view.addEventListener("click", enterEdit);
+    ta.addEventListener("input", ()=>{   // grow with the text while editing — no mid-edit scrollbar either
+      if(ta.scrollHeight > ta.clientHeight) ta.style.height = (ta.scrollHeight + (ta.offsetHeight - ta.clientHeight)) + "px";
+    });
+    ta.addEventListener("blur", (e)=>{ if(!n.el.contains(e.relatedTarget)) exitEdit(); });
+    ta.addEventListener("keydown", (e)=>{ if(e.key === "Escape"){ e.preventDefault(); exitEdit(); ta.blur(); } });
+    const onDocDown = (e)=>{
+      if(!n.el.isConnected){ document.removeEventListener("pointerdown", onDocDown); return; }   // rebuilt/removed node — self-clean
+      if(n.el.classList.contains("editing") && !n.el.contains(e.target)) exitEdit();
+    };
+    document.addEventListener("pointerdown", onDocDown);
+  }
 }
 
 // wire up the Image-input node: file upload + live webcam capture, stored as n.fields.image
@@ -20122,8 +20182,10 @@ function seed(){
     n.name = name;
     const inp = n.el && n.el.querySelector(".node-name");
     if(inp) inp.value = name;
+    const ttl = (n.el && n.type === "comment") ? n.el.querySelector("header .ttl") : null;   // a note's header IS its name (buildNodeEl) — the post-build rename must reach it
+    if(ttl) ttl.textContent = name;
   };
-  const note = addNode("comment", 40, 20, { text:"Create a landscape travel postcard illustration from a place and mood. Change both inputs for a new destination. GLM Flash writes the prompt; Muse renders at 3:2 (image step $0.01, plus text). Inspect location details; generated art is not a documentary photograph.", color:"#2a1f14" });
+  const note = addNode("comment", 40, -170, { text:"Create a landscape travel postcard illustration from a place and mood. Change both inputs for a new destination. GLM Flash writes the prompt; Muse renders at 3:2 (image step $0.01, plus text). Inspect location details; generated art is not a documentary photograph.", color:"#2a1f14" });
   nameNode(note, "Travel postcard");
   const place = addNode("text", 40, 180, { text:"Raohe night market, Taipei — grilled squid smoke hanging in the lane, red lanterns, wet asphalt, one stall still roaring" });
   nameNode(place, "Place");
