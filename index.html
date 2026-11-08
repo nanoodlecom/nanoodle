@@ -1570,7 +1570,7 @@
   <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span id="hintauth"><button id="hintsignin" class="link">Sign in with NanoGPT</button> → </span><span>Edit the prompt</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -14496,21 +14496,27 @@ const CTX = {
 /* ---------- DEMO MODE (signed-out Run) ----------
    No key yet → the Run click still delivers the moment: the graph "runs" on canned sample
    results (badged on every node, zero network calls, zero charge) while #demopop offers the
-   two real ways in — Sign in with NanoGPT, or paste a key. The canned text/image pair was
-   generated once with the shipped starter graph's own models (glm-5.3-flash → muse-image),
-   so what a first-timer watches is exactly what a real run of the starter produces.
+   two real ways in — Sign in with NanoGPT, or paste a key. The canned results were
+   generated once by running the shipped starter graph itself for real (gemini-3.8-flash
+   reads the sketch → glm-5.3-flash reimagines it → muse-image paints it →
+   seedance-v1-pro-fast moves it → gpt-4o-mini-tts narrates it), so what a first-timer
+   watches is exactly what a real run of the starter produces.
 
    Two sigs, set at boot from the canonical starter:
      demoStarterSig   — full content (fields + types + links); exact match → sample as-is
      demoStarterShape — topology only (ids/types/links); same shape with field tweaks still
                         free-samples, but the pill warns that canned results ignore the edit.
 
-   Plus ONE covered extension: the starter with a 📽️ Image→Video node hung off the image
-   output (see demoVideoNode). Video is the thing people come here to see, and a curious
-   signed-out visitor who wires one up used to lose the demo entirely — the topology no longer
-   matched, so the Run click ended on the sign-in wall instead of the wow. That shape now serves
-   demo-sample.mp4, rendered once from the shipped demo-sample.jpg by a real image→video model
-   (scripts/gen-demo-clip.mjs records the model and reproduces the file).
+   Video coverage has two shapes. The starter's own 📽️ Image→Video node is covered as
+   part of the starter shape (see demoStarterVideoNode): it serves demo-sample.mp4, a real
+   render of the shipped demo-sample.jpg by the starter's own video model
+   (scripts/gen-demo-clip.mjs records the model and reproduces the file). Plus ONE covered
+   extension of any starter: a 📽️ Image→Video node hung off the image output
+   (see demoVideoNode) gets the same clip — a curious signed-out visitor who wires one up
+   used to lose the demo entirely, because the topology no longer matched and the Run
+   click ended on the sign-in wall instead of the wow. The starter's 🗣️ Speech node is
+   covered the same way, by demo-narration.mp3 — the starter's own TTS model reading the
+   canned brief (scripts/gen-demo-narration.mjs).
 
    Everything else — other topologies, share links, examples — still gets the honest sign-in
    wall, and every canned result carries the sample badge. */
@@ -14553,10 +14559,13 @@ function demoMode(){
   if(demoVideoNode()) return "video";
   return null;
 }
-const DEMO_LLM_TEXT = "A 3:2 landscape travel-postcard illustration of Raohe night market, Taipei: one grilled-squid stall still roaring under a string of red lanterns, smoke hanging in the wet lane, glossy asphalt mirroring the lanterns. Warm illustrated print — restrained crimson, amber and ink-blue, one clear stall as the focal point, uncluttered midground, room at the bottom edge for an optional caption. No readable text, logos or watermark. Cinematic but printed, not a documentary photograph.";
+const DEMO_VISION_TEXT = "Under a radiant orange sun and a single blue-lined cloud, a simple brown house stands with a bright red roof, a circular blue window, and a solitary door. A round blue cat with pointed ears stands watch on the green-tufted grass near a leafy green tree, creating a scene of quiet, sunny contentment. The gentle scribbles of the red roof and the layered green circles of the tree suggest a peaceful afternoon where every element, from the tiny door handle to the cat's curious gaze, feels safely at home.";
+// The brief the 🧠 LLM wrote from that reading — it is also the narration the
+// 🗣️ Speech node speaks (demo-narration.mp3 is this text, read by the starter's own TTS model).
+const DEMO_LLM_TEXT = "Beneath a radiant orange sun glowing through warm afternoon light, a single soft blue-lined cloud drifts across the honeyed sky, where a charming brown house stands with its bright red roof freshly painted in rich terracotta strokes, a circular blue window shimmering like polished glass, and a solitary wooden door gleaming with a tiny brass handle. On the green-tufted grass, lush and sun-dappled, a round blue cat with pointed ears stands watch near a leafy green tree layered in deep emerald foliage, its curious gaze gentle and bright, every detail of this peaceful scene feeling safely, warmly at home.";
 // Fallback when demo-sample.jpg can't be fetched (file:// open) — a labeled stand-in, never a broken img.
 const DEMO_IMG_FALLBACK = "data:image/svg+xml," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512"><rect width="768" height="512" fill="#12151d"/><text x="384" y="240" fill="#67e8f9" font-family="sans-serif" font-size="28" text-anchor="middle">✉️ sample postcard</text><text x="384" y="282" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
+  '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512"><rect width="768" height="512" fill="#12151d"/><text x="384" y="240" fill="#67e8f9" font-family="sans-serif" font-size="28" text-anchor="middle">🎨 sample painting</text><text x="384" y="282" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
 let _demoImgUrl = null;
 async function demoImage(){                        // shipped alongside the page → data URL, so ⬇ save etc. behave like a real result
   if(_demoImgUrl) return _demoImgUrl;
@@ -14585,6 +14594,22 @@ async function demoClip(){
   }catch(_){ _demoClipUrl = null; }
   return _demoClipUrl;
 }
+let _demoNarrationUrl;
+// The narration half of the sample, same contract as demoClip(): shipped next to the page
+// and read into a data URL. It is the starter's own TTS model reading DEMO_LLM_TEXT —
+// provenance in scripts/gen-demo-narration.mjs. No stand-in if it can't load: a voice
+// result that isn't the real sample would be a fake, so the node errors instead.
+async function demoNarration(){
+  if(_demoNarrationUrl !== undefined) return _demoNarrationUrl;
+  try{
+    const r = await fetch("demo-narration.mp3");
+    if(!r.ok) throw new Error(String(r.status));
+    const blob = await r.blob();
+    if(!blob.size || !/^audio\//.test(blob.type)) throw new Error("not audio");
+    _demoNarrationUrl = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=> res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+  }catch(_){ _demoNarrationUrl = null; }
+  return _demoNarrationUrl;
+}
 // A believable pause that still honors ■ Stop (rejects as AbortError, same as a real fetch).
 const demoPause = (ms)=> new Promise((res, rej)=>{
   const s = runSignal();
@@ -14593,23 +14618,55 @@ const demoPause = (ms)=> new Promise((res, rej)=>{
   s?.addEventListener("abort", ()=>{ clearTimeout(id); rej(new DOMException("Aborted", "AbortError")); }, { once:true });
 });
 const demoDeny = async ()=>{ await demoPause(600); throw new Error(t("the sample doesn't cover this node — sign in to run it for real")); };
+// The starter's OWN 📽️ Image→Video node, covered when the canvas IS the starter shape
+// (field tweaks included): the video node belongs to the shipped graph, so the canned
+// clip — a real render of the shipped still — is about exactly this canvas. Returns the
+// node, or null. (demoVideoNode covers the other shape: a video node APPENDED to a
+// starter that has none, where the canvas no longer matches the starter shape.)
+function demoStarterVideoNode(g){
+  g = g || graph;
+  if(!demoStarterShape || demoShapeSig(g) !== demoStarterShape) return null;
+  const vids = (g.nodes || []).filter(n=> n.type === "ivideo");
+  return vids.length === 1 ? vids[0] : null;
+}
 const DEMO_CTX = { ...CTX, demo:true,
-  async genChat(){ await demoPause(1400 + Math.random()*1200); return DEMO_LLM_TEXT; },
+  async genChat(messages){
+    await demoPause(1200 + Math.random()*800);
+    // Two chat models fire in the starter and each gets its OWN canned text — the verbatim
+    // outputs of the starter's real models on the shipped sketch. 👁 Vision's call carries
+    // an image part; 🧠 LLM's is text-only. Anything else chat-shaped on this canvas is one
+    // of those two, because the demo only runs on the starter topology.
+    const sees = Array.isArray(messages) && messages.some(m=> Array.isArray(m && m.content) && m.content.some(p=> p && p.type === "image_url"));
+    return sees ? DEMO_VISION_TEXT : DEMO_LLM_TEXT;
+  },
   async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
-    const [url] = await Promise.all([demoImage(), demoPause(2800 + Math.random()*1600)]);
+    const [url] = await Promise.all([demoImage(), demoPause(2400 + Math.random()*1000)]);
     return (opts && opts.multi) ? [url] : url;
   },
-  // Only the one covered Image→Video node gets the clip. opts.runKey is the node id (every video
-  // runner sets it), so a 🎬 Text→Video or 🎞️ Video-edit node — or a second video node the shape
-  // check already rejected — still lands on the wall instead of a result that is not about it.
+  // Only a covered Image→Video node gets the clip: the starter's built-in one
+  // (demoStarterVideoNode) or the one covered extension, an appended one (demoVideoNode).
+  // opts.runKey is the node id (every video runner sets it), so a 🎬 Text→Video or
+  // 🎞️ Video-edit node — or a second video node the shape check already rejected — still
+  // lands on the wall instead of a result that is not about it.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-    const v = demoVideoNode();
+    const v = demoVideoNode() || demoStarterVideoNode();
     if(!v || !opts || opts.runKey !== v.id) return demoDeny();
-    const [url] = await Promise.all([demoClip(), demoPause(4200 + Math.random()*2400)]);   // longer than the image beat: rendering a clip really does take longer
+    const [url] = await Promise.all([demoClip(), demoPause(4200 + Math.random()*1800)]);   // longer than the image beat: rendering a clip really does take longer
     if(!url) throw new Error(t("the sample clip couldn't load — sign in to run this node for real"));
     return url;
   },
-  genAudio: demoDeny, transcribe: demoDeny, genDecision: demoDeny,
+  // The starter's 🗣️ Speech node is covered by the canned narration; every other audio
+  // call still lands on the wall. demoMode() is only non-null on the starter topology,
+  // whose only audio-generating node is that Speech node — a 🎵 Music node can't be
+  // present without changing the topology and voiding the demo. The longer pause is the
+  // closing beat on purpose: the voice lands after the painting, as the film finishes.
+  async genAudio(model, input, extra, onProgress, runKey){
+    if(!demoMode()) return demoDeny();
+    const [url] = await Promise.all([demoNarration(), demoPause(5200 + Math.random()*1200)]);
+    if(!url) throw new Error(t("the sample narration couldn't load — sign in to run this node for real"));
+    return url;
+  },
+  transcribe: demoDeny, genDecision: demoDeny,
 };
 // "loading sample…" — honest running-state text for a demo node (t() is free here, unshadowed).
 function demoRunLabel(){ return t("loading sample…"); }
@@ -14617,10 +14674,10 @@ function demoRunLabel(){ return t("loading sample…"); }
 function markDemoResult(n){
   const r = n.el?.querySelector(".result");
   if(!r || !r.classList.contains("show") || r.querySelector(".demobadge")) return;   // pass-through nodes (text/media inputs) show no result — nothing to label
-  // Only canned generator outputs get the pill. Join/Choice echo Place/Vibe — four
-  // "sample result" labels on the postcard starter made first-run look like the
-  // visitor's own text was fake too. Smoke first-run still expects the two
-  // generated outputs (LLM + image) to be labeled.
+  // Only canned generator outputs get the pill. The sketch upload is the visitor's
+  // own input, not a generated result — badging it would make first-run look like
+  // their drawing was fake too. Smoke first-run expects all five generated outputs
+  // of the sketch starter (vision + LLM + image + video + speech) to be labeled.
   if(!NODE_TYPES[n.type] || !NODE_TYPES[n.type].modelKind) return;
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
 }
@@ -20175,9 +20232,11 @@ addEventListener("message", e=>{
 });
 function seed(){
   undoMuted = true;   // the built-in starter graph must not be undoable — a new user's first Ctrl+Z must not empty it
-  // The postcard starter mirrors noodle-graph.json. This fallback only fires
-  // when that fetch fails, e.g. file://.
-  // The signed-out sample (DEMO_LLM_TEXT + demo-sample.jpg) was generated from these exact nodes.
+  // The sketch-to-story starter mirrors noodle-graph.json. This fallback only fires
+  // when that fetch fails, e.g. file:// — where the sketch points at the shipped
+  // demo-seed.jpg instead of the graph's inline copy.
+  // The signed-out sample (DEMO_VISION_TEXT + DEMO_LLM_TEXT + demo-sample.jpg +
+  // demo-sample.mp4 + demo-narration.mp3) was generated from these exact nodes.
   const nameNode = (n, name) => {
     n.name = name;
     const inp = n.el && n.el.querySelector(".node-name");
@@ -20185,22 +20244,25 @@ function seed(){
     const ttl = (n.el && n.type === "comment") ? n.el.querySelector("header .ttl") : null;   // a note's header IS its name (buildNodeEl) — the post-build rename must reach it
     if(ttl) ttl.textContent = name;
   };
-  const note = addNode("comment", 40, -170, { text:"Create a landscape travel postcard illustration from a place and mood. Change both inputs for a new destination. GLM Flash writes the prompt; Muse renders at 3:2 (image step $0.01, plus text). Inspect location details; generated art is not a documentary photograph.", color:"#2a1f14" });
-  nameNode(note, "Travel postcard");
-  const place = addNode("text", 40, 180, { text:"Raohe night market, Taipei — grilled squid smoke hanging in the lane, red lanterns, wet asphalt, one stall still roaring" });
-  nameNode(place, "Place");
-  const vibe = addNode("choice", 40, 420, { options:"warm illustrated travel print\nfine-grain analog photograph\nquiet watercolor scene\nbold two-color screenprint", selected:"warm illustrated travel print" });
-  nameNode(vibe, "Vibe");
-  const spec = addNode("join", 360, 280, { sep:"\n\nMood: " });
-  nameNode(spec, "Spec");
-  const llm = addNode("llm", 640, 200, { model:"z-ai/glm-5.3-flash", system:"Write one image prompt for a 3:2 landscape travel postcard illustration from the supplied place and mood. Preserve supplied landmarks and local details; do not import scenery, food, weather or architecture from another destination. Pick one clear focal subject, a restrained palette and an uncluttered composition with room for an optional caption added later. No readable text, logos or watermark. Describe only details justified by the brief. Output prompt only, 80-120 words.", maxTokens:"1024", reasoningEffort:"low" });
-  nameNode(llm, "Postcard prompt");
-  const img = addNode("image", 1000, 230, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
-  nameNode(img, "Postcard");
-  connect(place.id, "text", spec.id, "a");
-  connect(vibe.id, "text", spec.id, "b");
-  connect(spec.id, "text", llm.id, "prompt");
+  const note = addNode("comment", 40, -170, { text:"A child's crayon sketch goes down the line and comes back as a tiny film. Vision reads the drawing, a second model reimagines it as a storybook scene, a third paints it, a fourth sets it moving, and a voice tells the story. Press ▶ Run — the sample is prerecorded and free. Then drop in a drawing of your own and sign in to run it for real.", color:"#2a1f14" });
+  nameNode(note, "Sketch → story");
+  const sketch = addNode("upload", 40, 210, { image:"demo-seed.jpg" });
+  nameNode(sketch, "The sketch");
+  const vision = addNode("vision", 370, 210, { model:"google/gemini-3.8-flash", q:"Describe this child's crayon drawing in rich, warm detail — every subject in it, the colours, the mood, and the little story it seems to tell. Flowing prose, two or three sentences. Describe only what is actually drawn." });
+  nameNode(vision, "Vision reads it");
+  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", maxTokens:"1024", reasoningEffort:"low" });
+  nameNode(llm, "Reimagined");
+  const img = addNode("image", 1050, 210, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
+  nameNode(img, "Painted");
+  const vid = addNode("ivideo", 1380, 210, { model:"bytedance-seedance-v1-pro-fast", prompt:"Gentle storybook motion: sun rays shimmer, the cat pads a few steps through the grass, leaves sway, the round window glows warm. Slow, dreamy, seamless calm.", resolution:"720p", aspect:"16:9", duration:"5" });
+  nameNode(vid, "It moves");
+  const voice = addNode("tts", 1710, 210, { model:"gpt-4o-mini-tts", voice:"nova", response_format:"mp3" });
+  nameNode(voice, "Told aloud");
+  connect(sketch.id, "image", vision.id, "image");
+  connect(vision.id, "text", llm.id, "prompt");
   connect(llm.id, "text", img.id, "prompt");
+  connect(img.id, "image", vid.id, "image");
+  connect(llm.id, "text", voice.id, "prompt");
   undoMuted = false;
 }
 
@@ -21280,7 +21342,6 @@ function renderAuth(){
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
   $("authmenu").style.display = ok?"none":"";   // the split-button shell (caret + popover) has no signed-in job; "" defers to the stylesheet (flex, or narrowbar's none)
-  $("hintauth").hidden = ok;
   $("hintsample").hidden = ok;
   if(ok){ const dp = $("demopop"); if(dp) dp.hidden = true; }   // signed in → the sample-run pitch is over
   layoutBar();   // auth controls differ in width between states → re-measure the bar's fit
@@ -21334,7 +21395,6 @@ function ensureAuth(){
 }
 const signInErr = (e)=>{ $("status").textContent=t("sign-in error")+": "+e.message; toast(t("sign-in didn't complete")+": "+e.message, "err"); };
 $("signin").onclick = ()=> signIn().catch(signInErr);
-$("hintsignin").onclick = ()=> $("signin").click();
 $("pastebtn").onclick = async ()=>{
   $("keyrow").classList.add("open"); $("keyinput").focus();
   // the button says "paste" — so paste: fill from the clipboard where the browser allows it
@@ -21472,7 +21532,7 @@ $("signout").onclick = ()=> setKey(null);
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
   // visitor's boot a "restore", so gating on freshStart hid the demo forever after one touch.
-  // Shipped ids (n1…n6 on the postcard starter) are deterministic and survive save/restore. Signed-out only.
+  // Shipped ids (n1…n7 on the sketch starter) are deterministic and survive save/restore. Signed-out only.
   if(!getKey()){
     try{
       const starter = await starterGraphData();

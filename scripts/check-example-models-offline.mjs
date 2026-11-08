@@ -52,6 +52,8 @@ const catalogs = {
     { id: 'bytedance-seedance-v1.5-pro', capabilities: { text_to_video: true, image_to_video: true, audio_generation: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['4','5','6','7','8','9','10','11','12']), aspect_ratio: opts(['16:9','9:16','1:1','3:4','4:3','21:9']),
         generateAudio: { type: 'switch', default: true } } } },
+    { id: 'bytedance-seedance-v1-pro-fast', capabilities: { text_to_video: true, image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['2','3','4','5','6','7','8','9','10','11','12']), aspect_ratio: opts(['16:9','9:16','1:1','3:4','4:3','21:9']) } } },
     { id: 'minimax-h3/reference-to-video', architecture: { modality: 'text+image+audio->video' }, capabilities: { text_to_video: true, image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '540p', '768p', '1080p']), duration: opts(['3','4','5','6','7','8','9','10','11','12','13','14','15']), aspect_ratio: opts(['16:9','9:16','1:1','4:3','3:4','21:9','9:21']),
         reference_images: { type: 'string' } } } },
@@ -92,6 +94,7 @@ const catalogs = {
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
     { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
+    { id: 'gpt-4o-mini-tts', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
     { id: 'mureka-ai/mureka-v7.6/generate-bgm', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true } },
     { id: 'Minimax-Music-2.6', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true }, supported_parameters: { min_duration: 10, max_duration: 300 } },

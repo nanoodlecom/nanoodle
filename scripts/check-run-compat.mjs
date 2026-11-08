@@ -836,10 +836,17 @@ function shippedGraphCheck(app, fail) {
     let threw = null;
     await app.runGraph(g, {}).catch((e) => (threw = e));
     if (threw) fail("shipped noodle-graph.json threw during run: " + (threw && threw.message));
-    // every LLM call in the shipped graph is imageless → must be string content
-    for (const c of chatCalls())
-      if (typeof userMsg(c)?.content !== "string")
+    // Every chat call in the shipped graph must use string content UNLESS the call
+    // itself carries images — the 👁 Vision node's call legitimately sends an image
+    // part. The regression this guards: an imageless LLM call silently upgraded to
+    // array content by the dynamic image-ports feature.
+    for (const c of chatCalls()) {
+      const content = userMsg(c)?.content;
+      if (typeof content === "string") continue;
+      const parts = Array.isArray(content) ? content : [];
+      if (!parts.some(p => p && p.type === "image_url"))
         fail("a shipped-graph LLM call sent non-string content — old workflow regressed");
+    }
   })();
 }
 

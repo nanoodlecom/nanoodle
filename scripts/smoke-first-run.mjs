@@ -14,7 +14,7 @@ const modulePath = process.env.NANOODLE_PLAYWRIGHT;
 const { chromium } = await import(modulePath ? pathToFileURL(resolve(modulePath)).href : "playwright");
 const mime = { ".html":"text/html", ".js":"text/javascript", ".mjs":"text/javascript",
   ".json":"application/json", ".css":"text/css", ".jpg":"image/jpeg", ".png":"image/png",
-  ".svg":"image/svg+xml", ".mp4":"video/mp4", ".woff2":"font/woff2", ".ico":"image/x-icon" };
+  ".svg":"image/svg+xml", ".mp4":"video/mp4", ".mp3":"audio/mpeg", ".woff2":"font/woff2", ".ico":"image/x-icon" };
 const server = createServer(async (req, res) => {
   try {
     let pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
@@ -47,12 +47,23 @@ song.nodes.push({id:"upload-test",type:"upload",x:20,y:700,fields:{image:uploade
 const graphContent = value => { const {nid, lid, ...content} = value; return content; };
 const chatId = starter.nodes.find(n => n.type === "llm").fields.model;
 const imageId = starter.nodes.find(n => n.type === "image").fields.model;
+const visionId = starter.nodes.find(n => n.type === "vision").fields.model;
+const videoId = starter.nodes.find(n => n.type === "ivideo").fields.model;
+const audioId = starter.nodes.find(n => n.type === "tts").fields.model;
 const catalog = {
-  "/api/v1/models": { data:[{ id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} }] },
+  "/api/v1/models": { data:[
+    { id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} },
+    { id:visionId, name:"Starter vision", capabilities:{vision:true}, pricing:{prompt:0.1,completion:0.1} },
+  ] },
   "/api/v1/image-models": { data:[{ id:imageId, name:"Starter image", architecture:{modality:"text->image"},
     pricing:{per_image:{"1k":0.04,"3:2":0.01}}, supported_parameters:{resolutions:["1k","3:2"]} }] },
-  "/api/v1/video-models": { data:[] },
-  "/api/v1/audio-models": { data:[] },
+  "/api/v1/video-models": { data:[{ id:videoId, name:"Starter video", capabilities:{text_to_video:true, image_to_video:true},
+    supported_parameters:{ parameters:{
+      resolution:{ options:[{value:"480p"},{value:"720p"},{value:"1080p"}] },
+      duration:{ options:[{value:"5"}] },
+      aspect_ratio:{ options:[{value:"16:9"}] } } } }] },
+  "/api/v1/audio-models": { data:[{ id:audioId, name:"Starter speech", capabilities:{text_to_speech:true},
+    supported_parameters:{voices:["nova"]} }] },
   "/api/v1/3d-models": { data:[] },
 };
 const headerText = await readFile(resolve(root, "_headers"), "utf8");
@@ -140,8 +151,15 @@ try {
       await page.locator("#run").click();
       const imageNodeId = starter.nodes.find(n => n.type === "image").id;
       await page.locator(`.node[data-id="${imageNodeId}"][data-status="done"] .result img`).waitFor();
+      // The relay's later beats land after the painting (the film, then the narrated
+      // finale) — wait for every generator node before counting badges, so the count
+      // doesn't race the demo's staged pacing.
+      for (const type of ["vision", "llm", "ivideo", "tts"]) {
+        const nid = starter.nodes.find(n => n.type === type).id;
+        await page.locator(`.node[data-id="${nid}"][data-status="done"]`).waitFor();
+      }
       assert.equal(await page.locator('.node[data-status="error"]').count(), 0, "sample has no failed nodes");
-      assert.equal(await page.locator(".demobadge").count(), 2, "both outputs are labeled as samples");
+      assert.equal(await page.locator(".demobadge").count(), 5, "all five generated outputs are labeled as samples");
       assert.ok(await page.locator(`.node[data-id="${imageNodeId}"] .result img`).evaluate(img => img.complete && img.naturalWidth > 0),
         "sample image actually decodes");
       await page.locator("#demox").click();
