@@ -71,10 +71,12 @@ assert.ok(ENGINE && ENGINE.RUNNERS && ENGINE.NanoClient, "bundle exposes RUNNERS
 
 const IMG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 const PNG_B64 = IMG.slice(IMG.indexOf(",") + 1);
+const GIF_MODELS = ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'];
 // RAW catalog (the library's payload gates read supported_parameters)
 const RAW_CAT = {
   "/api/v1/models?detailed=true": [{ id: "x" }],
-  "/api/v1/image-models": [{ id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } }],
+  "/api/v1/image-models": [{ id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } },
+    ...GIF_MODELS.map(id => ({ id, supported_parameters: { resolutions: ['1k', '2k', '4k'] } }))],
   "/api/v1/video-models": [],
   "/api/v1/audio-models": [],
 };
@@ -193,7 +195,8 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     EST: { chatImageUsd: 0.14 },
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
-    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }, { id: "moss-image", maxOut: 4, sizePrices: {}, knobs: { negative: true, steps: { min: 1, max: 100, def: 50 }, guidance: { min: 0, max: 10, def: 3 }, expand: { def: true } } }], video: [], audio: [] },
+    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }, { id: "moss-image", maxOut: 4, sizePrices: {}, knobs: { negative: true, steps: { min: 1, max: 100, def: 50 }, guidance: { min: 0, max: 10, def: 3 }, expand: { def: true } } },
+      ...GIF_MODELS.map(id => ({ id, maxOut: 1, sizePrices: {}, resolutions: ['1k', '2k', '4k'] }))], video: [], audio: [] },
     // loraParams comes from the extracted index.html helpers above (Anima/H3/
     // qwen21 numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
     needsCustomCivitai: () => false, airModelTakesNegative: () => false,
@@ -214,6 +217,10 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
 /* ---- scenarios: run built-in vs delegated, literal-compare --------------- */
 
 const SCENARIOS = [
+  ...GIF_MODELS.map(model => [model + ' compatible GIF body', 'image', {
+    model, prompt: 'one loop', size: '960x960', variations: '1',
+    modelOpts: { output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' },
+  }, {}, null, { must: { model, size: '960x960', n: 1, output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' } }]),
   ["vector convert protects request fields", "edit", { model: "ideogram/vector", prompt: "", modelOpts: {
     vector_operation: "convert", mode: "default", model: "wrong", prompt: "wrong", n: 99,
     imageDataUrl: "wrong", response_format: "url", api_key: "wrong", endpoint: "https://wrong.example"

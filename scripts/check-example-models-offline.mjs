@@ -17,6 +17,14 @@ const opts = values => ({ options: values.map(value => ({ value })) });
 const image = (id, resolutions, edit = false) => ({ id,
   architecture: { modality: edit ? 'text+image->image' : 'text->image' },
   capabilities: { image_to_image: edit }, supported_parameters: { resolutions } });
+// Current public GIF endpoint metadata (2026-11-09), independent of graph settings.
+const gifImage = id => ({ ...image(id, ['1k', '2k', '4k'], true), supported_parameters: {
+  resolutions: ['1k', '2k', '4k'], output_format: ['png', 'jpeg', 'webp', 'gif'],
+  gif: { frame_count: { min: 2, max: 16, default: 9 }, frame_sheet: {
+    layouts: { '2-8': ['4x2', '2x4'], '9': ['3x3'], '10-12': ['4x3', '3x4', '4x4'], '13-16': ['4x4'] },
+    max_edge: 3840, min_pixels: 655360, max_pixels: 8294400, max_aspect_ratio: 3, per_output: true,
+  } },
+} });
 const catalogs = {
   chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
     ...(['google/gemini-3.8-flash', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
@@ -38,8 +46,8 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
-    image('gpt-image-2.6-flare', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
-    image('gpt-image-2.6-sunburst', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
+    gifImage('gpt-image-2.6-flare'),
+    gifImage('gpt-image-2.6-sunburst'),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
   ],
   video: [
@@ -120,6 +128,11 @@ function run(mode) {
       if (mode === 'http-error') return { ok: false, status: 503 };
       const kind = /\\/3d-models/.test(String(url)) ? 'model3d' : (/\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat');
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
+      if (mode === 'shrunk-gif-sheet' && kind === 'image') {
+        for (const m of data.filter(m => m.supported_parameters?.gif)) {
+          m.supported_parameters.gif.frame_sheet.max_edge = 3600;
+        }
+      }
       if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
       if (mode === 'bad-avatar' && kind === 'video') data.find(m => m.id === 'longcat-avatar-1.5').capabilities.audio_input = false;
       if (mode === 'bad-vision' && kind === 'chat') data.find(m => m.id === 'google/gemini-3.8-flash').capabilities.vision = false;
@@ -138,13 +151,14 @@ function run(mode) {
 const good = run('live');
 assert.equal(good.status, 0, good.output);
 assert.match(good.output, /homepage starter \d+ pins/, 'success must include the homepage audit');
-console.log('✓ starter and gallery audit succeeds with bounded capability catalog fixtures');
+console.log('✓ starter and gallery audit succeeds with the current bounded GIF contract');
 
 for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
   ['bad-size', /photo-to-video:.*unsupported size/],
   ['bad-avatar', /talking-avatar:.*does not support lipsync/],
   ['bad-vision', /storyboard-relay:.*does not support llm \(vision\)/],
+  ['shrunk-gif-sheet', /one-prompt-looping-gif:.*unsupported GIF frame sheet/],
 ]) {
   const result = run(mode);
   assert.equal(result.status, 1, result.output);

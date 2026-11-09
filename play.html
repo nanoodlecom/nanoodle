@@ -12294,6 +12294,9 @@ const PROMPT_CAPS = {
     if(type==="image" || type==="edit" || type==="inpaint"){
       const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
         ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
+      // Preserve the editor's custom 960-square GPT Image 2.6 option through
+      // player settings and built-in/njs SEND, without changing the tier default.
+      if(res.length && /^gpt-image-2\.6-(flare|sunburst)$/.test(m.id) && !res.includes("960x960")) res.push("960x960");
       if(res.length){ out.size = res.map(r=>[r,r]); out.def.size = res[0]; }
       const asp = imageAspectFor(m.id, m);
       if(asp){ out.aspect = asp.options; out.def.aspect = asp.def; }

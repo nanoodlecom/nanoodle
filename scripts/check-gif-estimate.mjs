@@ -71,8 +71,8 @@ else {
 }
 ok(/still-image catalog price is not the GIF bill/.test(GUIDE_SRC),
   "guide costHow: still catalog price is not the GIF bill");
-ok(/total request pixel budget/.test(GUIDE_SRC),
-  "guide costHow: OpenAI per-frame size + total request pixel budget");
+ok(/padded frame-sheet layouts/.test(GUIDE_SRC),
+  "guide costHow: padded sheet limits include unused cells");
 ok(/modelOpts/.test(GUIDE_PAGE) && /exported or saved graph JSON/.test(GUIDE_PAGE),
   "regenerated guide page carries the JSON-editing wording");
 
@@ -199,7 +199,7 @@ try {
   fail("post-run GIF fallback: " + (e && e.stack || e.message));
 }
 
-console.log("\npixel-budget-compatible preset");
+console.log("\npadded-sheet-compatible preset");
 try {
   const WF = JSON.parse(fs.readFileSync(path.join(ROOT, "examples/gallery/one-prompt-looping-gif/workflow.json"), "utf8"));
   const GRAPH = JSON.parse(fs.readFileSync(path.join(ROOT, "examples/gallery/one-prompt-looping-gif/graph.json"), "utf8"));
@@ -209,12 +209,13 @@ try {
     const mo = n.fields.modelOpts || {};
     const [w, h] = String(n.fields.size || "").split("x").map(Number);
     const fc = +mo.frame_count || 0;
-    const nOut = Math.max(1, parseInt(n.fields.variations, 10) || 1);
-    const px = fc * w * h * nOut;
+    const sheets = [[4*w, 2*h], [2*w, 4*h]];
     ok(String(mo.output_format || "").toLowerCase() === "gif", n.id + " workflow output_format=gif");
-    ok(n.fields.size === "1024x1024", n.id + " workflow size is 1024x1024 (editor catalog floor)");
-    ok(fc === 7, n.id + " workflow frame_count is 7 (was 12; 12×1024² exceeds budget)");
-    ok(px <= BUDGET, n.id + " workflow pixels " + px + " ≤ " + BUDGET + " (7×1024×1024=" + (7*1024*1024) + ")");
+    ok(n.fields.size === "960x960", n.id + " workflow keeps custom 960-square frames");
+    ok(fc === 7, n.id + " workflow keeps seven frames");
+    ok(sheets.every(([sw, sh]) => Math.max(sw, sh) <= 3840 && sw*sh <= BUDGET),
+      n.id + " both padded sheet orientations fit edge and pixel limits");
+    ok(sheets.every(([sw, sh]) => sw*sh === 7372800), n.id + " includes the unused eighth cell");
     ok(mo.background === "opaque", n.id + " workflow background stays opaque");
   }
   // Saved graph documents the real 512² × 12 run (within budget at 512).
@@ -233,12 +234,12 @@ try {
   else {
     ok(/"frame_count":7/.test(ex[0]) && !/"frame_count":12/.test(ex[0]),
       "EXAMPLES card uses frame_count 7 (not 12)");
-    ok(/"size":"1024x1024"/.test(ex[0]), "EXAMPLES card uses 1024x1024");
+    ok((ex[0].match(/"size":"960x960"/g) || []).length === 2, "both EXAMPLES models use 960x960");
     ok(/7-frame looping/.test(ex[0]), "EXAMPLES desc mentions 7-frame");
   }
-  // 12×1024² would be over budget — pin the arithmetic so a future bump can't silently regress.
-  ok(12 * 1024 * 1024 > BUDGET, "pin: 12×1024² = " + (12*1024*1024) + " exceeds " + BUDGET);
-  ok(7 * 1024 * 1024 <= BUDGET, "pin: 7×1024² = " + (7*1024*1024) + " fits " + BUDGET);
+  // The former seven-frame area sum fit, but padding made its sheet invalid.
+  ok(7 * 1024 * 1024 <= BUDGET && 8 * 1024 * 1024 > BUDGET && 4*1024 > 3840,
+    "regression: seven 1024-square frames fail both padded area and edge limits");
 } catch (e) {
   fail("pixel-budget preset: " + (e && e.stack || e.message));
 }

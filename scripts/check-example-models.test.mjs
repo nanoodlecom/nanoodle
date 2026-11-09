@@ -47,6 +47,89 @@ test('rejects incompatible image/edit capability and explicit unsupported size',
   assert.match(auditPins([pin('edit',{model:'img'})], catalogs)[0].reason, /does not support edit/);
 });
 
+// Public endpoint metadata, checked 2026-11-09:
+// https://api.nano-gpt.com/api/v1/images/models/gpt-image-2.6-flare/endpoints
+// Sunburst advertises the same GIF contract. Sheets include unused layout cells.
+const gifParams = () => ({
+  resolutions: ['1k', '2k', '4k'], output_format: ['png', 'jpeg', 'webp', 'gif'],
+  gif: { frame_count: { min: 2, max: 16, default: 9 }, frame_sheet: {
+    layouts: { '2-8': ['4x2', '2x4'], '9': ['3x3'], '10-12': ['4x3', '3x4', '4x4'], '13-16': ['4x4'] },
+    max_edge: 3840, min_pixels: 655360, max_pixels: 8294400,
+    max_aspect_ratio: 3, per_output: true,
+  } },
+});
+const gifIssues = (size, frames, params = gifParams(), model = 'gpt-image-2.6-flare', opts = {}) =>
+  auditPins([pin('image', { model, size, modelOpts: { output_format: 'gif', frame_count: frames, ...opts } })],
+    { image: [{ id: model, architecture: { modality: 'text->image' }, supported_parameters: params }] });
+
+test('custom GIF sizes use advertised padded sheets, including historical 12-frame dimensions', () => {
+  for (const model of ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst']) {
+    assert.deepEqual(gifIssues('960x960', 7, gifParams(), model), []);
+    assert.deepEqual(gifIssues('512x512', 12, gifParams(), model), []);
+    assert.deepEqual(gifIssues('512x512', undefined, gifParams(), model), [], 'default 9 uses 3x3');
+    assert.deepEqual(gifIssues('960x960', '7', gifParams(), model), [], 'serialized numeric frame count');
+  }
+});
+
+test('seven 1024-square frames exceed both padded sheet bounds despite fitting the frame-area sum', () => {
+  assert.ok(7 * 1024 ** 2 < 8294400);
+  const issues = gifIssues('1024x1024', 7);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].reason, /GIF frame sheet/);
+  assert.match(issues[0].reason, /4096x2048/);
+  assert.match(issues[0].reason, /8388608/);
+  assert.match(issues[0].reason, /3840/);
+  assert.match(issues[0].reason, /8294400/);
+});
+
+test('GIF sheet audit checks edge, area, aspect, padding and uncertain layout selection', () => {
+  assert.match(gifIssues('1936x400', 7)[0].reason, /GIF frame sheet/, 'edge fails even when pixels fit');
+  assert.match(gifIssues('1024x1024', 9)[0].reason, /GIF frame sheet/, '3x3 fits edge but exceeds area');
+  assert.deepEqual(gifIssues('960x960', 9), [], '3x3 exactly at the maximum pixel count');
+  assert.match(gifIssues('128x128', 7)[0].reason, /GIF frame sheet/, 'minimum sheet pixels');
+  assert.match(gifIssues('960x128', 7)[0].reason, /GIF frame sheet/, 'sheet aspect ratio');
+  assert.match(gifIssues('1280x480', 7)[0].reason, /cannot certify.*layout selection/,
+    '2x4 fits but 4x2 exceeds max edge; endpoint selection is not advertised');
+  const portrait = gifParams();
+  portrait.gif.frame_sheet.layouts['2-8'] = ['2x4'];
+  assert.deepEqual(gifIssues('1280x480', 7, portrait), [], 'a uniquely advertised valid orientation is safe');
+  assert.deepEqual(gifIssues('960x960', 8), [], 'unused eighth cell is already counted for seven');
+  const bounds = gifParams();
+  bounds.gif.frame_sheet.max_edge = 4096;
+  assert.match(gifIssues('1024x1024', 7, bounds)[0].reason, /GIF frame sheet/, 'padded area alone rejects');
+});
+
+test('custom GIF exception requires known model, format and complete advertised bounds', () => {
+  assert.match(gifIssues('960x960', 7, gifParams(), 'other-model')[0].reason, /unsupported size/);
+  assert.match(gifIssues('960x960', 7, gifParams(), undefined, { output_format: 'png' })[0].reason, /unsupported size/);
+  for (const field of ['max_edge', 'min_pixels', 'max_pixels', 'max_aspect_ratio', 'layouts', 'per_output']) {
+    const params = gifParams();
+    delete params.gif.frame_sheet[field];
+    assert.equal(gifIssues('960x960', 7, params).length, 1, `missing ${field} cannot certify custom GIF`);
+  }
+  const params = gifParams();
+  params.output_format = ['png'];
+  assert.equal(gifIssues('960x960', 7, params).length, 1);
+});
+
+test('custom GIF dimensions and frame counts must be valid before checking layouts', () => {
+  for (const frames of [0, 1, 17, 7.5, 'bad', Infinity, [7], { value: 7 }]) {
+    assert.match(gifIssues('960x960', frames)[0].reason, /frame_count/, String(frames));
+  }
+  for (const size of ['0x960', '959x960']) {
+    assert.match(gifIssues(size, 7)[0].reason, /dimensions/);
+  }
+  const params = gifParams();
+  params.gif.frame_sheet.layouts = { '9': ['3x3'] };
+  assert.match(gifIssues('960x960', 7, params)[0].reason, /layout/);
+  params.gif.frame_sheet.layouts = { '2-8': ['4x2', 'unknown'] };
+  assert.match(gifIssues('960x960', 7, params)[0].reason, /invalid catalog layout/,
+    'a valid alternative cannot hide malformed layout metadata');
+  assert.deepEqual(gifIssues('960x960', 7, gifParams(), undefined, { n: 4 }), [], 'sheet budget is per output');
+  assert.deepEqual(gifIssues('1k', 7), [], 'existing preset validation stays intact');
+  assert.match(gifIssues('wrong', 7)[0].reason, /unsupported size/);
+});
+
 test('vision nodes require catalog vision capability, including when the flag is absent', () => {
   const pins = pinnedModels([{ slug: 'image-question', graph: {
     nodes: [{ id: 'reader', type: 'vision', fields: { model: 'reader' } }], links: [],
