@@ -149,7 +149,9 @@ function customGifSizeIssue(id, fields, sp) {
     const w = cols * width, h = rows * height, pixels = w * h;
     return [{ w, h, pixels }];
   });
-  if (!candidates.length) return `cannot validate custom GIF dimensions: no catalog layout for ${frames} frames`;
+  if (!candidates.length || candidates.length !== layouts.length) {
+    return `cannot validate custom GIF dimensions: missing or invalid catalog layout for ${frames} frames`;
+  }
   const fits = ({ w, h, pixels }) => Number.isSafeInteger(pixels)
       && Math.max(w, h) <= sheet.max_edge && pixels >= sheet.min_pixels && pixels <= sheet.max_pixels
       && Math.max(w / h, h / w) <= sheet.max_aspect_ratio;

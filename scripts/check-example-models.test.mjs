@@ -122,6 +122,9 @@ test('custom GIF dimensions and frame counts must be valid before checking layou
   const params = gifParams();
   params.gif.frame_sheet.layouts = { '9': ['3x3'] };
   assert.match(gifIssues('960x960', 7, params)[0].reason, /layout/);
+  params.gif.frame_sheet.layouts = { '2-8': ['4x2', 'unknown'] };
+  assert.match(gifIssues('960x960', 7, params)[0].reason, /invalid catalog layout/,
+    'a valid alternative cannot hide malformed layout metadata');
   assert.deepEqual(gifIssues('960x960', 7, gifParams(), undefined, { n: 4 }), [], 'sheet budget is per output');
   assert.deepEqual(gifIssues('1k', 7), [], 'existing preset validation stays intact');
   assert.match(gifIssues('wrong', 7)[0].reason, /unsupported size/);
