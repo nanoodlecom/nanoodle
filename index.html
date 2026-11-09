@@ -8003,6 +8003,9 @@ function dimDefs(type, model, fields){
     const it = catItem("image", model);
     const listed = !!(it && it.resolutions && it.resolutions.length);
     const res = listed ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
+    // GPT Image 2.6 accepts custom pixels beyond its tier presets. This square
+    // keeps seven GIF frames within both padded 4x2/2x4 sheet limits (3840x1920).
+    if(listed && /^gpt-image-2\.6-(flare|sunburst)$/.test(model) && !res.some(o=>o[0]==="960x960")) res.push(["960x960","960x960"]);
     const defs = [{ f:"size", label:"size", options:res, def:res[0][0], known:listed }];
     const asp = imageAspectSpec(model);
     if(asp) defs.push({ f:"aspect", wire:"aspect_ratio", label:"aspect", options:asp.options, def:asp.def, known:true });
@@ -21083,8 +21086,8 @@ const EXAMPLES = [
    nodes:[ {id:"c-intent",type:"comment",x:40,y:-240,w:1200,fields:{"color":"yellow","text":"One prompt, one animated GIF. A small LLM turns a one-line idea into a loop-ready animation brief (a pose to return to, a still camera). The new GPT Image 2.6 models (Flare = fast, Sunburst = detailed) return a 7-frame looping GIF straight from the image endpoint: a sticker, emoji or game sprite in one call. Same brief, both models, side by side. Change the idea and ▶ Run."}},
            {id:"idea",type:"text",x:40,y:40,w:340,fields:{"text":"a pelican riding a bicycle"},name:"Idea (one line)"},
            {id:"brief",type:"llm",x:420,y:40,w:380,fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"default","maxTokens":"1200","temperature":"0.5","system":"You write prompts for an image model that outputs a short looping animated GIF (7 frames). Turn the user's idea into ONE prompt of 60-110 words. Rules: a cute, clean cartoon sticker style with bold outlines and flat colours; the whole subject fully in frame, centred, side view; a plain flat solid light-blue background with nothing else in the scene (no ground, no shadow, no text); describe ONE simple repeating motion cycle and say that the last frame returns exactly to the starting pose so it loops seamlessly; say the camera stays perfectly still. Family friendly. Output only the prompt, no quotes, no preamble."},name:"Loop brief writer · GLM 5.3 Flash"},
-           {id:"flare",type:"image",x:860,y:-40,w:340,fields:{"model":"gpt-image-2.6-flare","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Flare (fast)"},
-           {id:"sunburst",type:"image",x:860,y:220,w:340,fields:{"model":"gpt-image-2.6-sunburst","size":"1024x1024","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Sunburst (detailed)"} ],
+           {id:"flare",type:"image",x:860,y:-40,w:340,fields:{"model":"gpt-image-2.6-flare","size":"960x960","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Flare (fast)"},
+           {id:"sunburst",type:"image",x:860,y:220,w:340,fields:{"model":"gpt-image-2.6-sunburst","size":"960x960","modelOpts":{"output_format":"gif","frame_count":7,"frame_duration_ms":100,"background":"opaque","quality":"medium"}},name:"Looping GIF · GPT Image 2.6 Sunburst (detailed)"} ],
    links:[ {id:"l1",from:{node:"idea",port:"text"},to:{node:"brief",port:"prompt"}},
            {id:"l2",from:{node:"brief",port:"text"},to:{node:"flare",port:"prompt"}},
            {id:"l3",from:{node:"brief",port:"text"},to:{node:"sunburst",port:"prompt"}} ] } },

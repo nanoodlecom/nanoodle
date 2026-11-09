@@ -17,9 +17,7 @@ const opts = values => ({ options: values.map(value => ({ value })) });
 const image = (id, resolutions, edit = false) => ({ id,
   architecture: { modality: edit ? 'text+image->image' : 'text->image' },
   capabilities: { image_to_image: edit }, supported_parameters: { resolutions } });
-// Current public GIF endpoint metadata (2026-11-09). The committed seven-frame
-// 1024-square gallery requests exceed these bounds. The current-contract fixture
-// below asserts both failures while preserving the committed graphs.
+// Current public GIF endpoint metadata (2026-11-09), independent of graph settings.
 const gifImage = id => ({ ...image(id, ['1k', '2k', '4k'], true), supported_parameters: {
   resolutions: ['1k', '2k', '4k'], output_format: ['png', 'jpeg', 'webp', 'gif'],
   gif: { frame_count: { min: 2, max: 16, default: 9 }, frame_sheet: {
@@ -130,12 +128,9 @@ function run(mode) {
       if (mode === 'http-error') return { ok: false, status: 503 };
       const kind = /\\/3d-models/.test(String(url)) ? 'model3d' : (/\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat');
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
-      // A synthetic wider-sheet fixture exercises the success path without
-      // editing committed graphs. This is deliberately NOT the live contract.
-      if (mode === 'synthetic-wide-sheet' && kind === 'image') {
+      if (mode === 'shrunk-gif-sheet' && kind === 'image') {
         for (const m of data.filter(m => m.supported_parameters?.gif)) {
-          m.supported_parameters.gif.frame_sheet.max_edge = 4096;
-          m.supported_parameters.gif.frame_sheet.max_pixels = 8388608;
+          m.supported_parameters.gif.frame_sheet.max_edge = 3600;
         }
       }
       if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
@@ -153,22 +148,17 @@ function run(mode) {
   return { status: result.status, output: result.stdout + result.stderr };
 }
 
-const current = run('live');
-assert.equal(current.status, 1, current.output);
-assert.equal((current.output.match(/unsupported GIF frame sheet/g) || []).length, 2, current.output);
-assert.match(current.output, /2 issues;/, current.output);
-console.log('✓ current GIF contract rejects both unchanged gallery sheets with their actual bounds');
-
-const good = run('synthetic-wide-sheet');
+const good = run('live');
 assert.equal(good.status, 0, good.output);
 assert.match(good.output, /homepage starter \d+ pins/, 'success must include the homepage audit');
-console.log('✓ starter and gallery success path works with explicitly synthetic wider sheet limits');
+console.log('✓ starter and gallery audit succeeds with the current bounded GIF contract');
 
 for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
   ['bad-size', /photo-to-video:.*unsupported size/],
   ['bad-avatar', /talking-avatar:.*does not support lipsync/],
   ['bad-vision', /storyboard-relay:.*does not support llm \(vision\)/],
+  ['shrunk-gif-sheet', /one-prompt-looping-gif:.*unsupported GIF frame sheet/],
 ]) {
   const result = run(mode);
   assert.equal(result.status, 1, result.output);
