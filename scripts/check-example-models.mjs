@@ -150,10 +150,16 @@ function customGifSizeIssue(id, fields, sp) {
     return [{ w, h, pixels }];
   });
   if (!candidates.length) return `cannot validate custom GIF dimensions: no catalog layout for ${frames} frames`;
-  if (candidates.some(({ w, h, pixels }) => Number.isSafeInteger(pixels)
+  const fits = ({ w, h, pixels }) => Number.isSafeInteger(pixels)
       && Math.max(w, h) <= sheet.max_edge && pixels >= sheet.min_pixels && pixels <= sheet.max_pixels
-      && Math.max(w / h, h / w) <= sheet.max_aspect_ratio)) return null;
-  return `unsupported GIF frame sheet for ${frames} frames at ${fields.size}: `
+      && Math.max(w / h, h / w) <= sheet.max_aspect_ratio;
+  // The catalog lists layouts but does not specify how the endpoint chooses
+  // between them. Certify only sizes safe under every advertised candidate.
+  if (candidates.every(fits)) return null;
+  const reason = candidates.some(fits)
+    ? 'cannot certify GIF frame sheet: catalog layout selection is unspecified'
+    : 'unsupported GIF frame sheet';
+  return `${reason} for ${frames} frames at ${fields.size}: `
     + candidates.map(({ w, h, pixels }) => `${w}x${h} (${pixels} pixels)`).join(' or ')
     + `; limits: edge <= ${sheet.max_edge}, pixels ${sheet.min_pixels}–${sheet.max_pixels}, aspect <= ${sheet.max_aspect_ratio}:1`;
 }

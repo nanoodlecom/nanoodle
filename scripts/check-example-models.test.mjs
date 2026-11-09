@@ -82,13 +82,17 @@ test('seven 1024-square frames exceed both padded sheet bounds despite fitting t
   assert.match(issues[0].reason, /8294400/);
 });
 
-test('GIF sheet audit checks edge, area, aspect, padding and all advertised orientations', () => {
+test('GIF sheet audit checks edge, area, aspect, padding and uncertain layout selection', () => {
   assert.match(gifIssues('1936x400', 7)[0].reason, /GIF frame sheet/, 'edge fails even when pixels fit');
   assert.match(gifIssues('1024x1024', 9)[0].reason, /GIF frame sheet/, '3x3 fits edge but exceeds area');
   assert.deepEqual(gifIssues('960x960', 9), [], '3x3 exactly at the maximum pixel count');
   assert.match(gifIssues('128x128', 7)[0].reason, /GIF frame sheet/, 'minimum sheet pixels');
   assert.match(gifIssues('960x128', 7)[0].reason, /GIF frame sheet/, 'sheet aspect ratio');
-  assert.deepEqual(gifIssues('1280x480', 7), [], '2x4 succeeds when 4x2 exceeds max edge');
+  assert.match(gifIssues('1280x480', 7)[0].reason, /cannot certify.*layout selection/,
+    '2x4 fits but 4x2 exceeds max edge; endpoint selection is not advertised');
+  const portrait = gifParams();
+  portrait.gif.frame_sheet.layouts['2-8'] = ['2x4'];
+  assert.deepEqual(gifIssues('1280x480', 7, portrait), [], 'a uniquely advertised valid orientation is safe');
   assert.deepEqual(gifIssues('960x960', 8), [], 'unused eighth cell is already counted for seven');
   const bounds = gifParams();
   bounds.gif.frame_sheet.max_edge = 4096;
