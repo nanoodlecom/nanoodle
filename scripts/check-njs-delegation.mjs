@@ -524,6 +524,33 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
   }
 }
 
+// A preset-only live/cache catalog must not turn the current custom GIF frames
+// back into 1k. Record complete built-in/delegated request bodies, without a network.
+{
+  const previous = catalog.image;
+  try {
+    for (const model of ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst']) {
+      catalog.image = [{ id: model, supported_parameters: { resolutions: ['1k', '2k', '4k'] } }];
+      const data = { nodes: [node('gif', 'image', { model, prompt: 'one loop', size: '960x960', variations: '1',
+        modelOpts: { output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' } })], links: [] };
+      const requests = [];
+      for (const flag of [false, true]) {
+        calls.length = 0;
+        const spy = [], app = flaggedEngine(flag, spy);
+        await app.runGraph(app.materialize(data), {});
+        const body = calls.filter(paid).map(norm).sort();
+        assert.equal(body.length, 1, model + ': one image request');
+        assert.ok(pinLoraBody(model + ' GIF', body, { must: { model, size: '960x960', n: 1,
+          output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' } }));
+        if (flag) assert.ok(spy.includes('image'), 'default library runner engaged');
+        requests.push(body);
+      }
+      assert.deepEqual(requests[0], requests[1], model + ': complete GIF bodies match');
+      console.log('✓ ' + model + ' GIF: built-in/delegated bodies preserve custom size and animation settings');
+    }
+  } finally { catalog.image = previous; }
+}
+
 // vision gate on the DEFAULT (njs) paid path: a wired image on a KNOWN text-only model must be
 // stripped before the library sees it — live 400 "does not support image inputs" on
 // mistralai/mistral-small-24b-instruct-2501 (Choice-wired model). Flag-on must equal flag-off
