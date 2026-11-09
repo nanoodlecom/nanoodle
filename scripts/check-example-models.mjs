@@ -113,6 +113,51 @@ export function appRules(src) {
   return { dead: new RegExp(`^(${dead[1]})$`, 'i'), needsSource: set('NEEDS_SRC_IDS'), inpaint: set('INPAINT_OK') };
 }
 
+// These GPT Image models document custom pixel sizes; resolutions is a preset
+// list, not an exhaustive enum. For GIFs the pixels belong to a padded sheet,
+// not just frame_count * width * height. Read layouts/bounds from the catalog:
+// https://api.nano-gpt.com/api/v1/images/models/gpt-image-2.6-flare/endpoints
+// Custom dimensions must be multiples of 16 (OpenAI image-generation guide).
+// undefined leaves the existing size audit in charge; null means a valid sheet.
+function customGifSizeIssue(id, fields, sp) {
+  const opts = fields.modelOpts || {}, size = /^(\d+)x(\d+)$/.exec(fields.size || '');
+  if (!/^gpt-image-2\.6-(flare|sunburst)$/.test(id) || !size || opts.output_format !== 'gif') return;
+  const gif = sp.gif, sheet = gif?.frame_sheet, range = gif?.frame_count;
+  if (!Array.isArray(sp.output_format) || !sp.output_format.includes('gif') || !sheet?.layouts || sheet.per_output !== true
+      || !['max_edge', 'min_pixels', 'max_pixels', 'max_aspect_ratio'].every(key => Number.isFinite(sheet[key]) && sheet[key] > 0)
+      || !Number.isSafeInteger(range?.min) || !Number.isSafeInteger(range?.max)
+      || range.min < 1 || range.max < range.min) {
+    return 'cannot validate custom GIF dimensions: incomplete catalog frame-sheet constraints';
+  }
+  const frameValue = opts.frame_count ?? range.default, frames = Number(frameValue);
+  if (!['number', 'string'].includes(typeof frameValue) || !Number.isSafeInteger(frames) || frames < range.min || frames > range.max) {
+    return `unsupported GIF frame_count=${JSON.stringify(opts.frame_count)}; supported: ${range.min}–${range.max}`;
+  }
+  const width = Number(size[1]), height = Number(size[2]);
+  if (![width, height].every(n => Number.isSafeInteger(n) && n > 0 && n % 16 === 0)) {
+    return 'unsupported custom GIF dimensions: width and height must be positive multiples of 16';
+  }
+  const layouts = Object.entries(sheet.layouts).flatMap(([key, values]) => {
+    const span = /^(\d+)(?:-(\d+))?$/.exec(key);
+    return span && frames >= Number(span[1]) && frames <= Number(span[2] ?? span[1]) && Array.isArray(values) ? values : [];
+  });
+  const candidates = layouts.flatMap(layout => {
+    const grid = /^(\d+)x(\d+)$/.exec(layout);
+    if (!grid) return [];
+    const cols = Number(grid[1]), rows = Number(grid[2]);
+    if (![cols, rows].every(n => Number.isSafeInteger(n) && n > 0) || cols * rows < frames) return [];
+    const w = cols * width, h = rows * height, pixels = w * h;
+    return [{ w, h, pixels }];
+  });
+  if (!candidates.length) return `cannot validate custom GIF dimensions: no catalog layout for ${frames} frames`;
+  if (candidates.some(({ w, h, pixels }) => Number.isSafeInteger(pixels)
+      && Math.max(w, h) <= sheet.max_edge && pixels >= sheet.min_pixels && pixels <= sheet.max_pixels
+      && Math.max(w / h, h / w) <= sheet.max_aspect_ratio)) return null;
+  return `unsupported GIF frame sheet for ${frames} frames at ${fields.size}: `
+    + candidates.map(({ w, h, pixels }) => `${w}x${h} (${pixels} pixels)`).join(' or ')
+    + `; limits: edge <= ${sheet.max_edge}, pixels ${sheet.min_pixels}–${sheet.max_pixels}, aspect <= ${sheet.max_aspect_ratio}:1`;
+}
+
 export function auditPins(pins, catalogs, rules = {}) {
   const issues = [];
   for (const pin of pins) {
@@ -160,7 +205,11 @@ export function auditPins(pins, catalogs, rules = {}) {
       if (value == null || value === '' || !listed?.length) return;
       if (!listed.some(option => String(option) === String(value))) fail(`unsupported ${field}=${JSON.stringify(value)}; supported: ${listed.join(', ')}`);
     };
-    if (pin.kind === 'image') check('size', sp.resolutions);
+    if (pin.kind === 'image') {
+      const issue = customGifSizeIssue(pin.id, fields, sp);
+      if (issue === undefined) check('size', sp.resolutions);
+      else if (issue) fail(issue);
+    }
     if (pin.kind === 'video') {
       check('resolution', options(pp.resolution));
       check('duration', options(pp.duration || pp.seconds));

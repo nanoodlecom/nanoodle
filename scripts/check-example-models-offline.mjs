@@ -17,6 +17,16 @@ const opts = values => ({ options: values.map(value => ({ value })) });
 const image = (id, resolutions, edit = false) => ({ id,
   architecture: { modality: edit ? 'text+image->image' : 'text->image' },
   capabilities: { image_to_image: edit }, supported_parameters: { resolutions } });
+// Current public GIF endpoint metadata (2026-11-09). The committed seven-frame
+// 1024-square gallery requests exceed these bounds. The current-contract fixture
+// below asserts both failures while preserving the committed graphs.
+const gifImage = id => ({ ...image(id, ['1k', '2k', '4k'], true), supported_parameters: {
+  resolutions: ['1k', '2k', '4k'], output_format: ['png', 'jpeg', 'webp', 'gif'],
+  gif: { frame_count: { min: 2, max: 16, default: 9 }, frame_sheet: {
+    layouts: { '2-8': ['4x2', '2x4'], '9': ['3x3'], '10-12': ['4x3', '3x4', '4x4'], '13-16': ['4x4'] },
+    max_edge: 3840, min_pixels: 655360, max_pixels: 8294400, max_aspect_ratio: 3, per_output: true,
+  } },
+} });
 const catalogs = {
   chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
     ...(['google/gemini-3.8-flash', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
@@ -38,8 +48,8 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
-    image('gpt-image-2.6-flare', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
-    image('gpt-image-2.6-sunburst', ['1024x1024', '1536x1024', '1024x1536', '2048x1152', '1152x2048', '3840x2160'], true),
+    gifImage('gpt-image-2.6-flare'),
+    gifImage('gpt-image-2.6-sunburst'),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
   ],
   video: [
@@ -120,6 +130,14 @@ function run(mode) {
       if (mode === 'http-error') return { ok: false, status: 503 };
       const kind = /\\/3d-models/.test(String(url)) ? 'model3d' : (/\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat');
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
+      // A synthetic wider-sheet fixture exercises the success path without
+      // editing committed graphs. This is deliberately NOT the live contract.
+      if (mode === 'synthetic-wide-sheet' && kind === 'image') {
+        for (const m of data.filter(m => m.supported_parameters?.gif)) {
+          m.supported_parameters.gif.frame_sheet.max_edge = 4096;
+          m.supported_parameters.gif.frame_sheet.max_pixels = 8388608;
+        }
+      }
       if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
       if (mode === 'bad-avatar' && kind === 'video') data.find(m => m.id === 'longcat-avatar-1.5').capabilities.audio_input = false;
       if (mode === 'bad-vision' && kind === 'chat') data.find(m => m.id === 'google/gemini-3.8-flash').capabilities.vision = false;
@@ -135,10 +153,16 @@ function run(mode) {
   return { status: result.status, output: result.stdout + result.stderr };
 }
 
-const good = run('live');
+const current = run('live');
+assert.equal(current.status, 1, current.output);
+assert.equal((current.output.match(/unsupported GIF frame sheet/g) || []).length, 2, current.output);
+assert.match(current.output, /2 issues;/, current.output);
+console.log('✓ current GIF contract rejects both unchanged gallery sheets with their actual bounds');
+
+const good = run('synthetic-wide-sheet');
 assert.equal(good.status, 0, good.output);
 assert.match(good.output, /homepage starter \d+ pins/, 'success must include the homepage audit');
-console.log('✓ starter and gallery audit succeeds with bounded capability catalog fixtures');
+console.log('✓ starter and gallery success path works with explicitly synthetic wider sheet limits');
 
 for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
