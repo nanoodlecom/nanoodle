@@ -227,7 +227,7 @@ assert.equal(api0.updSafeUrl("https://example.com/clip?q=a&b=c"),"https://exampl
   const articles = readFileSync(join(root, "articles.json"), "utf8");
   const li = html.match(/<li id="u-/g) || [];
   assert.equal(li.length, updates.length, "every updates.json entry renders");
-  const firstText = updates[0].text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const firstText = updates[0].text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   assert.ok(html.includes(firstText.slice(0, 80)), "newest changelog entry is present");
   const firstLi = html.indexOf("<li id=\"u-");
   const aside = html.indexOf("<aside class=\"fieldnotes\"");

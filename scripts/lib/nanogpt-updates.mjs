@@ -89,7 +89,7 @@ export function titleIntent(title) {
   // "availability changes" (NanoGPT #1423 / #1417) is retirement guidance, not a
   // launch — distinct from "now available" product nouns, which stay "new".
   if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset|\bavailability changes?\b/.test(t)) return "retired";
-  if (/\bnow use\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
+  if (/\bnow uses?\b|\bincluded in (?:the )?subscription\b|^animated gifs? with\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
   if (/\bpric(?:e|es|ing)\b|\bcheaper\b|\bdiscount\b|\b\d+%\s*off\b/.test(t)) return "pricing";
   return "new";
 }
@@ -301,6 +301,9 @@ export function classifyCard(card) {
   const rawText = card && card.text != null ? String(card.text) : "";
   const extracted = Array.isArray(card && card.models) ? card.models : extractMarkdownModelLinks(rawText);
   let intent = titleIntent(title);
+  // A removed UI label is not a retired model. This product-only card has no
+  // model links and should remain outside the model announcements feed.
+  if (!extracted.length && /^quantization removed from auto$/i.test(title)) intent = "updated";
   // 2026-10-27 (#1379): "RunAnywhere … is now available through the provider
   // selector for [GLM 5.3] …" links seven EXISTING models. It adds a NanoGPT
   // inference provider, not models, so it must not read "New LLM models: …".
