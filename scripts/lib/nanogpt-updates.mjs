@@ -89,7 +89,7 @@ export function titleIntent(title) {
   // "availability changes" (NanoGPT #1423 / #1417) is retirement guidance, not a
   // launch — distinct from "now available" product nouns, which stay "new".
   if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset|\bavailability changes?\b/.test(t)) return "retired";
-  if (/\bnow uses?\b|\bincluded in (?:the )?subscription\b|^animated gifs? with\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
+  if (/\bnow uses?\b|\bincluded in (?:the )?subscription\b|^animated gifs? with\b|\bmodels get their own ids\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
   if (/\bpric(?:e|es|ing)\b|\bcheaper\b|\bdiscount\b|\b\d+%\s*off\b/.test(t)) return "pricing";
   return "new";
 }

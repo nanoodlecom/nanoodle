@@ -13,9 +13,11 @@ import { fileURLToPath } from "node:url";
 import {
   cardsFromHtml,
   classifyCard,
+  fetchApiUpdates,
   groupPending,
   MEDIA_FLOOR_DATE,
   selectPending,
+  shouldStopFetching,
   toChangelogText,
 } from "./lib/nanogpt-updates.mjs";
 
@@ -40,6 +42,23 @@ function lineFor(card, seen = []) {
 }
 
 console.log("sync-nanogpt-model-updates (fixture)");
+
+// The bounded seen history is a pagination checkpoint. Once a retained ID is
+// reached, older pages containing pruned September IDs must not be fetched.
+{
+  const latest = { id: "latest", date: "2026-11-10" };
+  const checkpoint = { id: "retained", date: "2026-11-05" };
+  const pruned = { id: "pruned-september", date: "2026-09-02" };
+  const offsets = [];
+  const seen = ["id:retained"];
+  const cards = await fetchApiUpdates(async url => {
+    const offset = Number(new URL(url).searchParams.get("offset"));
+    offsets.push(offset);
+    return { ok: true, json: async () => ({ updates: offset ? [pruned] : [latest, checkpoint], hasMore: true }) };
+  }, { limit: 2, shouldStop: all => shouldStopFetching(all, seen) });
+  check("retained checkpoint stops before pruned history", offsets.length === 1 && offsets[0] === 0);
+  check("pruned history cannot enter this pending batch", !cards.some(card => card.id === pruned.id));
+}
 
 // (a) a video /media card becomes "New video model"
 {
@@ -369,7 +388,7 @@ console.log("sync-nanogpt-model-updates (fixture)");
 // Current upstream wording must not turn changes to existing models into launches.
 {
   const model = "[Existing Model](https://nano-gpt.com/conversation?model=existing)";
-  for (const title of ["Fable Latest Now Uses Claude Fable 5.2", "Artemis 31B v1.2 Included in Subscription", "Animated GIFs With GPT Image 2.6 in Studio"]) {
+  for (const title of ["Fable Latest Now Uses Claude Fable 5.2", "Artemis 31B v1.2 Included in Subscription", "Animated GIFs With GPT Image 2.6 in Studio", "OrcaCyber Models Get Their Own IDs"]) {
     const line = lineFor({ id: title, date: "2026-11-10", title, text: `${model} now supports this feature.` });
     check(`${title} is an update, not a launch`, line?.startsWith("Updated:"), line);
   }
