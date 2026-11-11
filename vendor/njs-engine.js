@@ -1,5 +1,5 @@
-/* data-hash=ea1f8f638040847d */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-48711de52f1d (20 modules) */
+/* data-hash=b08906fe31dc87a3 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-214a9d6078b2 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -2288,6 +2288,7 @@ function refMaxFor(model, pricing) {
   const id = String(model || "");
   if (/seedance/i.test(id)) return 9;
   if (/minimax-h3/i.test(id)) return 9; // upstream cap; the first 5 are included, 6-9 bill extra_reference_image each
+  if (/gemini-omni-flash\/v1\.2/i.test(id)) return 6;
   if (/luma|ray/i.test(id)) return 4;
   const inc = pricing && +pricing.included_reference_images;
   if (inc > 0) return inc; // no family entry: the included count is the only number the catalog gives us
@@ -2304,8 +2305,12 @@ function modelRefSpec(model, ctx) {
   const m = catItem(ctx && ctx.catalog, "video", model);
   if (!m) return { key: "reference_images", cap: refMaxFor(model) };
   const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
-  const key = keys.find((k) => k in pp) || (pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
-  if (!key) return null; // known model with no ref-image param and no ref pricing
+  const modeOptions = pp.mode && pp.mode.options;
+  const referenceMode = Array.isArray(modeOptions) && modeOptions.some((o) =>
+    o && /^reference\b/i.test(String(o.value != null ? o.value : "")));
+  const key = keys.find((k) => k in pp) ||
+    (referenceMode || pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
+  if (!key) return null; // known model with no ref-image param, reference mode, or ref pricing
   const d = pp[key];
   let cap = null;
   if (d && typeof d === "object") {
@@ -6344,5 +6349,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-48711de52f1d";
+  window.NanoodleEngine.version = "src-214a9d6078b2";
 })();
