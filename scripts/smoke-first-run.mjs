@@ -442,6 +442,71 @@ try {
         await tabContext.close();
       }
     }
+    // Refresh in the input event's own task, before the 250ms save can run.
+    // A second backend holds edits in IDB and rejects writes on the departing
+    // page; the next page must replay its session journal exactly once.
+    for(const backend of ["local","indexedDB"]){
+      const refreshContext=await newContext(),refreshPage=await refreshContext.newPage();
+      refreshPage.setDefaultTimeout(15000);
+      refreshPage.on("dialog",d=>(d.type()==="beforeunload"?d.accept():d.dismiss()));
+      await refreshPage.goto(origin+"/__workspace-test-seed");
+      await refreshPage.evaluate(async({backend,uploadedPNG})=>{
+        const make=text=>JSON.stringify({v:1,nodes:[{id:"n1",type:"text",x:30,y:40,fields:{text}},
+          {id:"n2",type:"upload",x:350,y:40,fields:{image:uploadedPNG}}],links:[],nid:3,lid:1});
+        const values={noodle_graph:make("BEFORE REFRESH"),noodle_ws_w2:make("OTHER REFRESH WORKSPACE"),
+          noodle_workspaces:JSON.stringify({v:1,active:"w1",seq:2,tabs:[{id:"w1",name:"Refresh test"},{id:"w2",name:"Other workspace"}]})};
+        for(const [key,value] of Object.entries(values))localStorage.setItem(key,value);
+        localStorage.setItem("noodle_hint_dismissed","1");localStorage.setItem("noodle_connect_hint_dismissed","1");
+        if(backend==="indexedDB"){
+          const db=await new Promise((resolve,reject)=>{const r=indexedDB.open("nanoodle-workspaces",1);
+            r.onupgradeneeded=()=>r.result.createObjectStore("workspaces");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+          await new Promise((resolve,reject)=>{const tx=db.transaction("workspaces","readwrite");
+            tx.objectStore("workspaces").put({v:1,values,generation:"refresh-base"},"state");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+          db.close();
+        }
+      },{backend,uploadedPNG});
+      if(backend==="indexedDB")await refreshPage.addInitScript(()=>{
+        const set=Storage.prototype.setItem;
+        Storage.prototype.setItem=function(key,value){
+          if(this===localStorage && /^noodle_(graph|workspaces|ws_|editor_app|workspace_recovery)/.test(key))
+            throw new DOMException("Synthetic local quota","QuotaExceededError");
+          return set.call(this,key,value);
+        };
+        const put=IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put=function(...args){
+          if(this.name==="workspaces" && window.__denyRefreshSave)throw new DOMException("Synthetic interrupted save","QuotaExceededError");
+          return put.apply(this,args);
+        };
+      });
+      try{
+        await refreshPage.goto(origin,{waitUntil:"networkidle"});
+        for(let attempt=1;attempt<=3;attempt++){
+          const expected=`LATEST ${backend} REFRESH EDIT ${attempt}`;
+          if(backend==="indexedDB"){
+            await refreshPage.evaluate(()=>{window.__denyRefreshSave=true;});
+            await refreshPage.locator('.node[data-id="n1"] textarea').fill("FAILED BACKGROUND SAVE "+attempt);
+            assert.equal((await refreshPage.evaluate(()=>settleWorkspaceStorage())).mode,"session");
+          }
+          await Promise.all([
+            refreshPage.waitForNavigation({waitUntil:"networkidle"}),
+            refreshPage.evaluate(expected=>{
+              const field=document.querySelector('.node[data-id="n1"] textarea');
+              field.value="EARLIER KEYSTROKE";field.dispatchEvent(new Event("input",{bubbles:true}));
+              field.value=expected;field.dispatchEvent(new Event("input",{bubbles:true}));
+              location.reload();
+            },expected),
+          ]);
+          await refreshPage.waitForFunction(expected=>graph.nodes.find(n=>n.id==="n1")?.fields.text===expected,expected);
+          await refreshPage.evaluate(()=>settleWorkspaceStorage());
+          assert.equal(await refreshPage.evaluate(()=>readWorkspaces().tabs.length),2,"repeat refresh preserves tab identities");
+          assert.equal(await refreshPage.evaluate(()=>graph.nodes.find(n=>n.id==="n2").fields.image),uploadedPNG);
+          assert.equal(await refreshPage.evaluate(()=>JSON.parse(workspaceStorage.getItem("noodle_ws_w2")).nodes[0].fields.text),"OTHER REFRESH WORKSPACE");
+          assert.equal(await refreshPage.evaluate(()=>sessionStorage.getItem("noodle_workspace_recovery")),null,"successful replay cleans its journal");
+        }
+        assert.deepEqual(forbidden,[]);assert.deepEqual(errors,[]);
+        console.log(`✓ refresh ${label}/${backend}: repeated input → immediate reload, failed background saves, uploads and other tabs retained`);
+      }finally{await refreshContext.close();}
+    }
     // Start with newer IDB-only tabs plus an older local backup, then fail the
     // actual restore request. Neither Retry nor healthy reload may erase either branch.
     for (const failure of ["open", "read", "timeout", "unavailable", "overlap"]) {

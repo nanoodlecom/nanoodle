@@ -17323,6 +17323,7 @@ function save(){
     try{ stashModel3dOuts(); }catch(_){}
     try{ (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).setItem("noodle_graph", JSON.stringify(serializeGraph())); }
     catch(e){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
+    saveT = null;
     if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
   }, 250);
 }
@@ -18103,7 +18104,8 @@ let wsStorageEnabled = false, wsValues = null, wsDatabase = null;
 let wsRevision = 0, wsSavedRevision = 0, wsQueued = false;
 let wsUnloadBound = false;
 let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRecoveryBackup = null;
-let wsKnownRecord = null;
+let wsKnownRecord = null, wsJournalRevision = -1;
+const wsPendingGenerations = new Set();
 let wsInitFlight = null, wsAuthorityEpoch = 0;
 let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
 function wsOwnedKey(key){
@@ -18127,23 +18129,48 @@ function wsCopyValues(values){
 }
 function wsReadRecovery(){
   let newest = null;
-  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+  for(const [kind,storage] of [["local",wsRawStorage("local")],["session",wsRawStorage("session")]]){
     try{
       const d = storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
       if(d && d.v===1 && typeof d.id==="string" && d.values && typeof d.values==="object"
-          && (!newest || (d.updated||0)>(newest.updated||0))) newest=Object.assign({},d,{values:wsCopyValues(d.values)});
+          && (!newest || (d.updated||0)>(newest.updated||0)
+            || (kind==="session" && Object.prototype.hasOwnProperty.call(d,"baseGeneration"))))
+        newest=Object.assign({},d,{values:wsCopyValues(d.values)});
     }catch(_){}
   }
   return newest;
 }
 function wsWriteRecovery(values){
-  const previous = wsReadRecovery();
+  const previousId = wsRecoveryId, previous = wsReadRecovery();
+  // A normal pending save belongs to this exact database generation. Recovery
+  // visits have no baseline: they must keep both branches when storage returns.
+  const baseGeneration = wsRecoveryActive ? undefined : wsKnownRecord;
+  if(previous && previous.id===wsRecoveryId && wsJournalRevision===wsRevision
+      && previous.baseGeneration===baseGeneration && wsRecoveryBackup) return;
   const updated = Math.max(Date.now(), (previous && previous.updated || 0)+1);
   wsRecoveryId = updated.toString(36)+"-"+Math.random().toString(36).slice(2);
-  const json = JSON.stringify({v:1, id:wsRecoveryId, updated, values});
+  const pendingGenerations = wsRecoveryActive ? undefined : [...wsPendingGenerations];
+  const json = JSON.stringify({v:1, id:wsRecoveryId, updated, values, baseGeneration, pendingGenerations});
   wsRecoveryBackup = null;
-  for(const [kind,storage] of [["local",wsRawStorage("local")],["session",wsRawStorage("session")]]){
-    try{ if(storage){ storage.setItem(WS_RECOVERY_KEY,json); wsRecoveryBackup=kind; break; } }catch(_){}
+  // Normal pending saves belong to this tab. Prefer sessionStorage so two
+  // windows cannot overwrite each other's uncommitted edits in one shared key.
+  const stores = [["local",wsRawStorage("local")],["session",wsRawStorage("session")]];
+  if(!wsRecoveryActive) stores.reverse();
+  for(const [kind,storage] of stores){
+    try{
+      if(!storage) continue;
+      let current=null;
+      try{ current=JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null"); }catch(_){}
+      if(kind==="local" && current && current.id!==previousId) continue;
+      storage.setItem(WS_RECOVERY_KEY,json); wsRecoveryBackup=kind; wsJournalRevision=wsRevision; break;
+    }catch(_){}
+  }
+  // A larger edit may move the journal from local to session storage. Once the
+  // new copy lands, retire its predecessor so it cannot replay after cleanup.
+  if(wsRecoveryBackup && previous && previous.id===previousId){
+    for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+      try{ if(JSON.parse(storage && storage.getItem(WS_RECOVERY_KEY)||"null")?.id===previous.id) storage.removeItem(WS_RECOVERY_KEY); }catch(_){}
+    }
   }
 }
 function wsClearRecovery(){
@@ -18155,6 +18182,7 @@ function wsClearRecovery(){
   }
   wsRecoveryActive = false;
   wsRecoveryBackup = null;
+  wsJournalRevision = -1;
 }
 // A recovery visit is a separate branch of work. Never replace unread IDB tabs
 // with the older local backup or that visit's edits when storage becomes readable.
@@ -18251,8 +18279,13 @@ function wsQueuePersist(){
   Promise.resolve().then(()=>{
     wsQueued = false;
     const revision = wsRevision, values = Object.assign({}, wsValues), authority = wsAuthorityEpoch;
-    if(wsRecoveryActive) wsWriteRecovery(values);
-    const recoveryId = wsRecoveryId;
+    // IDB may be interrupted by refresh even when it opened successfully.
+    // Journal before starting the asynchronous commit; never touch the legacy copy.
+    wsWriteRecovery(values);
+    // Later journals can recognize an earlier queued commit as their own
+    // ancestor, even if unload interrupts the last write after that commit.
+    const recoveryId = wsRecoveryId, generation = recoveryId;
+    wsPendingGenerations.add(generation);
     wsPersistTail = wsPersistTail.then(()=>new Promise((resolve, reject)=>{
       const superseded = ()=>{const e=new Error("WorkspaceSuperseded");e.name="WorkspaceSuperseded";return e;};
       if(authority!==wsAuthorityEpoch){reject(superseded());return;}
@@ -18267,7 +18300,6 @@ function wsQueuePersist(){
           reject(new Error("BrowserStorageTimeout"));
         }, 5000);
         const fail = ()=>{ clearTimeout(timer); reject(tx.error || new Error("BrowserStorageUnavailable")); };
-        const generation=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
         let wrote=false;
         tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ if(authority===wsAuthorityEpoch) wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
         tx.onerror = tx.onabort = fail;
@@ -18285,14 +18317,16 @@ function wsQueuePersist(){
         };
       }catch(e){ reject(e); }
     })).then(()=>{
+      wsPendingGenerations.delete(generation);
       if(authority!==wsAuthorityEpoch) return;
       wsSavedRevision = revision;
       wsPersistFailure = null;
       if(revision===wsRevision){
-        if(wsRecoveryActive && recoveryId===wsRecoveryId) wsClearRecovery();
+        if(recoveryId===wsRecoveryId || wsJournalRevision===revision) wsClearRecovery();
         wsPersistenceNotice(false);
       }
     }, error=>{
+      wsPendingGenerations.delete(generation);
       if(error && error.name==="WorkspaceSuperseded") return;
       if(error && error.name==="WorkspaceConflict"){
         wsRestoreFailed=true;wsRecoveryActive=true;
@@ -18331,6 +18365,17 @@ const workspaceStorage = {
     wsQueuePersist();
   }
 };
+// beforeunload can be skipped on mobile. Hidden/pagehide also checkpoint the
+// latest edit, including a save still inside its debounce, without replacing
+// anything while boot is restoring the user's canvas.
+function checkpointWorkspaceEdits(){
+  if(wsRestorePending) return true;
+  const pending = saveT!==null;
+  const saved = !pending || flushSave()!==null;
+  if(pending && saved && location.hash) history.replaceState({}, "", location.pathname + location.search);
+  if(wsValues && wsRevision!==wsSavedRevision) wsWriteRecovery(wsValues);
+  return saved;
+}
 function initWorkspaceStorage(){
   if(wsInitFlight) return wsInitFlight;
   wsInitFlight=restoreWorkspaceStorage().finally(()=>{
@@ -18348,11 +18393,12 @@ async function restoreWorkspaceStorage(){
   if(!wsUnloadBound && typeof addEventListener==="function"){
     wsUnloadBound = true;
     addEventListener("beforeunload", e=>{
-      // A recovery reload must not outrun the 250ms autosave debounce. Journal
-      // the latest live edit synchronously; IDB commits still remain asynchronous.
-      if(wsValues && saveT) flushSave();
-      if(wsRecoveryActive && wsValues) wsWriteRecovery(wsValues);
-      if(wsValues && wsRevision!==wsSavedRevision){ e.preventDefault(); e.returnValue=""; }
+      const saved = checkpointWorkspaceEdits();
+      if(!saved || (wsValues && wsRevision!==wsSavedRevision)){ e.preventDefault(); e.returnValue=""; }
+    });
+    addEventListener("pagehide", checkpointWorkspaceEdits);
+    if(typeof document!=="undefined") document.addEventListener("visibilitychange", ()=>{
+      if(document.visibilityState==="hidden") checkpointWorkspaceEdits();
     });
   }
   try{
@@ -18400,8 +18446,14 @@ async function restoreWorkspaceStorage(){
     const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
     if(visit){
       const wasLive = !!wsValues;
-      wsValues = wsMergeRecovery(restored,visit);
-      wsRecoveryActive=true; wsRestoreFailed=false; wsSavedRevision=-1;
+      // An interrupted normal save can resume in place only if nobody else
+      // changed its baseline. Otherwise retain both branches as recovered tabs.
+      const resume = !wasLive && recovery && Object.prototype.hasOwnProperty.call(recovery,"baseGeneration")
+        && (recovery.baseGeneration===wsKnownRecord
+          || (Array.isArray(recovery.pendingGenerations) && recovery.pendingGenerations.includes(wsKnownRecord)));
+      wsValues = resume ? wsCopyValues(visit) : wsMergeRecovery(restored,visit);
+      if(!wasLive && recovery) wsRecoveryId=recovery.id;
+      wsRecoveryActive=!resume; wsRestoreFailed=false; wsSavedRevision=-1;
       if(wasLive){ try{ renderWorkspaces(); }catch(_){} }
       wsQueuePersist();
     }else if(!wsValues && Object.keys(restored).length){
@@ -18835,13 +18887,13 @@ function stampActiveApp(){
 function flushSave(){
   if(wsRestorePending) return null;
   try{ clearTimeout(saveT); }catch(_){}
-  saveT = null;
   try{ if(typeof stashModel3dOuts==="function") stashModel3dOuts(); }catch(_){}
   let json = null;
   try{ json = JSON.stringify(serializeGraph()); }
   catch(_){ return null; }
   try{ workspaceStorage.setItem("noodle_graph", json); }
   catch(_){ return null; }
+  saveT = null;
   return json;
 }
 function parkWorkspaceHistory(id){
