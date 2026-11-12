@@ -22,7 +22,8 @@ for (const file of ["index.html","play.html"]) {
       {temperature,max_tokens:1536,reasoning_effort:"medium"});
     assert.equal("temperature" in body,false,file+" must omit Carbon temperature");
     assert.equal(body.max_tokens,1536);
-    assert.equal(body.reasoning_effort,"medium");
+    assert.equal("reasoning_effort" in body,false);
+    assert.equal("thinking" in body,false);
   }
   await client.genChat([],"google/gemini-4-argon",{temperature:0});
   assert.equal(body.temperature,0,file+" preserves Argon");
@@ -44,7 +45,18 @@ for (const file of ["index.html", "play.html"]) {
       {model,m:model,messages:[],temperature:0.8,cap:1536,re:"medium"});
     assert.equal("temperature" in body, model!=="google/gemini-4-carbon", file+" streaming");
     assert.equal(body.max_tokens,1536);
-    assert.equal(body.reasoning_effort,"medium");
+    assert.equal(body.reasoning_effort,model==="google/gemini-4-carbon"?undefined:"medium");
   }
   console.log("✓ "+file+": streaming Carbon omission, Argon preservation");
 }
+
+// UI must not reintroduce medium from the broad catalog on the known failing route.
+{
+  const src=readFileSync(new URL("../index.html",import.meta.url),"utf8");
+  const expr=src.match(/reasoningEfforts: ([\s\S]*?),\n    audio_input:/)[1];
+  for (const id of ["google/gemini-4-carbon","google/gemini-4-argon"]) {
+    const levels=vm.runInNewContext("("+expr+")",{m:{id,reasoning_efforts:["low","medium","high"]}});
+    assert.equal(JSON.stringify(levels),JSON.stringify(id.endsWith("carbon")?["default"]:["low","medium","high"]));
+  }
+}
+console.log("✓ Carbon UI uses provider default; other model reasoning controls retained");

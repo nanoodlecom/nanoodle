@@ -75,9 +75,25 @@ for (const label of ["play.html #njs-engine", "vendor/njs-engine.js"]) {
     fail(`${label}: ${e.message}`);
     continue;
   }
-  if (!/if \(opts\.reasoning_effort\) body\.reasoning_effort = opts\.reasoning_effort/.test(src)) {
-    fail(`${label}: genChat must assign reasoning_effort with a truthy check (so "none" is sent)`);
-  } else ok(`${label}: genChat forwards a truthy reasoning_effort (including none)`);
+  // Exercise the actual generated client method, not its source spelling.
+  const method = src.match(/  async chat\(messages, model,[\s\S]*?\n  \}/)?.[0];
+  if (!method) throw new Error(`${label}: chat method missing`);
+  const client = vm.runInNewContext("({" + method + "})");
+  let body;
+  client._postJson = async (_path, value) => {
+    body = value;
+    return {ok:true,json:async()=>({choices:[{message:{content:"fixture"}}]})};
+  };
+  for (const [name, fields, want] of CASES) {
+    for (const model of ["google/gemini-4-carbon", "google/gemini-4-argon", "fixture/other"]) {
+      await client.chat([], model, {...llmOpts({fields}), max_tokens:1536});
+      const expected = model === "google/gemini-4-carbon" ? undefined : want;
+      if (body.reasoning_effort !== expected || "thinking" in body || body.max_tokens !== 1536) {
+        fail(`${label}: ${model} ${name} send contract`);
+      }
+    }
+  }
+  ok(`${label}: actual request preserves supported efforts; Carbon omits provider thinking controls`);
 
   for (const [name, fields, want] of CASES) {
     const got = llmOpts({ fields }).reasoning_effort;
