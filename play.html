@@ -8465,8 +8465,7 @@ function imgExtra(n){
       if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
       if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
-      // Carbon provider rejects explicit thinking; omit even stale saved efforts.
-    if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+      if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
