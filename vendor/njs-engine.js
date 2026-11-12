@@ -1,5 +1,5 @@
-/* data-hash=a6043c0003dc1f8b */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-828fad6872d6 (20 modules) */
+/* data-hash=dbc8c33628b8e197 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-615065be438d (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1310,7 +1310,9 @@ class NanoClient {
     if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if (opts.response_format) body.response_format = opts.response_format;
-    if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
+    // Let the provider use its default rather than forwarding reasoning_effort.
+    if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -6352,5 +6354,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-828fad6872d6";
+  window.NanoodleEngine.version = "src-615065be438d";
 })();

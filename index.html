@@ -5551,7 +5551,7 @@ function normChat(m){
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
     // NanoGPT detailed catalog lists real levels (none/minimal/low/medium/high/xhigh/max) — never "default".
     // Pass through so the ⚙️ effort select can match the model (Solar Mini 4 Thinking = none|low|medium|high).
-    reasoningEfforts: Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length
+    reasoningEfforts: m.id === "google/gemini-4-carbon" ? ["default"] : Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length
       ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
@@ -14262,7 +14262,8 @@ const CTX = {
     if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
-    if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon provider rejects explicit thinking; omit even stale saved efforts.
+    if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
@@ -22189,7 +22190,7 @@ RULES for the diff:
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
+        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
