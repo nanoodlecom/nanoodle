@@ -25,6 +25,11 @@ for (const file of ["index.html","play.html"]) {
     assert.equal("reasoning_effort" in body,false);
     assert.equal("thinking" in body,false);
   }
+  for (const max_tokens of [undefined, "", 1536, 32768]) {
+    await client.genChat([],"google/gemini-4-carbon",{max_tokens});
+    assert.equal(body.max_tokens,max_tokens ? +max_tokens : undefined,
+      file+": unset uses provider default, explicit user budgets survive");
+  }
   await client.genChat([],"google/gemini-4-argon",{temperature:0});
   assert.equal(body.temperature,0,file+" preserves Argon");
   const gate=src.match(/const TEMP_LOCKED = (.*);/)[1];
@@ -60,3 +65,16 @@ for (const file of ["index.html", "play.html"]) {
   }
 }
 console.log("✓ Carbon UI uses provider default; other model reasoning controls retained");
+
+// Fresh Sing presets must not silently impose the old lyrics budget. Historical
+// sampled graphs remain unchanged, and saved user graphs are never migrated.
+{
+  const src=readFileSync(new URL("../index.html",import.meta.url),"utf8");
+  const nodeLine=src.split("\n").find(line=>line.includes('name:"Write lyrics"'));
+  assert(nodeLine && !nodeLine.includes("maxTokens:"));
+  const current=JSON.parse(readFileSync(new URL("../examples/gallery/sing/workflow.json",import.meta.url)));
+  const sampled=JSON.parse(readFileSync(new URL("../examples/gallery/sing/graph.json",import.meta.url)));
+  assert.equal(current.nodes.find(n=>n.name==="Write lyrics").fields.maxTokens,undefined);
+  assert.equal(sampled.nodes.find(n=>n.name==="Write lyrics").fields.maxTokens,"1536");
+}
+console.log("✓ lyrics preset uses provider default; historical sample and explicit budgets preserved");
