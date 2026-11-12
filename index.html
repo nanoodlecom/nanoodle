@@ -5537,7 +5537,7 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 // non-reasoning branch that DOES sample and keeps the slider. -search-preview: OpenAI's web-search
 // models likewise take no sampling params. Not metadata-derivable: the
 // catalog carries no temperature/supported-params flag (checked 2026-07-21).
-const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$/;
+const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$|^google\/gemini-4-carbon$/;
 const tempLocked = id => TEMP_LOCKED.test(String(id||""));
 
 function normChat(m){
@@ -14259,7 +14259,7 @@ const CTX = {
     // Skip it for JSON/structured mode: a "respond in Spanish" directive corrupts json_object output
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
-    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+    if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
@@ -22137,7 +22137,7 @@ RULES for the diff:
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, temperature, stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
+        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
