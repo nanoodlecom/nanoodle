@@ -18933,7 +18933,7 @@ function askModelGraph(){
     v:1,
     nodes:[
       { id:"n1", type:"text", x:80, y:160, w:280, name:"Prompt", fields:{ text:"Explain how a node graph runs, in three short sentences." } },
-      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", maxTokens:"400", reasoningEffort:"low" } }
+      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", reasoningEffort:"low" } }
     ],
     links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
     nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
@@ -20304,7 +20304,7 @@ function seed(){
   nameNode(sketch, "The sketch");
   const vision = addNode("vision", 370, 210, { model:"google/gemini-3.8-flash", q:"Describe this child's crayon drawing in rich, warm detail — every subject in it, the colours, the mood, and the little story it seems to tell. Flowing prose, two or three sentences. Describe only what is actually drawn." });
   nameNode(vision, "Vision reads it");
-  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", maxTokens:"1024", reasoningEffort:"low" });
+  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", reasoningEffort:"low" });
   nameNode(llm, "Reimagined");
   const img = addNode("image", 1050, 210, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
   nameNode(img, "Painted");
