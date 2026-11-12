@@ -5537,7 +5537,7 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 // non-reasoning branch that DOES sample and keeps the slider. -search-preview: OpenAI's web-search
 // models likewise take no sampling params. Not metadata-derivable: the
 // catalog carries no temperature/supported-params flag (checked 2026-07-21).
-const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$/;
+const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$|^google\/gemini-4-carbon$/;
 const tempLocked = id => TEMP_LOCKED.test(String(id||""));
 
 function normChat(m){
@@ -14259,7 +14259,7 @@ const CTX = {
     // Skip it for JSON/structured mode: a "respond in Spanish" directive corrupts json_object output
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
-    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+    if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
@@ -20729,7 +20729,7 @@ const EXAMPLES = [
  { em:"🧱", slug:"blockout-to-shot", title:"Blockout first, then the shot", desc:"Gray geometric blockout first, then restyle into the finished look and animate one shot.",
    thumb:"examples/gallery/blockout-to-shot/preview.webp",
    graph:{ v:1,
-   nodes:[ {id:"c-intent",type:"comment",x:-40,y:-560,w:460,fields:{"text":"Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still. One look, one action — the video continues the restyled beat, it does not invent a new scene.","color":"yellow"}},
+   nodes:[ {id:"c-intent",type:"comment",x:-40,y:-560,w:460,fields:{"text":"Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.0 Lite (720p, 5 s, silent) animates the finished still. One look, one action — the video continues the restyled beat, it does not invent a new scene.","color":"yellow"}},
            {id:"idea",type:"text",x:-40,y:0,w:320,fields:{"text":"A boxy courier robot with stubby wheel-legs leaps a narrow rooftop gap between two brick buildings at dusk. Low tracking camera from the near rooftop; the robot pushes off the ledge, sails across the alley, and lands on the far roof with a soft crouch."},name:"Action idea"},
            {id:"preserve",type:"text",x:-40,y:360,w:320,fields:{"text":"Keep the exact composition, poses, and camera of the reference blockout. Only change materials, colors, lighting, and surface detail."},name:"Keep composition"},
            {id:"blockout-writer",type:"llm",x:420,y:-200,w:320,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"400","system":"You write ONE image prompt for a Blender-style BLOCKOUT still of the user's action idea. Grayscale only: matte medium-gray untextured geometric stand-ins (boxes, cylinders, simple limb blocks), no detailed faces, clothes, logos, or materials. Keep readable silhouette poses and the explicit camera (angle, height, framing) from the idea. Flat soft studio gray light, no color, no atmosphere glow. ONE hero figure only — do not place a second stand-in or landing-pose duplicate on the far side. 16:9 cinematic still. 40 to 70 words, plain sentences, no headings or lists, no quotes. Output only the prompt."},name:"Blockout prompt"},
@@ -20740,7 +20740,7 @@ const EXAMPLES = [
            {id:"motion-prefix",type:"text",x:-40,y:700,w:280,fields:{"text":"Animate the finished still for five seconds."},name:"Motion prefix"},
            {id:"blockout",type:"image",x:860,y:-200,w:300,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Blockout still"},
            {id:"look",type:"edit",x:1300,y:160,w:300,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"Finished look"},
-           {id:"shot",type:"ivideo",x:1740,y:360,w:300,fields:{"model":"bytedance-seedance-v1.5-pro","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{"generateAudio": false},"loras":[]},name:"Shot · 5s"} ],
+           {id:"shot",type:"ivideo",x:1740,y:360,w:300,fields:{"model":"seedance-lite-video","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{},"loras":[]},name:"Shot · 5s"} ],
    links:[ {id:"l1",from:{node:"idea",port:"text"},to:{node:"blockout-writer",port:"prompt"}},
            {id:"l2",from:{node:"idea",port:"text"},to:{node:"look-writer",port:"prompt"}},
            {id:"l3",from:{node:"idea",port:"text"},to:{node:"motion-writer",port:"prompt"}},
@@ -20784,7 +20784,7 @@ const EXAMPLES = [
  { em:"🎨", slug:"same-shot-three-looks", title:"Same shot, three looks", desc:"One locked shot restyled three ways, then a short ambient clip on the glass look.",
    thumb:"examples/gallery/same-shot-three-looks/preview.webp",
    graph:{ v:1,
-   nodes:[ {id:"c-intent",type:"comment",x:40,y:-140,w:560,fields:{"text":"Same locked shot, three materials. Muse paints a glass look; Muse Edit restyles it to watercolor, then to photoreal fantasy; Seedance 1.5 Pro animates a material morph from the glass still. Camera and composition stay fixed. Inspired by ComfyUI style-morph / material-ladder clips (e.g. @eikoung).","color":"yellow"}},
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-140,w:560,fields:{"text":"Same locked shot, three materials. Muse paints a glass look; Muse Edit restyles it to watercolor, then to photoreal fantasy; Seedance 1.0 Lite animates a material morph from the glass still. Camera and composition stay fixed. Inspired by ComfyUI style-morph / material-ladder clips (e.g. @eikoung).","color":"yellow"}},
            {id:"n1",type:"text",x:40,y:100,w:320,fields:{"text":"A small translucent glass lighthouse filled with stacked books and a warm golden lantern, standing on wet black rocks in misty teal water under a pale crescent moon, clear glass walls with soft gold filigree, reflections on the water, fixed wide eye-level camera, centered composition, soft cinematic lighting, no people, no text, family-friendly SFW."},name:"Glass look prompt"},
            {id:"n2",type:"image",x:420,y:80,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"1 · Glass look"},
            {id:"n3p",type:"text",x:40,y:420,w:320,fields:{"text":"Restyle this exact scene as a soft hand-drawn watercolor illustration on textured paper. Keep the same lighthouse shape, book stacks, lantern, rocks, moon, and camera framing. Flat gentle washes, visible paper grain, ink outlines, muted teal and warm gold. No photoreal glass, no 3D render look, no people, no text overlays, SFW."},name:"Watercolor edit"},
@@ -20792,7 +20792,7 @@ const EXAMPLES = [
            {id:"n4p",type:"text",x:40,y:720,w:320,fields:{"text":"Restyle this exact scene as a photoreal cinematic fantasy photograph. Keep the same lighthouse silhouette, books, lantern glow, wet rocks, crescent moon, and locked camera framing. Real materials: weathered stone lighthouse, warm practical lantern light, misty teal sea, sharp detail. No cartoon, no watercolor paper, no people, no text overlays, SFW."},name:"Photoreal edit"},
            {id:"n4",type:"edit",x:420,y:700,w:280,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"3 · Photoreal"},
            {id:"n5p",type:"text",x:780,y:80,w:300,fields:{"text":"Locked camera. The lighthouse materials slowly morph from clear translucent glass and gold filigree into soft watercolor paper illustration, then settle. Same composition the whole time. Gentle mist only. No camera move, no new objects, no people, no text, SFW."},name:"Morph motion"},
-           {id:"n5",type:"ivideo",x:780,y:320,w:300,fields:{"model":"bytedance-seedance-v1.5-pro","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{"generateAudio": false},"loras":[]},name:"Material morph · 5s"} ],
+           {id:"n5",type:"ivideo",x:780,y:320,w:300,fields:{"model":"seedance-lite-video","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{},"loras":[]},name:"Material morph · 5s"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}},
            {id:"l3",from:{node:"n3p",port:"text"},to:{node:"n3",port:"prompt"}},
@@ -20871,7 +20871,7 @@ const EXAMPLES = [
            {id:"p-fix",type:"text",x:740,y:60,w:320,fields:{"text":"The clear glass carafe's rounded glass bottom resting directly on the pale travertine counter, with a soft natural contact shadow and warm morning light on the stone. No saucer, no plate, no coaster under the carafe."},name:"Fix · what goes in the mask"},
            {id:"fix",type:"inpaint",x:1100,y:420,w:300,fields:{"model":"nano-banana-edit","size":"auto","prompt":"","image":"","mask":""},name:"Targeted fix · Inpaint (Nano Banana Edit)"},
            {id:"p-move",type:"text",x:1100,y:60,w:320,fields:{"text":"Look: a calm premium product commercial, warm morning window light, shallow depth of field, photographic, the same travertine counter and cream kitchen throughout. Motion: one slow, smooth orbit. The camera glides in a gentle 30-degree arc around the ceramic coffee dripper from left to right at counter height, easing slightly closer, and settles on a centered hero frame of the dripper on the glass carafe. A single drop of coffee falls from the dripper into the carafe and a thin wisp of steam rises. Nothing else moves. The dripper keeps its exact cone shape, matte sage-green glaze, dark speckles and thumb tab. No people, no hands, no text."},name:"Hero move · look + motion"},
-           {id:"clip",type:"ivideo",x:1460,y:420,w:300,fields:{"model":"bytedance-seedance-v1.5-pro","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{"generateAudio": false},"loras":[]},name:"Hero orbit · Seedance 1.5 Pro"},
+           {id:"clip",type:"ivideo",x:1460,y:420,w:300,fields:{"model":"seedance-lite-video","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{},"loras":[]},name:"Hero orbit · Seedance 1.0 Lite"},
            {id:"hero",type:"vframes",x:1820,y:420,w:240,fields:{"dir":"end","frames":1},name:"Hero frame · last frame"} ],
    links:[ {id:"l1",from:{node:"p-pack",port:"text"},to:{node:"pack",port:"prompt"}},
            {id:"l2",from:{node:"pack",port:"image"},to:{node:"scene",port:"image"}},
@@ -22137,7 +22137,7 @@ RULES for the diff:
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, temperature, stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
+        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();

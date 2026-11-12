@@ -1,5 +1,5 @@
-/* data-hash=ea1f8f638040847d */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-48711de52f1d (20 modules) */
+/* data-hash=a6043c0003dc1f8b */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-828fad6872d6 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1306,7 +1306,8 @@ class NanoClient {
   /** POST /api/v1/chat/completions (non-streaming). Returns the assistant text. */
   async chat(messages, model, opts = {}, { onCost, signal } = {}) {
     const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
+    // Carbon has no sampling-temperature control; omit it rather than restoring a default.
+    if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if (opts.response_format) body.response_format = opts.response_format;
     if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
@@ -2117,6 +2118,7 @@ function normalizeLoraUrl(raw) {
 function loraFamily(model) {
   const m = String(model || "");
   if (/spicy/i.test(m)) return null;
+  if (/p-h3-image/i.test(m)) return "ph3"; // wavespeed p-h3-image: lora_url_1..3 (ids lack "lora")
   if (/p-image/i.test(m)) return "pimage";
   if (/klein/i.test(m)) return "flux2klein";
   if (/flux-2/i.test(m)) return "flux2dev";
@@ -2140,6 +2142,7 @@ function imageTakesLora(id) {
   if (/flux-2-klein/i.test(id)) return true;
   if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
+  if (/p-h3-image/i.test(id)) return true; // Pruna P-H3 Image (2026-11-05): lora_url_1..3
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
 
@@ -2153,7 +2156,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": case "ph3": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -2169,7 +2172,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21" || fam === "ph3") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -2288,6 +2291,7 @@ function refMaxFor(model, pricing) {
   const id = String(model || "");
   if (/seedance/i.test(id)) return 9;
   if (/minimax-h3/i.test(id)) return 9; // upstream cap; the first 5 are included, 6-9 bill extra_reference_image each
+  if (/gemini-omni-flash\/v1\.2/i.test(id)) return 6;
   if (/luma|ray/i.test(id)) return 4;
   const inc = pricing && +pricing.included_reference_images;
   if (inc > 0) return inc; // no family entry: the included count is the only number the catalog gives us
@@ -2304,8 +2308,12 @@ function modelRefSpec(model, ctx) {
   const m = catItem(ctx && ctx.catalog, "video", model);
   if (!m) return { key: "reference_images", cap: refMaxFor(model) };
   const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
-  const key = keys.find((k) => k in pp) || (pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
-  if (!key) return null; // known model with no ref-image param and no ref pricing
+  const modeOptions = pp.mode && pp.mode.options;
+  const referenceMode = Array.isArray(modeOptions) && modeOptions.some((o) =>
+    o && /^reference\b/i.test(String(o.value != null ? o.value : "")));
+  const key = keys.find((k) => k in pp) ||
+    (referenceMode || pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
+  if (!key) return null; // known model with no ref-image param, reference mode, or ref pricing
   const d = pp[key];
   let cap = null;
   if (d && typeof d === "object") {
@@ -6344,5 +6352,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-48711de52f1d";
+  window.NanoodleEngine.version = "src-828fad6872d6";
 })();
