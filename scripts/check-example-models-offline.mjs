@@ -57,9 +57,10 @@ const catalogs = {
       supported_parameters: { parameters: { resolution: opts(['480p', '768p']), duration: opts(['5','6','7','8','9','10']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
     { id: 'minimax-h3', capabilities: { text_to_video: true, image_to_video: true, video_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '540p', '768p', '1080p']), duration: opts(['3','4','5','6','7','8','9','10','11','12','13','14','15']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
-    { id: 'bytedance-seedance-v1.5-pro', capabilities: { text_to_video: true, image_to_video: true, audio_generation: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['4','5','6','7','8','9','10','11','12']), aspect_ratio: opts(['16:9','9:16','1:1','3:4','4:3','21:9']),
-        generateAudio: { type: 'switch', default: true } } } },
+    // Public catalog snapshot 2026-11-12: silent I2V, no generateAudio knob.
+    { id: 'seedance-lite-video', capabilities: { text_to_video: true, image_to_video: true, audio_generation: false },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts(['5','10']), aspect_ratio: opts(['16:9','4:3','1:1','9:21']),
+        camera_fixed: { type: 'boolean', default: false } } } },
     { id: 'bytedance-seedance-v1-pro-fast', capabilities: { text_to_video: true, image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['2','3','4','5','6','7','8','9','10','11','12']), aspect_ratio: opts(['16:9','9:16','1:1','3:4','4:3','21:9']) } } },
     { id: 'minimax-h3/reference-to-video', architecture: { modality: 'text+image+audio->video' }, capabilities: { text_to_video: true, image_to_video: true, audio_input: true },
