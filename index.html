@@ -7646,12 +7646,15 @@ function videoOptDefs(model, nodeType){
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
     } else if(d.type==="switch" || d.type==="boolean"){
       defs.push({ key, label:d.label||key, type:"bool", def, desc:d.description });
-    } else if((d.type==="text" || d.type==="string" || d.type==="number") && !videoFreetextSkip(key,d)){
+    } else if((d.type==="text" || d.type==="string" || d.type==="number" || d.type==="integer") && !videoFreetextSkip(key,d)){
       // free-text/number knobs (negative_prompt, seed, cfg_scale, num_inference_steps…) — sent
       // only-when-nonempty (see refreshModelOpts), so the model's own default applies when blank.
-      const long = d.type!=="number" && /prompt|description|instruction/i.test(key);
-      defs.push({ key, label:d.label||key, type:(d.type==="number"?"number":(long?"textarea":"text")),
-        def, desc:d.description, min:d.min, max:d.max, step:d.step, ph:d.placeholder });
+      // "integer" (OpenJutsu's seed, 2026-11) is a number box that steps by 1 and sends whole numbers.
+      const isNum = d.type==="number" || d.type==="integer", isInt = d.type==="integer";
+      const long = !isNum && /prompt|description|instruction/i.test(key);
+      defs.push({ key, label:d.label||key, type:(isNum?"number":(long?"textarea":"text")),
+        def, desc:d.description, min:d.min, max:d.max, step:(d.step!=null ? d.step : (isInt ? 1 : undefined)), ph:d.placeholder,
+        ...(isInt ? { int:true } : {}) });
     }
   }
   return defs;
@@ -7711,7 +7714,10 @@ function refreshModelOpts(n){
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
       if(el.type==="checkbox") cur[key] = el.checked;
       else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
-      else if(el.type==="number"){ const num=Number(el.value); cur[key] = isNaN(num) ? el.value : num; }
+      else if(el.type==="number"){
+        const num=Number(el.value), dd=defs.find(x=>x.key===key);
+        cur[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
+      }
       else cur[key] = el.value;                                    // select / text / textarea
       // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
       updateNodePrice(n); refreshRunEstimate();
