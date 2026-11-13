@@ -28,7 +28,7 @@ import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
 import { pickDanglingNudge as pickDanglingNudgePure } from "./dangling-nudge.mjs";
 import { pickContinuePort as pickContinuePortPure } from "./continue-port.mjs";
 import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
-import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
+import { confidentRecipe, mergeRecipeHint, liftRecipeType as liftRecipeTypePure } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
 import { rankModelSuggestions as rankModelSuggestionsPure, liftChangedModels as liftChangedModelsPure } from "./model-suggest.mjs";
@@ -281,6 +281,11 @@ export async function mount(api) {
     pickSearchLift(query, typeMeta, naturalIds) {
       if (!tables) return null;
       try { return pickSearchLiftPure(query, tables, typeMeta || {}, naturalIds || []); }
+      catch (_) { return null; }
+    },
+    // A confident recipe's next type, pinned only when that type is already a hit.
+    liftRecipeType(ids, nextType) {
+      try { return liftRecipeTypePure(ids, nextType); }
       catch (_) { return null; }
     },
     // Product · 27: one selected node's free output → fitting consumer types in Add.
