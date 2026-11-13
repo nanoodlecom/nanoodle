@@ -1716,6 +1716,8 @@ const I18N = {
     "remove":"quitar",
     "to run":"para ejecutar",
     "subtotal + unknown GIF":"subtotal + GIF desconocido",
+    "subtotal + unknown video":"subtotal + vídeo desconocido",
+    "Video duration needed":"Se necesita la duración del vídeo",
     "to run for real":"para ejecutar de verdad",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Los resultados de muestra son pregrabados, así que esta ejecución no se cobra. Esto es lo que cuesta ejecutar el flujo con tu propia clave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
@@ -2482,6 +2484,8 @@ const I18N = {
     "remove":"retirer",
     "to run":"pour exécuter",
     "subtotal + unknown GIF":"sous-total + GIF inconnu",
+    "subtotal + unknown video":"sous-total + vidéo inconnue",
+    "Video duration needed":"Durée de la vidéo nécessaire",
     "to run for real":"pour exécuter vraiment",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Les résultats d’exemple sont préenregistrés, donc cette exécution n’est pas facturée. Voici ce que coûte l’exécution du graphe avec votre propre clé.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
@@ -3248,6 +3252,8 @@ const I18N = {
     "remove":"entfernen",
     "to run":"zum Ausführen",
     "subtotal + unknown GIF":"Zwischensumme + unbekannter GIF",
+    "subtotal + unknown video":"Zwischensumme + unbekanntes Video",
+    "Video duration needed":"Videodauer benötigt",
     "to run for real":"um wirklich auszuführen",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Die Beispielergebnisse sind vorbereitet, deshalb wird dieser Lauf nicht berechnet. So viel kostet es, den Graphen mit eigenem Schlüssel auszuführen.",
     "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
@@ -4014,6 +4020,8 @@ const I18N = {
     "remove":"remover",
     "to run":"para executar",
     "subtotal + unknown GIF":"subtotal + GIF desconhecido",
+    "subtotal + unknown video":"subtotal + vídeo desconhecido",
+    "Video duration needed":"Duração do vídeo necessária",
     "to run for real":"para executar de verdade",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Os resultados de amostra são pré-gravados, por isso esta execução não é cobrada. Isto é o que custa executar o fluxo com a sua própria chave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
@@ -4780,6 +4788,8 @@ const I18N = {
     "remove":"削除",
     "to run":"で実行",
     "subtotal + unknown GIF":"小計 + 不明なGIF",
+    "subtotal + unknown video":"小計 + 不明な動画",
+    "Video duration needed":"動画の長さが必要です",
     "to run for real":"を実際に実行",
     "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"サンプル結果はあらかじめ用意されたものなので、この実行は課金されません。自分のキーでこのグラフを実行するとこの費用がかかります。",
     "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
@@ -5655,7 +5665,8 @@ function normVideo(m){
   // universal resolver at default res/duration. An untouched audio switch quotes the catalog
   // default (what an omitted key bills), so the picker row matches the node chip.
   const _vu = videoUnitUsd(p, {}, false, false, undefined, { params:pp, defaults:sp.defaults||{} });
-  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
+  const _rate = p.unit==="input_video_second" ? inputVideoSecondRate(p, {}, { params:pp, defaults:sp.defaults||{} }) : null;
+  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : (_rate!=null ? `$${_rate.toFixed(2)}/input s` : "");
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
   const lora = Object.keys(pp).some(k=>/^lora_url/i.test(k));
@@ -8170,12 +8181,18 @@ function livePrice(kind, fields, nodeFilter, n){
     // Pass the node's wired ref count (and source-video) so the chip tracks LoRA per-ref
     // surcharges the same way nodeUnitUsd / the Run total do. Without n (picker rows),
     // refs stay off — a list row has no graph wires.
-    const t = n && NODE_TYPES[n.type];
-    const refCount = (n && t && t.refInputs && modelHasImageRole(n,"refs"))
+    const ty = n && NODE_TYPES[n.type];
+    const refCount = (n && ty && ty.refInputs && modelHasImageRole(n,"refs"))
       ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     const videoWired = !!(n && graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
+    const pricing = applyVideoQuotePricing(fields.model, it.pricing);
+    const quoteFields = inputVideoFieldsForNode(pricing, videoPriceFields(it.params, fields), n, graph);
+    const u = videoUnitUsd(pricing, quoteFields, refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
+    if(pricing.unit==="input_video_second"){
+      const rate = inputVideoSecondRate(pricing, fields, { params:it.params, defaults:it.defaults });
+      return (rate!=null ? `$${rate.toFixed(2)}/input s · ` : "") + t("Video duration needed");
+    }
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).card;
   if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
@@ -8267,7 +8284,7 @@ const VIDEO_QUOTE_PER_SECOND = {
 };
 function videoPricingHasDurationRate(p){
   if(!p) return false;
-  return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+  return p.per_second_by_output_resolution!=null || p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
     || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
     || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
     || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
@@ -8371,6 +8388,22 @@ function videoDefaultFields(fields, ctx){
   }
   return f;
 }
+// Source-video billing is distinct from a requested output duration. Never use
+// maximum_seconds (an input limit) or the node's legacy five-second default as money.
+function inputVideoPriceFields(pricing, fields, source, measuredSeconds){
+  if(!pricing || pricing.unit!=="input_video_second") return fields;
+  const measured = _num(measuredSeconds), hint = _num(source && source.fields && source.fields.duration);
+  const seconds = measured>0 ? measured : (hint>0 ? hint : null);
+  return Object.assign({}, fields || {}, { inputVideoSeconds:seconds });
+}
+function inputVideoSecondRate(pricing, fields, ctx){
+  const p = pricing || {}, f = fields || {}, c = ctx || {}, pp = c.params || {};
+  const res = f.resolution || (f.modelOpts || {}).resolution
+    || (pp.resolution && pp.resolution.default) || (c.defaults || {}).resolution || p.default_resolution;
+  const rates = p.per_second_by_output_resolution;
+  const rate = rates && _num(rates[res]);
+  return rate!=null && rate>=0 ? rate : null;
+}
 function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
   const p = pricing || {};
   const f = fields || {};
@@ -8400,6 +8433,11 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
   const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
   const f = fields || {};
   const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+  if(p.unit==="input_video_second"){
+    const seconds = _num(f.inputVideoSeconds), rate = inputVideoSecondRate(p, f, null);
+    const max = _num(p.maximum_seconds);
+    return seconds>0 && (max==null || seconds<=max) && rate!=null ? seconds*rate : null;
+  }
   const dur = pickDur(p, raw, f);
   const rp = (m)=> pickByRes(m, res, defRes);
   let v;
@@ -8667,6 +8705,25 @@ function avatarMeasuredSecs(url){
   cleanVoiceMediaSeconds(url, false).then(function(v){ if(v){ AVATAR_AUDIO_SECS.set(url, v); try{ refreshRunEstimate(); }catch(e){} } });
   return null;
 }
+function inputVideoFieldsForNode(pricing, fields, n, g){
+  if(!pricing || pricing.unit!=="input_video_second") return fields;
+  const link = n && g && (g.links || []).find(l=> l.to.node===n.id && l.to.port==="video");
+  const source = link && (g.nodes || []).find(s=> s.id===link.from.node);
+  const url = source && ((source.fields && source.fields.video) || (source.out && source.out.video));
+  return inputVideoPriceFields(pricing, fields, source, inputVideoMeasuredSecs(url));
+}
+const INPUT_VIDEO_SECS = new Map();
+function inputVideoMeasuredSecs(url){
+  if(!url || typeof url!=="string") return null;
+  if(INPUT_VIDEO_SECS.has(url)) return INPUT_VIDEO_SECS.get(url);
+  INPUT_VIDEO_SECS.set(url, null);
+  cleanVoiceMediaSeconds(url, true).then(function(seconds){
+    if(!(seconds>0)) return;
+    INPUT_VIDEO_SECS.set(url, seconds);
+    graph.nodes.forEach(function(n){ if(NODE_TYPES[n.type]) updateNodePrice(n); }); refreshRunEstimate();
+  });
+  return null;
+}
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const fields = effectiveModelFields(n);
@@ -8699,7 +8756,9 @@ function nodeUnitUsd(n){
       const secs = avatarAudioEstSeconds(src, txt, avatarMeasuredSecs(src && src.out && src.out.audio));
       if(secs!=null){ const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), Object.assign({}, videoPriceFields(it.params, fields), { duration: avatarClampSecs(fields.model, secs, it.pricing) }), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
     }
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
+    const pricing = applyVideoQuotePricing(fields.model, it.pricing);
+    const quoteFields = inputVideoFieldsForNode(pricing, videoPriceFields(it.params, fields), n, graph);
+    const u = videoUnitUsd(pricing, quoteFields, refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat" && t.modelFilter==="decision"){
     // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
     // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
@@ -8721,12 +8780,12 @@ function nodeUnitUsd(n){
 }
 // total across the whole graph — matches ▶ Run all (every disconnected flow fires)
 function workflowCost(){
-  let usd=0, priced=0, unpriced=0, exact=true;
+  let usd=0, priced=0, unpriced=0, exact=true, videoUnknown=false;
   let estimate=false, range3d=false, off3d=false, lo=0, hi=0;
   for(const n of graph.nodes){
     const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) continue;
     const u = nodeUnitUsd(n);
-    if(u==null){ unpriced++; continue; }
+    if(u==null){ unpriced++; if(t.modelKind==="video" && catItem("video", effectiveModelFields(n).model)?.pricing?.unit==="input_video_second") videoUnknown=true; continue; }
     usd += u; priced++;
     if(t.modelKind==="model3d"){
       const fields = effectiveModelFields(n);
@@ -8743,7 +8802,7 @@ function workflowCost(){
       if(t.modelKind!=="image"){ estimate = true; exact = false; }
     }
   }
-  return { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi };
+  return { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi, videoUnknown };
 }
 const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
 // True while a signed-out visitor can still free-sample Run (pristine starter, same topology with
@@ -8790,15 +8849,15 @@ function refreshRunEstimate(){
   // the moment it became worth reading. A price that disappears when it gets big reads as a dark
   // pattern however it got there, so we show it and say which run it is for.
   const demo = inDemoRun();
-  const { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi } = workflowCost();
-  if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
+  const { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi, videoUnknown } = workflowCost();
+  if(!priced && !videoUnknown){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
   const gifUnknown = graphHasGifImageNodes();   // GIF is token-settled; never paint the LLM/still subtotal as a complete total
   const ranged = off3d && hi>lo;
   const figure = ranged ? `$${fmtUsdPlain(lo)}–$${fmtUsdPlain(hi)}` : `${exact?"":"~"}${fmtUsd(usd)}`;
-  const amt = `<span class="rn-run" aria-hidden="true">▶</span><b>${figure}</b>&nbsp;`;
+  const amt = priced ? `<span class="rn-run" aria-hidden="true">▶</span><b>${figure}</b>&nbsp;` : "";
   // When any image node asks for GIF, the dollar figure is only the priced subtotal — label it so.
-  el.innerHTML = gifUnknown
+  el.innerHTML = videoUnknown ? amt + esc(t(priced ? "subtotal + unknown video" : "Video duration needed")) : gifUnknown
     ? amt + `${esc(t("subtotal + unknown GIF"))}`
     : (demo ? amt + `${esc(t("to run for real"))}` : amt + `${esc(t("to run"))}`);
   el.title = (demo

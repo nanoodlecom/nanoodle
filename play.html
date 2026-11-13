@@ -7288,6 +7288,8 @@ window.NoodleApp = (function () {
   "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
   "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
   "subtotal + unknown GIF":{es:"subtotal + GIF desconocido",fr:"sous-total + GIF inconnu",de:"Zwischensumme + unbekannter GIF",pt:"subtotal + GIF desconhecido",ja:"小計 + 不明なGIF"},
+  "subtotal + unknown video":{es:"subtotal + vídeo desconocido",fr:"sous-total + vidéo inconnue",de:"Zwischensumme + unbekanntes Video",pt:"subtotal + vídeo desconhecido",ja:"小計 + 不明な動画"},
+  "Video duration needed":{es:"Se necesita la duración del vídeo",fr:"Durée de la vidéo nécessaire",de:"Videodauer benötigt",pt:"Duração do vídeo necessária",ja:"動画の長さが必要です"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
   "Sign in":{es:"Iniciar sesión",fr:"Se connecter",de:"Anmelden",pt:"Entrar",ja:"サインイン"},
   "search models or paste an id…":{es:"busca modelos o pega un id…",fr:"cherchez un modèle ou collez un id…",de:"Modelle suchen oder eine ID einfügen…",pt:"busque modelos ou cole um id…",ja:"モデルを検索、またはIDを貼り付け…"},
@@ -7729,7 +7731,7 @@ window.NoodleApp = (function () {
   };
   function videoPricingHasDurationRate(p){
     if(!p) return false;
-    return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+    return p.per_second_by_output_resolution!=null || p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
       || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
       || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
       || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
@@ -7823,6 +7825,22 @@ window.NoodleApp = (function () {
     }
     return f;
   }
+  // Source-video billing is distinct from a requested output duration. Never use
+  // maximum_seconds (an input limit) or the node's legacy five-second default as money.
+  function inputVideoPriceFields(pricing, fields, source, measuredSeconds){
+    if(!pricing || pricing.unit!=="input_video_second") return fields;
+    const measured = _num(measuredSeconds), hint = _num(source && source.fields && source.fields.duration);
+    const seconds = measured>0 ? measured : (hint>0 ? hint : null);
+    return Object.assign({}, fields || {}, { inputVideoSeconds:seconds });
+  }
+  function inputVideoSecondRate(pricing, fields, ctx){
+    const p = pricing || {}, f = fields || {}, c = ctx || {}, pp = c.params || {};
+    const res = f.resolution || (f.modelOpts || {}).resolution
+      || (pp.resolution && pp.resolution.default) || (c.defaults || {}).resolution || p.default_resolution;
+    const rates = p.per_second_by_output_resolution;
+    const rate = rates && _num(rates[res]);
+    return rate!=null && rate>=0 ? rate : null;
+  }
   function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
     const p = pricing || {};
     const f = fields || {};
@@ -7847,6 +7865,11 @@ window.NoodleApp = (function () {
     const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
     const f = fields || {};
     const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+    if(p.unit==="input_video_second"){
+      const seconds = _num(f.inputVideoSeconds), rate = inputVideoSecondRate(p, f, null);
+      const max = _num(p.maximum_seconds);
+      return seconds>0 && (max==null || seconds<=max) && rate!=null ? seconds*rate : null;
+    }
     const dur = pickDur(p, raw, f);
     const rp = (m)=> pickByRes(m, res, defRes);
     let v;
@@ -8092,6 +8115,25 @@ window.NoodleApp = (function () {
     return !!(o && typeof o==="object" && String(o.output_format||"").toLowerCase()==="gif");
   }
   // one node's USD/run from its chosen model + settings (pricing pulled from the public catalog)
+  function inputVideoFieldsForNode(pricing, fields, n, g){
+    if(!pricing || pricing.unit!=="input_video_second") return fields;
+    const link = n && g && (g.links || []).find(l=> l.to.node===n.id && l.to.port==="video");
+    const source = link && (g.nodes || []).find(s=> s.id===link.from.node);
+    const url = source && ((source.fields && source.fields.video) || (source.out && source.out.video));
+    return inputVideoPriceFields(pricing, fields, source, inputVideoMeasuredSecs(url));
+  }
+  const INPUT_VIDEO_SECS = new Map();
+  function inputVideoMeasuredSecs(url){
+    if(!url || typeof url!=="string") return null;
+    if(INPUT_VIDEO_SECS.has(url)) return INPUT_VIDEO_SECS.get(url);
+    INPUT_VIDEO_SECS.set(url, null);
+    cleanVoiceMediaSeconds(url, true).then(function(seconds){
+      if(!(seconds>0)) return;
+      INPUT_VIDEO_SECS.set(url, seconds);
+      refreshRunCost();
+    });
+    return null;
+  }
   async function nodeUnitUsdPlay(n){
     const kind = SETTING_MODEL_KIND[n.type]; if(!kind) return null;
     const f = effectiveModelFieldsPlay(n);
@@ -8124,7 +8166,8 @@ window.NoodleApp = (function () {
         const secs = avatarAudioEstSeconds(src, txt, null);
         if(secs!=null){ const u = videoUnitUsd(pricing, Object.assign({}, videoPriceFields(pp, f), { duration: avatarClampSecs(f.model, secs, pricing) }), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
       }
-      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
+      const quoteFields = inputVideoFieldsForNode(pricing, videoPriceFields(pp, f), n, STATE && STATE.graph);
+      const u = videoUnitUsd(pricing, quoteFields, refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
     if(n.type==="decide"){   // input tokens only — twin of the editor's Decide estimate (pick asks twice: in order + reversed)
       const imgs = (STATE && STATE.graph) ? STATE.graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length : 0;
       const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
@@ -8147,16 +8190,24 @@ window.NoodleApp = (function () {
     if(!STATE || !STATE.graph) return;
     const token = ++_runCostToken;
     const nodes = STATE.graph.nodes.filter(n=> SETTING_MODEL_KIND[n.type]);
-    let usd=0, priced=0, unpriced=0, exact=true;
+    let usd=0, priced=0, unpriced=0, exact=true, videoUnknown=false;
     for(const n of nodes){
       const u = await nodeUnitUsdPlay(n);
       if(token !== _runCostToken) return;   // a newer refresh started → drop this stale pass
-      if(u==null){ unpriced++; continue; }
+      if(u==null){
+        unpriced++;
+        if(SETTING_MODEL_KIND[n.type]==="video"){
+          const m = await rawCatItem("video", effectiveModelFieldsPlay(n).model);
+          if(token !== _runCostToken) return;
+          if(m && m.pricing && m.pricing.unit==="input_video_second") videoUnknown=true;
+        }
+        continue;
+      }
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
     // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
-    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay() };
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, videoUnknown:videoUnknown, gifUnknown: graphHasGifImageNodesPlay() };
     paintRunCost();
   }
   // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
@@ -8167,15 +8218,15 @@ window.NoodleApp = (function () {
   function paintRunCost(){
     const el = ensureRunCostEl(); if(!el) return;
     const rc = _runCost;
-    if(!rc || !rc.priced){ el.hidden = true; return; }
+    if(!rc || (!rc.priced && !rc.videoUnknown)){ el.hidden = true; return; }
     const n = RUNS_N || 1;
     const total = rc.usd * n;
     // GIF is token-settled; don't paint the priced subtotal as a complete /run total.
     // Read from the forecast (set by refreshRunCost) so this fn stays harness-extractable.
     const gifUnknown = !!rc.gifUnknown;
     el.hidden = false;
-    el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
-      + '<span class="rc-lbl">' + (gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
+    el.innerHTML = (rc.priced ? '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>' : '')
+      + '<span class="rc-lbl">' + (rc.videoUnknown ? t(rc.priced ? "subtotal + unknown video" : "Video duration needed") : gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
     var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
     if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
     if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
@@ -14450,7 +14501,9 @@ const PROMPT_CAPS = {
       else if(status && status.parentNode){ status.parentNode.insertBefore(box, status); }
       else { var app=document.querySelector(".app"); if(app) app.appendChild(box); else document.body.appendChild(box); }
     }
-    var costLine = (COST.estUsd!=null && COST.estUsd>0)
+    var costLine = (_runCost && _runCost.videoUnknown)
+      ? '<p class="pf-cost">' + t("Video duration needed") + '</p>'
+      : (COST.estUsd!=null && COST.estUsd>0)
       ? '<p class="pf-cost">' + t("This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
       : '';
     box.innerHTML =

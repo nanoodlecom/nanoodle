@@ -137,8 +137,24 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const pf = ctx.videoPriceFields({}, { duration: "10" });
   if (pf.duration !== "") fail("play: videoPriceFields must drop a stale duration");
   else ok("play: videoPriceFields twin drops a stale duration");
-  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), ref(?:Wired|Count), videoWired(?:, [\w.]+)?(?:, \{[^)]*\})?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
-  else ok("play: nodeUnitUsdPlay prices through videoPriceFields");
+  // Exercise the shipped node path rather than requiring one inline call spelling:
+  // Reframe now adds source-duration context around videoPriceFields.
+  const R = resolver(PLAY, "async function nodeUnitUsdPlay(");
+  let params = {};
+  Object.assign(R, {
+    SETTING_MODEL_KIND: { tvideo: "video" }, NODE_TYPES: { tvideo: { modelFilter: "t2v" } },
+    STATE: { graph: { nodes: [], links: [] } }, REF_PORT_RE: /^ref\d+$/,
+    rawCatItem: async () => ({ pricing: HAILUO23, supported_parameters: { parameters: params } }),
+    videoRefsPriced: () => false,
+  });
+  vm.runInContext(block(PLAY, "async function nodeUnitUsdPlay(n){"), R);
+  const node = { id: "video", type: "tvideo", fields: { model: "fixed-five", duration: "10" } };
+  if (!near(await R.nodeUnitUsdPlay(node), 0.49)) fail("play: nodeUnitUsdPlay must discard stale duration on a no-duration model");
+  else ok("play: shipped node path ignores stale duration on a no-duration model");
+  for (params of [{ duration: {} }, { seconds: {} }]) {
+    if (!near(await R.nodeUnitUsdPlay(node), 0.98)) fail("play: nodeUnitUsdPlay must retain a catalogued duration/seconds setting");
+    else ok("play: shipped node path retains a catalogued " + Object.keys(params)[0] + " setting");
+  }
   const fill = block(PLAY, "function fillDimLists(){");
   if (!/if\(it\.field==="duration"\)\{/.test(fill)) fail("play: fillDimLists no longer hides a catalogued model's missing duration row on every video node");
   else ok("play: fillDimLists hides the duration row for catalogued no-duration models");
