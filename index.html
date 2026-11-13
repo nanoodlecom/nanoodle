@@ -5554,7 +5554,7 @@ function normChat(m){
     reasoningEfforts: m.id === "google/gemini-4-carbon" ? ["default"] : Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length
       ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
-    maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
+    maxOut: m.max_output_tokens,   // provider-reported output capacity (informational)
     // Decision models (architecture.output_modalities ["decisions"]) answer typed questions instead of
     // chatting: only the ⚖️ Decide node lists them, and they never appear in the LLM / Vision pickers.
     decision: !!(m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0),
@@ -7721,7 +7721,7 @@ function refreshModelOpts(n){
   });
 }
 /* ---------- LLM sampling / reasoning controls (⚙️ advanced disclosure) ----------
-   max_tokens is always offered; temperature hides on TEMP_LOCKED models (which ignore it), and
+   Output budgets are provider-managed; temperature hides on TEMP_LOCKED models (which ignore it), and
    output-format (JSON) and reasoning effort/trace
    light up only when the selected model's catalog flags (structured_output / reasoning) allow it.
    Values live in n.fields and pass through genChat, omitted at their default so request bodies stay
@@ -7793,13 +7793,12 @@ function refreshLlmOpts(n){
        <label class="setbool" style="margin:3px 0"><input type="checkbox" data-lf="showThinking"${(f.showThinking===true||f.showThinking==="true")?" checked":""}/> show thinking</label>` : "";
   const tempRow = noTemp ? "" :   // temperature-locked model (TEMP_LOCKED): the API ignores it, so no slider
     `<div style="margin:3px 0"><label><span data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</span> <span class="dim lblhint">${esc(t("· higher = more creative"))}</span></label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>`;
-  const open = (f.temperature!=null && +f.temperature!==0.8) || (f.maxTokens||"") || f.format==="JSON"
+  const open = (f.temperature!=null && +f.temperature!==0.8) || f.format==="JSON"
             || (f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true" ? " open" : "";
   box.innerHTML = `<details class="adv"${open}><summary>⚙️ ${esc(t("advanced"))}</summary>
     ${tempRow}
-    <div style="margin:3px 0"><label>${esc(t("max tokens"))}${it&&it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it&&it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
     ${fmtRow}${reasonRows}</details>`;
-  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking / max-tokens placeholder)
+  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking)
   box.querySelectorAll("[data-lf]").forEach(el=>{
     const key = el.dataset.lf;
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
@@ -7814,7 +7813,7 @@ function refreshLlmOpts(n){
 function llmOpts(n){
   const f = n.fields, o = {};
   if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
-  if(f.maxTokens) o.max_tokens = +f.maxTokens;
+
   if(f.format==="JSON") o.response_format = { type:"json_object" };
   if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
   if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
@@ -8708,7 +8707,7 @@ function nodeUnitUsd(n){
     const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
     return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
-    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
     const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
     return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
@@ -14260,7 +14259,7 @@ const CTX = {
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
     if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-    if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
+  
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
@@ -18934,7 +18933,7 @@ function askModelGraph(){
     v:1,
     nodes:[
       { id:"n1", type:"text", x:80, y:160, w:280, name:"Prompt", fields:{ text:"Explain how a node graph runs, in three short sentences." } },
-      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", maxTokens:"400", reasoningEffort:"low" } }
+      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", reasoningEffort:"low" } }
     ],
     links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
     nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
@@ -20305,7 +20304,7 @@ function seed(){
   nameNode(sketch, "The sketch");
   const vision = addNode("vision", 370, 210, { model:"google/gemini-3.8-flash", q:"Describe this child's crayon drawing in rich, warm detail — every subject in it, the colours, the mood, and the little story it seems to tell. Flowing prose, two or three sentences. Describe only what is actually drawn." });
   nameNode(vision, "Vision reads it");
-  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", maxTokens:"1024", reasoningEffort:"low" });
+  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", reasoningEffort:"low" });
   nameNode(llm, "Reimagined");
   const img = addNode("image", 1050, 210, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
   nameNode(img, "Painted");
@@ -21639,19 +21638,7 @@ $("signout").onclick = ()=> setKey(null);
     if(list) return list.includes(DESCRIBE_EFFORT) ? DESCRIBE_EFFORT : null;
     return model===DESCRIBE_DEFAULT_MODEL ? DESCRIBE_EFFORT : null; };
   const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
-  // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
-  // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
-  // always-thinking model spends that whole budget reasoning and finishes with finish_reason
-  // "length" and ZERO content, which used to be scraped as an empty/truncated reply. So for
-  // Moonshot models ONLY, ask for real room explicitly. Other routes are live-probed fine
-  // uncapped (gpt-5.4-mini ran to 23k out, glm-5.2 to 29k, both finish=stop), and an explicit
-  // cap would CREATE a ceiling they don't have — don't send one. (Never send the model's full
-  // maxOut either: input + requested output must fit the context window or the API 400s.)
-  const DESCRIBE_OUT_BUDGET = 128000;
-  const outBudget = (model)=>{
-    if(!/^moonshotai\//.test(String(model||""))) return null;   // quirky-route list, not a universal cap
-    const m = catItem("chat", model); const ceil = m && +m.maxOut;
-    return ceil ? Math.min(ceil, DESCRIBE_OUT_BUDGET) : DESCRIBE_OUT_BUDGET; };   // kimi's ceiling is 1M — 128k always fits
+  // Output budgets are provider-managed; legacy app caps are ignored.
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
 
   // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
@@ -21666,7 +21653,7 @@ $("signout").onclick = ()=> setKey(null);
     join:{ fields:{ sep:"separator (default space; \\n = newline)" } },
     llm:{ main:"prompt", fields:{
       model:"chat model id (optional)", system:"system prompt", prompt:"user prompt",
-      temperature:"0–2 sampling (default 0.8)", maxTokens:"output length cap (optional)",
+      temperature:"0–2 sampling (default 0.8)",
       format:"Text|JSON (JSON only on structured_output models)",
       reasoningEffort:"catalog reasoning_efforts (none/minimal/low/medium/high/xhigh/max); legacy default = omit",
       showThinking:"true/false — include chain-of-thought in the text output",
@@ -22176,7 +22163,7 @@ RULES for the diff:
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
   function meteredCallLlm(phaseLabel, { effort=false }={}){
-    return async ({ model, messages, maxTokens=null, temperature=1.0 })=>{
+    return async ({ model, messages, temperature=1.0 })=>{
       const re = effort ? describeEffort(model) : null;   // planning call only, catalog-gated
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
       // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: ~90s of
@@ -22184,12 +22171,11 @@ RULES for the diff:
       // zero content. The flake is transient, so the model gets ONE same-model retry (mirrors
       // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
       // this an empty reply reads as "nothing to change".
-      const cap = maxTokens || outBudget(model);
       for(let attempt=0; attempt<2; attempt++){
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
+        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
