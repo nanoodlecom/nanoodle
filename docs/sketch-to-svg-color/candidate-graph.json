@@ -1,0 +1,105 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -240,
+      "w": 760,
+      "fields": {
+        "text": "Sketch \u2192 color render \u2192 SVG. Replace Sketch image with your own drawing. Qwen Image 2.1 Edit first renders a clean, fully colored icon while preserving the composition. Ideogram Vector then converts that colored image, not the raw sketch. Leave the Vector prompt blank and keep vector_operation=convert. Inspect the color render before judging the SVG.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "sketch",
+      "type": "upload",
+      "name": "Sketch image",
+      "x": -40,
+      "y": 20,
+      "w": 280,
+      "fields": {
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAASkUlEQVR42u3dzXHjyJaAUXRHewJ3uNZGRtAWGKFNrekObdFbIBoPDYIg/pGZ95zFhGamq4qipPtlJiDyr9/f3wqAeP72FAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAACQiH88Bbv7/v5uP/j5+fFsAHYAAAgAAAIAgAAAIAAACAAAAgCAAKTN7f+AAETX/UYYgAAAIAAACAAAAgCAAAAgAB+538bzBkQMQDvFzDLPG7DIX7+/vyWtYf0SlucNiLIDGEwu61nTH4gSAA0w/YG4AdAA0x+IGwANMP2BpbK/CDw944w5TwsQJQCWup4NYKYyfxPYcZDpDwQNgAaY/kDcAGiA6Q/EDUDkBpj+QPQADGZfnDkY87MGBGB8GkabgzE/a2C+Mm8DBcAOAAABAKDnH0/Bvr6+vqb/gz9//niWgBS4BnD4xNcDQACMfhkABKDcuf9xlG/84wACkNDoXz21d/8LAQTgjOm/45g+9C8HEIDUp7MMAAKQ7vQ/YSKf/y8CAsDULD55EF/4TwNB+E3gREdw/1/c8X5TAAHIYAGuAcChHAFNTf9Ezl5SezyAHYDpf/ZWwD4AEIDDp79HCAhA0Omf2mGL6wGAAJw9bT0qoFQuAg+X1YnPWReEd3e73doPHo+HZwM7gLjT32MGBCCo9JfVFv6HbgVangqCcASU5aGKg6B95377QV3Xz+dz8P91LkTBvCcwcd3v98H/pa7r7uM2Bv0NgRhgB2D575EXFYBu1d+f7/022BZgBwCBNE3TlcC2AAGA0CUYxKDbFogB+Qp9BJT7KYpToI0mjoDm/MHBtmBADLADgIjbAjsDBAACxWD0aoEYIABgWzCMgRJwubjXAMo4QHcZYIvV1wCW/hOj24I+McAOAKJvC8QAAYCSYzBxtUAMEICqqqrv7++fnx9fIeJsC5qmaaf/6KsSQawdwPf399I/ohnkuy0Y7AwgdABIJKvierTb7da/PFDXtcMfQgdgxbhZPdrg2rnf/s/n82nuIwDnNQMuHP3d3K9c70UAkMloo9/cRwCg/LlfVZXRjwBAxNHf/q9GPwJwvT9//rSvo/D19eXloDl6yV/99/Z/EACw5AcBgIPd7/ej1+CD0W/JjwDA9aP/0AZ0r95j9JOXvyN/8t3ReXeYnhEXAFZ4Pp/9l1rbZfQPzvqbpjH9sQOAJPRfZWHU4/Foh/jtdpt5WP+65LfqRwAgOe9egn91TgZ/rbmPAOQq05tBnf/stfw3+hEAiDj9m6ZpX4R5ztw3+hEAmwDL/0D9MPoRgEDSb0CONyylufxfNPeNfgSg/E1AXo/ZF27C4P1Vlk5/S34i+NtTMJinKZfA4c/SOb7iZRjc0Y8AhJZmAxz+zJ/+q+/8aWth9CMAcTcBCU7b/uOx/P+4hF+9/K+c+SAAGuAR5rv83zL9QQA0IK1NgKP/+dN/r1/7AgHQgK9rM9B/AKb/R16CHwRgzwZcuBVw7r90+W/6gwCU0ADTf/XyH5jJL4J9aEA3iNsPTpjFg9iY/nN0r+dz9PK/u8zgZiHsAGLtA6qDrwq8/uWm/8yh3E3/q8IDdgAlN6A/mnffDbxGxeifr3/4c+bpfzv9T3irYRCA6zMwGNPb7895t5kw/Rct/9sAnH/td9GrDIEAlLYVeJ3jH2f39AmS0b9u+l/yT/e3AjYBCECgDLwb5euuEJj761x+43+3CdAABMCGwOi/YPl/7Y3/DoIQABuCuTsAE3/35X8ibAIQAD0w30+att0C/JLl/+Px6N9+ahNAjvweAPm58Mb/QQPeZQkEAA5x1Y3/E7oUaQACAEdZd/hz0Ol8/wFcux0BAaBwKw5/jl6SOwhCAOAMCR7+9DkIQgDgEJff+TNnE+AgCAGAw1fZSXEQhADA4cv/KsnDn/QTBQJAlhK58d8mAAGAsyV+7ff1sbkajADADpK99jvNQRACAJtkcfgzugl4DRgIACyQy+HP9CZAAxAAWCbTwx+/FoAARPf9L0/FXuvojDgIQgBgh+V/leHhz2jANAABgAXTP98jFAdBCABsXTvvsvzv7iY6czPhIAgBgJXL/yrzw5/XmIEAwOelehkT0yYAAYC5sr7xf7oBrgYjAPBWpjf+z+cgCAGAWFPSQRACALOW/1VB135fPyMHQQgAjE//CIckDoIQABifjEWe/lcOghAAmFj+Fzz9B5+dTQACALEOf6bjBwJARGUf/kxvAjQAASD08j+X6b/Lg3QQhAAU7udfnoqP0//yOdhN5O6FKD6a/18uDSEIAFHEOfyZ3gRoAAJAuOX/tZqmuerBOAhCALD8D7f8TzyKCACcNOkiT38HQQgAQae/o4/KQRACQEAOf+Zsj0AAKHO6mf42AQgA4aa/SfeuATYBCAAlc/jz8cnRAASAMpf/TG8CbI8QAMqc/pb/kokAEJHpv3QToAEIAFaycRsAAoDlv3yCAJDt/DL9bQIQAMJNf7NsXQNsAhAA8ubwZ+NTpwEIALku/9myCbB5QgDIdfpb/m9vgKAiAOTH9N/xadQABICclv/stQlwEIQAkNP0t/zftwHiigCQB9P/oKdUAxAAUl/+c8QmwEEQAkDq09/y/7gGCC0CQLqsUj29CABBl/+jK1ZsAhAAQqxPU5v+TdOU1ABXgxEA0l3+e2DnhBYEgFSGrGu/p20Cii8cAkB+a1LT/7QGOAhCAEhl+c9V0QUB4Mrpb/l/ySZAhhEArEPjNsCTjwBw5fJ/dE3KtV8OEAAOHzcOf9LZBGgAAsB5Yp4/JPVZOwhCALhm+d+fQdHUdZ3+lwYEgENGjMOfNDcBGoAAcCxnDik3AASAA5f//blD4l8mEAAs/wNtAjQAAcDyX55BANhp+rv2m/gm4F2wQQCwuiy/Ab5MCAD7L/9HV5rk8oUDAWDlEHH4k+MmQAMQALZyqpBvA0AA2LT8708Wsv4iggCwYHBYS+a+CdAABIA1uiFi+Z91A0AAWHluYPoX9gUFAWDu8h+bAAQAy//SNE1T9V7f/3a7ldcAmwAEgGXT343/5e3kNAABYMHIoIxNgC8oAsDc5X9/dlBGA2wCEAA+T3+rxbJ3dRqAAPBhTFj+l7cJkHYEgKnlv+lfdgNsAhAAxqe/FWKcHZ4GIACMjAbL/7I3ATKPADB+GmD6R2iATQACgMOf6Lu9wn7zGQFg/Tiw/I+2CeheAwMBIOjyn4ANcDUYAcDy35feQZAAEHv5b/oH3AR0HzsIEgAiTn/XfoM3wEGQABD9BMDy37cBAkCs5X+Q6d8dcOvc6Cbg3TcGAkCx09+6j9dNgKvBAkCgH3iLYlwNFgBiLf9h0ABXgwWAENPf8n+v9XKp+0IHQQJA4T/kpv9GhU1JB0ECQPnLf5hogIMgAcDyH98kDoIEgBKX/6Y/E5uA7mMHQQJAOdPfjf/MbICDIAGgzH295T+LvmEcBAkA2S//YdEmoPvYQZAAkPf0t/xnRQNsAgSAcvbyMad/0zS+Bzaq61oDBIAsl/+eAbZvAhwECQD5zT6HP+zVAJsAASAnpj87chAkAOS0/Id9NwEOggSAPKa/5T9HNMAmQABInV/65SAOggSA1Jf//bWbp4V9NwEIABks/01/9m2ATYAAkM3yHw5aW2iAAJDi9Lf859BNgIMgASD1BZrpz3ENsAkQAFJc/sOZ6wwNEABSmf6W/5y2CXAQJACkuCiDcxpgEyAApLL8f/3JhHPWHF4fQgC4cvo7/OGSTYDXhxAAUlmIwVUcBAkA1yz/+ysyTwtXbQIQAM6e/g5/uLwBNgECwAUsvkjq+1ADBIDzlv+vqzC4ZBNgLSIAWP4TtwE2AQKA5X+Wmqap3M++04pEAwSAY6e/a7+HMr/WbQLsSrPzj6cgx+VqN6GOHlUCw6LvlnaN0m4CfPMIAPsv/+/3+2mHFTNfZ3Tj0s+kKMbz+ey+OTVAANhz4X+/39vT6nPM315sDNKhL2ftPOeqTYATIQFg5wac/MOcVGaWOmGfpC4Tz7yDIAGAVDKz+z/krqFEvris9tfv769nAdqDi/m3V1n7z6zjydtW7ADA2jaJppr+ifN7AMAhTH8BAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAEAyNLtdvPWbFt4RzBg2cz1JBTDewLDyHRL5x0fDdxRdV13b+BceYdOAQDT9hyXT9v7/d5+0DbA9BcAjF0D96SxmwjTXwDycL/fk3qDbAPXwF0nhW/j9mkx/QUgm+nfX7Bg5uY1cFP+aRIAAdCAjAeumYvpLwCFu91udV0nMl8cLGD6IwAXTH8DF0z/dPhFsMOnf3/mdt/HRjAsZfrvzktBnDH9n89n+3E39xM8h4HEl/+mvwDkZPDNqgGwevq7ie4IrgGctw/oh8FZECyd/pb/dgDZ7wPaJNgHgOlvBxB3K2AfABM/LO29c6a/HUCZWwH7AJie/u/20AiABkCZuun/fD5NfwHQAIiif/Rv+guABkAU/V+d8WycwEXg67/XX3e+rgkT8yfC4Y8dQNB9QH/VYx+A6e85sQOIuBWwD8D095zYAQTdCtgHYPojABqgAQRi+guABmgAQZf/pr8AaIAGEHH6u+9TANAAgk5/y38BQAMw/TmP20CT/iHpPnZvKIV9Y3cv9mn62wHwYStgH0BJXPgVADSAiMt/21kBQAMIPf3d9iMAaABBp7/DHwFAA4gy/fvfwKa/AKABBJr+LvwmyG2gGS+m+u+b6noaWUx/36h2AOyzFXg+n7YCpM/0FwAOaUDlOIi0l/+mvwCgAUSc/q/foggAGkCI6e/CrwCgAYSe/g5/BAANwPRHADigAf1bgzSAa5n+AsBlWwEN4Nrlv+kvAGgAEad///cTEQA0gHDT3/JfANAATH8EAA3A9EcA0AAKm/4d018ASKgBbQY0gEO58CsAJL0V0AAOWv47/BEANADTHwFAA4gx/TumvwCgAcSa/o7+c+ctIaPv3L1DNxunv+W/HQC57gPquh5s58H0FwBKbsDj8dAA1jH9BYASMqABrFj+m/4CgAYQcfq78CsAaAChp7/lvwCgAZj+ZMxtoPz/57x/b2j133cbxvQ3/e0AiLIPqF4u+oHpLwCU3IDuJ1wDcOFXAIi7ytMA079y+FM01wAY55WCGF0WIAAEakB3YYCY3AsgAEAs7RGQ6S8AABTIRWAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQALwxL7A/bwiT5cQv6X2a7ve795sFATDx18gxBhPvOB88BnKIAJj445O9nQ4TfzDZGLxO/G7M3W637mFP/GdlD/0gOex/rREA4/7t+J4YCgPP5zPNGAw+hf7En/k31HVd8DTsPz/vPrV3z2EZ3/liIAAm/ttZP+enffTPvibhtJ+07UN/ZgzazzG7CfJxoE+skfOKwdKvuBgIQOETfzDCDvph/piEfX/S1k38+Y/h3d8z2oM0B8rrU7RoOGbUg3ef12Br2z7UOLc5CEC4if9u1l/yUzqRhHU/ZqOjZ8Uljb2e/48xuGS+9J+lOQ8p0xi8ft0nFjrTkj3MFADefusnNeu3POaJBzx6bfb8ib+udqNjZZfHNj37pof+zAewbpl8Qg+mr1Gt+xcn/s7uyRQDAUhomD4ej3zv2+sPl4+rtky37e82K9vPoN49dceNqpNjMD3ijztUfP2szzk7FQCi72YGc+3jwUVey7F1qR4duyncnrRLDz5Wf86x/rXfpdogAFw/Wcre571Oz9Tmy4qv2rsi5nLj5vRFOAEQAPYcfzHleCf+uoQntdjf+Cm7VCAAsE8Acl9LrvgljKwHqFWLAAC7bQ4QAKDAHhj6AgBAON4QBkAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAEAAPAUAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAMBW/wPlD+2UnEz7mwAAAABJRU5ErkJggg=="
+      }
+    },
+    {
+      "id": "instruction",
+      "type": "text",
+      "name": "Color render instruction",
+      "x": -40,
+      "y": 390,
+      "w": 380,
+      "fields": {
+        "text": "Turn the supplied rough pencil sketch into a clean, fully colored flat icon. Preserve every depicted object, its relative size, pose and position, the overall composition and the white background. Use a small cheerful palette of teal, coral red, warm cream, golden yellow and blue; fill every major closed region with solid color. Use a consistent dark navy outline and clearly closed shapes. Remove pencil wobble and construction marks. Keep the result recognizable as this exact drawing. No monochrome tracing, no texture, no gradients, no text and no added objects."
+      }
+    },
+    {
+      "id": "paint",
+      "type": "edit",
+      "name": "Color render \u00b7 Qwen Image 2.1 Edit",
+      "x": 420,
+      "y": 20,
+      "w": 300,
+      "fields": {
+        "model": "qwen-image-2.1/edit",
+        "size": "1k",
+        "modelOpts": {
+          "aspect_ratio": "1:1"
+        }
+      }
+    },
+    {
+      "id": "vec",
+      "type": "edit",
+      "name": "Colored icon \u2192 SVG",
+      "x": 820,
+      "y": 20,
+      "w": 300,
+      "fields": {
+        "model": "ideogram/vector",
+        "size": "auto",
+        "prompt": "",
+        "modelOpts": {
+          "vector_operation": "convert",
+          "mode": "default"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "sketch",
+        "port": "image"
+      },
+      "to": {
+        "node": "paint",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "instruction",
+        "port": "text"
+      },
+      "to": {
+        "node": "paint",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "paint",
+        "port": "image"
+      },
+      "to": {
+        "node": "vec",
+        "port": "image"
+      }
+    }
+  ]
+}
