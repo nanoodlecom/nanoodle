@@ -22181,7 +22181,7 @@ RULES for the diff:
   // streaming LLM client injected into patchling (same role as play's streamingCallLlm): streams the
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
-  function meteredCallLlm(phaseLabel, { effort=false }={}){
+  function meteredCallLlm(phaseLabel, { effort=false, isCurrent=()=>true }={}){
     return async ({ model, messages, temperature=1.0 })=>{
       const re = effort ? describeEffort(model) : null;   // planning call only, catalog-gated
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
@@ -22191,8 +22191,9 @@ RULES for the diff:
       // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
       // this an empty reply reads as "nothing to change".
       for(let attempt=0; attempt<2; attempt++){
+        if(!isCurrent()) throw new DOMException("The workflow changed while editing", "AbortError");
         let outTok = 0;
-        const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
+        const paint = ()=>{ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`); };
         paint();
         const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
@@ -22220,11 +22221,11 @@ RULES for the diff:
             if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
           }
         }
-        lastReply = { model, phase: phaseLabel, content, reasoning };   // whatever happens next, the ⚠ expander can show what the model actually said
+        if(isCurrent()) lastReply = { model, phase: phaseLabel, content, reasoning };
         // the stream died before producing anything → nothing was (or will be) charged, so don't
         // commit usage; retry once, then throw a real error instead of surfacing an empty reply
         if(streamErr && !content.trim()){
-          if(attempt===0){ setStatus(`<span class="db-spin"></span>${esc(model)} timed out — retrying…`); continue; }
+          if(attempt===0){ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(model)} timed out — retrying…`); continue; }
           throw new Error(model + " didn't answer (" + streamErr + ") — try again or pick a different model");
         }
         USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
@@ -22233,6 +22234,9 @@ RULES for the diff:
         const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : (pricing.cost!=null ? pricing.cost : pricing.amount));
         if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
         if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
+        // Keep the recorded usage/cost above even if its workflow was replaced. It must
+        // not paint the new composer or start a follow-up apply call.
+        if(!isCurrent()) throw new DOMException("The workflow changed while editing", "AbortError");
         // died mid-generation with partial output → a truncated reply must not half-apply to the graph
         if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
         // finish_reason "length": the reply hit the output cap (charged, so committed above).
@@ -22266,18 +22270,30 @@ RULES for the diff:
 
   async function submit(){
     if(busy) return;
-    const text = input.value.trim();
+    const draft = input.value, text = draft.trim();
     if(!text){ input.focus(); return; }
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
-    const prevInternal = serializeGraph();
+    const targetGraph = graph;
+    const targetWorkspace = typeof readWorkspaces==="function" ? readWorkspaces()?.active : null;
+    const prevInternal = clone(serializeGraph());
     const prevSimple = toSimple(prevInternal);
+    const content = g=>JSON.stringify({nodes:g.nodes,links:g.links});
+    const beforeContent = content(prevInternal);
+    const ownsTarget = ()=>graph===targetGraph &&
+      (typeof readWorkspaces==="function" ? readWorkspaces()?.active : null)===targetWorkspace;
+    let committing = false;
     dbAbort = new AbortController();
     lastReply = null; hideDetail();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>✏️ planning edits to your workflow…`);
-    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true }), apply: meteredCallLlm("✏️ applying edits to your workflow") };
+    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true, isCurrent:ownsTarget }), apply: meteredCallLlm("✏️ applying edits to your workflow", { isCurrent:ownsTarget }) };
     try{
       const { next } = await runGptdiff(prevSimple, text, descModel, clients);
+      if(!ownsTarget()) return;
+      if(content(serializeGraph())!==beforeContent){
+        setStatus("The workflow changed while editing. Your current changes were kept.");
+        return;
+      }
       const valid = validate(next);
       if(!valid.ok) throw new Error(valid.errs[0]);
       // Diff against the graph we'll ACTUALLY apply, not the raw model output: fromSimple→sanitizeFields
@@ -22286,6 +22302,7 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
+      committing = true; // no awaits below: errors now belong to our own apply
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
       // a change applied from an older version lands at the END and becomes current; we never
@@ -22294,7 +22311,7 @@ RULES for the diff:
       versions.push({ graph: clone(serializeGraph()), goal: text });
       curVer = versions.length-1;
       renderVersions();
-      input.value = "";
+      if(input.value===draft) input.value = "";
       // The done moment must be unmissable: pulse EVERY node the edit touched (changed too, not
       // just added), scroll them into view first, flash the bar green, and headline the recap.
       const touchedIds = [...new Set([...dif.added.map(n=>n.id), ...dif.changed.map(c=>c.id)])];
@@ -22303,6 +22320,7 @@ RULES for the diff:
       bar.classList.remove("db-done"); void bar.offsetWidth; bar.classList.add("db-done");
       setStatus(`<span class="done">✓ Done — ${esc(summarize(dif))}.</span> ${usageMeter()}`, "ok");
     }catch(e){
+      if(!committing && !ownsTarget()) return;
       if(e && e.name==="AbortError") setStatus(`Stopped. ${usageMeter()}`);   // you hit ■ Stop — neutral, not an error
       else{
         try{ console.warn("[describe] change failed:", e, lastReply); }catch(_){}

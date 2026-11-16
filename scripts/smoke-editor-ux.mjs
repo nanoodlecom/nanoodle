@@ -50,6 +50,42 @@ try{
  assert.equal(await page.evaluate(()=>window.__plans),1);assert.equal(await input.inputValue(),'A next request');
  await input.press('Enter');await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__plans===2);assert.equal(await page.evaluate(()=>window.__allRuns),0);
  console.log('✓ real editor Apply: Ctrl+Enter once, IME ignored, focused version chip, distinct A/B drafts/history and failed-switch rollback');
+ // FileReader is a real asynchronous graph-replacement path. Resolve the
+ // original planner only after a new graph/draft/status own the composer.
+ await input.fill('request for the old graph');
+ await page.evaluate(()=>{
+  window.__describeTest.setPlanner(prev=>new Promise(resolve=>{window.__finishOldPlan=()=>{const next=structuredClone(prev);next.nodes[0].fields.text='STALE PLANNER OUTPUT';resolve({rawDiff:'offline',next});};}));
+  window.__pendingOldPlan=window.__describeTest.submit();
+ });
+ await page.waitForFunction(()=>window.__describeTest.isBusy()&&window.__finishOldPlan);
+ await page.locator('#loadfile').setInputFiles({name:'replacement.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({v:1,nodes:[{id:'n1',type:'text',fields:{text:'NEW FILE GRAPH'}}],links:[]}))});
+ await page.waitForFunction(()=>serializeGraph().nodes[0]?.fields.text==='NEW FILE GRAPH');
+ const replacement=await page.evaluate(()=>{document.querySelector('#describegoal').value='new file draft';document.querySelector('#describestatus').textContent='new file status';return JSON.stringify({graph:serializeGraph(),describe:window.__describeTest.capture(),status:document.querySelector('#describestatus').innerHTML});});
+ await page.evaluate(async()=>{window.__finishOldPlan();await window.__pendingOldPlan;});
+ assert.equal(await page.evaluate(()=>JSON.stringify({graph:serializeGraph(),describe:window.__describeTest.capture(),status:document.querySelector('#describestatus').innerHTML})),replacement,'a late planner must not overwrite a real File Load, its versions, draft or status');
+ console.log('✓ deferred planner after actual File Load preserves the replacement graph, versions, draft and status');
+ for(const awayBack of [false,true]){
+  await input.fill('request before switching');
+  const navigation=await page.evaluate(()=>{
+   const source=readWorkspaces().active,other=readWorkspaces().tabs.find(t=>t.id!==source).id;
+   window.__describeTest.setPlanner(prev=>new Promise(resolve=>{window.__finishSwitchPlan=()=>{const next=structuredClone(prev);next.nodes[0].fields.text='STALE SWITCH OUTPUT';resolve({rawDiff:'offline',next});};}));
+   window.__pendingSwitchPlan=window.__describeTest.submit();return {source,other};
+  });
+  await page.waitForFunction(()=>window.__describeTest.isBusy()&&window.__finishSwitchPlan);
+  await page.evaluate(id=>switchWorkspace(id),navigation.other);
+  assert.equal(await page.evaluate(()=>readWorkspaces().active),navigation.source,'the normal busy guard still blocks switching');
+  // Fault injection only: exercise the real switch transaction as if a stale
+  // navigation arrived despite its UI busy guard. Never weaken production guards.
+  const state=await page.evaluate(({source,other,awayBack})=>{
+   const guard=window.describeChangeBusy;window.describeChangeBusy=()=>false;
+   try{switchWorkspace(other);if(awayBack)switchWorkspace(source);}finally{window.describeChangeBusy=guard;}
+   document.querySelector('#describegoal').value='draft after navigation';document.querySelector('#describestatus').textContent='status after navigation';
+   return JSON.stringify({active:readWorkspaces().active,graph:serializeGraph(),describe:window.__describeTest.capture(),status:document.querySelector('#describestatus').innerHTML});
+  },{...navigation,awayBack});
+  await page.evaluate(async()=>{window.__finishSwitchPlan();await window.__pendingSwitchPlan;});
+  assert.equal(await page.evaluate(()=>JSON.stringify({active:readWorkspaces().active,graph:serializeGraph(),describe:window.__describeTest.capture(),status:document.querySelector('#describestatus').innerHTML})),state);
+ }
+ console.log('✓ deferred switch and away/back completions preserve the owning workspace; normal busy guard remains enforced');
  // Grow by actual Blank/Example paths; a file Load intentionally replaces the
  // selected graph, and must leave every other workspace and its bytes intact.
  const expected=new Map();for(const id of await page.evaluate(()=>readWorkspaces().tabs.map(t=>t.id))){const text=await page.evaluate(id=>{switchWorkspace(id);return serializeGraph().nodes.find(n=>n.type==='text')?.fields.text;},id);expected.set(id,text);}
