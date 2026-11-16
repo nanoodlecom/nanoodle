@@ -13069,13 +13069,14 @@ function keepNodeInView(n){
 
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
-  if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
+  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
+  if(e.defaultPrevented || e.isComposing || e.keyCode===229) return;
+  if((e.ctrlKey||e.metaKey) && e.key==="Enter" && !typing && !e.repeat){ e.preventDefault(); runAll(); return; }   // canvas shortcut only; composers own their Enter
   if((e.key==="f"||e.key==="F") && !(e.ctrlKey||e.metaKey||e.altKey) &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); fitView(); return; }   // F = fit to view
   if(e.code==="KeyT" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) &&
      typeof geoOn==="function" && geoOn()){ e.preventDefault(); geoTidySelection(); return; }   // Shift+T tidies the multi-selection
-  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
   if((e.ctrlKey||e.metaKey) && !e.altKey && !e.isComposing && !e.defaultPrevented && !typing && /^[zy]$/i.test(e.key)){
     e.preventDefault();
     (/y/i.test(e.key) || e.shiftKey) ? redo() : undo();   // Ctrl/Cmd+Z undo · +Shift / Ctrl+Y redo
@@ -17482,12 +17483,13 @@ function loadFile(file){
       return;
     }
     const had = graph.nodes.length > 0;
-    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null;
+    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null, describeShot = null;
     try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
     try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
     try{ undoLen = undoStack.length; }catch(_){}
     try{ appId = pendingAppId; appTitle = pendingAppTitle; }catch(_){}
     try{ if(typeof wsSnapshotKey==="function") editorShot = wsSnapshotKey(EDITOR_APP_KEY); }catch(_){}
+    describeShot = window.captureDescribeVersions?.();
     try{
       try{ claimInitialCanvas(); }catch(_){}
       // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
@@ -17504,6 +17506,7 @@ function loadFile(file){
     }catch(e){
       try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
       try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      window.restoreDescribeVersions?.(describeShot);
       try{ if(typeof pendingAppId!=="undefined"){ pendingAppId = appId; pendingAppTitle = appTitle; } }catch(_){}
       try{ if(editorShot && typeof wsRestoreKey==="function") wsRestoreKey(EDITOR_APP_KEY, editorShot); }catch(_){}
       alert(t("Couldn’t load that file:")+" "+e.message);
@@ -17960,7 +17963,6 @@ function updateTitle(){
    noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
-const WS_CAP = 16;
 // Closed tabs are reversible for the visible notice, in this visit only. Keep
 // them outside per-workspace graph history: switching tabs swaps those stacks.
 var wsClosedUndo=[], wsClosedRedo=[], wsCloseHistoryMute=0, wsCloseSerial=0;
@@ -18026,10 +18028,10 @@ function bindWorkspaceCloseNotice(){
 }
 function captureClosedWorkspace(d,tab,raw){
   const active=d.active===tab.id;
-  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice()}:workspaceHist.get(tab.id);
+  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice(),describe:window.captureDescribeVersions?.()}:workspaceHist.get(tab.id);
   return {tab:copyWorkspaces(tab),index:d.tabs.indexOf(tab),active,last:d.tabs.length===1,
     graph:raw || JSON.stringify(blankGraph()),results:active?_stashResults():workspaceResults.get(tab.id) || null,
-    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice()}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
+    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice(),describe:stored.describe}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
 }
 function recordClosedWorkspace(entry,opts){
   if(!opts || !opts.redo)wsClosedRedo.length=0;
@@ -18709,6 +18711,7 @@ function workspaceShot(activeId){
     res: id ? captureResults(id) : null,
     hist: id ? captureHist(id) : null,
     canvas, stash,
+    describe: window.captureDescribeVersions?.(),
     memory: workspaceMemory ? copyWorkspaces(workspaceMemory) : null,
   };
 }
@@ -18795,6 +18798,7 @@ function workspaceRollback(shot, extra){
       else if(liveNow) reapplyWorkspaceGraph(liveNow, null);
     }catch(_){}
   }
+  window.restoreDescribeVersions?.(onSource ? shot.describe : workspaceHist.get(activeNow)?.describe);
   try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
   // Shelving mutates the index it was handed. When that object was the live
   // in-memory tab list, a failed write left Blank active while disk — and the
@@ -18897,7 +18901,7 @@ function flushSave(){
 }
 function parkWorkspaceHistory(id){
   if(!id || typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
-  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length) });
+  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length), describe:window.captureDescribeVersions?.() });
   try{ syncUndoBtn(); }catch(_){}
 }
 function restoreWorkspaceHistory(id){
@@ -18909,10 +18913,11 @@ function restoreWorkspaceHistory(id){
     if(h.undo && h.undo.length) undoStack.push(...h.undo);
     if(h.redo && h.redo.length) redoStack.push(...h.redo);
   }
+  window.restoreDescribeVersions?.(h && h.describe);
   try{ syncUndoBtn(); }catch(_){}
 }
 function workspaceBusy(){
-  try{ return !!(runningNodes && runningNodes.size); }catch(_){ return false; }
+  try{ return !!((runningNodes && runningNodes.size) || window.describeChangeBusy?.()); }catch(_){ return false; }
 }
 function blankGraph(){
   return { v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:40, scale:1 } };
@@ -18975,13 +18980,8 @@ function openWorkspaceWithGraph(data, name, opts){
   // This canvas is the user's now. A starter fetch still in flight must not paint over it.
   claimInitialCanvas();
   const had = !!(graph.nodes && graph.nodes.length);
-  if(had){
-    let d0 = readWorkspaces();
-    if(!d0){ try{ d0 = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
-    if(opts.respectCap && d0.tabs.length >= WS_CAP){
-      toast(wsT("Too many workspaces — close one first."), "warn");
-      return false;
-    }
+  if(had && !readWorkspaces()){
+    try{ ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; }
   }
   // Shot is the pre-attempt state. A later write that fails puts every key,
   // the canvas, and the undo stacks back to this — including a flush that
@@ -19039,7 +19039,7 @@ function openExampleWorkspace(graphData, name, slug){
     return "switch";
   }
   const had = !!(graph.nodes && graph.nodes.length);
-  const ok = openWorkspaceWithGraph(graphData, name, { respectCap:true, fit:true, example:slug });
+  const ok = openWorkspaceWithGraph(graphData, name, { fit:true, example:slug });
   if(!ok) return false;
   return had ? "open" : "absorb";
 }
@@ -19392,7 +19392,7 @@ function chooseWorkspace(kind){
   else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
   else return;
   const had = !!(graph.nodes && graph.nodes.length);
-  if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
+  if(!openWorkspaceWithGraph(data, name, { fit })) return;
   try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
   if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
   // Plus, then Blank, on an empty tab reuses that tab. The canvas does not
@@ -21332,7 +21332,7 @@ function loadExample(i){
   }
   if(had && typeof openWorkspaceWithGraph==="function"){
     const name = t(ex.title);
-    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { respectCap:true, fit:true });
+    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { fit:true });
     dismissHint();
     if(ok) toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
     return;
@@ -22069,7 +22069,10 @@ RULES for the diff:
     }});
   };
 
-  input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  input.addEventListener("keydown", e=>{
+    if(e.key!=="Enter" || e.defaultPrevented || e.isComposing || e.keyCode===229 || e.repeat) return;
+    e.preventDefault(); e.stopPropagation(); submit();
+  });
   goBtn.onclick = ()=> busy ? dbAbort?.abort() : submit();   // ✦ Apply while idle · ■ Stop while a change is planning/applying
 
   // ---- versions: each applied change is a snapshot you can jump back to (like the app builder) ----
@@ -22080,6 +22083,8 @@ RULES for the diff:
   let curVer = -1;
   function renderVersions(){
     if(versions.length <= 1){ versEl.innerHTML = ""; return; }
+    const focused = document.activeElement;
+    const focusVer = focused && versEl.contains(focused) ? focused.getAttribute("data-ver") : null;
     let html = `<span class="vlabel">versions:</span>`;
     versions.forEach((v,i)=>{
       const cls = "ver" + (i===curVer?" cur":"") + (i===0?" seed":"");
@@ -22087,13 +22092,27 @@ RULES for the diff:
       html += `<button class="${cls}" data-ver="${i}" title="${esc(tip)}">v${i}</button>`;
     });
     versEl.innerHTML = html;
+    if(focusVer!==null) versEl.querySelector(`[data-ver="${focusVer}"]`)?.focus();
   }
   versEl.addEventListener("click", e=>{ const b=e.target.closest("[data-ver]"); if(b) selectVersion(+b.getAttribute("data-ver")); });
   // A wholesale graph SWAP (open an Example, a shared link, a file, a different app) invalidates this
   // strip: its chips snapshot the PREVIOUS workflow, and clicking one would overwrite the just-loaded
   // graph with an unrelated version. External load paths call this to clear it. Deliberately NOT called
   // from submit()/selectVersion()/undo-redo — those are same-workflow ops that must keep their history.
-  window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); hideDetail(); };
+  function captureDescribeState(){
+    return { versions:clone(versions), curVer, draft:input.value };
+  }
+  function restoreDescribeState(state){
+    versions.length = 0;
+    if(state && Array.isArray(state.versions)) versions.push(...clone(state.versions));
+    curVer = state && Number.isInteger(state.curVer) && state.curVer>=0 && state.curVer<versions.length ? state.curVer : -1;
+    input.value = state && typeof state.draft==="string" ? state.draft : "";
+    renderVersions(); setStatus(""); hideDetail();
+  }
+  window.captureDescribeVersions = captureDescribeState;
+  window.restoreDescribeVersions = restoreDescribeState;
+  window.describeChangeBusy = ()=>busy;
+  window.resetDescribeVersions = ()=>restoreDescribeState(null);
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;

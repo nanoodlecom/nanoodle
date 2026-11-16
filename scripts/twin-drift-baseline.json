@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1695,
-  "occurrencesIndexHtml": 1783,
-  "occurrencesPlayHtml": 1849,
-  "digest": "8c169ba12b95dd14ef6a40ce0dd75bd3",
+  "count": 1696,
+  "occurrencesIndexHtml": 1784,
+  "occurrencesPlayHtml": 1850,
+  "digest": "9103143a3e108902ffbdce691a5fa83c",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -99,6 +99,7 @@
     "0fe3885d49c0c304 1 1 - - avoids the canvas-captureStream + audio-track path that mangled the picture. Used when every clip",
     "101ebb687a445a38 1 1 - - if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1024)} kB ${svc===\"dagd\" ? \"da.gd serves reliably\" : \"nanolink can store\"}`);",
     "102720ee0c5b8931 1 1 - - var d = parseFloat(src.fields && src.fields.duration); if(isFinite(d) && d>0) return Math.max(1, Math.ceil(d - 1e-6));",
+    "102b952da9eb513c 1 1 d193dfe860688b14 - if(e.key!==\"Enter\" || e.defaultPrevented || e.isComposing || e.keyCode===229 || e.repeat) return;",
     "10484b8d400ee5af 1 1 2fc13b99ed85680c,5aa199fe2a599164,aa38c8fead69ea69 573af2e5cdc6aaa3,e7181a4bfa300cad const url = await ctx.genVideo(mdl(n), prompt, opts, null,",
     "1050a0665582b707 1 1 - - const hdlrName = enc(t.kind===\"video\" ? \"VideoHandler\\0\" : \"SoundHandler\\0\");",
     "106a1415f030be00 1 1 - - return [{ url:n.fields.loraUrl||\"\", strength:n.fields.loraStrength||\"\" }];",
