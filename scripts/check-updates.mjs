@@ -3,7 +3,8 @@
 //   { date:"YYYY-MM-DD", text:"one line", i18n?:{ es,fr,de,pt,ja:"one line" },
 //     media?:{ src:"updates-media/x.mp4", poster:"updates-media/x.webp", w, h,
 //              audio?:true, captions?:{ en:"updates-media/x.en.vtt", … }, burned?:"en" },
-//     examples?:[{ id:"gallery-slug" | "gallery-slug--alternate-id", title:"Gallery title" }] }.
+//     examples?:[{ id:"gallery-slug" | "gallery-slug--alternate-id", title:"Gallery title" }],
+//     workflow?:"https://…" (shown as Open workflow) }.
 // The pre-commit hook runs this when updates.json is staged, so a malformed hand
 // edit can't ship and break the in-app Updates changelog.
 //
@@ -48,6 +49,14 @@ if (!Array.isArray(list)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date || "")) errs.push(`#${i}: date must be YYYY-MM-DD`);
     if (typeof e.text !== "string" || !e.text.trim()) errs.push(`#${i}: text must be a non-empty string`);
     else if (/[\r\n]/.test(e.text)) errs.push(`#${i}: text must be a single line`);
+
+    if (e.workflow !== undefined) {
+      let valid = false;
+      if (typeof e.workflow === "string" && !/[\u0000-\u0020\u007f]/.test(e.workflow)) {
+        try { const url = new URL(e.workflow); valid = url.protocol === "https:" && !!url.hostname && !url.username && !url.password; } catch {}
+      }
+      if (!valid) errs.push(`#${i}: workflow must be an absolute HTTPS URL without credentials or whitespace`);
+    }
 
     // Optional usage clip — language-neutral, so one per entry (not per i18n lang).
     // Shape only here; scripts/check-updates-media.mjs checks the files themselves.
