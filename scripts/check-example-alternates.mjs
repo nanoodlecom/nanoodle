@@ -78,6 +78,12 @@ function checkRendered(page, slug, a, graphBytes, texts, guide) {
   const block = variants[0].html;
   const local = file => esc((guide ? '/examples/gallery/' : '') + file);
   const summary = block.slice(0, block.indexOf('</summary>'));
+  const heading = a.historical ? 'Earlier workflow' : 'Another run';
+  assert(summary.includes(`<b>${heading}: ${esc(a.title)}</b>`), id + ': wrong relationship to the current workflow');
+  if (a.historical) {
+    assert(summary.includes('Saved earlier workflow with its own inputs'), id + ': historical workflow is not disclosed');
+    assert(!summary.includes('same workflow'), id + ': historical workflow mislabeled as the same graph');
+  } else assert(summary.includes('same workflow made with different inputs'), id + ': current alternate relationship omitted');
   assert(summary.includes(`src="${local(a.preview)}"`), id + ': thumbnail missing from alternate summary');
   assert(summary.includes(esc(a.title)), id + ': alternate title missing');
   for (const value of [a.review, a.date, a.note]) assert(block.includes(esc(value)), id + ': review/date/note omitted');
@@ -134,6 +140,7 @@ export function checkAlternates({
   }
 
   for (const { slug, a } of variants) {
+    assert(a.historical === undefined || typeof a.historical === 'boolean', slug + ': historical flag must be boolean');
     const prefix = `${slug}/alternates/${a.id}/`;
     const load = (file, hash) => asset(file, hash, prefix);
     const sourceBytes = load(a.sourceGraph, a.sourceGraphSha256);

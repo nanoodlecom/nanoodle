@@ -54,7 +54,9 @@ const openLink = graph => 'https://nanoodle.com/#g=' + gzipSync(graph).toString(
 function renderAlternate(s, a) {
   const graph = checkedGraph(a.graph, a.graphSha256);
   checkedGraph(a.sourceGraph, a.sourceGraphSha256);
-  return `<details class="alternate" id="${esc(s.slug + '--' + a.id)}"><summary><span class="alternate-summary"><img src="${local(a.preview)}" alt="" loading="lazy"><span><b>Another run: ${esc(a.title)}</b><span>See what the same workflow made with different inputs ↓</span></span></span></summary>
+  const heading = a.historical ? 'Earlier workflow' : 'Another run';
+  const relation = a.historical ? 'Saved earlier workflow with its own inputs ↓' : 'See what the same workflow made with different inputs ↓';
+  return `<details class="alternate" id="${esc(s.slug + '--' + a.id)}"><summary><span class="alternate-summary"><img src="${local(a.preview)}" alt="" loading="lazy"><span><b>${heading}: ${esc(a.title)}</b><span>${relation}</span></span></span></summary>
 <div class="alternate-body"><p class="meta">${esc(a.review)} · ${esc(a.date)}</p><p>${esc(a.note)}</p>${renderOutputs(a)}
 <p class="meta">Reported generation cost: ${cost(a)}. Prices and results vary.</p>
 <details><summary>Inputs for this version</summary><div class="inputs">${renderInputs(a)}</div><p class="meta">Sampled models: ${a.models.map(esc).join(', ')}.</p></details>

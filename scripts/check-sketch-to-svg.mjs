@@ -23,6 +23,17 @@ assert.equal(node('vec').fields.prompt, '');
 assert.equal(node('vec').fields.modelOpts.vector_operation, 'convert');
 assert(!graph.nodes.some(n => n.type === 'image'), 'the example must not start with text-to-image generation');
 
+// The retained CAMP output predates the sketch workflow. Its saved media must
+// keep its own graph and must not masquerade as another run of the new chain.
+const sample = JSON.parse(readFileSync(join(root, 'examples/gallery/samples.json'), 'utf8'))
+  .find(s => s.slug === 'sketch-to-svg');
+const historical = sample.alternates.find(a => a.id === 'camp-badge');
+assert.equal(historical.historical, true, 'CAMP must remain explicitly historical');
+assert.match(historical.note, /Historical text-to-image workflow, not a sketch-input run/);
+const earlier = JSON.parse(readFileSync(join(root, 'examples/gallery', historical.graph), 'utf8'));
+assert(earlier.nodes.some(n => n.type === 'image'), 'historical graph keeps its original text-to-image node');
+assert(!earlier.nodes.some(n => n.type === 'upload'), 'do not relabel historical media as the new sketch graph');
+
 const color = 'data:image/png;base64,' + Buffer.from('stub colored raster').toString('base64');
 const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ee7755" d="M0 0h10v10z"/></svg>';
 async function exercise(Workflow, label) {

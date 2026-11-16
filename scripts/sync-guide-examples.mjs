@@ -529,7 +529,9 @@ function renderAlternates(s) {
     if (createHash('sha256').update(graph).digest('hex') !== a.graphSha256) {
       throw new Error('Alternate graph changed: ' + a.graph);
     }
-    return `<details class="alternate" id="${esc(s.slug + '--' + a.id)}"><summary><span class="alternate-summary"><img src="/examples/gallery/${esc(local(a.preview))}" alt="" loading="lazy"><span><b>Another run: ${esc(a.title)}</b><span>See what the same workflow made with different inputs ↓</span></span></span></summary>
+    const heading = a.historical ? 'Earlier workflow' : 'Another run';
+    const relation = a.historical ? 'Saved earlier workflow with its own inputs ↓' : 'See what the same workflow made with different inputs ↓';
+    return `<details class="alternate" id="${esc(s.slug + '--' + a.id)}"><summary><span class="alternate-summary"><img src="/examples/gallery/${esc(local(a.preview))}" alt="" loading="lazy"><span><b>${heading}: ${esc(a.title)}</b><span>${relation}</span></span></span></summary>
       <div class="alternate-body"><p class="howto-note">${esc(a.review)} · ${esc(a.date)} · Reported saved run: ${esc(formatCost(a.costUsd, a.costExact))}.</p>
       <p>${esc(a.note)}</p>${renderMedia(a)}
       <details><summary>Inputs for this version</summary>${a.inputs.map(i => `<h3>${esc(i.label)}</h3><p>${esc(i.text)}</p>`).join('')}<p class="howto-note">Sampled models: ${a.models.map(esc).join(', ')}.</p></details>

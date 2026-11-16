@@ -21,7 +21,7 @@ const editor = read('index.html');
 const targets = new Map();
 for (const s of samples) {
   targets.set(s.slug, { title: s.title, kind: 'section' });
-  for (const a of s.alternates || []) targets.set(s.slug + '--' + a.id, { title: a.title, kind: 'alternate', slug: s.slug });
+  for (const a of s.alternates || []) targets.set(s.slug + '--' + a.id, { title: a.title, kind: 'alternate', slug: s.slug, historical: a.historical });
 }
 const decode = v => v.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
@@ -46,8 +46,9 @@ updates.forEach((e, i) => {
       const h = gallery.match(new RegExp(`<section id="${x.id}">.*?<h2>(.*?)</h2>`));
       if (!h || decode(h[1]) !== t.title) errs.push(`${where}: gallery section ${x.id} heading does not read "${t.title}"`);
     } else {
-      const b = gallery.match(new RegExp(`<details class="alternate" id="${x.id}">.*?<b>Another run: (.*?)</b>`));
-      if (!b || decode(b[1]) !== t.title) errs.push(`${where}: gallery alternate ${x.id} does not read "Another run: ${t.title}"`);
+      const heading = t.historical ? 'Earlier workflow' : 'Another run';
+      const b = gallery.match(new RegExp(`<details class="alternate" id="${x.id}">.*?<b>${heading}: (.*?)</b>`));
+      if (!b || decode(b[1]) !== t.title) errs.push(`${where}: gallery alternate ${x.id} does not read "${heading}: ${t.title}"`);
       // An alternate must sit inside its own example's section.
       const sec = gallery.indexOf(`<section id="${t.slug}">`), alt = gallery.indexOf(`id="${x.id}"`);
       const next = gallery.indexOf('<section id=', sec + 1);
