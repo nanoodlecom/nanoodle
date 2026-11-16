@@ -22181,7 +22181,8 @@ RULES for the diff:
   // streaming LLM client injected into patchling (same role as play's streamingCallLlm): streams the
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
-  function meteredCallLlm(phaseLabel, { effort=false, isCurrent=()=>true }={}){
+  // Ownership controls progress UI; content also gates each new dispatch.
+  function meteredCallLlm(phaseLabel, { effort=false, isCurrent=()=>true, canStart=isCurrent }={}){
     return async ({ model, messages, temperature=1.0 })=>{
       const re = effort ? describeEffort(model) : null;   // planning call only, catalog-gated
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
@@ -22191,7 +22192,7 @@ RULES for the diff:
       // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
       // this an empty reply reads as "nothing to change".
       for(let attempt=0; attempt<2; attempt++){
-        if(!isCurrent()) throw new DOMException("The workflow changed while editing", "AbortError");
+        if(!canStart()) throw new DOMException("The workflow changed while editing", "AbortError");
         let outTok = 0;
         const paint = ()=>{ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`); };
         paint();
@@ -22236,7 +22237,7 @@ RULES for the diff:
         if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
         // Keep the recorded usage/cost above even if its workflow was replaced. It must
         // not paint the new composer or start a follow-up apply call.
-        if(!isCurrent()) throw new DOMException("The workflow changed while editing", "AbortError");
+        if(!canStart()) throw new DOMException("The workflow changed while editing", "AbortError");
         // died mid-generation with partial output → a truncated reply must not half-apply to the graph
         if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
         // finish_reason "length": the reply hit the output cap (charged, so committed above).
@@ -22282,11 +22283,12 @@ RULES for the diff:
     const beforeContent = content(prevInternal);
     const ownsTarget = ()=>graph===targetGraph &&
       (typeof readWorkspaces==="function" ? readWorkspaces()?.active : null)===targetWorkspace;
+    const canStartCall = ()=>ownsTarget() && content(serializeGraph())===beforeContent;
     let committing = false;
     dbAbort = new AbortController();
     lastReply = null; hideDetail();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>✏️ planning edits to your workflow…`);
-    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true, isCurrent:ownsTarget }), apply: meteredCallLlm("✏️ applying edits to your workflow", { isCurrent:ownsTarget }) };
+    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true, isCurrent:ownsTarget, canStart:canStartCall }), apply: meteredCallLlm("✏️ applying edits to your workflow", { isCurrent:ownsTarget, canStart:canStartCall }) };
     try{
       const { next } = await runGptdiff(prevSimple, text, descModel, clients);
       if(!ownsTarget()) return;

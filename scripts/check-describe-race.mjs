@@ -62,4 +62,40 @@ await test('stale metered SSE settles exactly once without painting the replacem
  assert.equal(charges.length,1);assert.equal(charges[0].x_nanogpt_pricing.costUsd,0.012);assert.equal(c.USAGE.cost,0.012);assert.equal(c.USAGE.inTok,7);assert.equal(c.USAGE.outTok,3);
  assert.equal(requests,1);assert.equal(applyCalls,0);assert.equal(changes.length,paintCount);assert.equal(c.lastReply,null);assert.equal(snapshot(c),before);assert.equal(c.busy,false);
 });
+const meteredFrame='data: '+JSON.stringify({choices:[{delta:{content:'offline diff'}}],x_nanogpt_pricing:{costUsd:0.012,inputTokens:7,outputTokens:3}})+'\n\ndata: [DONE]\n\n';
+const paidPair=async(_prev,_text,_model,clients)=>{
+ await clients.gen({model:'offline',messages:[]});
+ await clients.apply({model:'offline',messages:[]});
+ return {next:graph('applied')};
+};
+for(const edit of ['field','link'])await test('in-place '+edit+' edit during generation cannot start paid fallback',async()=>{
+ const {c,charges}=fixture();let controller,requests=0;
+ if(edit==='link')c.graph.nodes.push({id:'n2',type:'llm',fields:{prompt:''}});
+ c.fetch=async()=>{requests++;return requests===1?new Response(new ReadableStream({start(value){controller=value;}})):new Response(meteredFrame);};
+ c.runGptdiff=paidPair;const pending=c.submit();await until(()=>controller);
+ if(edit==='field')c.graph.nodes[0].fields.text='manual field edit';
+ else c.graph.links.push({id:'l1',from:{node:'n1',port:'text'},to:{node:'n2',port:'prompt'}});
+ const current=JSON.stringify(c.graph),draft=c.input.value;
+ controller.enqueue(new TextEncoder().encode(meteredFrame));controller.close();await pending;
+ assert.equal(requests,1,'no follow-up request after an in-place edit');assert.equal(charges.length,1);assert.equal(c.USAGE.cost,0.012);
+ assert.equal(JSON.stringify(c.graph),current);assert.equal(c.input.value,draft);assert.equal(c.versions.length,0);assert.equal(c.busy,false);
+});
+await test('content edit between generation and apply is checked before dispatch',async()=>{
+ const {c,charges}=fixture();let requests=0;c.fetch=async()=>{requests++;return new Response(meteredFrame);};
+ c.runGptdiff=async(_p,_t,_m,clients)=>{
+  await clients.gen({model:'offline',messages:[]});c.graph.nodes[0].fields.text='edited between phases';
+  await clients.apply({model:'offline',messages:[]});return {next:graph('STALE')};
+ };
+ await c.submit();assert.equal(requests,1);assert.equal(charges.length,1);assert.equal(c.graph.nodes[0].fields.text,'edited between phases');assert.equal(c.versions.length,0);assert.equal(c.input.value,'change A');
+});
+await test('an already dispatched apply still records its charge once after an in-place edit',async()=>{
+ const {c,charges}=fixture();let controller,requests=0;c.fetch=async()=>{requests++;return requests===1?new Response(meteredFrame):new Response(new ReadableStream({start(value){controller=value;}}));};
+ c.runGptdiff=paidPair;const pending=c.submit();await until(()=>controller);c.graph.nodes[0].fields.text='edit during apply';
+ controller.enqueue(new TextEncoder().encode(meteredFrame));controller.close();await pending;
+ assert.equal(requests,2);assert.equal(charges.length,2);assert.equal(c.USAGE.cost,0.024);assert.equal(c.graph.nodes[0].fields.text,'edit during apply');assert.equal(c.versions.length,0);assert.equal(c.input.value,'change A');assert.equal(c.busy,false);
+});
+await test('fresh generation and apply still complete and record both calls once',async()=>{
+ const {c,charges}=fixture();let requests=0;c.fetch=async()=>{requests++;return new Response(meteredFrame);};c.runGptdiff=paidPair;
+ await c.submit();assert.equal(requests,2);assert.equal(charges.length,2);assert.equal(c.USAGE.cost,0.024);assert.equal(c.graph.nodes[0].fields.text,'applied');assert.equal(c.versions.length,2);assert.equal(c.input.value,'');assert.equal(c.busy,false);
+});
 if(failures)process.exitCode=1;
