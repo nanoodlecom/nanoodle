@@ -238,6 +238,7 @@
   .update-items li{ font-size:.9rem; line-height:1.5; padding:.7rem .8rem; border:1px solid var(--line); border-radius:.6rem; background:var(--panel); overflow-wrap:anywhere }
   .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
   .update-items a:hover{ color:var(--ink); text-decoration:underline }
+  .update-workflow{ display:block; max-width:100%; margin-top:.3rem; font-size:.82rem }
   /* updates.json "examples": links to the gallery example (or alternate run) an entry announces */
   .update-examples{ display:flex; flex-wrap:wrap; gap:.25rem .8rem; margin-top:.3rem; font-size:.82rem }
   .update-examples a{ color:var(--accent); text-decoration:none }
@@ -20542,6 +20543,8 @@ function renderUpdateRows(body, list, articles, articleLimit=ARTICLE_SLOTS){
     });
     const exLinks = updExampleLinks(e);
     if(exLinks) li.appendChild(exLinks);
+    const workflow = updWorkflowLink(e);
+    if(workflow) li.appendChild(workflow);
     const clip = updClip(e);
     if(clip) li.appendChild(clip);
     ul.appendChild(li);
@@ -20565,6 +20568,16 @@ function updExampleLinks(e){
     wrap.appendChild(a);
   }
   return wrap;
+}
+// Keep a reusable workflow destination out of the announcement's visible text.
+function updWorkflowLink(e){
+  const destination = updSafeUrl(e && e.workflow);
+  if(!destination) return null;
+  const workflow = document.createElement("a");
+  workflow.className = "update-workflow";
+  workflow.href = destination; workflow.target = "_blank"; workflow.rel = "noopener";
+  workflow.textContent = t("Open workflow");
+  return workflow;
 }
 let updatesOpenGen = 0;
 async function openUpdates(){

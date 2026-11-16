@@ -79,7 +79,7 @@ const escXml = escHtml;
 
 // Bare https:// URLs in an entry render as real links on the HTML page (each
 // fragment still escaped; trailing punctuation stays text). Mirrors the in-app
-// 📣 modal's linkifier. The Atom feed keeps plain escaped text.
+// 📣 modal's linkifier. Atom keeps plain text unless a labeled workflow is present.
 function safeUrl(value){
   if(typeof value!=="string" || /[\u0000-\u0020\u007f]/.test(value)) return null;
   try{ const u = new URL(value); return u.protocol==="https:" && u.hostname && !u.username && !u.password ? u.href : null; }catch{ return null; }
@@ -96,6 +96,11 @@ const linkifyHtml = (s) => s.split(/(https?:\/\/[^\s<>"']+)/).map(part=>{
   const href = safeUrl(clean);
   return href ? `<a href="${escHtml(href)}">${escHtml(clean.replace(/^https:\/\//, ""))}</a>${escHtml(part.slice(clean.length))}` : escHtml(part);
 }).join("");
+
+function workflowHtml(e){
+  const destination = safeUrl(e && e.workflow);
+  return destination ? `<a class="workflow-link" href="${escHtml(destination)}">Open workflow</a>` : "";
+}
 
 // An entry's optional usage clip (media:{src,poster,w,h}, files under updates-media/,
 // validated by check-updates.mjs + check-updates-media.mjs). The page has zero
@@ -248,7 +253,7 @@ const sections = byDate
     ({ date, items }) => `    <section>
       <h2 id="d-${date}"><a href="#d-${date}">${humanDate(date)}</a></h2>
       <ul>
-${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${clipHtml(e)}</li>`).join("\n")}
+${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${workflowHtml(e)}${clipHtml(e)}</li>`).join("\n")}
       </ul>
     </section>`
   )
@@ -373,6 +378,8 @@ const html = `<!doctype html>
   h2 a:hover{ color:var(--accent); text-decoration:none }
   ul{ margin:0 0 1rem; padding-left:1.2rem; }
   li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
+  .log li{ overflow-wrap:anywhere }
+  .workflow-link{ display:block; max-width:100%; margin-top:.3rem; font-size:.85rem }
   li:target{ color:var(--ink); }
   a.clip{ display:block; position:relative; width:min(100%,320px); margin:.5rem 0 .2rem; border:1px solid var(--line);
           border-radius:.55rem; overflow:hidden; line-height:0; background:#000; }
@@ -446,7 +453,7 @@ const feedEntries = sorted
     <title type="text">${escXml(e.text)}</title>
     <link rel="alternate" type="text/html" href="${SITE}/changelog#u-${e.slug}"/>
     <updated>${rfc3339(e.date)}</updated>
-    <content type="text">${escXml(e.text)}</content>
+    <content type="${safeUrl(e.workflow) ? "html" : "text"}">${safeUrl(e.workflow) ? escXml(escHtml(e.text) + " " + workflowHtml(e)) : escXml(e.text)}</content>
   </entry>`
   )
   .join("\n");
