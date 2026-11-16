@@ -16055,6 +16055,7 @@ let pendingHandoff = null;   // editor __handoff__ parked while a customize/port
 // run button): a stalled LLM can always be cancelled instead of leaving the bar permanently disabled.
 function stopCustomize(){ if(custAbort && !custAbort.signal.aborted) custAbort.abort(); }
 function setCustBusy(on){
+  $("versions")?.querySelectorAll("button").forEach(b=>{ b.disabled = on; });
   const a = $("apply"); if(!a) return;
   if(on){ a.disabled = false; a.classList.add("stop"); a.classList.remove("idle"); a.textContent = "■ Stop"; a.onclick = stopCustomize; }
   else { a.classList.remove("stop"); a.textContent = "✦ Apply"; a.onclick = applyCustomize; a.disabled = false; syncApply(); }   // signed-out stays clickable — the click kicks sign-in
@@ -16079,15 +16080,24 @@ async function runDiffPass(goal, opts){
   const key = getKey();
   if(!goal || !goal.trim()) return false;
   if(busy) return false; busy = true;
+  const target = APP_STATE;
+  const before = { "index.html":target.files["index.html"], "app.css":target.files["app.css"] };
+  const targetGraph = target.graph;
+  const stillCurrent = ()=>{
+    const same = APP_STATE===target && target.graph===targetGraph &&
+      target.files["index.html"]===before["index.html"] && target.files["app.css"]===before["app.css"];
+    if(!same) $("cust-status").textContent = "The app changed while editing. Your request is kept.";
+    return same;
+  };
   custAbort = new AbortController();
   setCustBusy(true); $("undo").disabled = true;
   const t0 = performance.now();
   resetUsage();
-  await loadChatCatalog().catch(()=>{});   // make sure per-model prices are available for the live cost
-
   try{
-    const env = buildEnvironment({ "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] });
-    const appDesc = NoodleApp.describeGraph(NoodleApp.materialize(APP_STATE.graph));
+    await loadChatCatalog().catch(()=>{});
+    if(!stillCurrent()) return false;
+    const env = buildEnvironment(before);
+    const appDesc = NoodleApp.describeGraph(NoodleApp.materialize(targetGraph));
     const prompt = CONTRACT
       + "\n\n--- WHAT THIS APP DOES ---\n" + appDesc + "\n--- END ---\n"
       + (opts.preamble ? "\n" + opts.preamble + "\n" : "")
@@ -16101,7 +16111,7 @@ async function runDiffPass(goal, opts){
       return false;
     }
     const applyLlm = streamingCallLlm(opts.applyLabel || "Applying changes");
-    const before = { "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] };
+    if(!stillCurrent()) return false;
     const updated = await smartapply(diff, before, {
       // Applying a diff is mechanical whole-file rewriting — the fast, reliable FALLBACK_MODEL
       // beats the user's (possibly slow thinking) pick here, and only runs at all when the
@@ -16109,6 +16119,8 @@ async function runDiffPass(goal, opts){
       apiKey:key, model:FALLBACK_MODEL,
       callLlmForApply: (p,o,d,m,o2) => callLlmForApply(p,o,d,m,{ ...o2, callLlm:applyLlm }),
     });
+
+    if(!stillCurrent()) return false;
 
     // merge edited files back; runtime.js/graph.json are never in the map so they survive untouched
     APP_STATE.files = { ...APP_STATE.files, "index.html":updated["index.html"], "app.css":updated["app.css"] };
@@ -16134,10 +16146,14 @@ async function runDiffPass(goal, opts){
   }
 }
 async function applyCustomize(){
-  const goal = $("goal").value.trim();
+  const input = $("goal"), draft = input.value;
+  const goal = draft.trim();
   if(!goal){ $("goal").focus(); return; }
   const ok = await runDiffPass(goal);
-  if(ok){ $("goal").value = ""; if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); } }
+  if(ok){
+    if(input.value===draft) input.value = "";
+    if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); }
+  }
 }
 
 // PORT — re-fit the app's UI to a workflow whose shape changed. Always uses patchling
@@ -16180,20 +16196,25 @@ function offerPort(oldGraph){
 
 /* ---------- version strip (index.html .ver pattern; branch-on-edit) ---------- */
 function renderVersions(){
-  const wrap = $("versions"); wrap.innerHTML = "";
+  const wrap = $("versions"), focused = document.activeElement;
+  const focusVer = focused && wrap.contains(focused) ? focused.getAttribute("data-ver") : null;
+  wrap.innerHTML = "";
   const vs = APP_STATE.versions;
   if(vs.length <= 1) return;                       // nothing to switch between yet
   const lab = document.createElement("span"); lab.className="vlabel"; lab.textContent="versions:"; wrap.appendChild(lab);
   vs.forEach((v,i)=>{
     const b = document.createElement("button");
     b.className = "ver" + (i===APP_STATE.curVer?" cur":"") + (i===0?" seed":"");
+    b.dataset.ver = String(i); b.disabled = busy;
     b.textContent = "v"+i;
     b.title = i===0 ? "the first version" : (v.goal ? "goal: "+v.goal : "version "+i);
     b.onclick = () => selectVersion(i);
     wrap.appendChild(b);
   });
+  if(focusVer!==null) wrap.querySelector(`[data-ver="${focusVer}"]`)?.focus();
 }
 function selectVersion(i){
+  if(busy) return;
   const vs = APP_STATE.versions;
   if(i<0 || i>=vs.length || i===APP_STATE.curVer) return;
   // Live in-app edits (model swaps, prompt tweaks) are ephemeral runtime state in the running
@@ -17715,7 +17736,10 @@ if(IN_EDITOR){
 
 $("linkerr-x").onclick = ()=>{ $("linkerr").hidden = true; };
 $("apply").onclick = applyCustomize;
-$("goal").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); if(!busy) applyCustomize(); } });
+$("goal").addEventListener("keydown", (e)=>{
+  if(e.key!=="Enter" || e.defaultPrevented || e.isComposing || e.keyCode===229 || e.repeat) return;
+  e.preventDefault(); e.stopPropagation(); if(!busy) applyCustomize();
+});
 $("undo").onclick = () => { if(APP_STATE.curVer > 0) selectVersion(APP_STATE.curVer - 1); };
 $("goal").addEventListener("focus", exitFirstRun);           // first focus settles the composer at full strength
 

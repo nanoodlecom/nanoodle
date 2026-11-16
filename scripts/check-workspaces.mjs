@@ -170,6 +170,11 @@ const bundle = [
   extractFn(SRC, "load"),
   extractFn(SRC, "setPendingApp"),
   wsBlock,
+  'var versions = [], curVer = -1, input = {value:""};',
+  'function clone(x){return JSON.parse(JSON.stringify(x));} function renderVersions(){} function hideDetail(){}',
+  extractFn(SRC, "captureDescribeState"),
+  extractFn(SRC, "restoreDescribeState"),
+  'window.captureDescribeVersions=captureDescribeState;window.restoreDescribeVersions=restoreDescribeState;window.resetDescribeVersions=()=>restoreDescribeState(null);',
   extractFn(SRC, "loadFromHash"),
   extractFn(SRC, "b64urlToBytes"),
   "globalThis.__W = { ensureWorkspaces, load, save, loadFromHash, serializeGraph, applyGraphData,",
@@ -181,6 +186,8 @@ const bundle = [
   "  restoreClosedWorkspace,",
   "  redoClosedWorkspace: () => handleWorkspaceCloseHistory(redoStack),",
   "  closedCounts: () => ({undo:wsClosedUndo.length,redo:wsClosedRedo.length}),",
+  "  describe: window.captureDescribeVersions, setDescribe: window.restoreDescribeVersions, resetDescribe: window.resetDescribeVersions,",
+  "  setDescribeBusy: value => {window.describeChangeBusy=()=>value;},",
   "  confirmCalls: () => __confirmCalls,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
@@ -247,7 +254,7 @@ const photoOf = (g) => {
   W.ensureWorkspaces();
   W.load();
   W.setOut("n1", { text: "PAID" });
-  const opened = W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { respectCap: true, fit: true });
+  const opened = W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { fit: true });
   ok(opened === true, "opening text-to-image over a non-empty graph must succeed");
   const idx = W.readWorkspaces();
   ok(idx.tabs.length === 2, `expected 2 tabs after creating one, got ${idx.tabs.length}`);
@@ -319,39 +326,67 @@ const photoOf = (g) => {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Empty canvas absorbs a starter. Cap refuses a 17th chooser tab.
+// Describe history/drafts belong to a workspace and roll back with its graph.
+{
+  clearStore();const W=boot();W.ensureWorkspaces();W.applyGraphData(markerGraph("A after apply"));W.save();
+  const a=W.readWorkspaces().active;
+  const aState={versions:[{graph:markerGraph("A before"),goal:"start"},{graph:markerGraph("A after apply"),goal:"stubbed Apply"}],curVer:1,draft:"A next request"};
+  W.setDescribe(aState);
+  ok(W.openExampleWorkspace(markerGraph("B"),"B","b-example")==="open","open B beside A");
+  const b=W.readWorkspaces().active;
+  ok(W.describe().versions.length===0 && W.describe().draft==="","B does not inherit A's versions or draft");
+  const bState={versions:[{graph:markerGraph("B"),goal:"start"}],curVer:0,draft:"B request"};W.setDescribe(bState);
+  W.switchWorkspace(a);
+  ok(JSON.stringify(W.describe())===JSON.stringify(aState),"A → B → A restores A's history and draft");
+  // Fail only the final canvas save, after the index, graph and composer changed.
+  const original=localStorage.setItem;let graphWrites=0;
+  localStorage.setItem=(k,v)=>{if(k==="noodle_graph" && ++graphWrites===3)throw new Error("injected final save failure");return original(k,v);};
+  try{W.switchWorkspace(b);}finally{localStorage.setItem=original;}
+  ok(W.readWorkspaces().active===a && textOf(W.serializeGraph())==="A after apply","failed switch keeps A's canvas and active tab");
+  ok(JSON.stringify(W.describe())===JSON.stringify(aState),"failed final save restores A's history and draft");
+  W.switchWorkspace(b);ok(JSON.stringify(W.describe())===JSON.stringify(bState),"B's separate draft survives a failed attempt and later switch");
+  W.resetDescribe();ok(W.describe().versions.length===0 && W.describe().draft==="","a real graph replacement still clears stale versions and draft");
+  W.setDescribeBusy(true);const before=W.readWorkspaces().active;W.switchWorkspace(a);
+  ok(W.readWorkspaces().active===before,"a pending described change blocks workspace switching");
+}
+
+// 5. Blank, Example and Load all cross the old count limit without eviction.
 // ---------------------------------------------------------------------------
 {
   clearStore();
   const W = boot();
   W.ensureWorkspaces();
   W.applyGraphData(W.blankGraph());
-  const absorbed = W.openWorkspaceWithGraph(W.askModelGraph(), "Ask a model", { respectCap: true, fit: true });
-  ok(absorbed === true, "a starter must open on an empty canvas");
-  ok(W.readWorkspaces().tabs.length === 1, "an empty canvas absorbs the starter instead of leaving a blank tab behind");
-  const llm = (W.serializeGraph().nodes || []).find((n) => n.type === "llm");
+  ok(W.openWorkspaceWithGraph(W.askModelGraph(), "Ask a model", { fit:true }) === true,
+    "an empty canvas absorbs the starter");
+  ok(W.readWorkspaces().tabs.length === 1, "absorbing a starter does not add a blank tab");
+  const llm = W.serializeGraph().nodes.find(n => n.type === "llm");
   ok(llm && llm.fields.model === "z-ai/glm-5.3-flash", "ask-a-model pins GLM flash");
-  // Fill up to the cap, then the next chooser open must refuse without dropping tab 1's bytes.
-  const firstKey = backing.noodle_graph;
-  while (W.readWorkspaces().tabs.length < 16) {
-    const n = W.readWorkspaces().tabs.length;
-    const grew = W.openWorkspaceWithGraph(W.textToImageGraph(), "Extra " + n, { respectCap: true, fit: false });
-    if (!grew) { fail("failed to grow workspaces before the cap, at " + n); break; }
+  W.applyGraphData(markerGraph("KEPT-1")); W.save();
+  const expected = new Map([[W.readWorkspaces().active, "KEPT-1"]]);
+  for(let count=2; count<=33; count++){
+    const before = W.readWorkspaces().tabs.length;
+    let opened;
+    if(count%3===0){
+      W.chooseWorkspace("blank");
+      opened = W.readWorkspaces().tabs.length === before+1;
+      W.applyGraphData(markerGraph("KEPT-"+count)); W.save();
+    }else if(count%3===1){
+      opened = W.openExampleWorkspace(markerGraph("KEPT-"+count), "Example "+count, "example-"+count) === "open";
+    }else{
+      W.setHash("#j=" + b64url(markerGraph("KEPT-"+count)));
+      opened = await W.loadFromHash();
+    }
+    ok(opened === true, "Blank/Example/Load can open tab " + count);
+    ok(W.readWorkspaces().tabs.length === count, "opening tab "+count+" never evicts an earlier workspace");
+    expected.set(W.readWorkspaces().active, "KEPT-"+count);
   }
-  ok(W.readWorkspaces().tabs.length === 16, `expected to reach 16 tabs, got ${W.readWorkspaces().tabs.length}`);
-  const refused = W.openWorkspaceWithGraph(W.textToImageGraph(), "One more", { respectCap: true, fit: true });
-  ok(refused === false, "the chooser must refuse past the cap");
-  ok(W.readWorkspaces().tabs.length === 16, "a refused starter must not add a tab");
-  // A share link still shelves rather than evicting, even at the cap.
-  const prev = backing.noodle_graph;
-  const stranger = { v: 1, nodes: [{ id: "s9", type: "text", x: 1, y: 1, fields: { text: "from a link" } }], links: [], nid: 2, lid: 1 };
-  W.setHash("#j=" + b64url(stranger));
-  const linked = await W.loadFromHash();
-  ok(linked === true, "a share link at the cap must still open");
-  ok(W.readWorkspaces().tabs.length === 17, "a share link may exceed the chooser cap so it never evicts a tab");
-  const kept = Object.values(backing).includes(prev) || backing.noodle_graph === prev;
-  ok(Object.entries(backing).some(([k, v]) => k.startsWith("noodle_ws_") && v === prev) || kept, "the graph that was open at the cap is still stored");
-  ok(firstKey === firstKey, "cap setup kept a baseline");
+  const R = boot(); ok(R.load() === true, "more than 16 tabs restore after reload");
+  ok(R.readWorkspaces().tabs.length === 33, "reload restores every workspace beyond 16");
+  for(const [id,text] of expected){
+    R.switchWorkspace(id);
+    ok(textOf(R.serializeGraph()) === text, "restored workspace "+id+" retains its own graph");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -363,7 +398,7 @@ const photoOf = (g) => {
   const W = boot();
   W.ensureWorkspaces();
   W.load();
-  W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { respectCap: true, fit: true });
+  W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { fit: true });
   const active = W.readWorkspaces().active;
   W.setConfirm(false);
   W.closeWorkspace(active);
@@ -554,7 +589,7 @@ function rejectUnsaved(orig) {
   const W = boot();
   W.ensureWorkspaces();
   W.load();
-  ok(W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { respectCap: true, fit: true }) === true, "quota setup needs a second tab");
+  ok(W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { fit: true }) === true, "quota setup needs a second tab");
   const active = W.readWorkspaces().active;
   const textNode = W.serializeGraph().nodes.find((n) => n.type === "text");
   ok(!!textNode, "the open tab has a text node to edit");
@@ -657,7 +692,7 @@ function tabMarker(W, id) {
     W.ensureWorkspaces();
     W.applyGraphData(markerGraph("GRAPH-w1"));
     for (let i = 2; i <= 10; i++) {
-      const grew = W.openWorkspaceWithGraph(markerGraph("GRAPH-w" + i), "Tab " + i, { respectCap: true });
+      const grew = W.openWorkspaceWithGraph(markerGraph("GRAPH-w" + i), "Tab " + i, {});
       if (!grew) { fail("could not open tab " + i + " while setting up switch writes"); break; }
     }
     const idx = W.readWorkspaces();
@@ -841,7 +876,7 @@ function stageTightPair() {
   W.ensureWorkspaces();
   W.applyGraphData(markerGraph("ORIGINAL" + "A".repeat(4000)));
   W.save();
-  const opened = W.openWorkspaceWithGraph(markerGraph("INCOMING"), "Incoming", { respectCap: true });
+  const opened = W.openWorkspaceWithGraph(markerGraph("INCOMING"), "Incoming", {});
   if (!opened) return { error: "could not open the incoming tab" };
   const destId = W.readWorkspaces().active;
   const sourceId = W.readWorkspaces().tabs.find((t) => t.id !== destId).id;
