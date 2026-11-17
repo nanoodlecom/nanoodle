@@ -139,6 +139,19 @@ const A = (n) => Array.from({ length: n }, (_, i) => ({
 const kinds = (rows) => rows.map((r) => (r.kind === "article" ? "a:" + r.item.title : "u:" + r.item.text)).join(",");
 
 const api0 = boot({ updates: [], articles: [] }).api;
+// Exercise the actual row renderer, not just the URL helper.
+{
+  const ctx = boot({ updates:[
+    {date:"2026-11-15", text:"Short announcement.", workflow:"https://nanoodle.com/#g="+"a".repeat(5000)},
+    {date:"2026-11-15", text:"Unsafe destination.", workflow:"javascript:alert(1)"}
+  ], articles:[] });
+  await ctx.api.openUpdates();
+  const rows = ctx.updateslist.children.find(node=>node.className==="update-items").children;
+  assert.equal(textOf(rows[0]), "Short announcement.Open workflow");
+  assert.equal(findClass(rows[0], "update-workflow").href, "https://nanoodle.com/#g="+"a".repeat(5000));
+  assert.equal(findClass(rows[1], "update-workflow"), null);
+  assert.equal(textOf(rows[1]), "Unsafe destination.");
+}
 assert.equal(api0.ARTICLE_SLOTS, 3);
 assert.equal(kinds(api0.interleaveArticles(U(8), A(5))), "a:a0,a:a1,a:a2,u:u0,u:u1,u:u2,u:u3,u:u4,u:u5,u:u6,u:u7");
 assert.equal(kinds(api0.interleaveArticles(U(2), A(3))), "a:a0,a:a1,a:a2,u:u0,u:u1");

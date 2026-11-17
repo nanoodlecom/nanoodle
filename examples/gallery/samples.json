@@ -1,5 +1,79 @@
 [
   {
+    "slug": "subject-anywhere",
+    "title": "Subject anywhere",
+    "date": "2026-11-17",
+    "review": "The coffee bag moved to an alpine terrace with its headline label perfect \u2014 and the checker still caught the microprint",
+    "note": "Upload a product photo, name a scene, and the product is moved without being repainted. Gemini first writes a preservation spec of the original: subject, colours, silhouette, and every printed word transcribed line by line. BRIA RMBG-3.0 \u2014 new on NanoGPT today, a matting model built to hold product text, logos and fine hair \u2014 cuts the subject out on transparency, so its pixels are lifted rather than redrawn. Nano Banana Edit then builds the new scene around the untouched cut-out under an instruction not to alter it. A second Gemini, blind to the original, re-reads the placed subject, and a GLM checker holds the two reads against each other and rules on the label and the verdict. In the saved run the bag travels from a kitchen counter to a golden-hour alpine cafe terrace and the placement is beautiful: headline label NORTH PEAK / DARK ROAST / 250g letter-perfect at full resolution. The checker still ruled NEEDS WORK \u2014 the blind re-read's condition line flagged the bottom microprint ('ROASTED IN THE MOUNTAINS \u2022 100% ARABICA') as warped, and at full size that line is indeed the softest on the bag. That catch is the point of the flow: placement tools usually ask whether a composite looks good; this one asks whether it is still the same product, and prints the answer. Flaws and limits: the placement is a generative edit, so 'untouched' is an instruction the audit verifies, not a pixel guarantee \u2014 a true alpha-composite step would make it exact. The audit compares two vision transcriptions, so microprint near reader resolution can be flagged on a soft-but-faithful rendering, as arguably happened here. The cut-out keeps the subject's original lighting; the editor harmonises the scene around it rather than relighting the subject. One subject per run. The demo photo was itself painted by Muse Image in a separate $0.011 run because the flow takes any upload \u2014 swap in a real product photo and it runs as saved.",
+    "layout": "sequence",
+    "costUsd": 0.0906,
+    "costExact": true,
+    "models": [
+      "google/gemini-3.8-flash",
+      "bria/rmbg-3",
+      "nano-banana-edit",
+      "z-ai/glm-5.3-flash"
+    ],
+    "graphSha256": "1f3b35af6d7b9441ec2d41cafe8ea21505da842b67a18108dfe330b75a403d90",
+    "inputs": [
+      {
+        "label": "Product photo",
+        "src": "subject-anywhere/product-photo.webp"
+      },
+      {
+        "label": "New scene",
+        "text": "A sunlit alpine cafe terrace at golden hour: the product standing on a weathered wooden table, a small cup beside it, high mountain meadows and peaks behind, warm evening light."
+      },
+      {
+        "label": "Placement brief",
+        "text": "Place the cut-out subject from the input image into the scene described after the line break. The input subject arrives on a transparent background: build the scene around it and set it down naturally, with light, shadow and perspective that match the scene. Do not redraw, restyle, resize or alter the subject itself in any way - its shape, colours and every printed word on it must stay exactly as they are. Photorealistic advertising photograph.\nSCENE:"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "subject-anywhere/cutout.webp",
+        "kind": "image",
+        "label": "Cut out \u00b7 BRIA RMBG-3.0 \u00b7 reported $0.018",
+        "costUsd": 0.018,
+        "sha256": "a04dd16ca33bfae8451a21248ed4c0abdfa15c151346ea77a873ce3721907394"
+      },
+      {
+        "src": "subject-anywhere/placed.webp",
+        "kind": "image",
+        "label": "Placed on the alpine terrace \u00b7 Nano Banana Edit \u00b7 reported $0.039",
+        "costUsd": 0.039,
+        "sha256": "38be435507c37cda9678f86b02999e347f144817d26347eb0236ca5f9337eb7e"
+      },
+      {
+        "src": "subject-anywhere/preservation-spec.txt",
+        "kind": "text",
+        "label": "Preservation spec \u00b7 Gemini reads the original \u00b7 reported $0.0048",
+        "costUsd": 0.0048,
+        "sha256": "dfa915bb80f6e9ca28e33c6f3b95bd3ca64346957f75ef3c911026cede119da9",
+        "collapsed": true
+      },
+      {
+        "src": "subject-anywhere/re-read.txt",
+        "kind": "text",
+        "label": "Blind re-read \u00b7 Gemini transcribes the placed subject \u00b7 reported $0.0288",
+        "costUsd": 0.0288,
+        "sha256": "da5ac9e8963316a0f399425b9a94d71e03ca9b2d26781536b0d2207df70dfe83",
+        "collapsed": true
+      },
+      {
+        "src": "subject-anywhere/verdict.txt",
+        "kind": "text",
+        "label": "Preservation verdict \u00b7 GLM compares spec and re-read",
+        "costUsd": 0,
+        "sha256": "7906a8105ed739f982055a3fbc1d018824869a11c089e896722d34267681f853",
+        "collapsed": true
+      }
+    ],
+    "preview": "subject-anywhere/preview.webp",
+    "workflow": "subject-anywhere/workflow.json",
+    "workflowSha256": "1f3b35af6d7b9441ec2d41cafe8ea21505da842b67a18108dfe330b75a403d90"
+  },
+  {
     "slug": "storyboard-relay",
     "title": "Storyboard relay",
     "date": "2026-09-12",

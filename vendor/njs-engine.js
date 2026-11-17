@@ -1,5 +1,5 @@
-/* data-hash=dbc8c33628b8e197 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-615065be438d (20 modules) */
+/* data-hash=6ac66cd55a7f5fb8 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-e22eff919870 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1308,7 +1308,6 @@ class NanoClient {
     const body = { model, messages };
     // Carbon has no sampling-temperature control; omit it rather than restoring a default.
     if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if (opts.response_format) body.response_format = opts.response_format;
     // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
     // Let the provider use its default rather than forwarding reasoning_effort.
@@ -2084,7 +2083,6 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -3096,7 +3094,6 @@ const SETTING_SPECS = {
   llm: [
     { f: "model", label: "Model", kind: "model" },
     { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
-    { f: "maxTokens", label: "Max tokens", kind: "number" },
     { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
     { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
     { f: "showThinking", label: "Show thinking", kind: "boolean" },
@@ -6354,5 +6351,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-615065be438d";
+  window.NanoodleEngine.version = "src-e22eff919870";
 })();

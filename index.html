@@ -238,6 +238,7 @@
   .update-items li{ font-size:.9rem; line-height:1.5; padding:.7rem .8rem; border:1px solid var(--line); border-radius:.6rem; background:var(--panel); overflow-wrap:anywhere }
   .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
   .update-items a:hover{ color:var(--ink); text-decoration:underline }
+  .update-workflow{ display:block; max-width:100%; margin-top:.3rem; font-size:.82rem }
   /* updates.json "examples": links to the gallery example (or alternate run) an entry announces */
   .update-examples{ display:flex; flex-wrap:wrap; gap:.25rem .8rem; margin-top:.3rem; font-size:.82rem }
   .update-examples a{ color:var(--accent); text-decoration:none }
@@ -360,7 +361,8 @@
   #agentpill .split{ width:1px; background:var(--line) }
   /* the popover sits just above the pill; sharemenu's panel look, bottom-left anchored */
   #agentpop{ position:fixed; left:1rem; bottom:calc(var(--db-h,3rem) + 3.8rem); z-index:190;
-             width:min(420px, calc(100vw - 2rem)); background:var(--panel); border:1px solid var(--line);
+             width:min(420px, calc(100vw - 2rem)); max-height:calc(100dvh - var(--db-h,3rem) - 4.8rem);
+             overflow-y:auto; background:var(--panel); border:1px solid var(--line);
              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem }
   #agentpop[hidden]{ display:none }
   #agentpop .ap-note{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem }
@@ -1485,9 +1487,8 @@
 </div>
 </div>
 
-<!-- 🤖 "use in your agent" popover — a highlighted mcp.nanoodle.com line leads (the hosted
-     MCP server: every awesome-noodles workflow as a ready-to-call tool, zero setup, pays per
-     run in Nano over x402 — the easiest on-ramp); below it the skill (one npx command installs
+<!-- 🤖 "use in your agent" popover — highlighted hosted MCP links offer payment in Nano
+     at mcp.nanoodle.com or NEAR / USDC at near.nanoodle.com; below them the skill (one npx command installs
      the nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent
      Skills reader); the self-hosted MCP server is the power-user path once you've saved a
      folder of graphs, folded behind one conditional <details> line so first-timers never face
@@ -1499,6 +1500,7 @@
 <div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
   <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
   <p class="ap-hosted"><a href="https://mcp.nanoodle.com" target="_blank" rel="noopener" data-no-i18n>⚡ mcp.nanoodle.com</a> <span>— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.</span></p>
+  <p class="ap-hosted"><a href="https://near.nanoodle.com" target="_blank" rel="noopener" data-no-i18n>⚡ near.nanoodle.com</a> <span>— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.</span></p>
   <p class="ap-note">One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.</p>
   <div class="sm-urlrow">
     <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
@@ -2379,6 +2381,7 @@ const I18N = {
     "nanoodle in your coding agent":"nanoodle en tu agente de código",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Un solo comando enseña a tu agente a diseñar y ejecutar flujos de nanoodle — desde tu terminal, con tu propia clave de NanoGPT.",
     "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la vía más fácil: cada flujo de awesome-noodles, alojado como una herramienta que tu agente puede invocar ahora mismo. Nada que instalar, sin clave, sin registro — paga por ejecución en Nano.",
+    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— paga por ejecución en NEAR o USDC. Conecta tu agente por MCP, sin necesidad de una clave de NanoGPT.",
     "works in":"funciona en",
     "& more":"y más",
     "skill source":"código de la skill",
@@ -3145,6 +3148,7 @@ const I18N = {
     "nanoodle in your coding agent":"nanoodle dans votre agent de code",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Une seule commande apprend à votre agent à concevoir et exécuter des flux nanoodle — depuis votre terminal, avec votre propre clé NanoGPT.",
     "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la voie la plus simple : chaque flux d’awesome-noodles, hébergé comme un outil que votre agent peut appeler tout de suite. Rien à installer, pas de clé, pas d’inscription — il paie à l’exécution en Nano.",
+    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— payez à l’exécution en NEAR ou en USDC. Connectez votre agent via MCP, sans clé NanoGPT.",
     "works in":"fonctionne dans",
     "& more":"et plus",
     "skill source":"code de la skill",
@@ -3911,6 +3915,7 @@ const I18N = {
     "nanoodle in your coding agent":"nanoodle in deinem Coding-Agenten",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Ein Befehl bringt deinem Agenten bei, nanoodle-Workflows zu entwerfen und auszuführen — direkt im Terminal, mit deinem eigenen NanoGPT-Schlüssel.",
     "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— der einfachste Einstieg: jeder awesome-noodles-Workflow, gehostet als Tool, das dein Agent sofort aufrufen kann. Nichts zu installieren, kein Schlüssel, keine Anmeldung — bezahlt wird pro Lauf in Nano.",
+    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— bezahle pro Lauf in NEAR oder USDC. Verbinde deinen Agenten über MCP, ohne NanoGPT-Schlüssel.",
     "works in":"funktioniert in",
     "& more":"& mehr",
     "skill source":"Skill-Quellcode",
@@ -4677,6 +4682,7 @@ const I18N = {
     "nanoodle in your coding agent":"nanoodle no seu agente de código",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Um único comando ensina o seu agente a criar e executar fluxos do nanoodle — do seu terminal, com a sua própria chave NanoGPT.",
     "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— o caminho mais fácil: cada fluxo do awesome-noodles, hospedado como uma ferramenta que o seu agente pode chamar agora mesmo. Nada para instalar, sem chave, sem cadastro — paga por execução em Nano.",
+    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— pague por execução em NEAR ou USDC. Conecte seu agente via MCP, sem precisar de uma chave NanoGPT.",
     "works in":"funciona no",
     "& more":"e mais",
     "skill source":"código da skill",
@@ -5443,6 +5449,7 @@ const I18N = {
     "nanoodle in your coding agent":"コーディングエージェントで nanoodle",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"コマンド1つで、エージェントが nanoodle ワークフローを設計・実行できるようになります — ターミナルから、自分の NanoGPT キーで。",
     "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— いちばん手軽な入口：awesome-noodles の全ワークフローが、エージェントが今すぐ呼び出せるツールとしてホスト済み。インストール不要、キー不要、登録不要 — 実行ごとに Nano で支払います。",
+    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— 実行ごとに NEAR または USDC で支払います。NanoGPT キーなしで、MCP 経由でエージェントを接続できます。",
     "works in":"対応:",
     "& more":"ほか多数",
     "skill source":"スキルのソース",
@@ -5522,7 +5529,8 @@ function withLocale(messages){
 
 /* ======================================================================
    MODEL CATALOGS  (the FULL live lists, fetched from NanoGPT + cached)
-     chat  -> /api/v1/models?detailed=true   (628+ text models, vision flag)
+     chat  -> /api/v1/models?detailed=true   (text models, vision flag)
+     decision -> /api/v1/decision-models    (typed judgments, independent of chat)
      image -> /api/v1/image-models           (200+ image models, edit flag)
    Picked through one shared searchable popover (see openPicker()).
    ====================================================================== */
@@ -5540,6 +5548,12 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$|^google\/gemini-4-carbon$/;
 const tempLocked = id => TEMP_LOCKED.test(String(id||""));
 
+function normDecision(m){
+  const row = normChat(m);
+  if(!row.decision || m.decision_input?.available===false) return { id:null };
+  row.vision = m.decision_input?.image_input===true;  // use the Decisions contract, not Chat's vision flag
+  return row;
+}
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
   return { id:m.id, name:m.name||m.id, created:m.created,
@@ -5554,7 +5568,7 @@ function normChat(m){
     reasoningEfforts: m.id === "google/gemini-4-carbon" ? ["default"] : Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length
       ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
-    maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
+    maxOut: m.max_output_tokens,   // provider-reported output capacity (informational)
     // Decision models (architecture.output_modalities ["decisions"]) answer typed questions instead of
     // chatting: only the ⚖️ Decide node lists them, and they never appear in the LLM / Vision pickers.
     decision: !!(m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0),
@@ -5885,18 +5899,19 @@ function norm3d(m){
 
 const CATALOG = {
   chat:  { url:"/api/v1/models?detailed=true", norm:normChat  },
+  decision: { url:"/api/v1/decision-models", norm:normDecision },
   image: { url:"/api/v1/image-models",         norm:normImg   },
   video: { url:"/api/v1/video-models",         norm:normVideo },
   audio: { url:"/api/v1/audio-models",         norm:normAudio },
   model3d: { url:"/api/v1/3d-models",          norm:norm3d },
 };
-const catalogs = { chat:null, image:null, video:null, audio:null, model3d:null };
+const catalogs = { chat:null, decision:null, image:null, video:null, audio:null, model3d:null };
 // SWR cache: the last-good catalog is stashed in localStorage so a fresh page load can paint
 // the graph at its FINAL card sizes/prices instantly, then reconcile when the network reply lands.
 const catCacheKey = (kind)=> "nn_catalog_"+kind;
 function readCatCache(kind){
   try{ const j = JSON.parse(localStorage.getItem(catCacheKey(kind))||"null");
-       return (j && Array.isArray(j.list)) ? j.list : null; }catch{ return null; }
+       return (j && Array.isArray(j.list) && j.list.length) ? j.list : null; }catch{ return null; }
 }
 function writeCatCache(kind, list){
   try{ localStorage.setItem(catCacheKey(kind), JSON.stringify({ t:Date.now(), list })); }catch(_){}
@@ -5929,11 +5944,15 @@ function verDesc(a, b){                     // segment-wise numeric compare: 2.6
 }
 async function fetchCatalog(kind){
   const cfg = CATALOG[kind];
-  const headers={}; const k=getKey(); if(k) headers.Authorization=`Bearer ${k}`;
+  const headers={}; const k=kind==="decision" ? "" : getKey(); if(k) headers.Authorization=`Bearer ${k}`;
   let raw;
-  try{ raw = (await (await fetch(`${NANOGPT}${cfg.url}`,{headers})).json()).data || []; }
-  catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
-  const list = raw.map(cfg.norm).filter(m=>m.id);
+  try{
+    const response = await fetch(`${NANOGPT}${cfg.url}`,{headers});
+    if(!response.ok) return null;
+    raw = (await response.json()).data;
+  }catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
+  if(!Array.isArray(raw)) return null;
+  const list = raw.filter(m=>m && typeof m.id==="string").map(cfg.norm).filter(m=>m.id);
   // A 200 whose body lacks a usable model array (malformed / half-deployed proxy) normalizes to
   // []. Treat that exactly like the offline path (return null) so the caller keeps whatever it had
   // and NEVER persists an empty catalog — a cached [] would poison every future session until it
@@ -5953,18 +5972,28 @@ async function fetchCatalog(kind){
   return list;
 }
 async function loadCatalog(kind){          // lazy callers (pickers, filters): reuse whatever's in memory
+  if(kind==="decision"){
+    if(catalogIsStale(kind)) await refreshCatalog(kind);
+    return catalogs[kind] || [];            // do not cache failure; keep the last good list if we have one
+  }
   if(catalogs[kind]) return catalogs[kind];
   const list = await fetchCatalog(kind);
   catalogs[kind] = list || [];             // cache empty on failure so ids stay typeable without re-hammering
   if(list) writeCatCache(kind, list);
   return catalogs[kind];
 }
-async function refreshCatalog(kind){       // boot SWR revalidate: always hit the network, update cache
-  const list = await fetchCatalog(kind);
-  if(!list) return false;
-  catalogs[kind] = list; writeCatCache(kind, list);
-  catalogFetchedAt[kind] = Date.now();
-  return true;
+let decisionCatalogInflight = null;
+function refreshCatalog(kind){             // boot SWR revalidate: always hit the network, update cache
+  if(kind==="decision" && decisionCatalogInflight) return decisionCatalogInflight;
+  const load = fetchCatalog(kind).then(list=>{
+    if(!list) return false;
+    catalogs[kind] = list; writeCatCache(kind, list);
+    catalogFetchedAt[kind] = Date.now();
+    return true;
+  });
+  if(kind!=="decision") return load;
+  decisionCatalogInflight = load.finally(()=>{ decisionCatalogInflight = null; });
+  return decisionCatalogInflight;
 }
 // Long-lived tabs previously kept a boot-time catalog forever. NanoGPT ships new ids
 // daily (Grok 4.7, MiMo V2.6, H3 Singularity, …); without a stale revalidate the model
@@ -5972,7 +6001,7 @@ async function refreshCatalog(kind){       // boot SWR revalidate: always hit th
 // the in-memory catalog is older than CATALOG_STALE_MS — on an interval, when the tab
 // becomes visible again, and when the picker opens.
 const CATALOG_STALE_MS = 60 * 60 * 1000;          // 1h — short enough for same-day launches
-const CATALOG_KINDS = ["chat","image","video","audio"];   // model3d is not a boot kind — ensureModel3dCatalog() loads it
+const CATALOG_KINDS = ["chat","decision","image","video","audio"];   // model3d is not a boot kind — ensureModel3dCatalog() loads it
 const catalogFetchedAt = Object.fromEntries(CATALOG_KINDS.map(k => [k, 0]));
 catalogFetchedAt.model3d = 0;
 let _model3dCatP = null;
@@ -6019,10 +6048,11 @@ function startCatalogStaleWatch(){
   setInterval(()=>{ if(document.visibilityState === "visible") refreshCatalogsIfStale(); },
               Math.min(CATALOG_STALE_MS, 15 * 60 * 1000));
 }
-const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
-const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
+const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===(kind==="decision" ? decideModelId(id) : id));
+const KIND_LABEL = { chat:"Chat", decision:"Decision", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
+  if(filter==="decision-vision") return !!m.decision && m.vision;
   if(filter==="decision") return !!m.decision;   // ⚖️ Decide lists decision models only
   if(m.decision) return false;                    // …and they can't chat, so keep them out of every other picker
   if(!filter) return true;
@@ -6038,11 +6068,11 @@ function defModelFor(type){
     const m = list.find(x=> !x.nsfw);
     return m ? m.id : MODEL3D_IMAGE_DEFAULT;   // pinned even when the catalog is empty, so the node isn't blank offline
   }
-  if(t.modelFilter==="decision"){
-    // pick-best needs a model that sees images: prefer the launch default, else any image-capable one
-    const list = (catalogs.chat||[]).filter(x=> x.decision);
-    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list.find(x=> decideImageLimits(x.decisionInput, true)) || list[0];
-    return pref ? pref.id : DECIDE_DEFAULT_MODEL;   // pinned even before the catalog lands, like 3D
+  if(t.modelKind==="decision"){
+    // New Decide nodes start in pick-best mode; a text-only default cannot run it.
+    const list = (catalogs.decision||[]).filter(x=> x.vision);
+    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list[0];
+    return pref ? pref.id : (catalogs.decision?.length ? "" : DECIDE_DEFAULT_MODEL);
   }
   if(t.modelFilter==="denoise"){
     // 🎧 Clean voice: ElevenLabs Audio Isolation by default (fast, strongest noise removal in testing); VEED stays a pick away
@@ -6061,6 +6091,7 @@ function modelDrifted(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  if(t.modelKind==="decision") return !catalogIsStale("decision") && !catItem("decision", decideModelId(n.fields.model));
   return !catItem(t.modelKind, n.fields.model);
 }
 
@@ -6217,7 +6248,7 @@ const portIdx = (name)=>{ const m = String(name).match(/(\d+)$/); return m ? +m[
 // not in the catalog. Only meaningful for the "vision" form — the edit node gates on maxIn instead.
 function modelSupportsImages(n){
   const t = NODE_TYPES[n.type]; if(typeof t.imageInputs!=="string") return false;
-  const m = catItem(t.modelKind, n.fields.model);
+  const m = catItem(t.modelKind, n.type==="decide" ? decideModelId(n.fields.model) : n.fields.model);
   return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog
 }
 // Does the selected chat model accept audio? Gates the single audio input port (mirror of
@@ -6329,7 +6360,7 @@ function imgSpec(n){
   if(typeof ii==="string"){
     // ⚖️ Decide: decision models take a fixed number of inline images (catalog image_limits.maxImages)
     let cap = Infinity;
-    if(t.modelFilter==="decision"){ const dm = catItem("chat", n.fields.model); const lim = decideImageLimits(dm && dm.decisionInput, !!dm); cap = lim ? lim.maxImages : Infinity; }
+    if(t.modelKind==="decision"){ const dm = catItem("decision", decideModelId(n.fields.model)); const lim = decideImageLimits(dm && dm.decisionInput, !!dm?.decisionInput); cap = lim ? lim.maxImages : Infinity; }
     return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap, min:1, roles:null };
   }
   const m = catItem(t.modelKind, n.fields.model);
@@ -6435,6 +6466,15 @@ function updateModelWarn(n){
   if(!n.el) return;
   const w = n.el.querySelector("[data-mw]"); if(!w) return;
   if(!modelDrifted(n)){
+    if(n.type==="decide"){
+      const m = catItem("decision", effectiveModelFields(n).model);
+      const hasImages = graph.links.some(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port));
+      if(m && !m.vision && decideNeedsVision(n.fields, hasImages)){
+        w.hidden = false;
+        w.textContent = "⚠ " + t("This decision model can’t see images. Pick a vision model.");
+        return;
+      }
+    }
     // Not drifted, but possibly under-wired: a role-ordered model (vto) 400s upstream unless EVERY
     // slot is filled, so say so on the node instead of letting Run be the place they find out.
     const s = imgSpec(n), roles = s && s.roles;
@@ -7646,12 +7686,15 @@ function videoOptDefs(model, nodeType){
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
     } else if(d.type==="switch" || d.type==="boolean"){
       defs.push({ key, label:d.label||key, type:"bool", def, desc:d.description });
-    } else if((d.type==="text" || d.type==="string" || d.type==="number") && !videoFreetextSkip(key,d)){
+    } else if((d.type==="text" || d.type==="string" || d.type==="number" || d.type==="integer") && !videoFreetextSkip(key,d)){
       // free-text/number knobs (negative_prompt, seed, cfg_scale, num_inference_steps…) — sent
       // only-when-nonempty (see refreshModelOpts), so the model's own default applies when blank.
-      const long = d.type!=="number" && /prompt|description|instruction/i.test(key);
-      defs.push({ key, label:d.label||key, type:(d.type==="number"?"number":(long?"textarea":"text")),
-        def, desc:d.description, min:d.min, max:d.max, step:d.step, ph:d.placeholder });
+      // "integer" (OpenJutsu's seed, 2026-11) is a number box that steps by 1 and sends whole numbers.
+      const isNum = d.type==="number" || d.type==="integer", isInt = d.type==="integer";
+      const long = !isNum && /prompt|description|instruction/i.test(key);
+      defs.push({ key, label:d.label||key, type:(isNum?"number":(long?"textarea":"text")),
+        def, desc:d.description, min:d.min, max:d.max, step:(d.step!=null ? d.step : (isInt ? 1 : undefined)), ph:d.placeholder,
+        ...(isInt ? { int:true } : {}) });
     }
   }
   return defs;
@@ -7711,7 +7754,10 @@ function refreshModelOpts(n){
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
       if(el.type==="checkbox") cur[key] = el.checked;
       else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
-      else if(el.type==="number"){ const num=Number(el.value); cur[key] = isNaN(num) ? el.value : num; }
+      else if(el.type==="number"){
+        const num=Number(el.value), dd=defs.find(x=>x.key===key);
+        cur[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
+      }
       else cur[key] = el.value;                                    // select / text / textarea
       // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
       updateNodePrice(n); refreshRunEstimate();
@@ -7721,7 +7767,7 @@ function refreshModelOpts(n){
   });
 }
 /* ---------- LLM sampling / reasoning controls (⚙️ advanced disclosure) ----------
-   max_tokens is always offered; temperature hides on TEMP_LOCKED models (which ignore it), and
+   Output budgets are provider-managed; temperature hides on TEMP_LOCKED models (which ignore it), and
    output-format (JSON) and reasoning effort/trace
    light up only when the selected model's catalog flags (structured_output / reasoning) allow it.
    Values live in n.fields and pass through genChat, omitted at their default so request bodies stay
@@ -7793,13 +7839,12 @@ function refreshLlmOpts(n){
        <label class="setbool" style="margin:3px 0"><input type="checkbox" data-lf="showThinking"${(f.showThinking===true||f.showThinking==="true")?" checked":""}/> show thinking</label>` : "";
   const tempRow = noTemp ? "" :   // temperature-locked model (TEMP_LOCKED): the API ignores it, so no slider
     `<div style="margin:3px 0"><label><span data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</span> <span class="dim lblhint">${esc(t("· higher = more creative"))}</span></label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>`;
-  const open = (f.temperature!=null && +f.temperature!==0.8) || (f.maxTokens||"") || f.format==="JSON"
+  const open = (f.temperature!=null && +f.temperature!==0.8) || f.format==="JSON"
             || (f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true" ? " open" : "";
   box.innerHTML = `<details class="adv"${open}><summary>⚙️ ${esc(t("advanced"))}</summary>
     ${tempRow}
-    <div style="margin:3px 0"><label>${esc(t("max tokens"))}${it&&it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it&&it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
     ${fmtRow}${reasonRows}</details>`;
-  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking / max-tokens placeholder)
+  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking)
   box.querySelectorAll("[data-lf]").forEach(el=>{
     const key = el.dataset.lf;
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
@@ -7814,7 +7859,7 @@ function refreshLlmOpts(n){
 function llmOpts(n){
   const f = n.fields, o = {};
   if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
-  if(f.maxTokens) o.max_tokens = +f.maxTokens;
+
   if(f.format==="JSON") o.response_format = { type:"json_object" };
   if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
   if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
@@ -8179,7 +8224,7 @@ function livePrice(kind, fields, nodeFilter, n){
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).card;
-  if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
+  if(kind==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
     const u = nodeUnitUsd(n);
     if(u!=null) return u<0.0001 ? "<$0.0001/decision" : `~$${u.toFixed(4)}/decision`;
   }
@@ -8701,14 +8746,14 @@ function nodeUnitUsd(n){
       if(secs!=null){ const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), Object.assign({}, videoPriceFields(it.params, fields), { duration: avatarClampSecs(fields.model, secs, it.pricing) }), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
     }
     const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
-  if(kind==="chat" && t.modelFilter==="decision"){
+  if(kind==="decision"){
     // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
     // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
     const f=fields||{}, imgs = graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length;
     const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
-    return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
+    const u = chatUnitUsd(it, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
-    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
     const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
     return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
@@ -8890,7 +8935,7 @@ function openPicker(kind, opts){
   else { try{ refreshCatalogsIfStale(); }catch(_){} }
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick, nodeType:opts.nodeType||"", toCurrent:true };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
-  $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
+  $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter==="decision-vision" ? ` · ${t("vision")}` : opts.filter && kind!=="decision" ? ` · ${t(opts.filter)}` : "");
   $("mpicksort").value = pickerSort;
   const nsfwWrap = $("mpicknsfw");
   const nsfwtog = $("mpicknsfwtog");
@@ -8902,7 +8947,7 @@ function openPicker(kind, opts){
   $("mpicklist").innerHTML = `<div class='dim' style='padding:.6rem'>${esc(t("loading the full list…"))}</div>`;
   $("mpicksearch").focus();
   const load = kind==="model3d" ? ensureModel3dCatalog() : loadCatalog(kind);
-  if(kind==="model3d" && catalogs.model3d) renderPicker();
+  if((kind==="model3d" || kind==="decision") && catalogs[kind]) renderPicker();
   load.then(()=>{ if(picker && picker.kind===kind) renderPicker(); });
 }
 function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker=null; }
@@ -8926,7 +8971,9 @@ function pickerMatches(){
   if(!picker) return [];
   const q = $("mpicksearch").value.trim().toLowerCase();
   const qNorm = normalizePickerQuery(q);
-  let list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
+  const fallback = picker.kind==="decision" && !catalogs.decision?.length
+    ? [{ id:DECIDE_DEFAULT_MODEL, name:"PPLX Decider v1.2", decision:true, vision:true }] : [];
+  let list = (catalogs[picker.kind]?.length ? catalogs[picker.kind] : fallback).filter(m=> passesFilter(m, picker.filter));
   if(picker.kind==="image" || picker.kind==="video"){
     list = list.filter(m => !!m.nsfw === nsfwOnly || m.id === picker.current
       || (!nsfwOnly && pickerIdHitsQuery(m.id, qNorm)));
@@ -9017,7 +9064,10 @@ function renderPicker(){
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
   const frag = document.createDocumentFragment();
-  const hint = pickerSearchHint(matches);
+  const hint = picker.kind==="decision"
+    ? (!catalogs.decision?.length ? "Live decision models unavailable. The default can still be selected; reopen to retry."
+       : !matches.length ? "No matching decision models." : null)
+    : pickerSearchHint(matches);
   if(hint){
     const d = document.createElement("div");
     d.className = "dim";
@@ -9836,7 +9886,7 @@ const NODE_TYPES = {
   decide: {
     em:"⚖️", title:"Decide", desc:"Pick the best image, choose a label, score or yes/no — typed answers with probabilities", group:"Text",
     kw:"judge pick best choose select classify route label score rate grade rank compare gate filter check yes no quality arena vote decision winner",
-    modelKind:"chat", modelFilter:"decision",
+    modelKind:"decision", modelFilter:"decision",
     inputs:[{name:"text", type:"text"}],
     imageInputs:"vision",   // image-capable decision models grow img1…imgN (capped at the model's image_limits.maxImages)
     outputs:[{name:"text", type:"text"},{name:"image", type:"image"}], preview:"decide",
@@ -9864,9 +9914,9 @@ const NODE_TYPES = {
       sel.addEventListener("change", ()=>{ n.fields.mode = sel.value; save(); rerenderNode(n); refreshAllPrices(); });
     },
     async run(n, inp, ctx){
-      const model = mdl(n, ctx);
-      const dm = catItem("chat", model);
-      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm),
+      const model = decideModelId(mdl(n, ctx));
+      const dm = catItem("decision", model);
+      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm?.decisionInput),
         (body)=> ctx.genDecision(body), urlToDataUrl);
     }
   },
@@ -10431,7 +10481,16 @@ function buildNodeEl(n){
     mp.addEventListener("pointerdown", e=>e.stopPropagation());
     mp.onclick = (e)=>{
       e.stopPropagation();
-      openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
+      const hasImages = n.type==="decide" && graph.links.some(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port));
+      const filter = n.type==="decide" && decideNeedsVision(n.fields, hasImages) ? "decision-vision" : t.modelFilter;
+      openPicker(t.modelKind, { current:n.fields.model, filter, nodeType:n.type, onPick:(id)=>{
+        if(n.type==="decide"){
+          id = decideModelId(id);
+          const chosen = catItem("decision", id);
+          if(filter==="decision-vision" && chosen && !chosen.vision){
+            flash("this decision model can’t see images — pick one that can"); return;
+          }
+        }
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
         syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
@@ -10832,7 +10891,9 @@ function resizeCropImage(dataUrl, mode, tw, th){
    image is shrunk to fit on-device first (decideFitImage). Shared twin: index.html and play.html
    RUNTIME_JS carry this block character-identical after trim. NO backticks (String.raw template).
    ====================================================================== */
-var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";   // sees images (pick-best needs that), 262K context, cheapest per token at launch
+var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.2";
+function decideModelId(id){ return id==="perplexity/pplx-decider-v1.1-27b" ? DECIDE_DEFAULT_MODEL : id; }
+function decideNeedsVision(fields, hasImages){ return decideMode(fields)==="pick" || hasImages; }
 var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
 var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
@@ -13070,13 +13131,14 @@ function keepNodeInView(n){
 
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
-  if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
+  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
+  if(e.defaultPrevented || e.isComposing || e.keyCode===229) return;
+  if((e.ctrlKey||e.metaKey) && e.key==="Enter" && !typing && !e.repeat){ e.preventDefault(); runAll(); return; }   // canvas shortcut only; composers own their Enter
   if((e.key==="f"||e.key==="F") && !(e.ctrlKey||e.metaKey||e.altKey) &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); fitView(); return; }   // F = fit to view
   if(e.code==="KeyT" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) &&
      typeof geoOn==="function" && geoOn()){ e.preventDefault(); geoTidySelection(); return; }   // Shift+T tidies the multi-selection
-  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
   if((e.ctrlKey||e.metaKey) && !e.altKey && !e.isComposing && !e.defaultPrevented && !typing && /^[zy]$/i.test(e.key)){
     e.preventDefault();
     (/y/i.test(e.key) || e.shiftKey) ? redo() : undo();   // Ctrl/Cmd+Z undo · +Shift / Ctrl+Y redo
@@ -14260,7 +14322,7 @@ const CTX = {
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
     if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-    if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
+  
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
@@ -17272,6 +17334,7 @@ function applyGraphData(d, opts){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
     const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
+    if(type==="decide") n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
     if(prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
@@ -17483,12 +17546,13 @@ function loadFile(file){
       return;
     }
     const had = graph.nodes.length > 0;
-    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null;
+    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null, describeShot = null;
     try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
     try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
     try{ undoLen = undoStack.length; }catch(_){}
     try{ appId = pendingAppId; appTitle = pendingAppTitle; }catch(_){}
     try{ if(typeof wsSnapshotKey==="function") editorShot = wsSnapshotKey(EDITOR_APP_KEY); }catch(_){}
+    describeShot = window.captureDescribeVersions?.();
     try{
       try{ claimInitialCanvas(); }catch(_){}
       // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
@@ -17505,6 +17569,7 @@ function loadFile(file){
     }catch(e){
       try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
       try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      window.restoreDescribeVersions?.(describeShot);
       try{ if(typeof pendingAppId!=="undefined"){ pendingAppId = appId; pendingAppTitle = appTitle; } }catch(_){}
       try{ if(editorShot && typeof wsRestoreKey==="function") wsRestoreKey(EDITOR_APP_KEY, editorShot); }catch(_){}
       alert(t("Couldn’t load that file:")+" "+e.message);
@@ -17961,7 +18026,6 @@ function updateTitle(){
    noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
-const WS_CAP = 16;
 // Closed tabs are reversible for the visible notice, in this visit only. Keep
 // them outside per-workspace graph history: switching tabs swaps those stacks.
 var wsClosedUndo=[], wsClosedRedo=[], wsCloseHistoryMute=0, wsCloseSerial=0;
@@ -18027,10 +18091,10 @@ function bindWorkspaceCloseNotice(){
 }
 function captureClosedWorkspace(d,tab,raw){
   const active=d.active===tab.id;
-  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice()}:workspaceHist.get(tab.id);
+  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice(),describe:window.captureDescribeVersions?.()}:workspaceHist.get(tab.id);
   return {tab:copyWorkspaces(tab),index:d.tabs.indexOf(tab),active,last:d.tabs.length===1,
     graph:raw || JSON.stringify(blankGraph()),results:active?_stashResults():workspaceResults.get(tab.id) || null,
-    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice()}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
+    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice(),describe:stored.describe}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
 }
 function recordClosedWorkspace(entry,opts){
   if(!opts || !opts.redo)wsClosedRedo.length=0;
@@ -18710,6 +18774,7 @@ function workspaceShot(activeId){
     res: id ? captureResults(id) : null,
     hist: id ? captureHist(id) : null,
     canvas, stash,
+    describe: window.captureDescribeVersions?.(),
     memory: workspaceMemory ? copyWorkspaces(workspaceMemory) : null,
   };
 }
@@ -18796,6 +18861,7 @@ function workspaceRollback(shot, extra){
       else if(liveNow) reapplyWorkspaceGraph(liveNow, null);
     }catch(_){}
   }
+  window.restoreDescribeVersions?.(onSource ? shot.describe : workspaceHist.get(activeNow)?.describe);
   try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
   // Shelving mutates the index it was handed. When that object was the live
   // in-memory tab list, a failed write left Blank active while disk — and the
@@ -18898,7 +18964,7 @@ function flushSave(){
 }
 function parkWorkspaceHistory(id){
   if(!id || typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
-  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length) });
+  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length), describe:window.captureDescribeVersions?.() });
   try{ syncUndoBtn(); }catch(_){}
 }
 function restoreWorkspaceHistory(id){
@@ -18910,10 +18976,11 @@ function restoreWorkspaceHistory(id){
     if(h.undo && h.undo.length) undoStack.push(...h.undo);
     if(h.redo && h.redo.length) redoStack.push(...h.redo);
   }
+  window.restoreDescribeVersions?.(h && h.describe);
   try{ syncUndoBtn(); }catch(_){}
 }
 function workspaceBusy(){
-  try{ return !!(runningNodes && runningNodes.size); }catch(_){ return false; }
+  try{ return !!((runningNodes && runningNodes.size) || window.describeChangeBusy?.()); }catch(_){ return false; }
 }
 function blankGraph(){
   return { v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:40, scale:1 } };
@@ -18934,7 +19001,7 @@ function askModelGraph(){
     v:1,
     nodes:[
       { id:"n1", type:"text", x:80, y:160, w:280, name:"Prompt", fields:{ text:"Explain how a node graph runs, in three short sentences." } },
-      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", maxTokens:"400", reasoningEffort:"low" } }
+      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", reasoningEffort:"low" } }
     ],
     links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
     nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
@@ -18976,13 +19043,8 @@ function openWorkspaceWithGraph(data, name, opts){
   // This canvas is the user's now. A starter fetch still in flight must not paint over it.
   claimInitialCanvas();
   const had = !!(graph.nodes && graph.nodes.length);
-  if(had){
-    let d0 = readWorkspaces();
-    if(!d0){ try{ d0 = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
-    if(opts.respectCap && d0.tabs.length >= WS_CAP){
-      toast(wsT("Too many workspaces — close one first."), "warn");
-      return false;
-    }
+  if(had && !readWorkspaces()){
+    try{ ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; }
   }
   // Shot is the pre-attempt state. A later write that fails puts every key,
   // the canvas, and the undo stacks back to this — including a flush that
@@ -19040,7 +19102,7 @@ function openExampleWorkspace(graphData, name, slug){
     return "switch";
   }
   const had = !!(graph.nodes && graph.nodes.length);
-  const ok = openWorkspaceWithGraph(graphData, name, { respectCap:true, fit:true, example:slug });
+  const ok = openWorkspaceWithGraph(graphData, name, { fit:true, example:slug });
   if(!ok) return false;
   return had ? "open" : "absorb";
 }
@@ -19393,7 +19455,7 @@ function chooseWorkspace(kind){
   else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
   else return;
   const had = !!(graph.nodes && graph.nodes.length);
-  if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
+  if(!openWorkspaceWithGraph(data, name, { fit })) return;
   try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
   if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
   // Plus, then Blank, on an empty tab reuses that tab. The canvas does not
@@ -20305,7 +20367,7 @@ function seed(){
   nameNode(sketch, "The sketch");
   const vision = addNode("vision", 370, 210, { model:"google/gemini-3.8-flash", q:"Describe this child's crayon drawing in rich, warm detail — every subject in it, the colours, the mood, and the little story it seems to tell. Flowing prose, two or three sentences. Describe only what is actually drawn." });
   nameNode(vision, "Vision reads it");
-  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", maxTokens:"1024", reasoningEffort:"low" });
+  const llm = addNode("llm", 700, 190, { model:"z-ai/glm-5.3-flash", system:"You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings — just the paragraph.", reasoningEffort:"low" });
   nameNode(llm, "Reimagined");
   const img = addNode("image", 1050, 210, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
   nameNode(img, "Painted");
@@ -20543,6 +20605,8 @@ function renderUpdateRows(body, list, articles, articleLimit=ARTICLE_SLOTS){
     });
     const exLinks = updExampleLinks(e);
     if(exLinks) li.appendChild(exLinks);
+    const workflow = updWorkflowLink(e);
+    if(workflow) li.appendChild(workflow);
     const clip = updClip(e);
     if(clip) li.appendChild(clip);
     ul.appendChild(li);
@@ -20566,6 +20630,16 @@ function updExampleLinks(e){
     wrap.appendChild(a);
   }
   return wrap;
+}
+// Keep a reusable workflow destination out of the announcement's visible text.
+function updWorkflowLink(e){
+  const destination = updSafeUrl(e && e.workflow);
+  if(!destination) return null;
+  const workflow = document.createElement("a");
+  workflow.className = "update-workflow";
+  workflow.href = destination; workflow.target = "_blank"; workflow.rel = "noopener";
+  workflow.textContent = t("Open workflow");
+  return workflow;
 }
 let updatesOpenGen = 0;
 async function openUpdates(){
@@ -20655,6 +20729,32 @@ refreshUpdatesBadge();
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
+ { em:"✂️", slug:"subject-anywhere", title:"Subject anywhere", desc:"Upload a product photo and name a scene: RMBG-3.0 lifts the subject untouched, an editor builds the scene around it, and a blind re-read checks every printed word survived the move.",
+   thumb:"examples/gallery/subject-anywhere/preview.webp",
+   graph:{ v:1,
+   nodes:[
+           {id:"c1",type:"comment",x:-40,y:-400,w:620,fields:{"text":"Subject anywhere - your product, in any scene, with the label checked. Upload a product photo and name a new scene. A Gemini reader first writes a PRESERVATION SPEC of the subject: what it is, its colours and silhouette, and every printed word on it, transcribed exactly. BRIA RMBG-3.0 (new on NanoGPT 2026-11-17, built to keep product text, logos and fine hair intact) cuts the subject out on transparency. A Nano Banana edit then builds the new scene around the untouched cut-out - the subject is placed, never repainted. Finally a second blind Gemini reader transcribes the placed subject and a GLM checker holds the two reads against each other: if the label drifted by a single letter, the verdict says so. The deliverables are the transparent cut-out, the placed composite, and the preservation verdict. See recipes/subject-anywhere.md.", "color":"yellow"},name:"Subject anywhere - cut out, placed, and the label checked"},
+           {id:"src",type:"upload",x:-40,y:0,w:320,fields:{"image":""},name:"Product photo"},
+           {id:"scene",type:"text",x:-40,y:320,w:320,fields:{"text":"A sunlit alpine cafe terrace at golden hour: the product standing on a weathered wooden table, a small cup beside it, high mountain meadows and peaks behind, warm evening light."},name:"New scene"},
+           {id:"brief",type:"text",x:-40,y:600,w:320,fields:{"text":"Place the cut-out subject from the input image into the scene described after the line break. The input subject arrives on a transparent background: build the scene around it and set it down naturally, with light, shadow and perspective that match the scene. Do not redraw, restyle, resize or alter the subject itself in any way - its shape, colours and every printed word on it must stay exactly as they are. Photorealistic advertising photograph.\nSCENE:"},name:"Placement brief"},
+           {id:"spec",type:"vision",x:400,y:-40,w:340,fields:{"model":"google/gemini-3.8-flash", "q":"You are the spec reader in a product-relocation pipeline. Look at this photo and write the PRESERVATION SPEC for its main subject - the record a later checker will hold a relocated version of this subject against. Output exactly this shape and nothing else:\nSUBJECT: <what the subject is, one line>\nLABEL TEXT: <every word printed on the subject, transcribed exactly, one printed line per output line, in reading order - or NONE if the subject carries no text>\nCOLOURS: <the subject's main colours, comma-separated>\nSHAPE: <the subject's silhouette and proportions, one line>"},name:"Preservation spec - Gemini reads the original"},
+           {id:"cut",type:"edit",x:400,y:320,w:340,fields:{"model":"bria/rmbg-3", "prompt":"Remove the background completely. Return only the subject on a fully transparent background, edges clean, fine detail and every printed word preserved exactly."},name:"Cut out - RMBG-3.0 removes the background"},
+           {id:"joinplace",type:"join",x:820,y:600,w:300,fields:{"sep":"\n"},name:"Brief + scene"},
+           {id:"place",type:"edit",x:820,y:320,w:340,fields:{"model":"nano-banana-edit", "size":"auto"},name:"Place - Nano Banana builds the scene around the cut-out"},
+           {id:"reread",type:"vision",x:1240,y:-40,w:340,fields:{"model":"google/gemini-3.8-flash", "q":"You are the re-reader in a product-relocation pipeline. This picture shows a subject that was cut out of another photo and placed into a new scene. Read the placed subject and output exactly this shape and nothing else:\nLABEL TEXT SEEN: <every word printed on the subject, transcribed exactly, one printed line per output line, in reading order - or NONE>\nSUBJECT SEEN: <what the subject is, one line>\nCOLOURS SEEN: <main colours, comma-separated>\nCONDITION: <anything about the subject that looks redrawn, warped, misspelled or altered - or CLEAN>"},name:"Re-read - Gemini transcribes the placed subject, blind"},
+           {id:"jcheck",type:"join",x:1240,y:320,w:300,fields:{"sep":"\n\nRE-READ (a blind reader transcribed the placed composite; it never saw the original photo):\n"},name:"Spec + re-read"},
+           {id:"checker",type:"llm",x:1620,y:320,w:340,fields:{"model":"z-ai/glm-5.3-flash", "reasoningEffort":"low", "maxTokens":"400", "system":"You are the preservation checker in a product-relocation pipeline. The input gives a PRESERVATION SPEC read from the original product photo, then a RE-READ transcribed blind from the placed composite. Compare them and output exactly this shape:\nLABEL: PRESERVED if every spec label line appears in the re-read exactly, otherwise DRIFTED - quote the spec line and the seen line that differ\nSUBJECT: INTACT if the re-read subject, colours and condition match the spec, otherwise CHANGED - say what changed\nVERDICT: CLEAN PLACEMENT if both hold, otherwise NEEDS WORK - one line saying why"},name:"Preservation verdict - GLM compares spec and re-read",sizes:{"system":120}} ],
+   links:[
+           {id:"l1",from:{node:"src",port:"image"},to:{node:"spec",port:"image"}},
+           {id:"l2",from:{node:"src",port:"image"},to:{node:"cut",port:"image"}},
+           {id:"l3",from:{node:"brief",port:"text"},to:{node:"joinplace",port:"a"}},
+           {id:"l4",from:{node:"scene",port:"text"},to:{node:"joinplace",port:"b"}},
+           {id:"l5",from:{node:"joinplace",port:"text"},to:{node:"place",port:"prompt"}},
+           {id:"l6",from:{node:"cut",port:"image"},to:{node:"place",port:"image"}},
+           {id:"l7",from:{node:"place",port:"image"},to:{node:"reread",port:"image"}},
+           {id:"l8",from:{node:"spec",port:"text"},to:{node:"jcheck",port:"a"}},
+           {id:"l9",from:{node:"reread",port:"text"},to:{node:"jcheck",port:"b"}},
+           {id:"l10",from:{node:"jcheck",port:"text"},to:{node:"checker",port:"prompt"}} ] } },
  { em:"🎞️", slug:"storyboard-relay", title:"Storyboard relay", desc:"Carry a character into a new scene, inspect continuity, repair it once, and review the new frame.",
    thumb:"examples/gallery/storyboard-relay/preview.webp",
    graph:{ v:1,
@@ -21333,7 +21433,7 @@ function loadExample(i){
   }
   if(had && typeof openWorkspaceWithGraph==="function"){
     const name = t(ex.title);
-    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { respectCap:true, fit:true });
+    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { fit:true });
     dismissHint();
     if(ok) toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
     return;
@@ -21544,7 +21644,7 @@ $("signout").onclick = ()=> setKey(null);
     if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){}
   // Model metadata changes node bodies (dimensions, LoRA/options panels, prices). We used to
   // AWAIT the catalog before the first paint so cards landed at final size — but that meant a
-  // blank canvas for the whole 4-request round-trip to nano-gpt on every load. Instead: seed
+  // blank canvas for the whole catalog round-trip to nano-gpt on every load. Instead: seed
   // from the localStorage SWR cache synchronously (instant final-size paint for returning
   // visitors), and revalidate in the background — the reflow below reconciles any changes and
   // fills in a brand-new visitor's cards the moment the first catalog arrives. No await = no blank.
@@ -22278,19 +22378,7 @@ $("signout").onclick = ()=> setKey(null);
     if(list) return list.includes(DESCRIBE_EFFORT) ? DESCRIBE_EFFORT : null;
     return model===DESCRIBE_DEFAULT_MODEL ? DESCRIBE_EFFORT : null; };
   const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
-  // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
-  // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
-  // always-thinking model spends that whole budget reasoning and finishes with finish_reason
-  // "length" and ZERO content, which used to be scraped as an empty/truncated reply. So for
-  // Moonshot models ONLY, ask for real room explicitly. Other routes are live-probed fine
-  // uncapped (gpt-5.4-mini ran to 23k out, glm-5.2 to 29k, both finish=stop), and an explicit
-  // cap would CREATE a ceiling they don't have — don't send one. (Never send the model's full
-  // maxOut either: input + requested output must fit the context window or the API 400s.)
-  const DESCRIBE_OUT_BUDGET = 128000;
-  const outBudget = (model)=>{
-    if(!/^moonshotai\//.test(String(model||""))) return null;   // quirky-route list, not a universal cap
-    const m = catItem("chat", model); const ceil = m && +m.maxOut;
-    return ceil ? Math.min(ceil, DESCRIBE_OUT_BUDGET) : DESCRIBE_OUT_BUDGET; };   // kimi's ceiling is 1M — 128k always fits
+  // Output budgets are provider-managed; legacy app caps are ignored.
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
 
   // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
@@ -22305,14 +22393,14 @@ $("signout").onclick = ()=> setKey(null);
     join:{ fields:{ sep:"separator (default space; \\n = newline)" } },
     llm:{ main:"prompt", fields:{
       model:"chat model id (optional)", system:"system prompt", prompt:"user prompt",
-      temperature:"0–2 sampling (default 0.8)", maxTokens:"output length cap (optional)",
+      temperature:"0–2 sampling (default 0.8)",
       format:"Text|JSON (JSON only on structured_output models)",
       reasoningEffort:"catalog reasoning_efforts (none/minimal/low/medium/high/xhigh/max); legacy default = omit",
       showThinking:"true/false — include chain-of-thought in the text output",
     }, note:"vision models grow wired image ports (img1…); audio_input models grow an audio port; model is a wirable field port — a Choice option like anthropic/claude-fable-5.1 sets the paid model id" },
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
     decide:{ main:"question", fields:{
-      model:"decision model id (optional; default perplexity/pplx-decider-v1.1-27b, which sees images; liquid/d1 / typesafe/jev-latest are text-only)",
+      model:"NanoGPT decision model id (optional; default perplexity/pplx-decider-v1.2, which sees images; liquid/d1 is text-only)",
       mode:"pick|choose|score|yesno (default pick)", question:"what to decide (optional; a sensible default per mode)",
       options:"choose mode: the labels, one per line (2–255)", levels:"score mode: the scale, worst first, one per line (2–10; default poor/okay/good/great)",
       gate:"yesno mode: true = a no stops the run here; nothing downstream runs or bills",
@@ -22721,7 +22809,10 @@ RULES for the diff:
     }});
   };
 
-  input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  input.addEventListener("keydown", e=>{
+    if(e.key!=="Enter" || e.defaultPrevented || e.isComposing || e.keyCode===229 || e.repeat) return;
+    e.preventDefault(); e.stopPropagation(); submit();
+  });
   goBtn.onclick = ()=> busy ? dbAbort?.abort() : submit();   // ✦ Apply while idle · ■ Stop while a change is planning/applying
 
   // ---- versions: each applied change is a snapshot you can jump back to (like the app builder) ----
@@ -22732,6 +22823,8 @@ RULES for the diff:
   let curVer = -1;
   function renderVersions(){
     if(versions.length <= 1){ versEl.innerHTML = ""; return; }
+    const focused = document.activeElement;
+    const focusVer = focused && versEl.contains(focused) ? focused.getAttribute("data-ver") : null;
     let html = `<span class="vlabel">versions:</span>`;
     versions.forEach((v,i)=>{
       const cls = "ver" + (i===curVer?" cur":"") + (i===0?" seed":"");
@@ -22739,13 +22832,27 @@ RULES for the diff:
       html += `<button class="${cls}" data-ver="${i}" title="${esc(tip)}">v${i}</button>`;
     });
     versEl.innerHTML = html;
+    if(focusVer!==null) versEl.querySelector(`[data-ver="${focusVer}"]`)?.focus();
   }
   versEl.addEventListener("click", e=>{ const b=e.target.closest("[data-ver]"); if(b) selectVersion(+b.getAttribute("data-ver")); });
   // A wholesale graph SWAP (open an Example, a shared link, a file, a different app) invalidates this
   // strip: its chips snapshot the PREVIOUS workflow, and clicking one would overwrite the just-loaded
   // graph with an unrelated version. External load paths call this to clear it. Deliberately NOT called
   // from submit()/selectVersion()/undo-redo — those are same-workflow ops that must keep their history.
-  window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); hideDetail(); };
+  function captureDescribeState(){
+    return { versions:clone(versions), curVer, draft:input.value };
+  }
+  function restoreDescribeState(state){
+    versions.length = 0;
+    if(state && Array.isArray(state.versions)) versions.push(...clone(state.versions));
+    curVer = state && Number.isInteger(state.curVer) && state.curVer>=0 && state.curVer<versions.length ? state.curVer : -1;
+    input.value = state && typeof state.draft==="string" ? state.draft : "";
+    renderVersions(); setStatus(""); hideDetail();
+  }
+  window.captureDescribeVersions = captureDescribeState;
+  window.restoreDescribeVersions = restoreDescribeState;
+  window.describeChangeBusy = ()=>busy;
+  window.resetDescribeVersions = ()=>restoreDescribeState(null);
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
@@ -22814,8 +22921,9 @@ RULES for the diff:
   // streaming LLM client injected into patchling (same role as play's streamingCallLlm): streams the
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
-  function meteredCallLlm(phaseLabel, { effort=false }={}){
-    return async ({ model, messages, maxTokens=null, temperature=1.0 })=>{
+  // Ownership controls progress UI; content also gates each new dispatch.
+  function meteredCallLlm(phaseLabel, { effort=false, isCurrent=()=>true, canStart=isCurrent }={}){
+    return async ({ model, messages, temperature=1.0 })=>{
       const re = effort ? describeEffort(model) : null;   // planning call only, catalog-gated
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
       // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: ~90s of
@@ -22823,12 +22931,12 @@ RULES for the diff:
       // zero content. The flake is transient, so the model gets ONE same-model retry (mirrors
       // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
       // this an empty reply reads as "nothing to change".
-      const cap = maxTokens || outBudget(model);
       for(let attempt=0; attempt<2; attempt++){
+        if(!canStart()) throw new DOMException("The workflow changed while editing", "AbortError");
         let outTok = 0;
-        const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
+        const paint = ()=>{ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`); };
         paint();
-        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(cap?{max_tokens:cap}:{}), ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
+        const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
@@ -22854,11 +22962,11 @@ RULES for the diff:
             if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
           }
         }
-        lastReply = { model, phase: phaseLabel, content, reasoning };   // whatever happens next, the ⚠ expander can show what the model actually said
+        if(isCurrent()) lastReply = { model, phase: phaseLabel, content, reasoning };
         // the stream died before producing anything → nothing was (or will be) charged, so don't
         // commit usage; retry once, then throw a real error instead of surfacing an empty reply
         if(streamErr && !content.trim()){
-          if(attempt===0){ setStatus(`<span class="db-spin"></span>${esc(model)} timed out — retrying…`); continue; }
+          if(attempt===0){ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(model)} timed out — retrying…`); continue; }
           throw new Error(model + " didn't answer (" + streamErr + ") — try again or pick a different model");
         }
         USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
@@ -22867,6 +22975,9 @@ RULES for the diff:
         const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : (pricing.cost!=null ? pricing.cost : pricing.amount));
         if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
         if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
+        // Keep the recorded usage/cost above even if its workflow was replaced. It must
+        // not paint the new composer or start a follow-up apply call.
+        if(!canStart()) throw new DOMException("The workflow changed while editing", "AbortError");
         // died mid-generation with partial output → a truncated reply must not half-apply to the graph
         if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
         // finish_reason "length": the reply hit the output cap (charged, so committed above).
@@ -22904,14 +23015,27 @@ RULES for the diff:
     if(!text){ input.focus(); return; }
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
-    const prevInternal = serializeGraph();
+    const targetGraph = graph;
+    const targetWorkspace = typeof readWorkspaces==="function" ? readWorkspaces()?.active : null;
+    const prevInternal = clone(serializeGraph());
     const prevSimple = toSimple(prevInternal);
+    const content = g=>JSON.stringify({nodes:g.nodes,links:g.links});
+    const beforeContent = content(prevInternal);
+    const ownsTarget = ()=>graph===targetGraph &&
+      (typeof readWorkspaces==="function" ? readWorkspaces()?.active : null)===targetWorkspace;
+    const canStartCall = ()=>ownsTarget() && content(serializeGraph())===beforeContent;
+    let committing = false;
     dbAbort = new AbortController();
     lastReply = null; hideDetail();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>✏️ planning edits to your workflow…`);
-    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true }), apply: meteredCallLlm("✏️ applying edits to your workflow") };
+    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true, isCurrent:ownsTarget, canStart:canStartCall }), apply: meteredCallLlm("✏️ applying edits to your workflow", { isCurrent:ownsTarget, canStart:canStartCall }) };
     try{
       const { next } = await runGptdiff(prevSimple, text, descModel, clients);
+      if(!ownsTarget()) return;
+      if(content(serializeGraph())!==beforeContent){
+        setStatus("The workflow changed while editing. Your current changes were kept.");
+        return;
+      }
       const valid = validate(next);
       if(!valid.ok) throw new Error(valid.errs[0]);
       // Diff against the graph we'll ACTUALLY apply, not the raw model output: fromSimple→sanitizeFields
@@ -22920,9 +23044,10 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
-      // 🧩 UX auto-layout: the trained model tidies the whole graph (near its
-      // original shape) before it lands; a no-op if the weights can't load.
+      // 🧩 UX auto-layout: the layered engine tidies the whole graph (near its
+      // original shape) before it lands; a silent no-op if anything is off.
       try{ await window.arrangeUxLayout?.(appliedInternal); }catch(_){}
+      committing = true; // no awaits below: errors now belong to our own apply
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
       // a change applied from an older version lands at the END and becomes current; we never
@@ -22931,7 +23056,6 @@ RULES for the diff:
       versions.push({ graph: clone(serializeGraph()), goal: text });
       curVer = versions.length-1;
       renderVersions();
-      input.value = "";
       // The done moment must be unmissable: pulse EVERY node the edit touched (changed too, not
       // just added), scroll them into view first, flash the bar green, and headline the recap.
       const touchedIds = [...new Set([...dif.added.map(n=>n.id), ...dif.changed.map(c=>c.id)])];
@@ -22940,6 +23064,7 @@ RULES for the diff:
       bar.classList.remove("db-done"); void bar.offsetWidth; bar.classList.add("db-done");
       setStatus(`<span class="done">✓ Done — ${esc(summarize(dif))}.</span> ${usageMeter()}`, "ok");
     }catch(e){
+      if(!committing && !ownsTarget()) return;
       if(e && e.name==="AbortError") setStatus(`Stopped. ${usageMeter()}`);   // you hit ■ Stop — neutral, not an error
       else{
         try{ console.warn("[describe] change failed:", e, lastReply); }catch(_){}

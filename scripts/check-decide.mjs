@@ -44,7 +44,7 @@ function load(block, label) {
     document: { createElement: () => ({ getContext: () => ({ fillRect() {}, drawImage() {} }), toDataURL: () => "data:image/jpeg;base64,QUJD" }) },
   };
   vm.createContext(ctx);
-  vm.runInContext(block + "\n;globalThis.__d = { decideMode, decideQuestionFor, decideState, decideOutputs, decideMergeOrders, decideRun, decideImageLimits, DECIDE_DEFAULT_MODEL, DECIDE_IMG_FALLBACK };", ctx, { filename: label + "#decide" });
+  vm.runInContext(block + "\n;globalThis.__d = { decideMode, decideQuestionFor, decideState, decideOutputs, decideMergeOrders, decideRun, decideImageLimits, DECIDE_DEFAULT_MODEL, DECIDE_IMG_FALLBACK, decideModelId, decideNeedsVision };", ctx, { filename: label + "#decide" });
   return ctx.__d;
 }
 
@@ -147,6 +147,102 @@ for (const [label, src] of [["index.html", IDX], ["play.html", PLAY]]) {
   ok(start >= 0, "index.html has passesFilter");
   const body = IDX.slice(start, IDX.indexOf("\n}\n", start) + 3);
   ok(/filter==="decision"/.test(body) && /m\.decision/.test(body), "index.html: passesFilter routes decision models to the Decide picker only");
+}
+
+console.log("dedicated decision catalog and retirement");
+{
+  const old = "perplexity/pplx-decider-v1.1-27b", next = "perplexity/pplx-decider-v1.2";
+  const vision = { id: next, capabilities: { vision: true }, architecture: { output_modalities: ["decisions"] },
+    pricing: { prompt: 0.02, completion: 0 }, decision_input: { available: true, image_input: true, image_limits: { maxImages: 4 } } };
+  // Chat vision disagrees intentionally: the Decisions contract, not this chat flag, governs image input.
+  const text = { ...vision, id: "liquid/d1", decision_input: { available: true, image_input: false } };
+  const unavailable = { ...vision, id: "disabled/decider", decision_input: { available: false, image_input: true } };
+  const chat = { id: "test/chat", architecture: { output_modalities: ["text"] } };
+  const pairs = new Map();
+  for(const [label, src] of [["index.html", IDX], ["play.html", PLAY]]){
+    const D = load(twinBlock(src, label), label);
+    ok(D.decideModelId(old)===next && D.decideModelId(text.id)===text.id && D.DECIDE_DEFAULT_MODEL===next,
+      label + ": only the retired ID maps to its vision-capable successor");
+    ok(D.decideNeedsVision({}, false) && D.decideNeedsVision({mode:"score"}, true) &&
+      !D.decideNeedsVision({mode:"choose"}, false), label + ": pick or a wired image requires decision vision");
+    pairs.set(label, D);
+  }
+  {
+    const paths = [], storage = new Map();
+    let live = false;
+    const ctx = {
+      NANOGPT:"https://nano-gpt.com", EST:{llmInTokens:1000,llmOutTokens:500}, normImg(){}, normVideo(){}, normAudio(){}, norm3d(){},
+      getKey:()=> "unused-test-key", localStorage:{ getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v) },
+      fetch:async (url,opts)=>{
+        paths.push([new URL(url).pathname,opts.headers]);
+        if(url.includes("/decision-models")) return live ? {ok:true,json:async()=>({data:[vision,text,unavailable,chat]})}
+          : {ok:false,json:async()=>({data:[vision]})};
+        return {ok:true,json:async()=>({data:[chat]})};
+      },
+      $:()=>({value:""}), NODE_TYPES:{decide:{modelKind:"decision",modelFilter:"decision"}},
+      ...pairs.get("index.html"),
+    };
+    vm.createContext(ctx);
+    vm.runInContext(IDX.slice(IDX.indexOf("function normDecision("), IDX.indexOf("// Edit models verified")) +
+      IDX.slice(IDX.indexOf("const CATALOG = {"), IDX.indexOf("/* ======================================================================\n   PROMPT LENGTH CAPS")) +
+      IDX.slice(IDX.indexOf("function normalizePickerQuery("), IDX.indexOf("function rankPickerMatches(")) +
+      ';globalThis.__e={loadCatalog,refreshCatalog,defModelFor,modelDrifted,pickerMatches,setPicker:v=>{picker=v;}};let picker;',ctx);
+    const E = ctx.__e;
+    const n = id=>({type:"decide",fields:{model:id}});
+    E.setPicker({ kind:"decision", filter:"decision-vision" });
+    await E.loadCatalog("chat");
+    ok((await E.loadCatalog("decision")).length===0 && !storage.has("nn_catalog_decision") &&
+      E.pickerMatches()[0]?.id===next && !E.modelDrifted(n(text.id)), "editor: failed feed offers the pinned fallback, does not cache it or mark custom IDs retired");
+    live = true;
+    const refreshed = await Promise.all([E.loadCatalog("decision"), E.refreshCatalog("decision")]);
+    ok(refreshed[1] && refreshed[0].length===2 && paths.filter(([p])=>p==="/api/v1/decision-models").length===2
+      && paths.find(([p])=>p==="/api/v1/decision-models")[1].Authorization===undefined
+      && storage.has("nn_catalog_decision"), "editor: dedicated public feed retries, deduplicates concurrent refresh, rejects non-decision / disabled rows and caches live metadata");
+    ok(E.pickerMatches().map(m=>m.id).join()===next && E.defModelFor("decide")===next &&
+      !E.modelDrifted(n(old)) && !E.modelDrifted(n(text.id)) && E.modelDrifted(n("missing/decider")),
+      "editor: only vision choices for image work, only live catalog may reject absent models");
+    E.setPicker({ kind:"decision", filter:"decision" });
+    ok(E.pickerMatches().some(m=>m.id===text.id && !m.vision) &&
+      E.pickerMatches().some(m=>m.id===next && m.promptUsd1M===0.02 && m.completionUsd1M===0), "editor: text workflow can use text-only model and prices come from Decisions");
+  }
+  {
+    const paths = [];
+    let live = false;
+    const ctx = {
+      ...pairs.get("play.html"), NANOGPT:"https://nano-gpt.com", EMBEDDED:false,
+      authHeaders:()=>({}), apiFetch:async()=>({ok:true,json:async()=>({data:[chat]})}),
+      fetch:async (url, opts)=>{
+        paths.push([new URL(url).pathname,opts]);
+        return live ? {ok:true,json:async()=>({data:[text,vision,unavailable,chat]})} : {ok:false,json:async()=>({})};
+      },
+      isDecisionRaw:m=>m?.architecture?.output_modalities?.includes("decisions"),
+      modelSuits:()=>true, IMG_INPUT_ROLES:{}, STATE:{graph:{links:[]}}, IMG_PORT_RE:/^img\d+$/,
+      famSig:id=>id, verDesc:()=>0,
+    };
+    vm.createContext(ctx);
+    vm.runInContext(PLAY.slice(PLAY.indexOf("  const SETTING_MODEL_KIND = {"),PLAY.indexOf("  function deriveSettings(")) +
+      PLAY.slice(PLAY.indexOf("  const CATALOG_URL = {"),PLAY.indexOf("  // Chat models that take NO temperature")) +
+      PLAY.slice(PLAY.indexOf("  async function modelOptionsFor("), PLAY.indexOf("  /* ---------- per-model DIMENSION options")) +
+      ';globalThis.__p={assertModelAvailable,modelOptionsFor};',ctx);
+    const P = ctx.__p;
+    const n = (id,mode="pick")=>({id:"n",type:"decide",fields:{model:id,mode}});
+    const fallback = await P.modelOptionsFor("decide",n(old));
+    await P.assertModelAvailable(n("custom/decision"));
+    ok(fallback[0]?.id===next, "player: a transient failure offers the pinned fallback without blocking a saved custom ID");
+    live = true;
+    const pick = await P.modelOptionsFor("decide",n(old));
+    const choose = await P.modelOptionsFor("decide",n(text.id,"choose"));
+    ctx.STATE.graph.links.push({to:{node:"n",port:"img1"}});
+    const score = await P.modelOptionsFor("decide",n(text.id,"score"));
+    await P.assertModelAvailable(n(old));
+    await P.assertModelAvailable(n(text.id,"choose"));
+    ok(pick.map(m=>m.id).join()===next && score.map(m=>m.id).join()===next && choose.length===2 &&
+      await throwsMsg(()=>P.assertModelAvailable(n("unsupported/decision")),/no longer available/) &&
+      paths.every(([p,o])=>p==="/api/v1/decision-models" && o===undefined), "player: independent public feed retries; vision filtering, old-id migration, and unsupported-id preflight");
+  }
+  const bridge = PLAY.slice(PLAY.indexOf("function classifyBridgePath("), PLAY.indexOf("// Full budget on each fresh mount."));
+  const C = vm.runInNewContext(bridge + ";classifyBridgePath");
+  ok(C("/api/v1/decision-models")==="catalog" && C("/api/v1/decisions")==="charge", "embedded play bridge classifies metadata GET separately from paid inference");
 }
 
 if (failures.length) { console.error("\n" + failures.length + " check(s) failed"); process.exit(1); }

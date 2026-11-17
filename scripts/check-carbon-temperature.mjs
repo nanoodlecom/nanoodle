@@ -21,14 +21,14 @@ for (const file of ["index.html","play.html"]) {
     await client.genChat([{role:"user",content:"fixture"}],"google/gemini-4-carbon",
       {temperature,max_tokens:1536,reasoning_effort:"medium"});
     assert.equal("temperature" in body,false,file+" must omit Carbon temperature");
-    assert.equal(body.max_tokens,1536);
+    assert.equal("max_tokens" in body,false);
     assert.equal("reasoning_effort" in body,false);
     assert.equal("thinking" in body,false);
   }
   for (const max_tokens of [undefined, "", 1536, 32768]) {
     await client.genChat([],"google/gemini-4-carbon",{max_tokens});
-    assert.equal(body.max_tokens,max_tokens ? +max_tokens : undefined,
-      file+": unset uses provider default, explicit user budgets survive");
+    assert.equal(body.max_tokens,undefined,
+      file+": legacy budgets are inert; provider default used");
   }
   await client.genChat([],"google/gemini-4-argon",{temperature:0});
   assert.equal(body.temperature,0,file+" preserves Argon");
@@ -49,7 +49,7 @@ for (const file of ["index.html", "play.html"]) {
     const body = vm.runInNewContext("("+expression+")",
       {model,m:model,messages:[],temperature:0.8,cap:1536,re:"medium"});
     assert.equal("temperature" in body, model!=="google/gemini-4-carbon", file+" streaming");
-    assert.equal(body.max_tokens,1536);
+    assert.equal("max_tokens" in body,false);
     assert.equal(body.reasoning_effort,model==="google/gemini-4-carbon"?undefined:"medium");
   }
   console.log("✓ "+file+": streaming Carbon omission, Argon preservation");
@@ -77,4 +77,4 @@ console.log("✓ Carbon UI uses provider default; other model reasoning controls
   assert.equal(current.nodes.find(n=>n.name==="Write lyrics").fields.maxTokens,undefined);
   assert.equal(sampled.nodes.find(n=>n.name==="Write lyrics").fields.maxTokens,"1536");
 }
-console.log("✓ lyrics preset uses provider default; historical sample and explicit budgets preserved");
+console.log("✓ lyrics preset uses provider default; historical sample preserved; legacy budgets ignored");
