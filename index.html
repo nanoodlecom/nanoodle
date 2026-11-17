@@ -21615,6 +21615,645 @@ $("signout").onclick = ()=> setKey(null);
   refreshAllPrices();              // sync the estimate/auth chrome with the (cached-or-fresh) catalog; catalogReady.then reconciles again if the network reply arrives later
 })();
 
+/* ===================== 🧩 UX auto-layout — layered engine + projection =====================
+   Describe changes runs this over the applied graph before it lands on the
+   canvas: a Sugiyama-style layered layout (barycenter crossing reduction)
+   followed by the deterministic feasibility projection (feed-forward rank
+   order + de-overlap). Chosen by a fresh-Jev exam on 38 held-out graphs:
+   layered 0.582 vs the editor's tidy 0.555 vs messy originals 0.435, while
+   moving nodes less than tidy. The trained GNN generators and learned
+   pickers built alongside it never beat this by a real margin (lab:
+   ux-hypergan-layout, reports/eval-v2..v5 + pick-ridge), so the engine is
+   deterministic and weight-free: nothing to fetch, and any internal
+   problem leaves the graph exactly as it was.
+   The pure engine below is pinned by scripts/check-ux-layout.mjs. */
+/* UX-LAYOUT-BEGIN */
+/* UX-PICK — deterministic layout candidates + learned linear picker.
+ *
+ * A faithful JS port of src/layoutlab/layouts.py (the parts the picker
+ * needs) plus the metrics-ridge pickLayout. Graphs use the lab format:
+ * {nodes: [{id, x, y, w, h, ...}], links: [{id, from, to}]} with from/to
+ * as node ids. Positions are {id: [x, y]} top-left maps.
+ *
+ * The trained GNN generators (v1-v5) never beat layered_barycenter by a
+ * real margin; this hybrid does: run the deterministic candidates, score
+ * each with a tiny linear model fitted on 2,392 Jev-scored layouts, ship
+ * the argmax. See reports/pick-ridge for the fresh-Jev exam.
+ */
+(function (root) {
+  "use strict";
+
+  var GAP_X = 56.0, GAP_Y = 30.0;
+
+  function positionsOf(graph) {
+    var pos = {};
+    graph.nodes.forEach(function (n) { pos[n.id] = [n.x, n.y]; });
+    return pos;
+  }
+
+  function graphMaps(graph) {
+    var nodes = {}, preds = {}, succs = {};
+    graph.nodes.forEach(function (n) { nodes[n.id] = n; preds[n.id] = []; succs[n.id] = []; });
+    graph.links.forEach(function (l) { preds[l.to].push(l.from); succs[l.from].push(l.to); });
+    return { nodes: nodes, preds: preds, succs: succs };
+  }
+
+  function topologicalRanks(graph) {
+    var maps = graphMaps(graph), nodes = maps.nodes, succs = maps.succs, preds = maps.preds;
+    var indeg = {}, ranks = {};
+    Object.keys(nodes).forEach(function (id) { indeg[id] = 0; ranks[id] = 0; });
+    graph.links.forEach(function (l) { indeg[l.to] += 1; });
+    var q = Object.keys(nodes).filter(function (id) { return indeg[id] === 0; }).sort();
+    var seen = 0;
+    while (q.length) {
+      var u = q.shift(); seen += 1;
+      succs[u].forEach(function (v) {
+        if (ranks[u] + 1 > ranks[v]) ranks[v] = ranks[u] + 1;
+        indeg[v] -= 1;
+        if (indeg[v] === 0) q.push(v);
+      });
+    }
+    if (seen < Object.keys(nodes).length) {
+      Object.keys(nodes).forEach(function (id) {
+        if (indeg[id] > 0) {
+          var best = 0;
+          preds[id].forEach(function (p) { if (ranks[p] + 1 > best) best = ranks[p] + 1; });
+          ranks[id] = best;
+        }
+      });
+    }
+    return ranks;
+  }
+
+  function weaklyConnectedComponents(graph) {
+    var maps = graphMaps(graph), nodes = maps.nodes;
+    var unseen = {}, comps = [];
+    Object.keys(nodes).forEach(function (id) { unseen[id] = true; });
+    while (Object.keys(unseen).length) {
+      var start = Object.keys(unseen).sort()[0];
+      var stack = [start]; delete unseen[start]; var comp = [];
+      while (stack.length) {
+        var u = stack.pop(); comp.push(u);
+        maps.preds[u].concat(maps.succs[u]).forEach(function (v) {
+          if (unseen[v]) { delete unseen[v]; stack.push(v); }
+        });
+      }
+      comps.push(comp.sort());
+    }
+    return comps;
+  }
+
+  function centroid(graph, pos) {
+    var sx = 0, sy = 0;
+    graph.nodes.forEach(function (n) { sx += pos[n.id][0] + n.w / 2; sy += pos[n.id][1] + n.h / 2; });
+    return [sx / graph.nodes.length, sy / graph.nodes.length];
+  }
+
+  function alignCentroid(graph, pos, reference) {
+    if (!graph.nodes.length) return pos;
+    var c = centroid(graph, pos), r = centroid(graph, reference);
+    var dx = r[0] - c[0], dy = r[1] - c[1], out = {};
+    Object.keys(pos).forEach(function (id) { out[id] = [pos[id][0] + dx, pos[id][1] + dy]; });
+    return out;
+  }
+
+  function resolveOverlaps(graph, pos, gap, passes) {
+    var p = {};
+    Object.keys(pos).forEach(function (id) { p[id] = [pos[id][0], pos[id][1]]; });
+    var nodes = graph.nodes;
+    for (var pass = 0; pass < passes; pass++) {
+      var moved = false;
+      for (var i = 0; i < nodes.length; i++) {
+        for (var j = i + 1; j < nodes.length; j++) {
+          var a = nodes[i], b = nodes[j];
+          var pa = p[a.id], pb = p[b.id];
+          var dx = Math.min(pa[0] + a.w, pb[0] + b.w) - Math.max(pa[0], pb[0]) + gap;
+          var dy = Math.min(pa[1] + a.h, pb[1] + b.h) - Math.max(pa[1], pb[1]) + gap;
+          if (dx > 0 && dy > 0) {
+            moved = true;
+            if (dx < dy) {
+              var sx = dx / 2 + 0.5;
+              if (pa[0] < pb[0]) { pa[0] -= sx; pb[0] += sx; } else { pa[0] += sx; pb[0] -= sx; }
+            } else {
+              var sy = dy / 2 + 0.5;
+              if (pa[1] < pb[1]) { pa[1] -= sy; pb[1] += sy; } else { pa[1] += sy; pb[1] -= sy; }
+            }
+          }
+        }
+      }
+      if (!moved) break;
+    }
+    return p;
+  }
+
+  function tidyPositions(graph) {
+    var maps = graphMaps(graph), nodes = maps.nodes;
+    var orig = positionsOf(graph);
+    if (graph.nodes.length < 2) return orig;
+    var ranks = topologicalRanks(graph);
+    var spread = Math.max.apply(null, Object.keys(ranks).map(function (k) { return ranks[k]; })) > 0;
+    var minX = Math.min.apply(null, Object.keys(orig).map(function (k) { return orig[k][0]; }));
+    var minY = Math.min.apply(null, Object.keys(orig).map(function (k) { return orig[k][1]; }));
+    var out = {}, x = minX, n, rank, col;
+    if (!spread) {
+      var sorted = graph.nodes.slice().sort(function (a, b) {
+        return orig[a.id][0] - orig[b.id][0] || orig[a.id][1] - orig[b.id][1] ||
+          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      });
+      sorted.forEach(function (nd) { out[nd.id] = [x, minY]; x += nd.w + 48; });
+      return out;
+    }
+    var columns = {};
+    graph.nodes.forEach(function (nd) {
+      rank = ranks[nd.id];
+      if (!columns[rank]) columns[rank] = [];
+      columns[rank].push(nd);
+    });
+    var srcY = {};
+    graph.links.forEach(function (l) {
+      var v = orig[l.from][1];
+      if (srcY[l.to] === undefined || v < srcY[l.to]) srcY[l.to] = v;
+    });
+    Object.keys(columns).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+      col = columns[r].slice().sort(function (a, b) {
+        var ka = srcY[a.id] !== undefined ? srcY[a.id] : orig[a.id][1];
+        var kb = srcY[b.id] !== undefined ? srcY[b.id] : orig[b.id][1];
+        return ka - kb || orig[a.id][1] - orig[b.id][1] || orig[a.id][0] - orig[b.id][0] ||
+          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      });
+      var y = minY, colW = 0;
+      col.forEach(function (nd) { out[nd.id] = [x, y]; y += nd.h + 28; if (nd.w > colW) colW = nd.w; });
+      x += colW + 48;
+    });
+    return out;
+  }
+
+  function median(vals) {
+    var s = vals.slice().sort(function (a, b) { return a - b; });
+    var m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  function orderColumns(graph, ranks, ordering) {
+    var maps = graphMaps(graph), preds = maps.preds, succs = maps.succs;
+    var orig = positionsOf(graph);
+    var columns = {};
+    graph.nodes.forEach(function (nd) {
+      var r = ranks[nd.id];
+      if (!columns[r]) columns[r] = [];
+      columns[r].push(nd.id);
+    });
+    Object.keys(columns).forEach(function (r) {
+      columns[r].sort(function (a, b) {
+        return orig[a][1] - orig[b][1] || orig[a][0] - orig[b][0] || (a < b ? -1 : a > b ? 1 : 0);
+      });
+    });
+    if (ordering === "original") return columns;
+    var agg = ordering === "median" ? median : function (vals) {
+      return vals.reduce(function (s, v) { return s + v; }, 0) / vals.length;
+    };
+    var rankList = Object.keys(columns).map(Number).sort(function (a, b) { return a - b; });
+    for (var sweep = 0; sweep < 10; sweep++) {
+      var index = {};
+      Object.keys(columns).forEach(function (r) { columns[r].forEach(function (id, i) { index[id] = i; }); });
+      rankList.forEach(function (r) {
+        columns[r].sort(function (a, b) {
+          var va = preds[a].filter(function (p) { return ranks[p] < r; }).map(function (p) { return index[p]; });
+          var vb = preds[b].filter(function (p) { return ranks[p] < r; }).map(function (p) { return index[p]; });
+          var ka = va.length ? agg(va) : index[a], kb = vb.length ? agg(vb) : index[b];
+          return ka - kb || orig[a][1] - orig[b][1] || (a < b ? -1 : a > b ? 1 : 0);
+        });
+        Object.keys(columns).forEach(function (rr) { columns[rr].forEach(function (id, i) { index[id] = i; }); });
+      });
+      rankList.slice().reverse().forEach(function (r) {
+        columns[r].sort(function (a, b) {
+          var va = succs[a].filter(function (s) { return ranks[s] > r; }).map(function (s) { return index[s]; });
+          var vb = succs[b].filter(function (s) { return ranks[s] > r; }).map(function (s) { return index[s]; });
+          var ka = va.length ? agg(va) : index[a], kb = vb.length ? agg(vb) : index[b];
+          return ka - kb || orig[a][1] - orig[b][1] || (a < b ? -1 : a > b ? 1 : 0);
+        });
+        Object.keys(columns).forEach(function (rr) { columns[rr].forEach(function (id, i) { index[id] = i; }); });
+      });
+    }
+    return columns;
+  }
+
+  function layeredPositions(graph, ordering, snap) {
+    var orig = positionsOf(graph);
+    if (!graph.nodes.length) return {};
+    var comps = weaklyConnectedComponents(graph);
+    var globalMinX = Math.min.apply(null, Object.keys(orig).map(function (k) { return orig[k][0]; }));
+    var out = {};
+    var cursorY = Math.min.apply(null, Object.keys(orig).map(function (k) { return orig[k][1]; }));
+    var nodeById = {};
+    graph.nodes.forEach(function (n) { nodeById[n.id] = n; });
+    var sortedComps = comps.slice().sort(function (c1, c2) {
+      var m1 = c1.reduce(function (s, i) { return s + orig[i][1]; }, 0) / c1.length;
+      var m2 = c2.reduce(function (s, i) { return s + orig[i][1]; }, 0) / c2.length;
+      return m1 - m2 || (c1[0] < c2[0] ? -1 : c1[0] > c2[0] ? 1 : 0);
+    });
+    sortedComps.forEach(function (comp) {
+      var inComp = {};
+      comp.forEach(function (id) { inComp[id] = true; });
+      var sub = { nodes: comp.map(function (id) { return nodeById[id]; }),
+                  links: graph.links.filter(function (l) { return inComp[l.from] && inComp[l.to]; }) };
+      var ranks = topologicalRanks(sub);
+      var columns = orderColumns(sub, ranks, ordering);
+      var compCenterY = comp.reduce(function (s, i) { return s + orig[i][1] + nodeById[i].h / 2; }, 0) / comp.length;
+      var pos = {}, x = globalMinX;
+      Object.keys(columns).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+        var col = columns[r];
+        var height = col.reduce(function (s, i) { return s + nodeById[i].h; }, 0) + GAP_Y * (col.length - 1);
+        var y = compCenterY - height / 2, colW = 0;
+        col.forEach(function (id) {
+          pos[id] = [x, y];
+          y += nodeById[id].h + GAP_Y;
+          if (nodeById[id].w > colW) colW = nodeById[id].w;
+        });
+        x += colW + GAP_X;
+      });
+      if (comps.length > 1) {
+        var minY = Math.min.apply(null, Object.keys(pos).map(function (k) { return pos[k][1]; }));
+        var dy = cursorY - minY;
+        Object.keys(pos).forEach(function (id) { pos[id] = [pos[id][0], pos[id][1] + dy]; });
+        cursorY = Math.max.apply(null, Object.keys(pos).map(function (k) { return pos[k][1] + nodeById[k].h; })) + 110;
+        var cx = comp.reduce(function (s, i) { return s + pos[i][0] + nodeById[i].w / 2; }, 0) / comp.length;
+        var rx = comp.reduce(function (s, i) { return s + orig[i][0] + nodeById[i].w / 2; }, 0) / comp.length;
+        Object.keys(pos).forEach(function (id) { pos[id] = [pos[id][0] + rx - cx, pos[id][1]]; });
+      }
+      Object.keys(pos).forEach(function (id) { out[id] = pos[id]; });
+    });
+    if (comps.length === 1) out = alignCentroid(graph, out, orig);
+    if (snap) {
+      var snapped = {};
+      Object.keys(out).forEach(function (id) {
+        snapped[id] = [Math.round(out[id][0] / snap) * snap, Math.round(out[id][1] / snap) * snap];
+      });
+      out = resolveOverlaps(graph, snapped, 8.0, 240);
+    }
+    return out;
+  }
+
+  function forcePositions(graph, anchorWeight, iterations) {
+    var maps = graphMaps(graph), nodes = maps.nodes;
+    var orig = positionsOf(graph);
+    var ids = Object.keys(nodes);
+    var n = graph.nodes.length;
+    if (n < 2) return orig;
+    if (iterations === undefined || iterations === null) iterations = n <= 60 ? 230 : 130;
+    var center = {}, origCenter = {};
+    ids.forEach(function (id) {
+      center[id] = [orig[id][0] + nodes[id].w / 2, orig[id][1] + nodes[id].h / 2];
+      origCenter[id] = center[id].slice();
+    });
+    var edges = graph.links.map(function (l) { return [l.from, l.to]; });
+    var edgeSet = {};
+    edges.forEach(function (e) { edgeSet[e[0] + ">" + e[1]] = true; });
+    for (var step = 0; step < iterations; step++) {
+      var temp = Math.max(0.12, 1.0 - step / iterations);
+      var force = {};
+      ids.forEach(function (id) {
+        force[id] = [anchorWeight * (origCenter[id][0] - center[id][0]),
+                     anchorWeight * (origCenter[id][1] - center[id][1])];
+      });
+      edges.forEach(function (e) {
+        var a = e[0], b = e[1];
+        var dx = center[b][0] - center[a][0], dy = center[b][1] - center[a][1];
+        var desired = (nodes[a].w + nodes[b].w) / 2 + 82;
+        var fx = 0.028 * (dx - desired), fy = 0.020 * dy;
+        force[a][0] += fx; force[b][0] -= fx;
+        force[a][1] += fy; force[b][1] -= fy;
+      });
+      for (var i = 0; i < ids.length; i++) {
+        for (var j = i + 1; j < ids.length; j++) {
+          var a2 = ids[i], b2 = ids[j];
+          var dx2 = center[b2][0] - center[a2][0], dy2 = center[b2][1] - center[a2][1];
+          var minDx = (nodes[a2].w + nodes[b2].w) / 2 + 34;
+          var minDy = (nodes[a2].h + nodes[b2].h) / 2 + 26;
+          var ox = minDx - Math.abs(dx2), oy = minDy - Math.abs(dy2);
+          if (ox > 0 && oy > 0) {
+            if (ox < oy) {
+              var s1 = (dx2 >= 0 ? 1 : -1) * Math.min(18.0, ox * 0.16 + 0.4);
+              force[a2][0] -= s1; force[b2][0] += s1;
+            } else {
+              var s2 = (dy2 >= 0 ? 1 : -1) * Math.min(18.0, oy * 0.16 + 0.4);
+              force[a2][1] -= s2; force[b2][1] += s2;
+            }
+          } else if (Math.abs(dx2) < minDx * 1.7 && Math.abs(dy2) < minDy * 1.7 &&
+                     !edgeSet[a2 + ">" + b2] && !edgeSet[b2 + ">" + a2]) {
+            var dist2 = dx2 * dx2 + dy2 * dy2 + 25.0;
+            var mag = Math.min(1.2, 9000.0 / dist2);
+            var ux = dx2 / Math.sqrt(dist2), uy = dy2 / Math.sqrt(dist2);
+            force[a2][0] -= ux * mag; force[b2][0] += ux * mag;
+            force[a2][1] -= uy * mag; force[b2][1] += uy * mag;
+          }
+        }
+      }
+      ids.forEach(function (id) {
+        var fx = Math.max(-22.0, Math.min(22.0, force[id][0]));
+        var fy = Math.max(-22.0, Math.min(22.0, force[id][1]));
+        center[id][0] += fx * temp + fx * 0.25;
+        center[id][1] += fy * temp + fy * 0.25;
+      });
+    }
+    var pos = {};
+    ids.forEach(function (id) { pos[id] = [center[id][0] - nodes[id].w / 2, center[id][1] - nodes[id].h / 2]; });
+    return resolveOverlaps(graph, pos, 6.0, 160);
+  }
+
+  function project(graph, posIn) {
+    var maps = graphMaps(graph), nodes = maps.nodes, preds = maps.preds;
+    var ranks = topologicalRanks(graph);
+    var pos = {};
+    Object.keys(posIn).forEach(function (id) { pos[id] = [posIn[id][0], posIn[id][1]]; });
+    var order = Object.keys(nodes).sort(function (a, b) {
+      return ranks[a] - ranks[b] || pos[a][0] - pos[b][0];
+    });
+    order.forEach(function (id) {
+      var need = null;
+      preds[id].forEach(function (p) {
+        var right = pos[p][0] + nodes[p].w + 44.0;
+        if (need === null || right > need) need = right;
+      });
+      if (need !== null && pos[id][0] < need) pos[id][0] = need;
+    });
+    pos = resolveOverlaps(graph, pos, 10.0, 200);
+    var out = {};
+    Object.keys(pos).forEach(function (id) {
+      out[id] = [Math.round(pos[id][0] * 10) / 10, Math.round(pos[id][1] * 10) / 10];
+    });
+    return out;
+  }
+
+  function bezierPoints(a, b) {
+    var sx = a[0], sy = a[1], ex = b[0], ey = b[1];
+    var bend = Math.max(42.0, Math.abs(ex - sx) * 0.45);
+    var c1 = [sx + bend, sy], c2 = [ex - bend, ey], pts = [];
+    for (var i = 0; i <= 14; i++) {
+      var t = i / 14, u = 1 - t;
+      pts.push([u * u * u * sx + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * ex,
+                u * u * u * sy + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * ey]);
+    }
+    return pts;
+  }
+
+  function segmentsCross(p1, p2, p3, p4) {
+    function orient(a, b, c) {
+      var v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      return Math.abs(v) < 1e-9 ? 0 : (v > 0 ? 1 : -1);
+    }
+    var o1 = orient(p1, p2, p3), o2 = orient(p1, p2, p4), o3 = orient(p3, p4, p1), o4 = orient(p3, p4, p2);
+    return o1 * o2 < 0 && o3 * o4 < 0;
+  }
+
+  function layoutMetrics(graph, pos) {
+    var maps = graphMaps(graph), nodes = maps.nodes;
+    var orig = positionsOf(graph);
+    var ids = Object.keys(nodes);
+    var overlapPairs = 0, overlapArea = 0, minGap = Infinity, i, j;
+    for (i = 0; i < ids.length; i++) {
+      for (j = i + 1; j < ids.length; j++) {
+        var a = ids[i], b = ids[j];
+        var ox = Math.min(pos[a][0] + nodes[a].w, pos[b][0] + nodes[b].w) - Math.max(pos[a][0], pos[b][0]);
+        var oy = Math.min(pos[a][1] + nodes[a].h, pos[b][1] + nodes[b].h) - Math.max(pos[a][1], pos[b][1]);
+        if (ox > 0 && oy > 0) { overlapPairs += 1; overlapArea += ox * oy; }
+        var gap = Math.max(Math.max(pos[a][0] - (pos[b][0] + nodes[b].w), pos[b][0] - (pos[a][0] + nodes[a].w)),
+                           Math.max(pos[a][1] - (pos[b][1] + nodes[b].h), pos[b][1] - (pos[a][1] + nodes[a].h)));
+        if (gap < minGap) minGap = gap;
+      }
+    }
+    var curves = {}, totalLen = 0, backward = 0;
+    graph.links.forEach(function (l) {
+      var start = [pos[l.from][0] + nodes[l.from].w, pos[l.from][1] + nodes[l.from].h / 2];
+      var end = [pos[l.to][0], pos[l.to][1] + nodes[l.to].h / 2];
+      var pts = bezierPoints(start, end);
+      curves[l.id] = pts;
+      for (var k = 0; k < pts.length - 1; k++) {
+        totalLen += Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]);
+      }
+      if (end[0] + nodes[l.to].w / 2 < start[0] - nodes[l.from].w / 2) backward += 1;
+    });
+    var bbox = {};
+    Object.keys(curves).forEach(function (lid) {
+      var xs = curves[lid].map(function (p) { return p[0]; });
+      var ys = curves[lid].map(function (p) { return p[1]; });
+      bbox[lid] = [Math.min.apply(null, xs), Math.min.apply(null, ys),
+                   Math.max.apply(null, xs), Math.max.apply(null, ys)];
+    });
+    var crossings = 0;
+    for (i = 0; i < graph.links.length; i++) {
+      for (j = i + 1; j < graph.links.length; j++) {
+        var l1 = graph.links[i], l2 = graph.links[j];
+        var set = {};
+        [l1.from, l1.to, l2.from, l2.to].forEach(function (x) { set[x] = true; });
+        if (Object.keys(set).length < 4) continue;
+        var b1 = bbox[l1.id], b2 = bbox[l2.id];
+        if (b1[2] < b2[0] || b2[2] < b1[0] || b1[3] < b2[1] || b2[3] < b1[1]) continue;
+        var p = curves[l1.id], q = curves[l2.id], hit = false;
+        for (var a2 = 0; a2 < p.length - 1 && !hit; a2++) {
+          for (var b3 = 0; b3 < q.length - 1; b3++) {
+            if (segmentsCross(p[a2], p[a2 + 1], q[b3], q[b3 + 1])) { hit = true; break; }
+          }
+        }
+        crossings += hit ? 1 : 0;
+      }
+    }
+    var disp = ids.map(function (id) { return Math.hypot(pos[id][0] - orig[id][0], pos[id][1] - orig[id][1]); });
+    var rms = disp.length ? Math.sqrt(disp.reduce(function (s, d) { return s + d * d; }, 0) / disp.length) : 0;
+    var xs0 = Math.min.apply(null, ids.map(function (id) { return pos[id][0]; }));
+    var xs1 = Math.max.apply(null, ids.map(function (id) { return pos[id][0] + nodes[id].w; }));
+    var ys0 = Math.min.apply(null, ids.map(function (id) { return pos[id][1]; }));
+    var ys1 = Math.max.apply(null, ids.map(function (id) { return pos[id][1] + nodes[id].h; }));
+    var width = Math.max(1.0, xs1 - xs0), height = Math.max(1.0, ys1 - ys0);
+    var edgeCount = Math.max(1, graph.links.length);
+    var proxy = 100.0;
+    proxy -= Math.min(38.0, overlapPairs * 9.0 + overlapArea / 900.0);
+    proxy -= Math.min(24.0, crossings * (10.0 / Math.sqrt(edgeCount)));
+    proxy -= 16.0 * (backward / edgeCount);
+    proxy -= Math.min(10.0, Math.max(0.0, totalLen / edgeCount - 430.0) / 65.0);
+    proxy -= Math.min(8.0, rms / 55.0);
+    proxy -= Math.min(4.0, Math.abs(Math.log((width / height) / 1.55)) * 2.0);
+    return {
+      overlap_pairs: overlapPairs, overlap_area: overlapArea,
+      min_gap: minGap === Infinity ? 0 : minGap,
+      edge_crossings: crossings, backward_edges: backward,
+      edge_length_mean: totalLen / edgeCount,
+      displacement_rms: rms,
+      displacement_max: disp.length ? Math.max.apply(null, disp) : 0,
+      bounds_width: width, bounds_height: height, aspect: width / height,
+      proxy_score: Math.max(0.0, Math.min(100.0, proxy))
+    };
+  }
+
+  function blendResolve(graph, a, b, t) {
+    var mixed = {};
+    Object.keys(a).forEach(function (id) {
+      mixed[id] = [a[id][0] * (1 - t) + b[id][0] * t, a[id][1] * (1 - t) + b[id][1] * t];
+    });
+    return resolveOverlaps(graph, mixed, 8.0, 240);
+  }
+
+  /* The deterministic pool. Python's candidate_layouts also has two jitter
+   * variants (seeded Mersenne Twister — not reproducible in JS); they won
+   * ~7% of training targets and are omitted here. */
+  function candidateLayouts(graph) {
+    var orig = positionsOf(graph);
+    var layered = layeredPositions(graph, "barycenter", null);
+    var tidy = tidyPositions(graph);
+    var cands = {
+      original: orig,
+      editor_tidy: tidy,
+      layered_barycenter: layered,
+      layered_original_order: layeredPositions(graph, "original", null),
+      layered_grid20: layeredPositions(graph, "barycenter", 20),
+      force_anchor: forcePositions(graph, 0.055),
+      force_free: forcePositions(graph, 0.008),
+      layered_median: layeredPositions(graph, "median", null)
+    };
+    cands.layered_blend = blendResolve(graph, layered, orig, 0.45);
+    cands.tidy_blend = blendResolve(graph, tidy, orig, 0.45);
+    return cands;
+  }
+
+  /* ridge: {features, mu, sd, w, b} from models/pick-ridge.json. */
+  function ridgeScore(ridge, metrics) {
+    var s = ridge.b;
+    for (var i = 0; i < ridge.features.length; i++) {
+      var v = metrics[ridge.features[i]];
+      s += ((v === undefined ? 0 : v) - ridge.mu[i]) / ridge.sd[i] * ridge.w[i];
+    }
+    return s;
+  }
+
+  function pickLayout(graph, ridge) {
+    try {
+      if (!graph || !graph.nodes || graph.nodes.length < 2 || !ridge) return null;
+      var cands = candidateLayouts(graph);
+      var best = null, bestScore = -Infinity;
+      Object.keys(cands).forEach(function (name) {
+        var s = ridgeScore(ridge, layoutMetrics(graph, cands[name]));
+        if (s > bestScore) { bestScore = s; best = name; }
+      });
+      if (!best) return null;
+      return { name: best, positions: project(graph, cands[best]) };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* The shipped arrange: layered_barycenter + projection. On the fresh-Jev
+   * exam (38 held-out graphs) it scored 0.582 vs editor_tidy 0.555 and
+   * originals 0.435, moving nodes less than tidy (560 vs 812 RMS). The
+   * ridge pick above scored 0.541 on the same exam and is NOT shipped. */
+  function arrangePositions(graph) {
+    try {
+      if (!graph || !graph.nodes || graph.nodes.length < 2) return null;
+      return project(graph, layeredPositions(graph, "barycenter", null));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var api = { candidateLayouts: candidateLayouts, layoutMetrics: layoutMetrics,
+              pickLayout: pickLayout, layeredPositions: layeredPositions,
+              tidyPositions: tidyPositions, forcePositions: forcePositions,
+              project: project, arrangePositions: arrangePositions,
+              _ridgeScore: ridgeScore };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.UXPick = api;
+})(typeof window !== "undefined" ? window : globalThis);
+
+/* Editor glue: converts an internal editor graph ({nodes with x/y/w/sizes/
+ * fields, links as {from:{node,port},to:{node,port}}}) to the engine's
+ * input, runs it, and writes positions back. Heights are estimated exactly
+ * as the eval lab estimated them (Nanoodle stores no height; the DOM owns
+ * it). arrangeUxLayout NEVER throws and never half-applies: any problem
+ * leaves the graph exactly as it was. */
+(function () {
+  var UX_TYPE_INFO = {
+    "comment": [280, 112], "text": [260, 148], "choice": [250, 150], "upload": [240, 132],
+    "aupload": [240, 132], "vupload": [240, 132], "mupload": [240, 132], "llm": [300, 218],
+    "vision": [280, 176], "decide": [300, 196], "join": [230, 126], "image": [300, 208],
+    "edit": [300, 208], "inpaint": [300, 214], "resize": [240, 142], "tvideo": [300, 204],
+    "ivideo": [300, 204], "vedit": [300, 196], "vframes": [260, 158], "combine": [260, 150],
+    "music": [300, 206], "remix": [300, 198], "tts": [290, 190], "soundtrack": [260, 148],
+    "lipsync": [290, 188], "trim": [240, 142], "extractaudio": [250, 142],
+    "transcribe": [270, 164], "cleanvoice": [280, 172], "model3d": [290, 190],
+    "endpoint": [310, 214]
+  };
+  function uxEstimateHeight(node) {
+    var info = UX_TYPE_INFO[node.type];
+    var h = info ? info[1] : 160;
+    var fields = node.fields || {};
+    var textual = 0;
+    ["text", "prompt", "system", "q", "question", "lyrics"].forEach(function (k) {
+      var v = fields[k];
+      if (typeof v === "string") textual += Math.min(90, v.length / 9);
+    });
+    h += Math.min(90, textual * 0.35);
+    var sizes = node.sizes || {};
+    var nums = Object.keys(sizes).map(function (k) { return sizes[k]; })
+      .filter(function (v) { return typeof v === "number" && isFinite(v); });
+    if (nums.length) h = Math.max(h, 92 + Math.max.apply(null, nums));
+    return Math.round(Math.max(96, Math.min(360, h)));
+  }
+  function uxToLayoutGraph(g) {
+    var nodes = (g.nodes || []).map(function (n) {
+      var info = UX_TYPE_INFO[n.type];
+      var w = (typeof n.w === "number" && isFinite(n.w)) ? n.w : (info ? info[0] : 260);
+      w = Math.max(210, Math.min(340, w));
+      return { id: String(n.id), type: String(n.type || "text"),
+               x: +n.x || 0, y: +n.y || 0, w: w, h: uxEstimateHeight(n) };
+    });
+    var ids = {};
+    nodes.forEach(function (n) { ids[n.id] = 1; });
+    var links = [];
+    (g.links || []).forEach(function (l, i) {
+      var f = l.from && (typeof l.from === "object" ? String(l.from.node) : String(l.from).split(".")[0]);
+      var t = l.to && (typeof l.to === "object" ? String(l.to.node) : String(l.to).split(".")[0]);
+      if (f && t && ids[f] && ids[t] && f !== t) links.push({ id: "l" + i, from: f, to: t });
+    });
+    return { nodes: nodes, links: links };
+  }
+  window.arrangeUxLayout = async function (g) {
+    try {
+      if (!g || !g.nodes || g.nodes.length < 2 || g.nodes.length > 600) return false;
+      if (!window.UXPick) return false;
+      var lg = uxToLayoutGraph(g);
+      var pos = window.UXPick.arrangePositions(lg);
+      if (!pos) return false;
+      var byId = {};
+      lg.nodes.forEach(function (n) { byId[n.id] = n; });
+      var cnt = 0, id;
+      var ox0 = 1e18, oy0 = 1e18, ox1 = -1e18, oy1 = -1e18;
+      var nx0 = 1e18, ny0 = 1e18, nx1 = -1e18, ny1 = -1e18;
+      for (id in pos) {
+        var p = pos[id], o = byId[id];
+        if (!o || !isFinite(p[0]) || !isFinite(p[1])) return false;
+        ox0 = Math.min(ox0, o.x); ox1 = Math.max(ox1, o.x + o.w);
+        oy0 = Math.min(oy0, o.y); oy1 = Math.max(oy1, o.y + o.h);
+        nx0 = Math.min(nx0, p[0]); nx1 = Math.max(nx1, p[0] + o.w);
+        ny0 = Math.min(ny0, p[1]); ny1 = Math.max(ny1, p[1] + o.h);
+        cnt++;
+      }
+      if (!cnt) return false;
+      // Plausibility: un-piling a graph legitimately spans wide, but a layout
+      // vastly larger than the original canvas is a malfunction — keep the
+      // user's layout in that case.
+      if (nx1 - nx0 > Math.max(3 * (ox1 - ox0), (ox1 - ox0) + 6000)) return false;
+      if (ny1 - ny0 > Math.max(3 * (oy1 - oy0), (oy1 - oy0) + 6000)) return false;
+      (g.nodes || []).forEach(function (n) {
+        var q = pos[String(n.id)];
+        if (q) { n.x = q[0]; n.y = q[1]; }
+      });
+      return true;
+    } catch (e) { return false; }
+  };
+  window.__uxToLayoutGraph = uxToLayoutGraph;   // lifted by scripts/check-ux-layout.mjs
+})();
+
+/* UX-LAYOUT-END */
+
 /* ===================== 💬 Describe changes — graph copilot =====================
    A docked bottom composer (same shape/placement as the app builder's Customize bar) that edits
    the workflow by description. Powered by the vendored patchling engine (generateDiff → smartapply)
@@ -22281,6 +22920,9 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
+      // 🧩 UX auto-layout: the trained model tidies the whole graph (near its
+      // original shape) before it lands; a no-op if the weights can't load.
+      try{ await window.arrangeUxLayout?.(appliedInternal); }catch(_){}
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
       // a change applied from an older version lands at the END and becomes current; we never
