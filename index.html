@@ -5529,7 +5529,8 @@ function withLocale(messages){
 
 /* ======================================================================
    MODEL CATALOGS  (the FULL live lists, fetched from NanoGPT + cached)
-     chat  -> /api/v1/models?detailed=true   (628+ text models, vision flag)
+     chat  -> /api/v1/models?detailed=true   (text models, vision flag)
+     decision -> /api/v1/decision-models    (typed judgments, independent of chat)
      image -> /api/v1/image-models           (200+ image models, edit flag)
    Picked through one shared searchable popover (see openPicker()).
    ====================================================================== */
@@ -5547,6 +5548,12 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$|^google\/gemini-4-carbon$/;
 const tempLocked = id => TEMP_LOCKED.test(String(id||""));
 
+function normDecision(m){
+  const row = normChat(m);
+  if(!row.decision || m.decision_input?.available===false) return { id:null };
+  row.vision = m.decision_input?.image_input===true;  // use the Decisions contract, not Chat's vision flag
+  return row;
+}
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
   return { id:m.id, name:m.name||m.id, created:m.created,
@@ -5892,18 +5899,19 @@ function norm3d(m){
 
 const CATALOG = {
   chat:  { url:"/api/v1/models?detailed=true", norm:normChat  },
+  decision: { url:"/api/v1/decision-models", norm:normDecision },
   image: { url:"/api/v1/image-models",         norm:normImg   },
   video: { url:"/api/v1/video-models",         norm:normVideo },
   audio: { url:"/api/v1/audio-models",         norm:normAudio },
   model3d: { url:"/api/v1/3d-models",          norm:norm3d },
 };
-const catalogs = { chat:null, image:null, video:null, audio:null, model3d:null };
+const catalogs = { chat:null, decision:null, image:null, video:null, audio:null, model3d:null };
 // SWR cache: the last-good catalog is stashed in localStorage so a fresh page load can paint
 // the graph at its FINAL card sizes/prices instantly, then reconcile when the network reply lands.
 const catCacheKey = (kind)=> "nn_catalog_"+kind;
 function readCatCache(kind){
   try{ const j = JSON.parse(localStorage.getItem(catCacheKey(kind))||"null");
-       return (j && Array.isArray(j.list)) ? j.list : null; }catch{ return null; }
+       return (j && Array.isArray(j.list) && j.list.length) ? j.list : null; }catch{ return null; }
 }
 function writeCatCache(kind, list){
   try{ localStorage.setItem(catCacheKey(kind), JSON.stringify({ t:Date.now(), list })); }catch(_){}
@@ -5936,11 +5944,15 @@ function verDesc(a, b){                     // segment-wise numeric compare: 2.6
 }
 async function fetchCatalog(kind){
   const cfg = CATALOG[kind];
-  const headers={}; const k=getKey(); if(k) headers.Authorization=`Bearer ${k}`;
+  const headers={}; const k=kind==="decision" ? "" : getKey(); if(k) headers.Authorization=`Bearer ${k}`;
   let raw;
-  try{ raw = (await (await fetch(`${NANOGPT}${cfg.url}`,{headers})).json()).data || []; }
-  catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
-  const list = raw.map(cfg.norm).filter(m=>m.id);
+  try{
+    const response = await fetch(`${NANOGPT}${cfg.url}`,{headers});
+    if(!response.ok) return null;
+    raw = (await response.json()).data;
+  }catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
+  if(!Array.isArray(raw)) return null;
+  const list = raw.filter(m=>m && typeof m.id==="string").map(cfg.norm).filter(m=>m.id);
   // A 200 whose body lacks a usable model array (malformed / half-deployed proxy) normalizes to
   // []. Treat that exactly like the offline path (return null) so the caller keeps whatever it had
   // and NEVER persists an empty catalog — a cached [] would poison every future session until it
@@ -5960,18 +5972,28 @@ async function fetchCatalog(kind){
   return list;
 }
 async function loadCatalog(kind){          // lazy callers (pickers, filters): reuse whatever's in memory
+  if(kind==="decision"){
+    if(catalogIsStale(kind)) await refreshCatalog(kind);
+    return catalogs[kind] || [];            // do not cache failure; keep the last good list if we have one
+  }
   if(catalogs[kind]) return catalogs[kind];
   const list = await fetchCatalog(kind);
   catalogs[kind] = list || [];             // cache empty on failure so ids stay typeable without re-hammering
   if(list) writeCatCache(kind, list);
   return catalogs[kind];
 }
-async function refreshCatalog(kind){       // boot SWR revalidate: always hit the network, update cache
-  const list = await fetchCatalog(kind);
-  if(!list) return false;
-  catalogs[kind] = list; writeCatCache(kind, list);
-  catalogFetchedAt[kind] = Date.now();
-  return true;
+let decisionCatalogInflight = null;
+function refreshCatalog(kind){             // boot SWR revalidate: always hit the network, update cache
+  if(kind==="decision" && decisionCatalogInflight) return decisionCatalogInflight;
+  const load = fetchCatalog(kind).then(list=>{
+    if(!list) return false;
+    catalogs[kind] = list; writeCatCache(kind, list);
+    catalogFetchedAt[kind] = Date.now();
+    return true;
+  });
+  if(kind!=="decision") return load;
+  decisionCatalogInflight = load.finally(()=>{ decisionCatalogInflight = null; });
+  return decisionCatalogInflight;
 }
 // Long-lived tabs previously kept a boot-time catalog forever. NanoGPT ships new ids
 // daily (Grok 4.7, MiMo V2.6, H3 Singularity, …); without a stale revalidate the model
@@ -5979,7 +6001,7 @@ async function refreshCatalog(kind){       // boot SWR revalidate: always hit th
 // the in-memory catalog is older than CATALOG_STALE_MS — on an interval, when the tab
 // becomes visible again, and when the picker opens.
 const CATALOG_STALE_MS = 60 * 60 * 1000;          // 1h — short enough for same-day launches
-const CATALOG_KINDS = ["chat","image","video","audio"];   // model3d is not a boot kind — ensureModel3dCatalog() loads it
+const CATALOG_KINDS = ["chat","decision","image","video","audio"];   // model3d is not a boot kind — ensureModel3dCatalog() loads it
 const catalogFetchedAt = Object.fromEntries(CATALOG_KINDS.map(k => [k, 0]));
 catalogFetchedAt.model3d = 0;
 let _model3dCatP = null;
@@ -6026,10 +6048,11 @@ function startCatalogStaleWatch(){
   setInterval(()=>{ if(document.visibilityState === "visible") refreshCatalogsIfStale(); },
               Math.min(CATALOG_STALE_MS, 15 * 60 * 1000));
 }
-const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
-const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
+const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===(kind==="decision" ? decideModelId(id) : id));
+const KIND_LABEL = { chat:"Chat", decision:"Decision", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
+  if(filter==="decision-vision") return !!m.decision && m.vision;
   if(filter==="decision") return !!m.decision;   // ⚖️ Decide lists decision models only
   if(m.decision) return false;                    // …and they can't chat, so keep them out of every other picker
   if(!filter) return true;
@@ -6045,11 +6068,11 @@ function defModelFor(type){
     const m = list.find(x=> !x.nsfw);
     return m ? m.id : MODEL3D_IMAGE_DEFAULT;   // pinned even when the catalog is empty, so the node isn't blank offline
   }
-  if(t.modelFilter==="decision"){
-    // pick-best needs a model that sees images: prefer the launch default, else any image-capable one
-    const list = (catalogs.chat||[]).filter(x=> x.decision);
-    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list.find(x=> decideImageLimits(x.decisionInput, true)) || list[0];
-    return pref ? pref.id : DECIDE_DEFAULT_MODEL;   // pinned even before the catalog lands, like 3D
+  if(t.modelKind==="decision"){
+    // New Decide nodes start in pick-best mode; a text-only default cannot run it.
+    const list = (catalogs.decision||[]).filter(x=> x.vision);
+    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list[0];
+    return pref ? pref.id : (catalogs.decision?.length ? "" : DECIDE_DEFAULT_MODEL);
   }
   if(t.modelFilter==="denoise"){
     // 🎧 Clean voice: ElevenLabs Audio Isolation by default (fast, strongest noise removal in testing); VEED stays a pick away
@@ -6068,6 +6091,7 @@ function modelDrifted(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  if(t.modelKind==="decision") return !catalogIsStale("decision") && !catItem("decision", decideModelId(n.fields.model));
   return !catItem(t.modelKind, n.fields.model);
 }
 
@@ -6224,7 +6248,7 @@ const portIdx = (name)=>{ const m = String(name).match(/(\d+)$/); return m ? +m[
 // not in the catalog. Only meaningful for the "vision" form — the edit node gates on maxIn instead.
 function modelSupportsImages(n){
   const t = NODE_TYPES[n.type]; if(typeof t.imageInputs!=="string") return false;
-  const m = catItem(t.modelKind, n.fields.model);
+  const m = catItem(t.modelKind, n.type==="decide" ? decideModelId(n.fields.model) : n.fields.model);
   return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog
 }
 // Does the selected chat model accept audio? Gates the single audio input port (mirror of
@@ -6336,7 +6360,7 @@ function imgSpec(n){
   if(typeof ii==="string"){
     // ⚖️ Decide: decision models take a fixed number of inline images (catalog image_limits.maxImages)
     let cap = Infinity;
-    if(t.modelFilter==="decision"){ const dm = catItem("chat", n.fields.model); const lim = decideImageLimits(dm && dm.decisionInput, !!dm); cap = lim ? lim.maxImages : Infinity; }
+    if(t.modelKind==="decision"){ const dm = catItem("decision", decideModelId(n.fields.model)); const lim = decideImageLimits(dm && dm.decisionInput, !!dm?.decisionInput); cap = lim ? lim.maxImages : Infinity; }
     return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap, min:1, roles:null };
   }
   const m = catItem(t.modelKind, n.fields.model);
@@ -6442,6 +6466,15 @@ function updateModelWarn(n){
   if(!n.el) return;
   const w = n.el.querySelector("[data-mw]"); if(!w) return;
   if(!modelDrifted(n)){
+    if(n.type==="decide"){
+      const m = catItem("decision", effectiveModelFields(n).model);
+      const hasImages = graph.links.some(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port));
+      if(m && !m.vision && decideNeedsVision(n.fields, hasImages)){
+        w.hidden = false;
+        w.textContent = "⚠ " + t("This decision model can’t see images. Pick a vision model.");
+        return;
+      }
+    }
     // Not drifted, but possibly under-wired: a role-ordered model (vto) 400s upstream unless EVERY
     // slot is filled, so say so on the node instead of letting Run be the place they find out.
     const s = imgSpec(n), roles = s && s.roles;
@@ -8191,7 +8224,7 @@ function livePrice(kind, fields, nodeFilter, n){
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).card;
-  if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
+  if(kind==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
     const u = nodeUnitUsd(n);
     if(u!=null) return u<0.0001 ? "<$0.0001/decision" : `~$${u.toFixed(4)}/decision`;
   }
@@ -8713,12 +8746,12 @@ function nodeUnitUsd(n){
       if(secs!=null){ const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), Object.assign({}, videoPriceFields(it.params, fields), { duration: avatarClampSecs(fields.model, secs, it.pricing) }), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
     }
     const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
-  if(kind==="chat" && t.modelFilter==="decision"){
+  if(kind==="decision"){
     // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
     // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
     const f=fields||{}, imgs = graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length;
     const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
-    return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
+    const u = chatUnitUsd(it, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
@@ -8902,7 +8935,7 @@ function openPicker(kind, opts){
   else { try{ refreshCatalogsIfStale(); }catch(_){} }
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick, nodeType:opts.nodeType||"", toCurrent:true };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
-  $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
+  $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter==="decision-vision" ? ` · ${t("vision")}` : opts.filter && kind!=="decision" ? ` · ${t(opts.filter)}` : "");
   $("mpicksort").value = pickerSort;
   const nsfwWrap = $("mpicknsfw");
   const nsfwtog = $("mpicknsfwtog");
@@ -8914,7 +8947,7 @@ function openPicker(kind, opts){
   $("mpicklist").innerHTML = `<div class='dim' style='padding:.6rem'>${esc(t("loading the full list…"))}</div>`;
   $("mpicksearch").focus();
   const load = kind==="model3d" ? ensureModel3dCatalog() : loadCatalog(kind);
-  if(kind==="model3d" && catalogs.model3d) renderPicker();
+  if((kind==="model3d" || kind==="decision") && catalogs[kind]) renderPicker();
   load.then(()=>{ if(picker && picker.kind===kind) renderPicker(); });
 }
 function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker=null; }
@@ -8938,7 +8971,9 @@ function pickerMatches(){
   if(!picker) return [];
   const q = $("mpicksearch").value.trim().toLowerCase();
   const qNorm = normalizePickerQuery(q);
-  let list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
+  const fallback = picker.kind==="decision" && !catalogs.decision?.length
+    ? [{ id:DECIDE_DEFAULT_MODEL, name:"PPLX Decider v1.2", decision:true, vision:true }] : [];
+  let list = (catalogs[picker.kind]?.length ? catalogs[picker.kind] : fallback).filter(m=> passesFilter(m, picker.filter));
   if(picker.kind==="image" || picker.kind==="video"){
     list = list.filter(m => !!m.nsfw === nsfwOnly || m.id === picker.current
       || (!nsfwOnly && pickerIdHitsQuery(m.id, qNorm)));
@@ -9029,7 +9064,10 @@ function renderPicker(){
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
   const frag = document.createDocumentFragment();
-  const hint = pickerSearchHint(matches);
+  const hint = picker.kind==="decision"
+    ? (!catalogs.decision?.length ? "Live decision models unavailable. The default can still be selected; reopen to retry."
+       : !matches.length ? "No matching decision models." : null)
+    : pickerSearchHint(matches);
   if(hint){
     const d = document.createElement("div");
     d.className = "dim";
@@ -9848,7 +9886,7 @@ const NODE_TYPES = {
   decide: {
     em:"⚖️", title:"Decide", desc:"Pick the best image, choose a label, score or yes/no — typed answers with probabilities", group:"Text",
     kw:"judge pick best choose select classify route label score rate grade rank compare gate filter check yes no quality arena vote decision winner",
-    modelKind:"chat", modelFilter:"decision",
+    modelKind:"decision", modelFilter:"decision",
     inputs:[{name:"text", type:"text"}],
     imageInputs:"vision",   // image-capable decision models grow img1…imgN (capped at the model's image_limits.maxImages)
     outputs:[{name:"text", type:"text"},{name:"image", type:"image"}], preview:"decide",
@@ -9876,9 +9914,9 @@ const NODE_TYPES = {
       sel.addEventListener("change", ()=>{ n.fields.mode = sel.value; save(); rerenderNode(n); refreshAllPrices(); });
     },
     async run(n, inp, ctx){
-      const model = mdl(n, ctx);
-      const dm = catItem("chat", model);
-      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm),
+      const model = decideModelId(mdl(n, ctx));
+      const dm = catItem("decision", model);
+      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm?.decisionInput),
         (body)=> ctx.genDecision(body), urlToDataUrl);
     }
   },
@@ -10443,7 +10481,16 @@ function buildNodeEl(n){
     mp.addEventListener("pointerdown", e=>e.stopPropagation());
     mp.onclick = (e)=>{
       e.stopPropagation();
-      openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
+      const hasImages = n.type==="decide" && graph.links.some(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port));
+      const filter = n.type==="decide" && decideNeedsVision(n.fields, hasImages) ? "decision-vision" : t.modelFilter;
+      openPicker(t.modelKind, { current:n.fields.model, filter, nodeType:n.type, onPick:(id)=>{
+        if(n.type==="decide"){
+          id = decideModelId(id);
+          const chosen = catItem("decision", id);
+          if(filter==="decision-vision" && chosen && !chosen.vision){
+            flash("this decision model can’t see images — pick one that can"); return;
+          }
+        }
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
         syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
@@ -10844,7 +10891,9 @@ function resizeCropImage(dataUrl, mode, tw, th){
    image is shrunk to fit on-device first (decideFitImage). Shared twin: index.html and play.html
    RUNTIME_JS carry this block character-identical after trim. NO backticks (String.raw template).
    ====================================================================== */
-var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";   // sees images (pick-best needs that), 262K context, cheapest per token at launch
+var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.2";
+function decideModelId(id){ return id==="perplexity/pplx-decider-v1.1-27b" ? DECIDE_DEFAULT_MODEL : id; }
+function decideNeedsVision(fields, hasImages){ return decideMode(fields)==="pick" || hasImages; }
 var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
 var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
@@ -17285,6 +17334,7 @@ function applyGraphData(d, opts){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
     const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
+    if(type==="decide") n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
     if(prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
@@ -21568,7 +21618,7 @@ $("signout").onclick = ()=> setKey(null);
     if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){}
   // Model metadata changes node bodies (dimensions, LoRA/options panels, prices). We used to
   // AWAIT the catalog before the first paint so cards landed at final size — but that meant a
-  // blank canvas for the whole 4-request round-trip to nano-gpt on every load. Instead: seed
+  // blank canvas for the whole catalog round-trip to nano-gpt on every load. Instead: seed
   // from the localStorage SWR cache synchronously (instant final-size paint for returning
   // visitors), and revalidate in the background — the reflow below reconciles any changes and
   // fills in a brand-new visitor's cards the moment the first catalog arrives. No await = no blank.
@@ -21685,7 +21735,7 @@ $("signout").onclick = ()=> setKey(null);
     }, note:"vision models grow wired image ports (img1…); audio_input models grow an audio port; model is a wirable field port — a Choice option like anthropic/claude-fable-5.1 sets the paid model id" },
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
     decide:{ main:"question", fields:{
-      model:"decision model id (optional; default perplexity/pplx-decider-v1.1-27b, which sees images; liquid/d1 / typesafe/jev-latest are text-only)",
+      model:"NanoGPT decision model id (optional; default perplexity/pplx-decider-v1.2, which sees images; liquid/d1 is text-only)",
       mode:"pick|choose|score|yesno (default pick)", question:"what to decide (optional; a sensible default per mode)",
       options:"choose mode: the labels, one per line (2–255)", levels:"score mode: the scale, worst first, one per line (2–10; default poor/okay/good/great)",
       gate:"yesno mode: true = a no stops the run here; nothing downstream runs or bills",
