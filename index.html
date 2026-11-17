@@ -22296,7 +22296,7 @@ RULES for the diff:
 
   async function submit(){
     if(busy) return;
-    const draft = input.value, text = draft.trim();
+    const text = input.value.trim();
     if(!text){ input.focus(); return; }
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
@@ -22338,7 +22338,6 @@ RULES for the diff:
       versions.push({ graph: clone(serializeGraph()), goal: text });
       curVer = versions.length-1;
       renderVersions();
-      if(input.value===draft) input.value = "";
       // The done moment must be unmissable: pulse EVERY node the edit touched (changed too, not
       // just added), scroll them into view first, flash the bar green, and headline the recap.
       const touchedIds = [...new Set([...dif.added.map(n=>n.id), ...dif.changed.map(c=>c.id)])];
