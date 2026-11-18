@@ -375,19 +375,21 @@
   /* ---------- narrow widths: keep the builder bar + composer from wrapping into ragged rows ---------- */
   @media (max-width:640px){
     #recwelcome{ font-size:.8rem; padding:.5rem .75rem; align-items:flex-start; }   /* wraps to a few lines — keep ✕ pinned top */
-    #bar{ gap:.35rem; padding:.45rem .6rem; }
+    #bar{ gap:.35rem; padding:.45rem .6rem; flex-wrap:nowrap; }
+    #bar > .grow{ display:none; }
+    #bar > :is(#myapps,#langbtn-b,#barmore){ flex:none; }
     #bar button{ padding:.35rem .55rem; font-size:.78rem; }
     #bar .sep{ display:none; }
     #bar #sharehint{ display:none; }
     #auth-status{ display:none; }        /* the sign-in link / sign-out button carry the state; drop the status text */
     #bal{ display:none; }                /* balance follows the status text into the ⋯ menu */
-    .title-wrap{ max-width:14ch; }
+    .title-wrap{ flex:1 1 auto; min-width:0; max-width:none; }
     .cust-label{ display:none; }
     #goal{ min-width:140px; }
     #modelpick{ max-width:120px; }
     /* --- mobile: creator chrome → overflow ⋯ menu; composer → ✨ handle; Run rises above the fold --- */
     .brand{ display:none; }            /* the title identifies the app; reclaim width for a one-row bar */
-    #barmore{ display:inline-flex; align-items:center; font-size:1.1rem; padding:.2rem .5rem; min-height:44px; }
+    #barmore{ display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem; padding:.2rem .5rem; min-width:44px; min-height:44px; }
     #baractions{ display:none; position:absolute; top:calc(100% + .3rem); right:.5rem; z-index:92;
                  flex-direction:column; align-items:stretch; gap:.4rem; min-width:210px;
                  background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
