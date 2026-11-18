@@ -6038,8 +6038,15 @@ let _model3dCatP = null;
 function ensureModel3dCatalog(){
   if(_model3dCatP) return _model3dCatP;
   if(catalogFetchedAt.model3d && !catalogIsStale("model3d")) return Promise.resolve(catalogs.model3d || []);
-  _model3dCatP = refreshCatalog("model3d").catch(()=>false).then(()=> catalogs.model3d || [])
-    .finally(()=>{ _model3dCatP = null; });   // retain only in-flight work; a failed first load must be retryable
+  _model3dCatP = refreshCatalog("model3d").catch(()=>false).then(ok=>{
+    // model3d is not a boot kind, so this fetch is the first revalidation a 3D
+    // surface ever gets — and a graph painted against the localStorage-primed
+    // catalog can already carry a "model unavailable" badge for a model the
+    // fresh list has (any model catalogued after the cache was written).
+    // Reconcile like the boot path does, or the badge sticks all session.
+    if(ok){ try{ refreshAllPrices(); redraw(); refreshPortFills(); }catch(_){} }
+    return catalogs.model3d || [];
+  }).finally(()=>{ _model3dCatP = null; });   // retain only in-flight work; a failed first load must be retryable
   return _model3dCatP;
 }
 function watchedCatalogKinds(){
