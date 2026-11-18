@@ -10,11 +10,24 @@ import vm from "node:vm";
 const src=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const block=src.slice(src.indexOf('const WS_INDEX_KEY = "noodle_workspaces";'),src.indexOf("/* WORKSPACES-END */"));
 const save=src.slice(src.indexOf("function save(){"),src.indexOf("/* ---- Undo / redo:"));
+const load=src.slice(src.indexOf("function load(){"),src.indexOf("let _starterData"));
 assert.ok(block.includes("function flushSave()"));
 const copy=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
 const graph=text=>({v:1,nodes:[{id:"n1",type:"text",fields:{text}},{id:"n2",type:"upload",fields:{image:"data:image/png;base64,c3ludGhldGlj"}}],links:[],nid:3,lid:1});
 const index=JSON.stringify({v:1,active:"w1",seq:2,tabs:[{id:"w1",name:"Editing"},{id:"w2",name:"Other tab"}]});
 const initial=()=>({noodle_graph:JSON.stringify(graph("OLD EDIT")),noodle_workspaces:index,noodle_ws_w2:JSON.stringify(graph("OTHER WORKSPACE"))});
+const tab=(id,name,extra)=>({id,name,...extra});
+const recovered=(id,name)=>tab(id,"Recovered visit: "+name,{recovery:{name,label:"Recovered visit: "+name}});
+function workspaceValues(tabs,active,graphs,binding){
+  const values={noodle_workspaces:JSON.stringify({v:1,active,seq:Math.max(...tabs.map(t=>+t.id.slice(1))),tabs})};
+  for(const [id,data] of Object.entries(graphs)){
+    values[id===active?"noodle_graph":"noodle_ws_"+id]=JSON.stringify(data);
+  }
+  if(binding)values.noodle_editor_app=JSON.stringify(binding);
+  return values;
+}
+const tabIndex=p=>JSON.parse(p.read("noodle_workspaces"));
+const journal=(s,values)=>s.setItem("noodle_workspace_recovery",JSON.stringify({v:1,id:"pending-visit",updated:1,values}));
 const storage=values=>({values:new Map(Object.entries(values)),deny:false,
   get length(){return this.values.size;},key(i){return [...this.values.keys()][i]??null;},
   getItem(k){return this.values.get(k)??null;},
@@ -30,7 +43,9 @@ function page(local,session,disk){
     setTimeout(fn,ms){const id=++seq;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),
     indexedDB:{open(){
       const request={};
-      queueMicrotask(()=>{if(!alive)return;request.result={close(){},transaction(_name,mode){
+      queueMicrotask(()=>{if(!alive)return;
+        if(disk.failOpen){request.onerror?.();return;}
+        request.result={close(){},transaction(_name,mode){
         if(mode==="readwrite" && disk.fail){const e=new Error("synthetic interrupted write");e.name="QuotaExceededError";throw e;}
         const tx={abort(){this.aborted=true;},objectStore(){return {
           get(){const read={};const deliver=()=>{
@@ -38,7 +53,11 @@ function page(local,session,disk){
             read.result=copy(disk.record);read.onsuccess?.();
             if(mode==="readwrite")queueMicrotask(()=>{if(alive && !tx.aborted){disk.record=copy(tx.value);tx.oncomplete?.();}});
           };
-          queueMicrotask(()=>{if(mode==="readwrite" && disk.hold)(disk.held??=[]).push(deliver);else deliver();});
+          queueMicrotask(()=>{
+            if(mode==="readwrite" && disk.hold)(disk.held??=[]).push(deliver);
+            else if(mode==="readonly" && disk.holdRead)(disk.heldReads??=[]).push(deliver);
+            else deliver();
+          });
           return read;},put(value){tx.value=copy(value);}
         };}};return tx;}};request.onsuccess?.();});return request;
     }},
@@ -48,14 +67,20 @@ function page(local,session,disk){
     var saveT=null,serializeFailure=false,graph=${JSON.stringify(graph("OLD EDIT"))};
     const EDITOR_APP_KEY="noodle_editor_app";
     var undoStack=[],redoStack=[],pendingAppId=null,pendingAppTitle=null;
+    var undoMuted=false,window={},runningNodes=new Set();
     var location={hash:"",pathname:"/",search:""},history={replaceState(){location.hash="";}};
     function serializeGraph(){if(serializeFailure)throw new Error("synthetic serialization failure");return graph;}
+    ${load}
+    function applyGraphData(data){graph={...data,nid:data.nid+1,lid:data.lid+1};}
+    function setPendingApp(){workspaceStorage.removeItem(EDITOR_APP_KEY);}
     function flash(){} function refreshRunEstimate(){} function refreshPromptCaps(){}
     function refreshAppButton(){return false;} function layoutBar(){} function $(){return null;}
     ${save}\n${block}
     globalThis.api={save,flushSave,initWorkspaceStorage,settleWorkspaceStorage,workspacePersistence,
       edit(text){graph.nodes[0].fields.text=text;save();},
-      restore(){graph=JSON.parse(workspaceStorage.getItem("noodle_graph"));return graph;},
+      restore(){load();claimInitialCanvas();return graph;},
+      open:openWorkspaceWithGraph,
+      stashResult(id){workspaceResults.set(id,new Map([["n1 text",{out:{text:"PAID RESULT"}}]]));},
       read:key=>workspaceStorage.getItem(key),
       set:(key,value)=>workspaceStorage.setItem(key,value),
       pending:()=>saveT!==null,
@@ -188,6 +213,147 @@ await check("two windows retain their own interrupted edits",async()=>{
   const all=d.tabs.map(t=>nextB.read(t.id===d.active?"noodle_graph":"noodle_ws_"+t.id)).join("\n");
   assert.match(all,/WINDOW A EDIT/);assert.match(all,/WINDOW B EDIT/);
   await nextB.settleWorkspaceStorage();nextB.close();
+});
+await check("an exact recovery reuses the original tab and focuses it, including repeated recovery and reload",async()=>{
+  const binding={id:"app-1",title:"My app"};
+  const workflow=graph("EXACT WORKFLOW"),other=graph("UNRELATED WORKFLOW");
+  const values=workspaceValues([tab("w1","Editing",{app:binding}),tab("w2","Other")],"w2",{w1:workflow,w2:other});
+  const visit=workspaceValues([tab("w9","Editing",{app:binding})],"w9",{w9:workflow},binding);
+  const local=storage({}),session=storage({}),disk={record:{v:1,values,generation:"base"}};
+  for(let i=0;i<3;i++){
+    if(i!==2)journal(session,visit);
+    const p=page(local,session,disk);await p.boot();
+    assert.deepEqual(tabIndex(p),{v:1,active:"w1",seq:2,tabs:JSON.parse(values.noodle_workspaces).tabs});
+    assert.equal(p.read("noodle_graph"),JSON.stringify(workflow));
+    assert.equal(p.read("noodle_ws_w2"),JSON.stringify(other));
+    assert.equal(p.read("noodle_editor_app"),JSON.stringify(binding));
+    await p.settleWorkspaceStorage();p.close();
+    assert.equal(session.getItem("noodle_workspace_recovery"),null);
+  }
+});
+await check("restore removes a historical recovered copy and keeps the original tab active",async()=>{
+  const workflow=graph("EXACT LEGACY WORKFLOW");
+  const values=workspaceValues([tab("w1","Editing"),tab("w2","Recovered visit: Editing")],"w2",{w1:workflow,w2:workflow});
+  // This is the active shadow the old merge persisted beside noodle_graph.
+  values.noodle_ws_w2=values.noodle_graph;
+  const local=storage({}),session=storage({}),disk={record:{v:1,values,generation:"base"}};
+  const p=page(local,session,disk);await p.boot();await p.settleWorkspaceStorage();p.close();
+  const next=page(local,session,disk);await next.boot();
+  assert.deepEqual(tabIndex(next),{v:1,active:"w1",seq:2,tabs:[tab("w1","Editing")]});
+  assert.equal(next.read("noodle_ws_w2"),null);
+  assert.equal(next.read("noodle_graph"),JSON.stringify(workflow));
+  next.close();
+});
+await check("an inactive recovered copy restored from storage leaves unrelated focus intact",async()=>{
+  const workflow=graph("SAVED TWICE");
+  const values=workspaceValues([recovered("w4","Editing"),tab("w1","Editing"),tab("w3","Other")],
+    "w3",{w1:workflow,w4:workflow,w3:graph("FOCUSED")});
+  const disk={record:{v:1,values,generation:"base"}};
+  const p=page(storage({}),storage({}),disk);await p.boot();await p.settleWorkspaceStorage();
+  assert.equal(tabIndex(p).active,"w3");
+  assert.deepEqual(tabIndex(p).tabs.map(t=>t.id),["w1","w3"]);
+  assert.equal(p.read("noodle_ws_w4"),null);
+  assert.equal(text(p.read("noodle_graph")),"FOCUSED");
+  p.close();
+});
+await check("opening the equivalent original later removes the recovered copy",async()=>{
+  const workflow=graph("OPEN AGAIN");
+  const values=workspaceValues([recovered("w2","Editing")],"w2",{w2:workflow});
+  const local=storage({}),session=storage({}),disk={record:{v:1,values,generation:"base"}};
+  const p=page(local,session,disk);await p.boot();
+  assert.equal(p.open(workflow,"Editing"),true);await p.settleWorkspaceStorage();
+  assert.deepEqual(tabIndex(p).tabs.map(t=>t.id),["w3"]);
+  assert.equal(tabIndex(p).active,"w3");
+  assert.equal(p.read("noodle_ws_w2"),null);
+  p.close();
+  const next=page(local,session,disk);await next.boot();
+  assert.deepEqual(tabIndex(next).tabs,[tab("w3","Editing",{app:null})]);
+  next.close();
+});
+await check("a recovery-like name alone cannot remove an independently opened tab",async()=>{
+  const workflow=graph("OPENED TWICE ON PURPOSE");
+  const tabs=[tab("w1","Editing"),tab("w2","Recovered visit: Editing")];
+  const values=workspaceValues(tabs,"w2",{w1:workflow,w2:workflow});
+  const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});
+  await p.boot();assert.deepEqual(tabIndex(p).tabs,tabs);p.close();
+});
+for(const [difference,change] of Object.entries({
+  prompt:g=>{g.nodes[0].fields.text="DIVERGENT EDIT";},
+  upload:g=>{g.nodes[1].fields.image+="YXQ=";},
+  layout:g=>{g.nodes[0].x=40;},
+  view:g=>{g.view={panX:55,panY:70,scale:1};},
+  counters:g=>{g.nid++;},
+  "unknown graph metadata":g=>{g.note="keep this";},
+})){
+  await check("recovery keeps both workflows when "+difference+" differs",async()=>{
+    const original=graph("SAME TITLE"),edited=copy(original);change(edited);
+    const values=workspaceValues([tab("w1","Editing")],"w1",{w1:original});
+    const session=storage({}),disk={record:{v:1,values,generation:"base"}};
+    journal(session,workspaceValues([tab("w1","Editing")],"w1",{w1:edited}));
+    const p=page(storage({}),session,disk);await p.boot();await p.settleWorkspaceStorage();
+    assert.deepEqual(tabIndex(p).tabs,[tab("w1","Editing"),recovered("w2","Editing")]);
+    assert.equal(p.read("noodle_graph"),JSON.stringify(edited));
+    assert.equal(p.read("noodle_ws_w1"),JSON.stringify(original));
+    p.close();
+  });
+}
+await check("the same graph keeps separate tabs with differing bindings and example metadata",async()=>{
+  const workflow=graph("SAME GRAPH");
+  const first={id:"app-1",title:"Same title"},second={id:"app-2",title:"Same title"};
+  const tabs=[tab("w1","Editing",{app:first,example:"first"}),recovered("w2","Editing")];
+  Object.assign(tabs[1],{app:second,example:"second"});
+  const values=workspaceValues(tabs,"w2",{w1:workflow,w2:workflow},second);
+  const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});
+  await p.boot();assert.deepEqual(tabIndex(p).tabs,tabs);p.close();
+});
+await check("matching standalone graph bytes cannot prove separately stored uploads match",async()=>{
+  const workflow=graph("EXTERNAL UPLOAD");
+  workflow.nodes.push({id:"n3",type:"mupload",fields:{model:"",modelFile:{name:"edit.glb",size:12}}});
+  const tabs=[tab("w1","Editing"),recovered("w2","Editing")];
+  const values=workspaceValues(tabs,"w2",{w1:workflow,w2:workflow});
+  const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});
+  await p.boot();assert.deepEqual(tabIndex(p).tabs,tabs);p.close();
+});
+await check("live reconciliation waits for a pending edit and keeps a copy with unique results",async()=>{
+  for(const state of ["pending edit","paid result"]){
+    const workflow=graph("SAME ON DISK"),different=graph("DIFFERENT ON DISK");
+    const tabs=[tab("w1","Editing"),recovered("w2","Editing")];
+    const values=workspaceValues(tabs,"w2",{w1:different,w2:workflow});
+    const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});await p.boot();
+    if(state==="pending edit")p.edit("UNSAVED IN CANVAS");
+    else p.stashResult("w1");
+    p.set("noodle_ws_w1",JSON.stringify(workflow));await turns();
+    assert.deepEqual(tabIndex(p).tabs,tabs);
+    p.timer();await p.settleWorkspaceStorage();
+    assert.deepEqual(tabIndex(p).tabs,tabs);
+    p.close();
+  }
+});
+await check("a live retry reuses an untouched loaded workflow despite rebuilt canvas counters",async()=>{
+  const values=initial(),local=storage(values),session=storage({});
+  const disk={record:{v:1,values,generation:"base"},failOpen:true};
+  const p=page(local,session,disk);
+  assert.notEqual((await p.boot()).nid,JSON.parse(values.noodle_graph).nid);
+  await p.settleWorkspaceStorage();
+  disk.failOpen=false;
+  await p.initWorkspaceStorage();await p.settleWorkspaceStorage();
+  assert.deepEqual(tabIndex(p),JSON.parse(index));
+  assert.equal(p.read("noodle_graph"),values.noodle_graph);
+  p.close();
+});
+await check("live retry checks edits made while IndexedDB was opening",async()=>{
+  const values=initial(),local=storage(values),session=storage({});
+  const disk={record:{v:1,values,generation:"base"},failOpen:true};
+  const p=page(local,session,disk);await p.boot();await p.settleWorkspaceStorage();
+  disk.failOpen=false;disk.holdRead=true;
+  const retry=p.initWorkspaceStorage();await turns();
+  p.edit("EDIT WHILE RETRY IS OPENING");
+  disk.heldReads.shift()();await retry;await p.settleWorkspaceStorage();
+  const d=tabIndex(p);
+  assert.equal(d.tabs.length,3);
+  assert.equal(text(p.read("noodle_graph")),"EDIT WHILE RETRY IS OPENING");
+  assert.equal(text(p.read("noodle_ws_w1")),"OLD EDIT");
+  p.close();
 });
 await check("leaving during restore never saves the unclaimed canvas",async()=>{
   const local=storage(initial()),p=page(local,storage({}),{});await p.boot();p.restorePending(true);
