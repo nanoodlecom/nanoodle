@@ -80,6 +80,7 @@ function page(local,session,disk){
       edit(text){graph.nodes[0].fields.text=text;save();},
       restore(){load();claimInitialCanvas();return graph;},
       open:openWorkspaceWithGraph,
+      liveBinding(binding){pendingAppId=binding.id;pendingAppTitle=binding.title;},
       stashResult(id){workspaceResults.set(id,new Map([["n1 text",{out:{text:"PAID RESULT"}}]]));},
       read:key=>workspaceStorage.getItem(key),
       set:(key,value)=>workspaceStorage.setItem(key,value),
@@ -231,6 +232,31 @@ await check("an exact recovery reuses the original tab and focuses it, including
     assert.equal(session.getItem("noodle_workspace_recovery"),null);
   }
 });
+for(const sameId of [true,false]){
+  await check("distinct identical tabs survive merge, reload and journal replay (shared ID "+sameId+")",async()=>{
+    const workflow=graph("INDEPENDENT TABS");
+    const original=tab("w1","Editing");
+    const values=workspaceValues([original],"w1",{w1:workflow});
+    const first=sameId?"w1":"w8";
+    const visit=workspaceValues([tab(first,"Editing"),tab("w9","Editing")],"w9",{[first]:workflow,w9:workflow});
+    const local=storage({}),session=storage({}),disk={record:{v:1,values,generation:"base"}};
+    let merged;
+    for(const replay of [true,false,true,false]){
+      if(replay)journal(session,visit);
+      const p=page(local,session,disk);await p.boot();await p.settleWorkspaceStorage();
+      const d=tabIndex(p);
+      assert.equal(d.tabs.length,sameId?2:3);
+      assert.deepEqual(d.tabs[0],original);
+      assert.notEqual(d.active,"w1");
+      for(const t of d.tabs){
+        assert.equal(p.read(t.id===d.active?"noodle_graph":"noodle_ws_"+t.id),JSON.stringify(workflow));
+      }
+      if(merged)assert.deepEqual(d,merged,"recovery must preserve each tab and its focus across replay");
+      else merged=d;
+      p.close();
+    }
+  });
+}
 await check("restore removes a historical recovered copy and keeps the original tab active",async()=>{
   const workflow=graph("EXACT LEGACY WORKFLOW");
   const values=workspaceValues([tab("w1","Editing"),tab("w2","Recovered visit: Editing")],"w2",{w1:workflow,w2:workflow});
@@ -326,6 +352,28 @@ await check("live reconciliation waits for a pending edit and keeps a copy with 
     assert.deepEqual(tabIndex(p).tabs,tabs);
     p.timer();await p.settleWorkspaceStorage();
     assert.deepEqual(tabIndex(p).tabs,tabs);
+    p.close();
+  }
+});
+await check("foreground reconciliation waits for the live app ID and title to match storage",async()=>{
+  const binding={id:"app-1",title:"Saved title"};
+  for(const divergent of [{id:"app-2",title:binding.title},{id:binding.id,title:"Live title"}]){
+    const tabs=[tab("w1","Editing",{app:binding}),{...recovered("w2","Editing"),app:binding}];
+    const values=workspaceValues(tabs,"w2",{w1:graph("STILL DIFFERENT"),w2:graph("MATCH AFTER SAVE")},binding);
+    const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});await p.boot();
+    p.liveBinding(divergent);
+    p.set("noodle_ws_w1",p.flushSave());
+    await p.settleWorkspaceStorage();
+    assert.deepEqual(tabIndex(p).tabs,tabs);
+    assert.equal(tabIndex(p).active,"w2");
+    assert.equal(p.read("noodle_editor_app"),JSON.stringify(binding));
+
+    p.liveBinding(binding);
+    p.flushSave();
+    await p.settleWorkspaceStorage();
+    assert.deepEqual(tabIndex(p).tabs,[tabs[0]]);
+    assert.equal(tabIndex(p).active,"w1");
+    assert.equal(p.read("noodle_ws_w2"),null);
     p.close();
   }
 });

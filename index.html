@@ -18403,6 +18403,10 @@ function wsRecoveryMark(tab){
   const mark = tab.recovery;
   return typeof mark?.name==="string" && typeof mark.label==="string" ? mark : null;
 }
+function wsDistinctRecoverySource(tab){
+  const sourceTabId = wsRecoveryMark(tab)?.sourceTabId;
+  return typeof sourceTabId==="string" && sourceTabId ? sourceTabId : null;
+}
 function wsRecoveryGraph(values, d, tab){
   return tab.id===d.active ? values.noodle_graph : values[wsGraphKey(tab.id)];
 }
@@ -18427,8 +18431,21 @@ function wsSameRecoveryTab(values, d, tab, otherValues, otherIndex, other){
       && wsRecoveryDetails(values,d,tab)===wsRecoveryDetails(otherValues,otherIndex,other);
   }catch(_){ return false; }
 }
-function wsRecoveryHasRuntime(tab, d){
+function wsRecoveryActiveBindingMatches(values,tab){
+  try{
+    const unbound = pendingAppId===null && pendingAppTitle===null;
+    if(!unbound && (typeof pendingAppId!=="string" || !pendingAppId
+        || (pendingAppTitle!==null && typeof pendingAppTitle!=="string"))) return false;
+    const binding = unbound ? "null" : JSON.stringify({id:pendingAppId,title:pendingAppTitle});
+    return binding===JSON.stringify(JSON.parse(values[EDITOR_APP_KEY] ?? "null"))
+      && binding===JSON.stringify(tab.app ?? null);
+  }catch(_){ return false; }
+}
+function wsRecoveryHasRuntime(values, d, tab){
   const active = tab.id===d.active;
+  // The app handoff uses the live binding. The two stored copies can still
+  // agree after a partial update or rollback leaves that binding out of sync.
+  if(active && !wsRecoveryActiveBindingMatches(values,tab)) return true;
   const history = active
     ? {undo:undoStack, redo:redoStack, describe:window.captureDescribeVersions?.()}
     : workspaceHist.get(tab.id);
@@ -18459,22 +18476,25 @@ function wsMarkLegacyRecovery(values, d){
 function wsReconcileRecovery(values, {live=false,legacy=false}={}){
   const d = wsRecoveryIndex(values);
   if(!d) return null;
+  if(live && (wsClosedUndo.length || wsClosedRedo.length)) return null;
   if(legacy) wsMarkLegacyRecovery(values,d);
-  const recovered = d.tabs.filter(wsRecoveryMark);
-  if(!recovered.length) return null;
-  const originals = d.tabs.filter(tab=>!wsRecoveryMark(tab));
-  const kept = originals.slice(), removed = new Map();
-  for(const tab of recovered){
-    const match = kept.find(other=>{
-      if(!wsSameRecoveryTab(values,d,tab,values,d,other)) return false;
-      if(!live) return true;
-      if(wsRecoveryHasRuntime(tab,d) || wsRecoveryHasRuntime(other,d)) return false;
+  const removed = new Map();
+  for(const tab of d.tabs){
+    if(!wsRecoveryMark(tab) || wsDistinctRecoverySource(tab)) continue;
+    const peers = d.tabs.filter(other=>other!==tab && wsSameRecoveryTab(values,d,tab,values,d,other));
+    // More than one peer could represent intentionally separate tabs. Require
+    // an unambiguous pair, retaining the ordinary or earlier recovered tab.
+    if(peers.length!==1) continue;
+    const [other] = peers;
+    if(wsDistinctRecoverySource(other) || (wsRecoveryMark(other) && d.tabs.indexOf(other)>d.tabs.indexOf(tab))) continue;
+    if(live){
+      if(wsRecoveryHasRuntime(values,d,tab) || wsRecoveryHasRuntime(values,d,other)) continue;
       // A completed index write can still refer to an older version of the live canvas.
-      if(tab.id!==d.active && other.id!==d.active) return true;
-      try{ return values.noodle_graph===JSON.stringify(serializeGraph()); }catch(_){ return false; }
-    });
-    if(match) removed.set(tab.id,match.id);
-    else kept.push(tab);
+      if(tab.id===d.active || other.id===d.active){
+        try{ if(values.noodle_graph!==JSON.stringify(serializeGraph())) continue; }catch(_){ continue; }
+      }
+    }
+    removed.set(tab.id,other.id);
   }
   if(!removed.size) return null;
   const result = Object.assign(Object.create(null),values);
@@ -18487,6 +18507,33 @@ function wsReconcileRecovery(values, {live=false,legacy=false}={}){
   result[WS_INDEX_KEY]=JSON.stringify(d);
   return result;
 }
+function wsPairRecoveryTabs(options){
+  const matches = new Map(), claimed = new Set();
+  const matchUnique = canPair=>{
+    const choices = new Map(), claims = new Map();
+    for(const [tab,candidates] of options){
+      if(matches.has(tab)) continue;
+      const peers = candidates.filter(other=>!claimed.has(other) && canPair(tab,other));
+      if(peers.length===1) choices.set(tab,peers[0]);
+      for(const other of peers) claims.set(other,(claims.get(other)||0)+1);
+    }
+    for(const [tab,other] of choices){
+      if(claims.get(other)!==1) continue;
+      matches.set(tab,other);
+      claimed.add(other);
+    }
+  };
+  // First reuse unchanged IDs, then recognize copies from an earlier replay.
+  // A content-only match must be unique in both snapshots.
+  matchUnique((tab,other)=>tab.id===other.id && !!wsRecoveryMark(tab)===!!wsRecoveryMark(other)
+    && wsDistinctRecoverySource(tab)===wsDistinctRecoverySource(other));
+  matchUnique((tab,other)=>{
+    const from = wsDistinctRecoverySource(tab), to = wsDistinctRecoverySource(other);
+    return (from || to) && (from || tab.id)===(to || other.id);
+  });
+  matchUnique((tab,other)=>!wsDistinctRecoverySource(tab) && !wsDistinctRecoverySource(other));
+  return matches;
+}
 function wsMergeRecovery(saved, visit, liveCanvas){
   saved = wsReconcileRecovery(saved,{legacy:true}) || saved;
   const result = Object.assign(Object.create(null), saved);
@@ -18495,26 +18542,27 @@ function wsMergeRecovery(saved, visit, liveCanvas){
   if(!live) return result;
   if(saved.noodle_graph!=null) result[wsGraphKey(d.active)]=saved.noodle_graph;
   const histories = new Map(workspaceHist), results = new Map(workspaceResults);
-  const candidates = d.tabs.slice().sort((a,b)=>Number(!!wsRecoveryMark(a))-Number(!!wsRecoveryMark(b)));
-  const matches = new Map();
-  for(const tab of live.tabs){
-    if(liveCanvas && wsRecoveryHasRuntime(tab,live)) continue;
-    const matchesTab = other=>wsSameRecoveryTab(visit,live,tab,saved,d,other);
-    const match = candidates.find(other=>!wsRecoveryMark(other) && other.id===tab.id && matchesTab(other))
-      || candidates.find(matchesTab);
-    if(match) matches.set(tab.id,match.id);
-  }
+  const options = new Map(live.tabs.map(tab=>[tab,d.tabs.filter(other=>wsSameRecoveryTab(visit,live,tab,saved,d,other))]));
+  const matches = wsPairRecoveryTabs(liveCanvas
+    ? new Map([...options].filter(([tab])=>!wsRecoveryHasRuntime(visit,live,tab))) : options);
   // In a retry, these maps describe the visit, not the durable tab IDs.
   workspaceHist.clear(); workspaceResults.clear();
   for(const tab of live.tabs){
-    let id = matches.get(tab.id);
+    let id = matches.get(tab)?.id;
     const json = wsRecoveryGraph(visit,live,tab);
     if(!id){
       do{ d.seq=(d.seq|0)+1; id="w"+d.seq; }while(d.tabs.some(t=>t.id===id));
       const mark = wsRecoveryMark(tab);
       const originalName = mark?.label===tab.name ? mark.name : tab.name;
       const name = uniqueWorkspaceName(wsT("Recovered visit")+": "+originalName,d.tabs);
-      d.tabs.push({...tab,id,name,recovery:{name:originalName,label:name}});
+      const recovery = {name:originalName,label:name};
+      // Keep a distinct tab separate after the merge, even if only its matching
+      // counterpart remains open. Remember its source ID for a journal replay.
+      const sourceTabId = wsDistinctRecoverySource(tab);
+      if(sourceTabId || options.get(tab).length>1
+          || live.tabs.some(other=>other!==tab && wsSameRecoveryTab(visit,live,tab,visit,live,other)))
+        recovery.sourceTabId=sourceTabId || tab.id;
+      d.tabs.push({...tab,id,name,recovery});
       if(json!=null) result[wsGraphKey(id)]=json;
     }
     if(results.has(tab.id)) workspaceResults.set(id,results.get(tab.id));
