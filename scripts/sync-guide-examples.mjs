@@ -54,6 +54,14 @@ const HOWTO = {
     inspect: "Compare the original, the cut-out and the placed composite, then read the <em>Preservation verdict</em>. PRESERVED means every spec line was re-read exactly; DRIFTED quotes the lines that differ. In the saved run the headline label was letter-perfect and the checker still flagged the microprint line — that strictness is the feature, not a failure of the demo.",
     costHow: "Five model calls: the saved run reported $0.0906 in total (spec $0.0048, RMBG-3.0 cut-out $0.018, Nano Banana placement $0.039, blind re-read $0.0288, GLM checker $0.00). Prices and results vary.",
   },
+  "photo-to-3d-splat": {
+    headline: "Photo to 3D splat",
+    job: "One photo of one object → a 3D Gaussian splat you can orbit.",
+    purpose: "Gemini surveys the photo first: the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol (Sperid Labs) rebuilds the object as a Gaussian splat — hundreds of thousands of soft coloured points that read as a solid thing from every side. GLM writes the guide that ships with it: what you got, how to open it, and which parts were invented rather than measured.",
+    edit: "Swap <em>Object photo</em> for your own photo of one object — whole, in frame, on an uncluttered background works best. Keep <em>Rebuild as a splat</em> on <code>speridlabs/idol</code>; raise Gaussians toward 1,048,576 for a denser splat at the same flat price, and set Image type to Synthetic for tight-cropped renders instead of photographs.",
+    inspect: "Orbit the saved GLB in the workflow and compare it with the photo: in the saved run the laces, eyelets and panel seams survive as points, and the guide lists the medial side, tread and lining as inventions. A splat is points, not a mesh — there are no surfaces or textures to edit, and the full PLY is returned on the raw API only; this graph surfaces the GLB point-cloud preview.",
+    costHow: "Three model calls: the saved run reported $0.1029 in total (Idol a flat $0.10 at any setting, Gemini survey $0.0029, GLM guide $0.00). Prices and results vary.",
+  },
   "storyboard-relay": {
     headline: "Storyboard relay",
     job: "A story continues through a new frame, a continuity review and one visible revision.",
@@ -329,7 +337,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
