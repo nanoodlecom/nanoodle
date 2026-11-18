@@ -7,6 +7,8 @@ const CACHE = "nanoodle-v6"; // bump this version on every release to purge stal
 // 4x the whole rest of this list for a screen most visitors never open. The fetch handler below
 // caches it on first use instead, and index.html degrades to the sign-in wall when it is missing.
 const SHELL = [
+  "/brand/nanoodle-v1.0.0/app-shell.css",
+  "/brand/nanoodle-v1.0.0/fonts/app-fonts.js",
   "/brand/nanoodle-v1.0.0/tokens/tokens.css",
   "/brand/nanoodle-v1.0.0/fonts/fonts.css",
   "/brand/nanoodle-v1.0.0/fonts/righteous-latin.woff2",
