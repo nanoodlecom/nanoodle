@@ -11543,6 +11543,9 @@ function mountGlbStage(n, host, source, which, opts){
     if(!host.isConnected) return;
     let handle = null;
     handle = V.mount(host, src, {
+      // Idol's splat preview GLB is a Y-down point cloud; the viewer flips it
+      // upright only when the preview belongs to an Idol 3D node.
+      flipPoints: !!(n && n.type === "model3d" && /idol/i.test(String((n.fields && n.fields.model) || ""))),
       onReady(){ const w = host.querySelector(".glb-wait"); if(w) w.remove(); },
       onError(msg){
         if(handle){ try{ handle.destroy(); }catch(_){} handle = null; if(n) n[which==="in"?"_glbIn":"_glb"] = null; }

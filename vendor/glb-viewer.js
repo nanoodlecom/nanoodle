@@ -152,7 +152,49 @@
     }
   }
 
-  function parseGlb(input) {
+  // Point-cloud primitives (mode 0) — e.g. Idol's splat preview GLB, which is
+  // POSITION + COLOR_0 points and no triangles at all. Colors may be ubyte or
+  // ushort (normalized per spec) or float; positions get the node world
+  // transform like meshes do. Idol exports its splat Y-down (its own PLY is
+  // the upright artifact), so callers that know the source is Idol pass
+  // flipPoints and the cloud is rotated 180° about X back to Y-up.
+  function emitPoints(json, bin, mesh, world, flip, out) {
+    var prims = (mesh && mesh.primitives) || [];
+    var p, attr, pos, col, i, tp;
+    for (p = 0; p < prims.length; p++) {
+      if (prims[p].mode !== 0) continue;
+      attr = prims[p].attributes || {};
+      if (attr.POSITION == null) continue;
+      pos = readAcc(json, bin, attr.POSITION);
+      if (!pos) continue;
+      col = attr.COLOR_0 != null ? readAcc(json, bin, attr.COLOR_0) : null;
+      var ncomp = 0, cdiv = 1;
+      if (col) {
+        var acc = json.accessors[attr.COLOR_0];
+        ncomp = COMPS[acc.type] || 0;
+        if (acc.componentType === 5121) cdiv = 255;
+        else if (acc.componentType === 5123) cdiv = 65535;
+        if (ncomp < 3) col = null;
+      }
+      var positions = new Float32Array(pos.count * 3);
+      var colors = new Float32Array(pos.count * 3);
+      for (i = 0; i < pos.count; i++) {
+        tp = xform(world, pos.data[i * 3], pos.data[i * 3 + 1], pos.data[i * 3 + 2], false);
+        if (flip) { tp[1] = -tp[1]; tp[2] = -tp[2]; }
+        positions[i * 3] = tp[0]; positions[i * 3 + 1] = tp[1]; positions[i * 3 + 2] = tp[2];
+        if (col) {
+          colors[i * 3] = col.data[i * ncomp] / cdiv;
+          colors[i * 3 + 1] = col.data[i * ncomp + 1] / cdiv;
+          colors[i * 3 + 2] = col.data[i * ncomp + 2] / cdiv;
+        } else {
+          colors[i * 3] = 0.82; colors[i * 3 + 1] = 0.84; colors[i * 3 + 2] = 0.88;
+        }
+      }
+      out.push({ positions: positions, colors: colors, count: pos.count });
+    }
+  }
+
+  function parseGlb(input, opts) {
     try {
       var bytes = input instanceof ArrayBuffer ? new Uint8Array(input) : new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
       if (bytes.byteLength < 20) return { error: "that file isn’t a GLB" };
@@ -174,19 +216,24 @@
       var hard = req.filter(function (e) { return e === "KHR_draco_mesh_compression" || e === "EXT_meshopt_compression"; });
       if (hard.length) return { error: "this model uses " + hard[0] + " — download the .glb to open it elsewhere" };
       var meshes = [];
+      var points = [];
+      var flip = !!(opts && opts.flipPoints);
       var nodes = json.nodes || [];
       var scene = (json.scenes && json.scenes[json.scene || 0]) || null;
       function walk(idx, parent) {
         var node = nodes[idx] || {};
         var local = node.matrix ? node.matrix.slice() : trs(node.translation || [0, 0, 0], node.rotation || [0, 0, 0, 1], node.scale || [1, 1, 1]);
         var world = mul(parent, local);
-        if (node.mesh != null) emitMesh(json, bin, json.meshes[node.mesh], world, meshes);
+        if (node.mesh != null) {
+          emitMesh(json, bin, json.meshes[node.mesh], world, meshes);
+          emitPoints(json, bin, json.meshes[node.mesh], world, flip, points);
+        }
         (node.children || []).forEach(function (c) { walk(c, world); });
       }
       if (scene && scene.nodes && scene.nodes.length) scene.nodes.forEach(function (i) { walk(i, ident()); });
-      else (json.meshes || []).forEach(function (m) { emitMesh(json, bin, m, ident(), meshes); });
-      if (!meshes.length) return { error: "no triangles in this model" };
-      return { meshes: meshes };
+      else (json.meshes || []).forEach(function (m) { emitMesh(json, bin, m, ident(), meshes); emitPoints(json, bin, m, ident(), flip, points); });
+      if (!meshes.length && !points.length) return { error: "no triangles in this model" };
+      return { meshes: meshes, points: points };
     } catch (e) {
       return { error: "couldn’t read this model" };
     }
@@ -207,6 +254,12 @@
 
   var VS = "attribute vec3 aPos;attribute vec3 aNrm;attribute vec2 aUv;uniform mat4 uMvp;varying vec3 vN;varying vec3 vW;varying vec2 vUv;void main(){vN=aNrm;vW=aPos;vUv=aUv;gl_Position=uMvp*vec4(aPos,1.0);}";
   var FS = "precision mediump float;uniform vec4 uColor;uniform sampler2D uTex;uniform float uTexOn;uniform float uTwo;uniform vec3 uEye;varying vec3 vN;varying vec3 vW;varying vec2 vUv;vec3 toLin(vec3 c){return pow(max(c,vec3(0.0)),vec3(2.2));}vec3 toSrgb(vec3 c){return pow(max(c,vec3(0.0)),vec3(0.4545));}void main(){vec3 c=uColor.rgb;if(uTexOn>0.5)c*=texture2D(uTex,vUv).rgb;c=toLin(c);vec3 n=normalize(vN);vec3 V=normalize(uEye-vW);float face=max(dot(n,V),0.0);if(uTwo>0.5)face=abs(dot(n,V));float hemi=0.5+0.5*n.y;vec3 sky=vec3(0.62,0.68,0.78);vec3 gnd=vec3(0.22,0.20,0.18);vec3 fill=mix(gnd,sky,clamp(hemi,0.0,1.0));vec3 lit=c*(0.42+0.36*fill+0.70*face);gl_FragColor=vec4(toSrgb(lit),1.0);}";
+
+  // Points: vertex color straight out (splat colors are already display
+  // colors), round sprite via gl_PointCoord, size from a world-space
+  // diameter so the cloud reads solid at any zoom: px = world * scaleH / depth.
+  var PVS = "attribute vec3 aPos;attribute vec3 aCol;uniform mat4 uMvp;uniform mat4 uView;uniform float uPtWorld;uniform float uScaleH;varying vec3 vC;void main(){vC=aCol;vec4 mv=uView*vec4(aPos,1.0);gl_Position=uMvp*vec4(aPos,1.0);gl_PointSize=clamp(uPtWorld*uScaleH/max(0.001,-mv.z),1.0,72.0);}";
+  var PFS = "precision mediump float;varying vec3 vC;void main(){vec2 d=gl_PointCoord-vec2(0.5);if(dot(d,d)>0.25)discard;gl_FragColor=vec4(vC,1.0);}";
 
   function decodeDataUrl(url) {
     var i = url.indexOf(",");
@@ -259,13 +312,18 @@
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || "shader failed");
       return s;
     }
-    var prog;
+    var prog, progP;
     try {
       prog = gl.createProgram();
       gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
       gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
       gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || "link failed");
+      progP = gl.createProgram();
+      gl.attachShader(progP, shader(gl.VERTEX_SHADER, PVS));
+      gl.attachShader(progP, shader(gl.FRAGMENT_SHADER, PFS));
+      gl.linkProgram(progP);
+      if (!gl.getProgramParameter(progP, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(progP) || "link failed");
     } catch (err) {
       opts.onError && opts.onError("couldn’t start the 3D viewer");
       return { destroy: function () { var ext = gl.getExtension("WEBGL_lose_context"); if (ext) ext.loseContext(); canvas.remove(); } };
@@ -281,7 +339,15 @@
       nrm: gl.getAttribLocation(prog, "aNrm"),
       uv: gl.getAttribLocation(prog, "aUv")
     };
-    var gpu = [], dead = false, visible = true, ready = false, frame = 0;
+    var ploc = {
+      mvp: gl.getUniformLocation(progP, "uMvp"),
+      view: gl.getUniformLocation(progP, "uView"),
+      ptWorld: gl.getUniformLocation(progP, "uPtWorld"),
+      scaleH: gl.getUniformLocation(progP, "uScaleH"),
+      pos: gl.getAttribLocation(progP, "aPos"),
+      col: gl.getAttribLocation(progP, "aCol")
+    };
+    var gpu = [], gpuPts = [], ptWorld = 0.01, dead = false, visible = true, ready = false, frame = 0;
     var yaw = 0.7, pitch = 0.4, dist = 3, radius = 1, cx = 0, cy = 0, cz = 0;
     var pts = new Map(), pinch = 0, ro = null, io = null;
 
@@ -333,6 +399,24 @@
           gl.drawElements(gl.TRIANGLES, g.count, g.itype, 0);
         } else gl.drawArrays(gl.TRIANGLES, 0, g.count);
       }
+      if (gpuPts.length && progP) {
+        gl.useProgram(progP);
+        gl.uniformMatrix4fv(ploc.mvp, false, new Float32Array(mvp));
+        gl.uniformMatrix4fv(ploc.view, false, new Float32Array(view));
+        gl.uniform1f(ploc.scaleH, canvas.height / (2 * Math.tan(0.35)));
+        gl.uniform1f(ploc.ptWorld, ptWorld);
+        gl.disableVertexAttribArray(loc.pos);
+        gl.disableVertexAttribArray(loc.nrm);
+        gl.disableVertexAttribArray(loc.uv);
+        for (i = 0; i < gpuPts.length; i++) {
+          var gp = gpuPts[i];
+          gl.bindBuffer(gl.ARRAY_BUFFER, gp.buf);
+          gl.enableVertexAttribArray(ploc.pos); gl.vertexAttribPointer(ploc.pos, 3, gl.FLOAT, false, 24, 0);
+          gl.enableVertexAttribArray(ploc.col); gl.vertexAttribPointer(ploc.col, 3, gl.FLOAT, false, 24, 12);
+          gl.drawArrays(gl.POINTS, 0, gp.count);
+        }
+        gl.disableVertexAttribArray(ploc.col);
+      }
     }
     function potSize(n) {
       var cap = Math.min(Math.max(1, n | 0), 1024), p = 1;
@@ -350,13 +434,17 @@
     }
     function upload(parsed) {
       var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+      var totalPts = 0;
+      function grow(x, y, z) {
+        if (x < min[0]) min[0] = x; if (y < min[1]) min[1] = y; if (z < min[2]) min[2] = z;
+        if (x > max[0]) max[0] = x; if (y > max[1]) max[1] = y; if (z > max[2]) max[2] = z;
+      }
       parsed.meshes.forEach(function (m) {
         var inter = new Float32Array(m.positions.length / 3 * 8);
         var i, x, y, z;
         for (i = 0; i < m.positions.length / 3; i++) {
           x = m.positions[i * 3]; y = m.positions[i * 3 + 1]; z = m.positions[i * 3 + 2];
-          if (x < min[0]) min[0] = x; if (y < min[1]) min[1] = y; if (z < min[2]) min[2] = z;
-          if (x > max[0]) max[0] = x; if (y > max[1]) max[1] = y; if (z > max[2]) max[2] = z;
+          grow(x, y, z);
           inter[i * 8] = x; inter[i * 8 + 1] = y; inter[i * 8 + 2] = z;
           inter[i * 8 + 3] = m.normals[i * 3]; inter[i * 8 + 4] = m.normals[i * 3 + 1]; inter[i * 8 + 5] = m.normals[i * 3 + 2];
           inter[i * 8 + 6] = m.uvs[i * 2]; inter[i * 8 + 7] = m.uvs[i * 2 + 1];
@@ -395,10 +483,31 @@
           }).catch(function () {});
         }
       });
-      if (!gpu.length) { fail("no triangles in this model"); return; }
+      (parsed.points || []).forEach(function (pt) {
+        var inter = new Float32Array(pt.count * 6);
+        var i, x, y, z;
+        for (i = 0; i < pt.count; i++) {
+          x = pt.positions[i * 3]; y = pt.positions[i * 3 + 1]; z = pt.positions[i * 3 + 2];
+          grow(x, y, z);
+          inter[i * 6] = x; inter[i * 6 + 1] = y; inter[i * 6 + 2] = z;
+          inter[i * 6 + 3] = pt.colors[i * 3]; inter[i * 6 + 4] = pt.colors[i * 3 + 1]; inter[i * 6 + 5] = pt.colors[i * 3 + 2];
+        }
+        var buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, inter, gl.STATIC_DRAW);
+        gpuPts.push({ buf: buf, count: pt.count });
+        totalPts += pt.count;
+      });
+      if (!gpu.length && !gpuPts.length) { fail("no triangles in this model"); return; }
       cx = (min[0] + max[0]) / 2; cy = (min[1] + max[1]) / 2; cz = (min[2] + max[2]) / 2;
       radius = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2 || 1;
       dist = radius * 2.8;
+      if (totalPts) {
+        // Mean surface spacing if the cloud were spread over a sphere of
+        // this radius; a disc somewhat wider than the spacing reads solid.
+        var spacing = Math.sqrt(4 * Math.PI * radius * radius / totalPts);
+        ptWorld = Math.min(radius * 0.25, Math.max(radius * 0.002, spacing * 2.0));
+      }
       ready = true;
       canvas.style.visibility = "visible";
       schedule();
@@ -475,7 +584,7 @@
 
     function takeBuf(buf) {
       if (dead) return;
-      var parsed = parseGlb(buf);
+      var parsed = parseGlb(buf, { flipPoints: !!opts.flipPoints });
       if (parsed.error) { fail(parsed.error); return; }
       upload(parsed);
     }
@@ -528,9 +637,11 @@
         if (io) io.disconnect();
         if (!gl.isContextLost()) {
           gpu.forEach(function (g) { gl.deleteBuffer(g.buf); if (g.idx) gl.deleteBuffer(g.idx); if (g.tex) gl.deleteTexture(g.tex); });
+          gpuPts.forEach(function (g) { gl.deleteBuffer(g.buf); });
           var ext = gl.getExtension("WEBGL_lose_context"); if (ext) ext.loseContext();
         }
         gpu = [];
+        gpuPts = [];
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       }
     };
