@@ -1,5 +1,80 @@
 [
  {
+  "slug": "edit-with-references",
+  "title": "Edit with references",
+  "date": "2026-11-18",
+  "review": "The woman keeps her face, hair and pose while a red leather jacket, round gold sunglasses and a Dalmatian puppy walk in from three other photos \u2014 one instruction, one fused scene",
+  "note": "Upload one main photo and up to three reference pictures, then write one instruction that names each picture \u2014 Picture 1 is the main photo, Picture 2 the outfit, Picture 3 the accessory, Picture 4 the companion \u2014 and MiniMax H3-Image fuses them positionally into a single scene. It takes up to sixteen references this way. Before the edit, a Gemini survey writes the subject's anchors (face, hair, outfit, pose, background); after it, a second Gemini re-reads the result blind, never having seen the originals; a GLM checker holds instruction, anchors and re-read against each other and prints LANDED, MISSING and whether the SUBJECT SURVIVED. Why this model: H3-Image held #1 on Hugging Face trending for six straight days in November 2026 (~3.4M downloads) and tops independent open-weights editing boards, but its open weights total ~135 GB and the MiniMax community license excludes the US, EU, UK and Korea \u2014 most of the people downloading it cannot run it locally, so hosted in a browser is the route. In the saved run all four pictures land: the jacket is on her, worn open over the white t-shirt with its belt and zip pockets carried over; the sunglasses are on her face; the puppy sits by her legs with its head tilt intact; face, hair, pose, jeans and the grey wall are unchanged. Flaws and limits, honestly: the checker graded the sunglasses and the open jacket 'unclear in the re-read' \u2014 the blind reader hedged on fine detail that is plainly visible in the picture itself, because the audit grades from text, not pixels; that conservatism is the design, but it means a clean edit can still print MISSING lines. The puppy's gaze lands near the camera rather than straight into it. The edit node's size is pinned to 1k \u2014 H3 accepts only 1K or 2K output and rejects pixel sizes, a pin found by a failed first probe. The four demo photos were painted by the media pipeline because the flow takes any upload \u2014 swap in real photos and it runs as saved.",
+  "layout": "sequence",
+  "costUsd": 0.07053,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "minimax-h3-image",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "b23b94d1cb73db1cf9c98633b1afc7b2b570b6d73d3fceb1b0c93d415f61db6e",
+  "inputs": [
+   {
+    "label": "Main photo",
+    "src": "edit-with-references/main-photo.webp"
+   },
+   {
+    "label": "Reference 1 \u00b7 outfit",
+    "src": "edit-with-references/ref-jacket.webp"
+   },
+   {
+    "label": "Reference 2 \u00b7 accessory",
+    "src": "edit-with-references/ref-sunglasses.webp"
+   },
+   {
+    "label": "Reference 3 \u00b7 companion",
+    "src": "edit-with-references/ref-puppy.webp"
+   },
+   {
+    "label": "Edit instruction (names each picture)",
+    "text": "Picture 1 is the main photo. Keep the person in Picture 1 exactly as they are \u2014 same face, same long dark hair, same pose, same jeans and shoes, same plain grey wall behind them. Dress the person in the red leather jacket from Picture 2, worn open over the white t-shirt. Put the round gold-framed sunglasses from Picture 3 on the person's face. Sit the Dalmatian puppy from Picture 4 on the floor beside the person's legs, looking at the camera. One single photorealistic scene with soft, even light."
+   }
+  ],
+  "outputs": [
+   {
+    "src": "edit-with-references/edited.webp",
+    "kind": "image",
+    "label": "Fused scene \u00b7 MiniMax H3-Image \u00b7 reported $0.064",
+    "costUsd": 0.064,
+    "sha256": "0391a3dfa697685be7b4151c9c648b760d37a8a27419087db8df7fc5866943e4"
+   },
+   {
+    "src": "edit-with-references/anchors.txt",
+    "kind": "text",
+    "label": "Subject anchors \u00b7 Gemini reads the main photo \u00b7 reported $0.0029",
+    "costUsd": 0.0029,
+    "sha256": "0c346954e5b9262c329e4299662d001a69e1236a1aaeb82fa94bbbfb1584645a",
+    "collapsed": true
+   },
+   {
+    "src": "edit-with-references/re-read.txt",
+    "kind": "text",
+    "label": "Blind re-read \u00b7 Gemini describes the result \u00b7 reported $0.0036",
+    "costUsd": 0.0036,
+    "sha256": "2a68231f12437ee87b06f8689c6a87031ed51a07be800fa1cd177a1a247a31be",
+    "collapsed": true
+   },
+   {
+    "src": "edit-with-references/report.txt",
+    "kind": "text",
+    "label": "Edit report \u00b7 GLM grades the fusion \u00b7 reported $0.00",
+    "costUsd": 0.0,
+    "sha256": "b8e5716c857325f0cc5093d14fb02876190a2b0408ed86dbe9d2ea678507f3b4",
+    "collapsed": true
+   }
+  ],
+  "preview": "edit-with-references/preview.webp",
+  "workflow": "edit-with-references/workflow.json",
+  "workflowSha256": "b23b94d1cb73db1cf9c98633b1afc7b2b570b6d73d3fceb1b0c93d415f61db6e",
+  "workflowNote": "edit-with-references.NOTE.txt"
+ },
+ {
   "slug": "photo-to-3d-splat",
   "title": "Photo to 3D splat",
   "date": "2026-11-17",
