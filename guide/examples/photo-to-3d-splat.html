@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Photo to 3D splat — nanoodle</title>
+<meta name="description" content="One photo of one object → a 3D Gaussian splat you can orbit. Reported saved run: $0.10294." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Photo to 3D splat — nanoodle" />
+<meta property="og:description" content="One photo of one object → a 3D Gaussian splat you can orbit. Reported saved run: $0.10294." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/photo-to-3d-splat" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Photo to 3D splat — nanoodle" />
+<meta name="twitter:description" content="One photo of one object → a 3D Gaussian splat you can orbit. Reported saved run: $0.10294." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/photo-to-3d-splat" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Photo to 3D splat</span></nav>
+
+  <main>
+    <h1><span class="grad">Photo to 3D splat</span></h1>
+    <p class="lede">One photo of one object → a 3D Gaussian splat you can orbit.</p>
+
+    <section>
+      <p class="meta-row">One photo of a sneaker became 260,108 points you can orbit — the hidden sides invented, and labelled as invented · 2026-11-17 · Reported saved run: $0.10294. <code>google/gemini-3.8-flash</code> · <code>speridlabs/idol</code> · <code>z-ai/glm-5.3-flash</code></p>
+      <p>Gemini surveys the photo first: the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol (Sperid Labs) rebuilds the object as a Gaussian splat — hundreds of thousands of soft coloured points that read as a solid thing from every side. GLM writes the guide that ships with it: what you got, how to open it, and which parts were invented rather than measured.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/photo-to-3d-splat/preview.webp" aria-label="1. The splat turning: Idol&#39;s GLB point-cloud preview rendered one full turn, 260,108 points · reported $0.10 — Photo to 3D splat"><source src="/examples/gallery/photo-to-3d-splat/turntable.mp4" type="video/mp4"></video><figcaption>1. The splat turning: Idol&#39;s GLB point-cloud preview rendered one full turn, 260,108 points · reported $0.10 · <a href="/examples/gallery/photo-to-3d-splat/turntable.mp4" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Object survey · Gemini reads the photo · reported $0.0029</summary><blockquote class="sample">Object: Low-top casual sneaker
+View: Lateral side profile view, slightly elevated
+Materials and colours: Light grey suede, off-white canvas, white rubber midsole, and brown gum outsole
+Hidden sides: Symmetrical medial side, treaded gum outsole bottom, heel rear, and shoe interior
+Fragile details: Fabric laces, eyelets, canvas weave, and soft suede texture
+</blockquote></details><figcaption>Object survey · Gemini reads the photo · reported $0.0029 · <a href="/examples/gallery/photo-to-3d-splat/survey.txt" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Splat guide · GLM writes the tour · reported $0.00</summary><blockquote class="sample">WHAT YOU GOT — this is a Gaussian splat of a low-top casual sneaker: hundreds of thousands of soft coloured points that together read as a solid object you can orbit, rebuilt from a single lateral, slightly elevated photo. It ships here as a GLB point-cloud preview. It is a point splat, not a polygon mesh — there are no surfaces, UVs or textures to edit. Idol also returns a full PLY splat on the raw API, but that is API-only; what you have in hand is the GLB preview.
+
+HOW TO OPEN IT — the GLB preview opens in any GLB viewer or Blender. If you fetch the PLY from the API, open it in a splat viewer such as SuperSplat, PlayCanvas, or most Gaussian-splat tools.
+
+THE HONEST EDGES — every side the photo did not show is invented: the symmetrical medial side, the treaded gum outsole bottom, the heel rear, and the shoe interior. Thin or soft parts are approximate, especially the fabric laces, eyelets, canvas weave, and suede texture. The splat holds one object only, and its scale is relative, not measured.
+</blockquote></details><figcaption>Splat guide · GLM writes the tour · reported $0.00 · <a href="/examples/gallery/photo-to-3d-splat/guide.txt" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs">
+          <figure><img src="/examples/gallery/photo-to-3d-splat/object-photo.webp" alt="Object photo" loading="lazy" /><figcaption>Object photo</figcaption></figure>
+        </div>
+      <div class="callout"><p>Upload one photo of one object and get back a 3D Gaussian splat of it. Gemini first surveys the photo — the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol (Sperid Labs&#39; image-to-3D model, the Hugging Face trending board&#39;s top riser of late October) rebuilds the object as a splat: hundreds of thousands of soft coloured points that read as a solid thing from every side. GLM then writes the guide: what you got, how to open it, and the honest edges. In the saved run a studio photo of a low-top sneaker (canvas and suede, gum sole) came back as a GLB point-cloud preview of 260,108 points — the laces, eyelets and panel seams all survive as points, and the medial side, tread and lining the photo never showed are invented, with the guide naming them as inventions rather than measurements. Flaws and limits: a splat is points, not a mesh — no surfaces, UVs or textures to edit, and thin or shiny details are approximate. This graph surfaces the GLB preview; Idol&#39;s full PLY splat is returned on the raw API and stays API-only for now. One object per run; scenes and rooms belong to Photo to scene mesh. The turntable is a plain point render of the saved GLB, not a shaded view — orbit the workflow&#39;s sampled GLB in the editor for the real thing.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Swap <em>Object photo</em> for your own photo of one object — whole, in frame, on an uncluttered background works best. Keep <em>Rebuild as a splat</em> on <code>speridlabs/idol</code>; raise Gaussians toward 1,048,576 for a denser splat at the same flat price, and set Image type to Synthetic for tight-cropped renders instead of photographs.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Three model calls: the saved run reported $0.1029 in total (Idol a flat $0.10 at any setting, Gemini survey $0.0029, GLM guide $0.00). Prices and results vary.</li>
+        <li>Orbit the saved GLB in the workflow and compare it with the photo: in the saved run the laces, eyelets and panel seams survive as points, and the guide lists the medial side, tread and lining as inventions. A splat is points, not a mesh — there are no surfaces or textures to edit, and the full PLY is returned on the raw API only; this graph surfaces the GLB point-cloud preview.</li>
+      </ol>
+
+      <p class="howto-note">The editor workflow also points the 3D node at the saved GLB as its sample, so you can orbit the result before running; ▶ Run replaces it. Everything else matches the sampled graph.</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA5VW224bNxD9lQFfkgArWbacwNgUBZJajV24kRErCYK6CEa7Iy1rLrkluZK3gYE-9QOKop_SD8qXFDNcXey2aPsmcYdzPXMOPymjS5UfZ8poexNU_t0ntfCuVvknZV1JKlfBFypTjfNR5UrXuCR1lym-pcyhylR0-8atX1H3F_u77H-5PfqL28Zg_E9eH8SPdBt3fscP_S5bXdLOuvGubqK6u_s-U5avPMvEsu-LJlMGvl0447zKVUfGuDU75TC5uqxcdPD5l19hfAqSM3SuhQIthEbbIbxtjMMSnCVoxNYt5I-b_0BFHMILWOmgnYXalWTAYk0B1hVG0BF0yOC8dAYeXzXkdQkXOA9PwNO81aYMbIIBEF5hG4KWmJzB559_g6q1pacycLxYuTagTX-CW0RonLYxZBArgqBLCvIrJWhpRR5C5dZUgraFaUsqxSfaEpC_-AjSR4hkTJCKK7cGrq4hm7xKJnxDisH-QAewLg7hao3NXky2-_z7H_CmtcPt8IqBtpEsoyB2DQ-vcHWdDtYqf_pslKlblQ-OR5nqVD4Yn4wEH9uhJdDkausxIZB7rHI1lQmkBHYhWplXijA-uh_hgXuZGEPKuaWhgyXV2urBeHgyWBgMlcrUjypXH1wL6Ck1RbDqPGgLmCIPohuMTwepO41uyGhLQ7hw7gYwQqx02OvR2utIgBamL7-ZfDWDq7dv3k0-sDsxpFssIoQKG8qvbSowhy9kAmnUdmk22BN0MRQ54pfX9p2mdQ5fsF2BNXkEFOvdlBgTAjpewXt3v8VIXqMJkiUvS-tD76xGbaH-O4N7Ls50WZJNaNzPeY7FTQatLcnzN7m_QC-G0Hg3x7npwHC_jL4hAaqkjD6GPSjWbYig7YpsvBf3a49LbQhKiqhNSlrbDEKlbZdB9GhDg55sBOdhoS0NePdbT2UfA8FT4WyIvi2irDJ2sKQIa-_sMuNrj6yz9OjLa3tpuBsLLGKLRlII4KzphvDaAZYrXVAG1kGN_qZ0ayt_6DZ6TMa77djy3n04p2PpwisBJHjCcm-_d1BPxNND_ThBfXzSL9PxP4A9CBEZnIcDXTqjsvRl2kQxY1pAW9DHUKAhlY-ztIUf-5iekO_Ytv647EkrqPzo2dHh8XE61nZBnsRFpCao_OnoLtvwdK5UpgLWDftWdCu_wsESjSHfHew2qkwbdSDJDZdmvutbLyx9294kLk08uqPP81Rbn7V4GfescPygVePRw1bh7czdEBemno5GmxapXP00QH2wNPXg6XC8JQlPGJzVdjlZLJIoJYUJXYhU9wySFp-H2BMvr0eodBNgrWMFyPrzQAaSTKRthenrSb_F806qG8KsItC2aYWV0W5ooUeQ6Ab2_DiE95LA4dGIWf7wZARr51mBbCId00GsPFGvDg16XHpsqpBf2_dnL2bwYfoWXk1nSUceZiqxNryU_4t2JfLg7RMRS1l6YoLop-iMLgfMCNouN1VtVNn5uY5cuw4gGUJJRq_I76npxcvke1AY15bQeFppWg_hCjtoeIFNl9SZSZwNUxm8q1GOTLdkGqBQbejIk4iAddzeBRYUMnj7LjA39GwSuLFUcnKPRfPRBAeeYustB1q0xsDlxYdNy5LMelzDi8vz5_JnfAr8dtmGkEOpJlWQQXDywpAP7AsD3x4wA_XZSyjmQ22hQlsOn1zbs-l7mE1hejl5DeezLcPueRbdFzSg7eQDn5Ln-l4amc3z3duAI-vN7JNhgMdXbUP-KjXy0mD3FdoVhgxqF-IWML1QRudMeAJ6IXNdUCyqjS5JhBeX58NrOzubwNn09eRqBpPTV5Or7Wb3OhCAnzpdkpKdzJW6lF6w3GXQsmjuqfejAJVI1SA9nJiWuf1bzZCZ7qlGLxKMgKbx7lazFj7fU6bK8Vtu9ygUQRCd0zGAECljzZPBqFeUBlUTBt6C4UZTAvFjSYD1UD-qrqEhnDq5mErfyN1eYVA6kteZQGQnNJsXc0-YMqGehURlLr5N7JR8Rdd6Ji_9EwkZbljs8IhpvOdTY-r7snNytJOd7zO1Uvnh3Z9QzXHIqQwAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#photo-to-3d-splat">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/photo-to-3d-splat/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/photo-to-3d-splat/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#photo-to-3d-splat">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/subject-anywhere">Subject anywhere</a>
+        <a href="/examples/gallery/#photo-to-3d-splat">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "label": "2026-11-17 photo to 3D splat (Gemini survey -> Idol splat -> GLM guide)",
+  "startedAt": "2026-11-18T04:54:10.000Z",
+  "finishedAt": "2026-11-18T04:54:45.000Z",
+  "costUsd": 0.1029419125,
+  "costExact": true,
+  "balanceBefore": 40.97275203,
+  "balanceAfter": 40.8698101175,
+  "balanceDelta": 0.1029419125,
+  "nodes": {
+    "src": {
+      "status": "done",
+      "costUsd": null
+    },
+    "survey": {
+      "status": "done",
+      "costUsd": 0.0029419125
+    },
+    "splat": {
+      "status": "done",
+      "costUsd": 0.1,
+      "files": {
+        "model": "model.glb"
+      }
+    },
+    "guide": {
+      "status": "done",
+      "costUsd": 0
+    }
+  },
+  "note": "Second of two identical live runs (both SUCCESS, $0.1032 and $0.1029) - the first proved the endpoint, this one is the saved run. The 3D node surfaces the GLB point-cloud preview (260,108 points); the full PLY splat is returned on the raw API only. The headless runner saved the GLB bytes under a .png filename; the gallery copy is renamed to model.glb. Turntable and preview are plain point renders of that GLB, not a shaded mesh."
+}

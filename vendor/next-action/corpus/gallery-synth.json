@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "product": "next-action",
   "label": "Product · 4",
-  "bakedAt": "2026-11-17T21:13:53.225Z",
-  "graphCount": 39,
-  "exampleCount": 3149,
+  "bakedAt": "2026-11-18T05:07:59.421Z",
+  "graphCount": 40,
+  "exampleCount": 3153,
   "examples": [
     {
       "source": "examples/gallery/add-snow-to-a-clip/graph.json",
@@ -54854,6 +54854,127 @@
       "nextAction": "run",
       "intentFork": "none",
       "exampleId": "examples/gallery/orbit-the-character/graph.json#run"
+    },
+    {
+      "source": "examples/gallery/photo-to-3d-splat/graph.json",
+      "history": [],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 0,
+        "numLinks": 0,
+        "danglingOut": 0,
+        "danglingIn": 0,
+        "selectedType": null
+      },
+      "nextAction": "add:llm",
+      "intentFork": "cold-start",
+      "exampleId": "examples/gallery/photo-to-3d-splat/graph.json#guide-c-intent@0"
+    },
+    {
+      "source": "examples/gallery/photo-to-3d-splat/graph.json",
+      "history": [
+        "add:llm"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 1,
+        "numLinks": 0,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/photo-to-3d-splat/graph.json#set:guide"
+    },
+    {
+      "source": "examples/gallery/photo-to-3d-splat/graph.json",
+      "history": [
+        "add:llm",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 1,
+        "numLinks": 0,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:comment",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/photo-to-3d-splat/graph.json#guide-c-intent@1"
+    },
+    {
+      "source": "examples/gallery/photo-to-3d-splat/graph.json",
+      "history": [
+        "add:llm",
+        "set:model",
+        "add:comment"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 1
+        },
+        "numNodes": 1,
+        "numLinks": 3,
+        "danglingOut": 1,
+        "danglingIn": 0,
+        "selectedType": null
+      },
+      "nextAction": "run",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/photo-to-3d-splat/graph.json#run"
     },
     {
       "source": "examples/gallery/photo-to-video/graph.json",
