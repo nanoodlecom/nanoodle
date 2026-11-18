@@ -1,5 +1,89 @@
 [
  {
+  "slug": "one-photo-whole-campaign",
+  "title": "One photo, whole campaign",
+  "date": "2026-11-18",
+  "review": "One candle photo becomes a finished 12.12 sale poster in three chained Seedream 5.5 edits \u2014 backdrop, props, offer text \u2014 and the label reads word-for-word identical at the end; a drift report proves it instead of promising it",
+  "note": "Upload one product photo and write three edits \u2014 a backdrop, a set of props, the offer text \u2014 and Seedream 5.5 (bytedance/seedream-v5.5/edit) makes them one at a time, each round editing the previous round's result. Before the chain starts, a Gemini reader writes the product anchors, transcribing every word on the label; after it, a second Gemini re-reads the finished poster blind; a GLM drift report holds anchors, requested edits and re-read against each other and prints HELD, DRIFTED and CAMPAIGN: COMPLETE or INCOMPLETE. Why this model: Seedream 5.5 is ByteDance's November 2026 editor, sold on multi-round localized editing that leaves the rest of the picture alone \u2014 the exact claim a seller building a 12.12 campaign kit from one product shot is betting on \u2014 and ComfyUI took it as a Partner Node on Nov 11 while NanoGPT has carried it since Nov 6 at $0.028 per 1K edit. In the saved run the candle's label \u2014 EMBER & OAK / No. 12 / CEDAR + SMOKE / HAND POURED \u00b7 8 OZ \u2014 survives all three rounds word-for-word, the cedar discs and eucalyptus land beside it, and the poster text reads exactly as written. Flaws and limits, honestly: the drift report's two DRIFTED notes are about the readers' wording, not the pixels (one read called the lid 'open', the other did not; the re-read called the wall 'soft-focus' though no blur was requested) \u2014 the audit grades from text, so it flags wording wobble as readily as pixel drift. At pixel level the headline picked up a decorative opening quote mark the instruction never asked for; the words themselves are exact. The edit nodes' size is pinned to 1k \u2014 Seedream takes resolution tokens, not pixel sizes \u2014 and the model id is the /edit variant, the image-to-image route. A first full attempt billed $0.0591 before a service restart killed the runner and its outputs with it; the saved run is the re-run, and the probe that proved the endpoint first cost $0.028. The demo candle was painted by the media pipeline because the flow takes any upload \u2014 swap in a real product photo and it runs as saved.",
+  "layout": "sequence",
+  "costUsd": 0.09052,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "bytedance/seedream-v5.5/edit",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "4327853c9405720cfab12a5470b739d25b2ca7c339ca5627119af567cfd4fcab",
+  "inputs": [
+   {
+    "label": "Product photo",
+    "src": "one-photo-whole-campaign/product-photo.webp"
+   },
+   {
+    "label": "Edit 1 \u00b7 backdrop",
+    "text": "Change only the setting: place the candle on a dark rustic wooden table against a deep green wall, soft window light from the left. Keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   {
+    "label": "Edit 2 \u00b7 props",
+    "text": "Add a small stack of two cedar wood discs and a short sprig of dried eucalyptus on the table beside the candle. Change nothing else \u2014 the backdrop stays as it is, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   {
+    "label": "Edit 3 \u00b7 offer text",
+    "text": "Add elegant cream-coloured poster text in the empty wall space above the candle: '12.12 SALE' in large serif letters, and beneath it 'UP TO 30% OFF' in smaller letters. Change nothing else \u2014 the props stay where they are, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   }
+  ],
+  "outputs": [
+   {
+    "src": "one-photo-whole-campaign/poster.webp",
+    "kind": "image",
+    "label": "Finished poster \u00b7 Seedream 5.5 edit 3 \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "300332656631b84d502f6a329b399b448352d81d290688afd8995d8ee623a357"
+   },
+   {
+    "src": "one-photo-whole-campaign/backdrop.webp",
+    "kind": "image",
+    "label": "After edit 1 \u00b7 backdrop swap \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "981d73b7083461e2441347275fac1a2f990b93794774608057e6725ac1744cbc"
+   },
+   {
+    "src": "one-photo-whole-campaign/props.webp",
+    "kind": "image",
+    "label": "After edit 2 \u00b7 props added \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "9b339a9b0e65fe39e426cd109bd74a2a55ac08358d3963b02d5b7de90488a4d1"
+   },
+   {
+    "src": "one-photo-whole-campaign/anchors.txt",
+    "kind": "text",
+    "label": "Product anchors \u00b7 Gemini reads the photo \u00b7 reported $0.0028",
+    "costUsd": 0.0028,
+    "sha256": "698cc0a8eee7e2a9eba168bc94a93254c5b6b4f81bc748a5f8f1a9df6bf923ca",
+    "collapsed": true
+   },
+   {
+    "src": "one-photo-whole-campaign/re-read.txt",
+    "kind": "text",
+    "label": "Blind re-read \u00b7 Gemini describes the poster \u00b7 reported $0.0038",
+    "costUsd": 0.0038,
+    "sha256": "84ac5436757d9680aac7fa4023cc6d0d44f7f60bbda40014c29ee7bd4aa1d4c0",
+    "collapsed": true
+   },
+   {
+    "src": "one-photo-whole-campaign/report.txt",
+    "kind": "text",
+    "label": "Drift report \u00b7 GLM grades the chain \u00b7 reported $0.00",
+    "costUsd": 0.0,
+    "sha256": "e82e1f28d81fb6659722adf9534f71075d66c68369b66a0b7e0c1ded7ffd7c32",
+    "collapsed": true
+   }
+  ],
+  "workflow": "one-photo-whole-campaign/workflow.json",
+  "workflowSha256": "4327853c9405720cfab12a5470b739d25b2ca7c339ca5627119af567cfd4fcab",
+  "workflowNote": "one-photo-whole-campaign.NOTE.txt"
+ },
+ {
   "slug": "edit-with-references",
   "title": "Edit with references",
   "date": "2026-11-18",
