@@ -30,30 +30,32 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="canonical" href="https://nanoodle.com/play" />
-<link rel="stylesheet" href="/vendor/righteous/righteous.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/fonts/fonts.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/tokens/tokens.css" />
 <meta name="theme-color" content="#0b0d12" />
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
   /* Builder chrome — dark theme tokens mirror index.html, accent #7c8cff. */
   :root{
     color-scheme: dark;
-    --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-    --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
-    --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
-    --ok:#46d27a; --danger:#ff6b6b;
+    --bg:var(--nano-color-canvas,#0d0f17); --panel:var(--nano-color-panel,#161a27); --panel2:var(--nano-color-raised,#1d2236); --line:var(--nano-color-line,#2a3150);
+    --ink:var(--nano-color-ink,#e6e9f5); --dim:var(--nano-color-dim,#aab3c7); --faint:#8792ad; --muted:var(--nano-color-muted,#c0c7d6);
+    --accent:var(--nano-color-accent,#7c8cff); --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
+    --ok:var(--nano-color-success,#46d27a); --danger:var(--nano-color-error,#ff6b6b);
   }
   *{ box-sizing:border-box; }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{ margin:0; height:100%; }
-  body{ background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif, system-ui, sans-serif;
+  body{ background:var(--bg); color:var(--ink); font:15px/1.5 var(--nano-font-body,system-ui,sans-serif);
         display:flex; flex-direction:column; }
-  a{ color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  :focus-visible{outline:var(--nano-control-focus-width,2px) solid var(--nano-color-accent-ink,#a9b6ff); outline-offset:2px}
+  a{ color:var(--nano-color-accent-ink,#a9b6ff); text-decoration:none; } a:hover{ text-decoration:underline; }
   .dim{ color:var(--dim); } .grow{ flex:1; }
 
   /* ---------- top bar ---------- */
   #bar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
         padding:.55rem .8rem; border-bottom:1px solid var(--line);
-        background:linear-gradient(180deg,#161a27,#11141f);
+        background:var(--panel);
         position:relative; z-index:70; }   /* stays above the first-run overlay (sign-in / Share remain usable) */
   /* ---------- incomplete/damaged share-link banner (shown when an #a= link won't decode) ---------- */
   /* :not([hidden]) so the `hidden` attribute actually hides it — a bare `display:flex`
@@ -77,9 +79,9 @@
   #recwelcome .rw-x{ flex:0 0 auto; background:transparent; border:0; color:inherit; cursor:pointer;
                   font-size:1rem; line-height:1; opacity:.65; padding:.15rem .35rem; border-radius:.3rem; }
   #recwelcome .rw-x:hover{ opacity:1; background:#ffffff14; }
-  .brand{ font-family:"Righteous", ui-sans-serif, system-ui, sans-serif;
+  .brand{ font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif);
           font-weight:400; font-size:1.2rem; letter-spacing:.01em; }
-  .brand .nano{ color:var(--accent); }
+  .brand .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); background-clip:text; color:transparent; }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                color:var(--ink); font-weight:600; opacity:.9; }
   /* the app title doubles as a rename field — click it to edit in place */
@@ -91,7 +93,7 @@
   #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
   #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
-  #bal{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; }
+  #bal{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums; }
   #bal b{ color:var(--ink); }
   #bal .costspend{ color:var(--dim); font-weight:400; }
   #bal .costdelta{ display:inline-block; margin-left:.2rem; color:#ffcf6b; font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none; }
@@ -195,13 +197,13 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink); }
   /* the command wraps in full view (a clipped <input> would hide the highlighted key mid-string);
      the variable part — the masked key or the your-key swap token — is the one highlighted bit */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
+  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
                      background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
                      line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all; }
   #agentpop .ap-cmd .ap-key{ background:var(--accent-soft); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem; }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
+  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
            background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
@@ -292,7 +294,7 @@
 
   #cust-status{ font-size:.78rem; min-height:1.1em; margin-top:.4rem; }
   #cust-status .ok{ color:var(--ok); } #cust-status .err{ color:var(--danger); }
-  #cust-status .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; }
+  #cust-status .meter{ font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim); opacity:.9; white-space:nowrap; }
   .spin{ display:inline-block; animation:spin 1s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
@@ -343,7 +345,7 @@
   #mpicklist button:hover{ background:var(--panel2); }
   #mpicklist button.sel{ background:var(--accent-soft); font-weight:600; }
   #mpicklist .mname{ min-width:0; word-break:break-all; }
-  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem; }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.74rem; }
 
   #toast{ position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
           background:var(--panel); border:1px solid var(--accent-line); color:var(--ink);

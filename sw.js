@@ -7,6 +7,12 @@ const CACHE = "nanoodle-v6"; // bump this version on every release to purge stal
 // 4x the whole rest of this list for a screen most visitors never open. The fetch handler below
 // caches it on first use instead, and index.html degrades to the sign-in wall when it is missing.
 const SHELL = [
+  "/brand/nanoodle-v1.0.0/tokens/tokens.css",
+  "/brand/nanoodle-v1.0.0/fonts/fonts.css",
+  "/brand/nanoodle-v1.0.0/fonts/righteous-latin.woff2",
+  "/brand/nanoodle-v1.0.0/fonts/righteous-latin-ext.woff2",
+  "/brand/nanoodle-v1.0.0/fonts/manrope-latin-variable.woff2",
+  "/brand/nanoodle-v1.0.0/fonts/ibm-plex-mono-latin-400.woff2",
   "/", "/index.html", "/play", "/legal", "/site.webmanifest", "/noodle-graph.json", "/demo-sample.jpg",
   "/favicon.ico", "/favicon-16.png", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png",
 ];
