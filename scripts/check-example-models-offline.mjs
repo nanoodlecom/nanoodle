@@ -40,6 +40,7 @@ const catalogs = {
     image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
     image('blackforestlabs/flux-3/klein/text-to-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096']),
     image('qwen-image-2.1/edit', ['1k', '1.5k', '2k', 'auto'], true),
+    image('minimax-h3-image', ['1k', '2k'], true),
     image('bria/remove-background-guided', ['auto'], true),
     image('bria/rmbg-3', ['auto'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
