@@ -6124,6 +6124,7 @@ function modelDrifted(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  if(!catalogFetchedAt[t.modelKind]) return false;   // primed from cache but not yet revalidated this session → stay permissive: a stale prime can predate a model's launch (Idol Max Turbo, catalogued the day this was written), and badging from it flashes a false "model unavailable" — with a one-click swap away from a valid model — until the fresh list lands
   if(t.modelKind==="decision") return !catalogIsStale("decision") && !catItem("decision", decideModelId(n.fields.model));
   return !catItem(t.modelKind, n.fields.model);
 }
