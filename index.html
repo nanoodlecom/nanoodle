@@ -9889,9 +9889,13 @@ const NODE_TYPES = {
     modelKind:"decision", modelFilter:"decision",
     inputs:[{name:"text", type:"text"}],
     imageInputs:"vision",   // image-capable decision models grow img1…imgN (capped at the model's image_limits.maxImages)
-    outputs:[{name:"text", type:"text"},{name:"image", type:"image"}], preview:"decide",
+    outputs:(n)=>{
+      const ports = [{name:"text", type:"text"},{name:"image", type:"image"}];
+      return n.fields.branch===true ? ports.concat([{name:"yes", type:"text"},{name:"no", type:"text"}]) : ports;
+    }, preview:"decide",
     body:(n)=>{
       const mode = decideMode(n.fields);
+      const branching = n.fields.branch===true;
       const list = mode==="choose" ? "options" : mode==="score" ? "levels" : "";
       const hint = {
         pick:"Wire 2+ images (and the brief into text). The winner comes out of the image port; text says which one.",
@@ -9905,13 +9909,27 @@ const NODE_TYPES = {
       <div><label>question</label><textarea data-f="question" style="min-height:44px" placeholder="${esc(t(decideDefaultQuestion(mode)))}">${esc(n.fields.question||"")}</textarea></div>
       ${list ? `<div><label>${mode==="choose" ? "labels" : "scale"} <span class="dim lblhint">· ${mode==="choose" ? "one per line" : "one level per line, worst first"}</span></label>
         <textarea data-f="${list}" style="min-height:60px" placeholder="${esc(mode==="choose" ? "watercolor\npixel art\nphoto" : DECIDE_SCALE_DEFAULT)}">${esc(n.fields[list]||"")}</textarea></div>` : ""}
-      ${mode==="yesno" ? `<label class="chk"><input type="checkbox" data-f="gate"${(n.fields.gate===true||n.fields.gate==="true")?" checked":""}/> gate: stop the run here when the answer is no</label>` : ""}
-      <div class="fhint">${esc(t(hint))}</div>`;
+      ${mode==="yesno" ? `<label class="chk"><input type="checkbox" data-decide-branch${branching?" checked":""}/> Run only the Yes or No branch</label>` : ""}
+      ${mode==="yesno" && !branching ? `<label class="chk"><input type="checkbox" data-f="gate"${(n.fields.gate===true||n.fields.gate==="true")?" checked":""}/> gate: stop the run here when the answer is no</label>` : ""}
+      <div class="fhint">${esc(t(branching ? "Wire the Yes and No outputs to their branch nodes. Only the selected branch runs." : hint))}</div>`;
     },
     // switching mode swaps the labels / scale / gate controls
     mount:(n)=>{
       const sel = n.el.querySelector("select[data-decide-mode]"); if(!sel) return;
-      sel.addEventListener("change", ()=>{ n.fields.mode = sel.value; save(); rerenderNode(n); refreshAllPrices(); });
+      sel.addEventListener("change", ()=>{
+        if(sel.value!=="yesno" && n.fields.branch===true) pushUndo();
+        n.fields.mode = sel.value;
+        if(sel.value!=="yesno" && n.fields.branch===true){ delete n.fields.branch; refreshFramePorts(n); }
+        save(); rerenderNode(n); refreshAllPrices();
+      });
+      const branch = n.el.querySelector("[data-decide-branch]");
+      branch?.addEventListener("pointerdown", e=> e.stopPropagation());
+      branch?.addEventListener("change", ()=>{
+        pushUndo();
+        if(branch.checked) n.fields.branch = true;
+        else delete n.fields.branch;
+        refreshFramePorts(n); rerenderNode(n); save(); refreshAllPrices();
+      });
     },
     async run(n, inp, ctx){
       const model = decideModelId(mdl(n, ctx));
@@ -10454,6 +10472,7 @@ function buildNodeEl(n){
     const f = inp.dataset.f;
     const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
     inp.addEventListener(ev, ()=>{
+      if(n.type==="decide" && f==="mode") return; // mode changes may remove branch wires and own their undo
       n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save();
       if(n.type==="choice"){
         refreshPortFills();
@@ -10897,7 +10916,7 @@ function decideNeedsVision(fields, hasImages){ return decideMode(fields)==="pick
 var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
 var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
-function decideMode(f){ var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
+function decideMode(f){ if(f && f.branch===true) return "yesno"; var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
 function decideLines(s){ return String(s==null ? "" : s).split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
 function decideDefaultQuestion(mode){
   if(mode==="pick") return "Which image best matches the brief?";
@@ -11066,7 +11085,13 @@ async function decideRun(f, model, text, imgs, lim, send, toDataUrl){
   } else {
     j = await send({ model:model, state:decideState(text, sent), questions:{ answer:q } });
   }
-  var out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  var answer = j && j.answers && j.answers.answer;
+  var branching = f && f.branch===true;
+  if(branching && (!answer || answer.type!=="noul" || !Number.isFinite(answer.noul) || answer.noul<0 || answer.noul>1)){
+    throw new Error("Decide needs a valid yes/no answer to select a branch");
+  }
+  var out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if(branching){ out.decision.branch = out.text; out[out.text] = text || out.text; return out; }
   if(mode==="yesno" && (f.gate===true || f.gate==="true") && out.decision.yes < 0.5) throw decideGateError(out.decision);
   return out;
 }
@@ -11860,12 +11885,12 @@ function setStopped(n){
 }
 // A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
 // so show it as blocked — no stale-input run, no misleading "missing input" error.
-function setSkipped(n, byGate){
+function setSkipped(n, byGate, byBranch){
   if(!n?.el) return;
   n.el.dataset.status = "skip";
   delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
-  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ ${esc(t(byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"))}</div>`; }
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ ${esc(t(byBranch ? "skipped — branch not selected" : byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"))}</div>`; }
   paintRunLive();
 }
 // A ⚖️ Decide gate that answered no: a deliberate stop (the decision itself ran and billed its tiny
@@ -13561,7 +13586,21 @@ function njsOn(){
     return localStorage.getItem("njs_engine")!=="0";   // default ON — njs_engine="0" (or ?engine=play) opts back into the built-in runners
   }catch(e){ return false; }
 }
-try{ if(njsOn()){ const s = document.createElement("script"); s.src = "vendor/njs-engine.js"; s.async = true; document.head.appendChild(s); } }catch(e){}
+let njsLoading;
+function loadNjsEngine(){
+  if(window.NanoodleEngine) return Promise.resolve(window.NanoodleEngine);
+  if(njsLoading) return njsLoading;
+  njsLoading = new Promise(resolve=>{
+    const script = document.createElement("script");
+    script.src = "vendor/njs-engine.js";
+    script.async = true;
+    script.onload = ()=> resolve(window.NanoodleEngine);
+    script.onerror = ()=> resolve(null);
+    document.head.appendChild(script);
+  }).then(engine=>{ if(!engine) njsLoading = null; return engine; });
+  return njsLoading;
+}
+try{ if(njsOn()) loadNjsEngine(); }catch(e){}
 // The library's payload gates (max_output_images, max_input_images, per-model video/audio
 // options) read RAW catalog items (supported_parameters …), not the editor's normalized ones.
 const _njsRaw = {};   // kind → Promise<rawItem[]> (cached only once it resolves non-empty)
@@ -13854,6 +13893,15 @@ async function runGroup(seedIds, ctx){
   updateRunButtons();
   try{
     const { order, cyclic } = topoOrder(ids);
+    let branches = null;
+    if(graph.nodes?.some(n=> n.type==="decide" && n.fields?.branch===true) ||
+       graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && byId(l.from.node)?.type==="decide")){
+      try{
+        const engine = await loadNjsEngine();
+        if(!engine?.planBranches) throw new Error("Branch routing is unavailable. Reload to run this workflow.");
+        branches = engine.planBranches(graph, order);
+      }catch(err){ seedSet.forEach(id=> setStatus(byId(id), "error", err.message)); return; }
+    }
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
     ids.forEach(id=>{
       // Another in-flight Play already holds this node (shared ancestor) — don't idle its spinner.
@@ -13880,46 +13928,49 @@ async function runGroup(seedIds, ctx){
         // Stop on this Play's seed: don't start (or re-roll) the seed itself.
         // Shared ancestors keep going when another Play still holds them.
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
+        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        if(activeLinks===null){ setSkipped(n, false, true); return; }
+        const activeDeps = branches ? activeLinks.map(l=> l.from.node) : deps;
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
-        if(deps.some(d=> failed.has(d))){ failed.add(id); const byGate = deps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
+        if(activeDeps.some(d=> failed.has(d))){ failed.add(id); const byGate = activeDeps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
-          const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
+          const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
           if(l) inp[port.name] = byId(l.from.node)?.out?.[l.from.port];
         }
         // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
         const imgRe = t.imageInputs ? imgSpec(n).re : null;
-        if(imgRe) for(const l of graph.links){
+        if(imgRe) for(const l of activeLinks){
           if(l.to.node===id && imgRe.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
-        if(t.videoInputs) for(const l of graph.links){
+        if(t.videoInputs) for(const l of activeLinks){
           if(l.to.node===id && VID_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
         // the single audio port on audio-input chat models → read by run() as inp.audio
-        if(t.audioInput) for(const l of graph.links){
+        if(t.audioInput) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
         }
         // the single video port on video-input chat models → read by run() as inp.video
-        if(t.videoInput) for(const l of graph.links){
+        if(t.videoInput) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="video") inp.video = byId(l.from.node)?.out?.[l.from.port];
         }
         // the optional end-frame port on the ivideo node → read by run() as inp.endframe, but ONLY when the
         // picked model still exposes last_image. Run-time role clamp: a wire left over from a model that had
         // an end frame (then swapped for one that doesn't) is ignored here — never sent, never charged.
-        if(t.endFrame && modelHasImageRole(n,"last")) for(const l of graph.links){
+        if(t.endFrame && modelHasImageRole(n,"last")) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="endframe") inp.endframe = byId(l.from.node)?.out?.[l.from.port];
         }
         // the character port on the vedit node → read by run() as inp.image, but ONLY when the picked model is
         // image+video->video. Run-time clamp (mirror endframe): a stale wire after a model swap is never sent.
-        if(t.charInput && modelTakesCharacter(n)) for(const l of graph.links){
+        if(t.charInput && modelTakesCharacter(n)) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="image") inp.image = byId(l.from.node)?.out?.[l.from.port];
         }
         // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs(), but
         // ONLY when the picked model still exposes a ref-image param. Run-time role clamp (mirror endframe):
         // a wire left over from a ref model then swapped for one without refs is ignored — never sent/charged.
-        if(t.refInputs && modelHasImageRole(n,"refs")) for(const l of graph.links){
+        if(t.refInputs && modelHasImageRole(n,"refs")) for(const l of activeLinks){
           if(l.to.node===id && REF_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
         // a wired text field overrides its typed value (n.fields[field]); declared ports handled above.
@@ -13928,8 +13979,9 @@ async function runGroup(seedIds, ctx){
         // "/post" (the generic override path) makes Run reject the gallery $0 httpbingo echo as
         // "URL isn't allowed" even though the live POST preview already shows the joined URL.
         const fieldOverrides = {};
-        for(const l of graph.links){
+        for(const l of activeLinks){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
+          if(n.type==="decide" && l.to.port==="branch") continue;
           if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
@@ -17294,7 +17346,7 @@ function serializeGraph(){
   }
   return {
     v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
+    nodes: graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
     links: graph.links, nid, lid, view:{panX,panY,scale}
   };
 }
@@ -17353,12 +17405,15 @@ function applyGraphData(d, opts){
   if(typeof geoAnim!=="undefined" && geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
   graph = { nodes:[], links:[] };
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
-  const ALIAS = { audio:"tts" };                  // older graphs had a single combined audio node
+  const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
     const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
-    if(type==="decide") n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
+    if(type==="decide"){
+      n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
+      if(sn.type==="decide-branch") n.fields.branch = true;
+    }
     if(prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
