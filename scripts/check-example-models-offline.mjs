@@ -118,6 +118,8 @@ const catalogs = {
     { id: 'wavespeed-ai/hunyuan-3d-v3.1-rapid', architecture: { input_modalities: ['text', 'image'] } },
     { id: 'wavespeed-ai/trellis-2/image-to-3d', architecture: { input_modalities: ['image'] },
       supported_parameters: { parameters: { resolution: opts(['512', '1024', '1536']), texture_size: opts(['1024', '2048', '4096']), target_face_count: { type: 'number', min: 10000, max: 1000000 } } } },
+    { id: 'speridlabs/idol/max/turbo', architecture: { input_modalities: ['image'] },
+      supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), enable_pbr: { type: 'switch' }, rig: { type: 'switch' } } } },
     { id: 'speridlabs/idol', architecture: { input_modalities: ['image'] },
       supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), num_gaussians: { type: 'number', min: 32768, max: 1048576 }, num_inference_steps: { type: 'number', min: 1, max: 50 }, guidance_scale: { type: 'number', min: 0, max: 10 } } } },
   ],
