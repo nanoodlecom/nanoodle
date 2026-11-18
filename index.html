@@ -21869,15 +21869,12 @@ $("signout").onclick = ()=> setKey(null);
 
 /* ===================== 🧩 UX auto-layout — layered engine + projection =====================
    Describe changes runs this over the applied graph before it lands on the
-   canvas: a Sugiyama-style layered layout (barycenter crossing reduction)
-   followed by the deterministic feasibility projection (feed-forward rank
-   order + de-overlap). Chosen by a fresh-Jev exam on 38 held-out graphs:
-   layered 0.582 vs the editor's tidy 0.555 vs messy originals 0.435, while
-   moving nodes less than tidy. The trained GNN generators and learned
-   pickers built alongside it never beat this by a real margin (lab:
-   ux-hypergan-layout, reports/eval-v2..v5 + pick-ridge), so the engine is
-   deterministic and weight-free: nothing to fetch, and any internal
-   problem leaves the graph exactly as it was.
+   canvas. The baseline is a Sugiyama-style layered layout followed by a
+   feasibility projection for feed-forward rank order and card spacing.
+   The optional local ParticleGAN model proposes swaps inside a column.
+   It applies a swap only if it removes crossings while keeping card
+   clearances and avoiding new wire occlusions. The baseline handles any
+   graph without an eligible improvement and any model load failure.
    The pure engine below is pinned by scripts/check-ux-layout.mjs. */
 /* UX-LAYOUT-BEGIN */
 /* UX-PICK — deterministic layout candidates + learned linear picker.
@@ -22467,36 +22464,40 @@ $("signout").onclick = ()=> setKey(null);
     });
     return { nodes: nodes, links: links };
   }
+  function positionsFit(graph, positions) {
+    if (!positions) return false;
+    let ox0 = Infinity, oy0 = Infinity, ox1 = -Infinity, oy1 = -Infinity;
+    let nx0 = Infinity, ny0 = Infinity, nx1 = -Infinity, ny1 = -Infinity;
+    for (const {id, x, y, w, h} of graph.nodes) {
+      const position = positions[id];
+      if (!position || !Number.isFinite(position[0]) || !Number.isFinite(position[1])) return false;
+      const [nx, ny] = position;
+      ox0 = Math.min(ox0, x); ox1 = Math.max(ox1, x + w);
+      oy0 = Math.min(oy0, y); oy1 = Math.max(oy1, y + h);
+      nx0 = Math.min(nx0, nx); nx1 = Math.max(nx1, nx + w);
+      ny0 = Math.min(ny0, ny); ny1 = Math.max(ny1, ny + h);
+    }
+    const originalWidth = ox1 - ox0, originalHeight = oy1 - oy0;
+    // Legitimate edits can unpile a canvas. Bound implausible expansion.
+    return nx1 - nx0 <= Math.max(3 * originalWidth, originalWidth + 6000)
+      && ny1 - ny0 <= Math.max(3 * originalHeight, originalHeight + 6000);
+  }
   window.arrangeUxLayout = async function (g) {
     try {
       if (!g || !g.nodes || g.nodes.length < 2 || g.nodes.length > 600) return false;
-      if (!window.UXPick) return false;
-      var lg = uxToLayoutGraph(g);
-      var pos = window.UXPick.arrangePositions(lg);
-      if (!pos) return false;
-      var byId = {};
-      lg.nodes.forEach(function (n) { byId[n.id] = n; });
-      var cnt = 0, id;
-      var ox0 = 1e18, oy0 = 1e18, ox1 = -1e18, oy1 = -1e18;
-      var nx0 = 1e18, ny0 = 1e18, nx1 = -1e18, ny1 = -1e18;
-      for (id in pos) {
-        var p = pos[id], o = byId[id];
-        if (!o || !isFinite(p[0]) || !isFinite(p[1])) return false;
-        ox0 = Math.min(ox0, o.x); ox1 = Math.max(ox1, o.x + o.w);
-        oy0 = Math.min(oy0, o.y); oy1 = Math.max(oy1, o.y + o.h);
-        nx0 = Math.min(nx0, p[0]); nx1 = Math.max(nx1, p[0] + o.w);
-        ny0 = Math.min(ny0, p[1]); ny1 = Math.max(ny1, p[1] + o.h);
-        cnt++;
-      }
-      if (!cnt) return false;
-      // Plausibility: un-piling a graph legitimately spans wide, but a layout
-      // vastly larger than the original canvas is a malfunction — keep the
-      // user's layout in that case.
-      if (nx1 - nx0 > Math.max(3 * (ox1 - ox0), (ox1 - ox0) + 6000)) return false;
-      if (ny1 - ny0 > Math.max(3 * (oy1 - oy0), (oy1 - oy0) + 6000)) return false;
-      (g.nodes || []).forEach(function (n) {
-        var q = pos[String(n.id)];
-        if (q) { n.x = q[0]; n.y = q[1]; }
+      const engine = window.UXPick;
+      if (!engine) return false;
+      const layoutGraph = uxToLayoutGraph(g);
+      const baseline = engine.arrangePositions(layoutGraph);
+      if (!positionsFit(layoutGraph, baseline)) return false;
+      let positions = baseline;
+      try {
+        const {arrangeParticleLayout} = await import("./vendor/layout/particle-layout.mjs");
+        const candidate = arrangeParticleLayout(layoutGraph, engine, baseline);
+        if (candidate !== baseline && positionsFit(layoutGraph, candidate)) positions = candidate;
+      } catch (_) { /* Keep the layered layout if the optional model is unavailable. */ }
+      g.nodes.forEach(function (n) {
+        [n.x, n.y] = positions[String(n.id)];
       });
       return true;
     } catch (e) { return false; }
@@ -23403,9 +23404,14 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
-      // 🧩 UX auto-layout: the layered engine tidies the whole graph (near its
-      // original shape) before it lands; a silent no-op if anything is off.
+      // Layout can load its optional model while the editor is still interactive.
       try{ await window.arrangeUxLayout?.(appliedInternal); }catch(_){}
+      if(!ownsTarget()) return;
+      if(dbAbort.signal.aborted) throw dbAbort.signal.reason;
+      if(!canStartCall()){
+        setStatus("The workflow changed while editing. Your current changes were kept.");
+        return;
+      }
       committing = true; // no awaits below: errors now belong to our own apply
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —

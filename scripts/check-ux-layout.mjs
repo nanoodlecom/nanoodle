@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 // Pins the 🧩 UX auto-layout section of index.html — the deterministic
 // layered engine (Sugiyama-style barycenter ordering + feasibility
-// projection) that Describe changes runs over the applied graph before it
-// lands on the canvas. Chosen by a fresh-Jev exam on held-out graphs
-// (layered 0.582 vs editor tidy 0.555 vs originals 0.435); the trained
-// GNN/picker variants never beat it by a real margin, so the engine is
-// weight-free — no fetch, nothing to go stale.
+// projection) that Describe changes runs before the edited graph lands on
+// the canvas. The layered engine is also the ParticleGAN refiner's fallback.
 //
 // The section is lifted out of index.html as text and run in a vm sandbox,
 // so we exercise the exact shipped code — no browser, no network.
@@ -18,11 +15,14 @@
 //   3. DEGENERATE — <2 nodes and >600 nodes are no-ops; the hook never throws.
 //   4. DETERMINISM — the same graph gives the same positions twice.
 //   5. FINITE — every written position is a finite number.
+//   6. REFINEMENT — the packaged model improves a real gallery graph and
+//      leaves a straight chain on the layered layout.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { arrangeParticleLayout } from "../vendor/layout/particle-layout.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -117,6 +117,24 @@ async function run() {
     if (await sandbox.window.arrangeUxLayout(big) !== false) failures.push("601 nodes: should be a no-op (cap)");
   }
 
+  {
+    const sandbox = buildSandbox();
+    vm.runInContext(section, sandbox);
+    const engine = sandbox.window.UXPick;
+    const example = JSON.parse(readFileSync(join(ROOT, "examples/gallery/carve-a-pumpkin/graph.json"), "utf8"));
+    const input = sandbox.window.__uxToLayoutGraph(example);
+    const base = engine.arrangePositions(input);
+    const candidate = arrangeParticleLayout(input, engine, base);
+    const before = engine.layoutMetrics(input, base);
+    const after = engine.layoutMetrics(input, candidate);
+    if (after.edge_crossings >= before.edge_crossings) failures.push("ParticleGAN did not reduce crossings for Carve a pumpkin");
+    if (after.overlap_pairs || after.backward_edges) failures.push("ParticleGAN produced an invalid layout");
+    if (input.nodes.some(({id}) => candidate[id][0] !== base[id][0])) failures.push("ParticleGAN moved a card across columns");
+    const chain = sandbox.window.__uxToLayoutGraph(messyChain());
+    const chainBase = engine.arrangePositions(chain);
+    if (arrangeParticleLayout(chain, engine, chainBase) !== chainBase) failures.push("ParticleGAN should keep a crossing-free layout");
+  }
+
   return failures;
 }
 
@@ -125,7 +143,7 @@ run().then((failures) => {
     process.stderr.write("✗ the UX auto-layout hook is broken:\n\n- " + failures.join("\n- ") + "\n");
     process.exit(1);
   }
-  process.stdout.write("✓ UX auto-layout holds (unpile, left→right flow, stability, degenerate, determinism, finite).\n");
+  process.stdout.write("✓ UX auto-layout holds (layered fallback, validity, deterministic layout and trained crossing reduction).\n");
 }).catch((e) => {
   process.stderr.write("✗ check-ux-layout harness error: " + (e && e.stack ? e.stack : e) + "\n");
   process.exit(1);
