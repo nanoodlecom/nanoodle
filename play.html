@@ -30,9 +30,9 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="canonical" href="https://nanoodle.com/play" />
-<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/fonts/fonts.css" />
-<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/tokens/tokens.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/app-shell.css" />
 <meta name="theme-color" content="#0b0d12" />
+<script src="/brand/nanoodle-v1.0.0/fonts/app-fonts.js"></script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
   /* Builder chrome — dark theme tokens mirror index.html, accent #7c8cff. */
@@ -48,7 +48,6 @@
   html,body{ margin:0; height:100%; }
   body{ background:var(--bg); color:var(--ink); font:15px/1.5 var(--nano-font-body,system-ui,sans-serif);
         display:flex; flex-direction:column; }
-  :focus-visible{outline:var(--nano-control-focus-width,2px) solid var(--nano-color-accent-ink,#a9b6ff); outline-offset:2px}
   a{ color:var(--nano-color-accent-ink,#a9b6ff); text-decoration:none; } a:hover{ text-decoration:underline; }
   .dim{ color:var(--dim); } .grow{ flex:1; }
 
@@ -197,14 +196,9 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink); }
   /* the command wraps in full view (a clipped <input> would hide the highlighted key mid-string);
      the variable part — the masked key or the your-key swap token — is the one highlighted bit */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
-                     background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
-                     line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all; }
   #agentpop .ap-cmd .ap-key{ background:var(--accent-soft); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem; }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
-           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
   /* the showcase nudge is owner-only: a recipient sharing someone else's app has nothing of
@@ -15200,6 +15194,7 @@ function defaultFiles(graph){
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(tagline)}" />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="nanoodle-app-brand" content="1.0.0" />
 <style><!-- include: app.css --></style>
 </head>
 <body>
@@ -15235,18 +15230,18 @@ function defaultFiles(graph){
   const appCss =
 `:root{
   color-scheme: dark;
-  --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-  --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
+  --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --line:#262c3a; --control-line:#67728a;
+  --ink:#eef1f7; --dim:#aeb7c8; --faint:#8792ad; --muted:#c3c9d6;
   --accent:${ACCENT}; --accent-soft:${ACCENT}22; --accent-line:${ACCENT}66;
-  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
+  --ok:#3ddc97; --danger:#ff6b6b; --radius:12px; --control-radius:8px;
 }
 *{ box-sizing:border-box; }
 html,body{ margin:0; }
-body{ background:
-    radial-gradient(900px 520px at 50% -10%, #1a2147 0%, transparent 60%), var(--bg);
-  color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; min-height:100vh; }
+body{ background:var(--bg);
+  color:var(--ink); font:16px/1.6 Manrope, system-ui, sans-serif; min-height:100vh; }
 .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
-.app-head h1{ font-size:1.5rem; margin:0 0 .25rem; letter-spacing:.01em; }
+.app-head h1{ font:400 clamp(1.6rem,5vw,2.65rem)/1.12 Righteous, system-ui, sans-serif; margin:0 0 .35rem; letter-spacing:-.02em; overflow-wrap:anywhere; }
+:focus-visible{ outline:2px solid #a9b6ff; outline-offset:3px; }
 .app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
 .app-head .auth input{ font:inherit; padding:.3rem .45rem; border-radius:.4rem; background:var(--panel); border:1px solid var(--line); color:var(--ink); }
 .app-head .auth .link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; }
@@ -15258,8 +15253,8 @@ body{ background:
 .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
 .field label{ display:block; font-size:.8rem; color:var(--muted); font-weight:700; margin-bottom:.3rem; }
 .field input, .field textarea, .field select{
-  width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
-  background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+  width:100%; min-height:44px; font:inherit; padding:.6rem .7rem; border-radius:var(--control-radius);
+  background:var(--panel); border:1px solid var(--control-line); color:var(--ink); }
 .field textarea{ min-height:90px; resize:vertical; }
 .field input::placeholder, .field textarea::placeholder{ color:#b8c0d0; opacity:1; }
 .field input:focus, .field textarea:focus, .field select:focus{
@@ -15281,10 +15276,9 @@ body{ background:
 .app-note-b{ white-space:pre-wrap; line-height:1.45; word-break:break-word; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
-.run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
-  background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
-  box-shadow:0 0 26px ${ACCENT}33; }
-.run:hover{ box-shadow:0 0 36px ${ACCENT}55; }
+.run{ min-height:44px; font:inherit; font-weight:750; padding:.6rem 1.6rem; border-radius:var(--control-radius); cursor:pointer;
+  background:var(--accent); border:1px solid var(--accent); color:#0b0d12; }
+.run:hover{ filter:brightness(1.12); }
 .run:disabled{ opacity:.5; box-shadow:none; cursor:default; }
 /* Stop state — destructive red while a run is in flight */
 .run.stop{ background:linear-gradient(180deg,#ff8a8a,#ef5a5a); border-color:#ff8a8a;
@@ -15330,7 +15324,7 @@ body{ background:
 .prog-node{ font-weight:700; }
 /* Long video poll lines carry job id + status URL — allow wrap so they stay readable. */
 .prog-msg{ color:var(--dim); word-break:break-word; white-space:normal; max-width:100%; }
-.prog-el{ margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem;
+.prog-el{ margin-left:auto; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem;
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .prog-errhint{ margin-top:.35rem; font-size:.8rem; color:var(--danger); white-space:pre-wrap; word-break:break-word; }
@@ -15515,6 +15509,10 @@ function bundle(files){
   // or a version. Only a deliberate choice is baked ("" → nothing); the viewer's own pick still wins.
   const _appLang = bakedAppLang();
   if(_appLang) html = injectInHead(html, '<script>window.NOODLE_APP_LANG=' + JSON.stringify(_appLang) + ';<\/script>');
+  // The fonts ride in the rendered DOM and standalone HTML, outside saved templates and share links.
+  if (typeof NANOODLE_APP_FONTS !== "undefined" && html.includes('name="nanoodle-app-brand" content="1.0.0"')) {
+    html = injectInHead(html, "<style>" + NANOODLE_APP_FONTS + "</style>");
+  }
   return html;
 }
 
