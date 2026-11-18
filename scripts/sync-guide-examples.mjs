@@ -54,6 +54,14 @@ const HOWTO = {
     inspect: "Compare the original, the cut-out and the placed composite, then read the <em>Preservation verdict</em>. PRESERVED means every spec line was re-read exactly; DRIFTED quotes the lines that differ. In the saved run the headline label was letter-perfect and the checker still flagged the microprint line — that strictness is the feature, not a failure of the demo.",
     costHow: "Five model calls: the saved run reported $0.0906 in total (spec $0.0048, RMBG-3.0 cut-out $0.018, Nano Banana placement $0.039, blind re-read $0.0288, GLM checker $0.00). Prices and results vary.",
   },
+  "one-photo-whole-campaign": {
+    headline: "One photo, whole campaign",
+    job: "One product photo → a finished sale poster in three chained edits, with a drift report that checks the no-drift claim.",
+    purpose: "Seedream 5.5 edits the photo three times in a chain — a new backdrop, campaign props, the offer text — each round editing the previous round's result. A Gemini reader writes the product anchors first, transcribing every word on the label; a blind Gemini re-read describes the finished poster; a GLM drift report compares the three and prints HELD, DRIFTED and whether the CAMPAIGN is COMPLETE.",
+    edit: "Swap <em>Product photo</em> for your own product shot and rewrite <em>Edit 1 · backdrop</em>, <em>Edit 2 · props</em> and <em>Edit 3 · offer text</em> — one change per edit, and keep the preservation clause (name every word on your label) at the end of each one. Keep the three edit nodes on <code>bytedance/seedream-v5.5/edit</code> at size <code>1k</code> — Seedream takes resolution tokens, not pixel sizes, and the /edit id is the image-to-image route.",
+    inspect: "Read the poster's label against your original photo word by word, then read the <em>Drift report</em>. HELD and DRIFTED are graded from the blind re-read's text, not the pixels — in the saved run the report flagged two wording wobbles between the readers while the label itself held word-for-word, and the headline picked up a decorative quote mark in the pixels that neither reader transcribed. The audit is a tripwire, not a proof.",
+    costHow: "Six model calls: the saved run reported $0.0905 in total (three Seedream 5.5 edits at $0.028 each, Gemini anchors $0.0028, blind re-read $0.0038, GLM drift report $0.00). Prices and results vary.",
+  },
   "edit-with-references": {
     headline: "Edit with references",
     job: "Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third.",
@@ -345,7 +353,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
