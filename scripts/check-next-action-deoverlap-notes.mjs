@@ -75,9 +75,10 @@ function assert(cond, msg) {
 
 {
   const index = readFileSync(join(ROOT, "index.html"), "utf8");
-  const sep = index.slice(index.indexOf("function separateOnAdd"), index.indexOf("function separateOnAdd") + 700);
+  const start = index.indexOf("function separateOnAdd(");
+  const sep = index.slice(start, index.indexOf("\nfunction spawnFirstSeat(", start));
   assert(sep.includes('n.type==="comment"'), "the editor drops notes before it plans a slide");
-  assert(sep.includes("catch"), "a planner throw does not break add");
+  assert(/try\{ plan = planDeoverlap\([^\n]+\); \}catch\(_\)\{ return; \}/.test(sep), "a planner throw does not break add");
 }
 
 console.log("✓ next-action-deoverlap-notes: notes stay put, NaN is skipped, omitted addedId still clears a stack");
