@@ -437,7 +437,7 @@ function chrome({ title, description, path, crumbs, wide, body, next, share }) {
 <div class="wrap${wide ? " wide" : ""}">
 
   <header>
-    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
     <div class="spacer"></div>
     <a class="ghost" href="/">Open editor →</a>
   </header>
@@ -458,6 +458,7 @@ ${next}
     <div class="spacer"></div>
     <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
     <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
     <a href="/">Home</a>
   </footer>
 
@@ -703,7 +704,7 @@ function hubPage() {
 
     <section>
       <p>Each workflow passes what one model made to the next. See the actual results, then open the graph and make it yours. Viewing saved outputs is free.</p>
-      <div class="howto-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))" aria-label="Scenes, sound and stories">
+      <div class="howto-grid featured" aria-label="Scenes, sound and stories">
       ${cards(ORDER.slice(0, 3))}
       </div>
 

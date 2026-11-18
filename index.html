@@ -30,7 +30,8 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
-<link rel="stylesheet" href="/vendor/righteous/righteous.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/fonts/fonts.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/tokens/tokens.css" />
 <meta name="theme-color" content="#0b0d12" />
 <link rel="canonical" href="https://nanoodle.com/" />
 <link rel="alternate" type="application/atom+xml" title="nanoodle changelog" href="/feed.xml" />
@@ -87,24 +88,24 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
-    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
-    --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97; --model3d-port:#a78bfa;
+    --bg:var(--nano-color-canvas,#0b0d12); --panel:var(--nano-color-panel,#12151d); --panel2:var(--nano-color-raised,#171b25); --ink:var(--nano-color-ink,#eef1f7); --dim:var(--nano-color-dim,#aeb7c8); --muted:var(--nano-color-muted,#c3c9d6);
+    --line:var(--nano-color-line,#262c3a); --accent:var(--nano-color-accent,#7c8cff); --accent2:var(--nano-color-image-port,#ff79c6); --good:var(--nano-color-success,#3ddc97); --bad:var(--nano-color-error,#ff6b6b); --warn:var(--nano-color-warning,#ffcf6b);
+    --text-port:var(--nano-color-text-port,#7c8cff); --image-port:var(--nano-color-image-port,#ff79c6); --video-port:var(--nano-color-video-port,#5ad1e6); --audio-port:var(--nano-color-audio-port,#3ddc97); --model3d-port:var(--nano-color-model3d-port,#a78bfa);
     --ws-h:34px;
   }
   *{box-sizing:border-box}
   .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
-  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  :focus-visible{outline:var(--nano-control-focus-width,2px) solid var(--nano-color-accent-ink,#a9b6ff); outline-offset:2px}
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{margin:0; height:100%}
   body{ background:var(--bg); color:var(--ink);
-        font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+        font:14px/1.45 var(--nano-font-body,system-ui,sans-serif); overflow:hidden; }
   button,select,textarea,input{font:inherit; color:var(--ink)}
   button,.btn{cursor:pointer; border-radius:.5rem; border:1px solid var(--line); background:var(--panel2); padding:.4rem .7rem;}
   button:hover:not(:disabled){border-color:#3a425a}
   button:disabled{opacity:.45; cursor:default}
-  button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); border:none; color:#0b0d12; font-weight:700;}
-  #run{ min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
+  button.primary{ background:var(--accent); border:none; color:var(--nano-color-on-accent,#0b0d12); font-weight:700;}
+  #run{ min-height:var(--nano-control-height,44px); min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
   #run.running{ background:var(--bad); }          /* same button morphs into a stop affordance (red), same size */
   #run.running:hover:not(:disabled){ background:#ff5252; }
   button.link{background:none;border:none;color:var(--accent);padding:0;font-size:.8rem}
@@ -117,9 +118,10 @@
   /* Flagship conversion next to Run: accent outline so Create app isn't chrome-identical to Save/Load */
   #makeapp{ border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent); }
   #makeapp:hover{ border-color:var(--accent); filter:brightness(1.06) }
-  #top .logo{font-family:"Righteous",ui-sans-serif,system-ui,sans-serif; font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
-  #top .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text;
-        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  #top .logo{display:inline-flex; align-items:center; gap:.35rem; font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif); font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
+  #top .logo img{width:22px; height:22px; flex:none}
+  #top .logo .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; }
   #top .logo .ui{ color:var(--dim); font-weight:700; font-size:.72rem; letter-spacing:.12em; margin-left:.3rem; vertical-align:.08em; text-transform:uppercase; }
   #top .sep{width:1px; height:24px; background:var(--line); margin:0 .2rem}
   #top .spacer{flex:1}
@@ -181,7 +183,7 @@
                    border:none; background:none; color:var(--ink); padding:.45rem .55rem; border-radius:.45rem; font-size:.86rem }
   #langpop button:hover{ background:var(--panel2) }
   #langpop button.sel{ color:var(--accent); font-weight:600 }
-  #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:ui-monospace,monospace; text-transform:uppercase }
+  #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:var(--nano-font-mono,ui-monospace,monospace); text-transform:uppercase }
   /* ---------- signed-out CTA: a split button — "Sign in with NanoGPT" + a ▾ caret hiding the paste-key path ---------- */
   #authmenu{ position:relative; display:flex; align-items:stretch }
   #authmenu #signin{ background:linear-gradient(90deg,#67e8f9,var(--accent)); color:#0b0d12; font-weight:700; border:none;
@@ -283,11 +285,11 @@
   #examplespanel{ margin:auto; width:100%; max-width:920px; max-height:88vh; overflow:auto; background:var(--bg);
                   border:1px solid var(--line); border-radius:.8rem; box-shadow:0 30px 90px #000a; padding:1.2rem 1.3rem 1.3rem; }
   #exampleshead{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap }
-  #exampleshead h2{ font-size:1.1rem; margin:0 }
+  #exampleshead h2{ font:400 1.35rem/1.2 var(--nano-font-display,"Righteous"),sans-serif; margin:0 }
   #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
   #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); gap:.8rem }
-  .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:.65rem }
+  .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:var(--nano-radius-card,12px) }
   .ex-card:focus-within,.ex-card:hover{ border-color:var(--accent) }
   .ex-preview{ display:flex; align-items:center; justify-content:center; height:150px; background:var(--bg); overflow:hidden; text-decoration:none; color:var(--ink); position:relative }
   .ex-card .ex-em{ font-size:3rem }
@@ -297,9 +299,10 @@
   .ex-card .ex-tt{ font-weight:600; font-size:.95rem; display:block; margin:0 }
   .ex-card .ex-ds{ font-size:.8rem; color:var(--dim); line-height:1.45; margin:.35rem 0 .7rem; display:block }
   .ex-actions{ display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:auto }
-  .ex-actions button,.ex-actions a{ font-size:.78rem; padding:.55rem .65rem; border-radius:.4rem }
-  .ex-actions button{ border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
-  .ex-actions button:hover{ border-color:var(--accent) }
+  .ex-actions button,.ex-actions a{ display:inline-flex; align-items:center; min-height:var(--nano-control-height,44px); font-size:.78rem; padding:.4rem .65rem; border-radius:var(--nano-radius-control,8px) }
+  .ex-actions a{ color:var(--nano-color-accent-ink,#a9b6ff) }
+  .ex-actions button{ border:1px solid transparent; background:var(--accent); color:var(--nano-color-on-accent,#0b0d12); font-weight:700; cursor:pointer }
+  .ex-actions button:hover{ filter:brightness(1.10) }
   #examplesintro{ font-size:.83rem; color:var(--dim); line-height:1.5; margin:.6rem 0 0 }
   @media (max-width:540px){
     #exampleshead{ display:grid; grid-template-columns:1fr auto; align-items:center } #exampleshead .sub{ grid-column:1; grid-row:2 } #examplesclose{ grid-column:2; grid-row:1 }
@@ -393,7 +396,7 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink) }
   /* the MCP command wraps in full view (a clipped <input> hid the your-key placeholder mid-string);
      the swap-me token — or the injected, masked key — is highlighted so the one variable part is obvious */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
+  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
                      background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
                      line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all }
   #agentpop .ap-cmd .ap-key{ background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink);
@@ -422,13 +425,13 @@
   #describestatus{ font-size:.8rem; min-height:1.1em; margin-top:.45rem; color:var(--dim); }
   #describestatus:empty{ display:none }
   #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
-  #describestatus .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
+  #describestatus .meter{ font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
   #describestatus .dd-toggle{ font:inherit; font-size:.74rem; background:transparent; border:1px solid var(--line); border-radius:.4rem; color:var(--dim); padding:.08rem .4rem; margin-left:.35rem; cursor:pointer; }
   #describestatus .dd-toggle:hover{ color:var(--ink); border-color:var(--accent); }
   /* the ⚠ "show the model's reply" expander — raw reply + thinking behind a failed change */
   #describedetail{ margin-top:.45rem; max-height:38vh; overflow:auto; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; padding:.5rem .6rem; }
   #describedetail[hidden]{ display:none }
-  #describedetail pre{ margin:.2rem 0 .5rem; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--ink); }
+  #describedetail pre{ margin:.2rem 0 .5rem; white-space:pre-wrap; word-break:break-word; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.72rem; color:var(--ink); }
   #describedetail .dd-h{ font-size:.72rem; color:var(--dim); font-weight:700; margin:.15rem 0; }
   #describeversions{ display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; margin-top:.45rem; }
   #describeversions:empty{ display:none }
@@ -511,12 +514,12 @@
   #refuelqr svg{ width:100%; height:auto; display:block }
   .rf-addrrow{ display:flex; gap:.5rem; flex-wrap:wrap; text-align:left }
   #refueladdr{ flex:1 1 12rem; min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:.5rem;
-               padding:.6rem .65rem; font-size:.74rem; color:var(--ink); font-family:ui-monospace,monospace }
+               padding:.6rem .65rem; font-size:.74rem; color:var(--ink); font-family:var(--nano-font-mono,ui-monospace,monospace) }
   .rf-status{ margin:.8rem 0 .15rem; font-size:.8rem; color:var(--dim) }
   .rf-ok{ margin:.8rem 0 .15rem; font-size:.86rem; font-weight:700; color:var(--good) }
   .rf-alt{ margin:.55rem 0 0; font-size:.78rem }
   .rf-alt a{ color:var(--dim) }
-  #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim); font-variant-numeric:tabular-nums}
+  #cost{font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.78rem; color:var(--dim); font-variant-numeric:tabular-nums}
   #cost b{color:var(--ink)}
   /* signed in → the chip is a link into the Nano top-up panel: dotted-underlined amount + accent "+" */
   #cost:not(:empty){ cursor:pointer }
@@ -546,7 +549,7 @@
                display:flex; align-items:center; gap:.5rem; pointer-events:none; }
   #runest{ cursor:pointer; flex:0 0 auto; order:2;   /* rightmost → sits in the corner */
            display:flex; align-items:center; gap:.4rem; height:2.3rem; box-sizing:border-box;
-           font-family:ui-monospace,monospace; font-size:.78rem; line-height:1; color:var(--dim);
+           font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.78rem; line-height:1; color:var(--dim);
            background:var(--panel2,#1a1d24); border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
            border-radius:.6rem; padding:0 .7rem; box-shadow:0 4px 16px #0006, 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
            pointer-events:auto; user-select:none; white-space:nowrap;
@@ -584,17 +587,17 @@
   #runlive .rl-name{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   #runlive .rl-msg{ font-size:.7rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   #runlive .rl-poll{ font-size:.65rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums }
+                     font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums }
   #runlive .rl-poll a{ color:var(--accent); text-decoration:none }
   #runlive .rl-poll a:hover{ text-decoration:underline }
   #runlive .rl-el{ grid-column:3; grid-row:1 / span 2; align-self:center;
-                   font-family:ui-monospace,monospace; font-size:.72rem; color:var(--warn);
+                   font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.72rem; color:var(--warn);
                    font-variant-numeric:tabular-nums; white-space:nowrap }
   #runlive .rl-empty{ font-size:.76rem; color:var(--dim); padding:.25rem .2rem }
   /* In-progress poll diagnostics on the node card (long video/audio jobs): last check, job id, status URL. */
   .result .run-poll{ margin-top:.35rem; padding:.35rem .45rem; border-radius:.4rem; background:var(--panel2,#1a1d24);
                      border:1px solid var(--line); font-size:.72rem; color:var(--dim); line-height:1.35;
-                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; word-break:break-all }
+                     font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums; word-break:break-all }
   .result .run-poll-line{ display:flex; flex-wrap:wrap; align-items:center; gap:.25rem .4rem }
   .result .run-poll-line + .run-poll-line{ margin-top:.2rem }
   .result .run-poll-id{ color:var(--ink); font-size:.7rem }
@@ -915,7 +918,7 @@
   .body .ubtn:hover{ border-color:var(--accent) }
   .body .cambox video{ width:100%; border-radius:.45rem; background:#000; display:block; margin-bottom:.4rem }
   .body details.adv{ margin-top:.1rem } .body details.adv summary{ cursor:pointer; font-size:.72rem; color:var(--muted); font-weight:700 }
-  .body details.adv textarea{ margin-top:.35rem; font-family:ui-monospace,monospace; font-size:.76rem }
+  .body details.adv textarea{ margin-top:.35rem; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.76rem }
   .result{ display:none; margin-top:.1rem; border-top:1px dashed var(--line); padding-top:.5rem }
   .result.show{ display:block }
   .result img, .result video{ width:100%; border-radius:.45rem; display:block }
@@ -1044,7 +1047,7 @@
   #mpicklist button:hover{ background:var(--panel2) }
   #mpicklist button.sel{ background:#7c8cff22; font-weight:600 }
   #mpicklist .mname{ display:flex; align-items:center; gap:.4rem; min-width:0; word-break:break-all }
-  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.74rem }
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
   .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
@@ -1060,7 +1063,7 @@
   /* MODEL label left, price right on one row — the price recedes instead of reading like debug output */
   .mhead{ display:flex; align-items:baseline; justify-content:space-between; gap:.5rem }
   .mhead label{ margin-bottom:.15rem }
-  .mprice{ font-family:ui-monospace,monospace; font-size:.7rem; color:var(--muted); text-align:right;
+  .mprice{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.7rem; color:var(--muted); text-align:right;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:.8rem }
 
   /* ---------- app action: primary "Create/Update app" + a caret split-button that reveals "Save as a new app" ---------- */
@@ -1176,7 +1179,7 @@
   #sharemenu[hidden], #shareback[hidden]{ display:none; }
   .sm-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); padding:.3rem .5rem .35rem; }
   .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
+  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim);
            background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--dim); margin:.4rem .15rem .1rem; line-height:1.4; }
@@ -1309,7 +1312,7 @@
 
 <header id="top">
   <h1 class="vh">nanoodle — AI workflow editor</h1>
-  <div class="logo" aria-hidden="true"><span class="nano">nano</span>odle</div>
+  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
   <div id="addmenu">
     <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
