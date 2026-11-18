@@ -596,6 +596,17 @@ an over-length prompt at the end, and always says so. `PROMPT_CAPS`, `prompt_cap
 `fit_prompt_text`, `is_prompt_too_long` and `prompt_cap_from_error` are public, for
 callers that do their own orchestration.
 
+#### Conditional Decide branches
+
+A saved `decide-branch` node uses the same model and question fields as Decide.
+Wire its `yes` and `no` outputs to the respective branch entries. The selected port
+forwards the input text, or the answer when no text was supplied. Join nodes receive
+only active routed inputs. An invalid or missing answer opens neither port.
+
+Unselected nodes have `status == "skipped"` with `skip_reason == "branch"` and incur
+no provider cost. Existing `decide` nodes and closed gates retain their original behavior.
+Use an executor with branch support for new branch graphs.
+
 ### CLI
 
 Installed as `nanoodle-py` (and `python -m nanoodle` always works):
