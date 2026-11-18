@@ -7371,6 +7371,9 @@ window.NoodleApp = (function () {
   "generation":{es:"generación",fr:"génération",de:"Generierung",pt:"geração",ja:"生成"},
   "generations":{es:"generaciones",fr:"générations",de:"Generierungen",pt:"gerações",ja:"生成"},
   "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
+  "all branches":{es:"todas las ramas",fr:"toutes les branches",de:"alle Zweige",pt:"todos os ramos",ja:"すべての分岐"},
+  "The estimate includes all branches. You pay for the steps that run.":{es:"La estimación incluye todas las ramas. Solo pagas por los pasos que se ejecutan.",fr:"L’estimation inclut toutes les branches. Vous payez uniquement les étapes exécutées.",de:"Die Schätzung umfasst alle Zweige. Du zahlst nur für ausgeführte Schritte.",pt:"A estimativa inclui todos os ramos. Você só paga pelas etapas executadas.",ja:"見積もりにはすべての分岐が含まれます。料金は実行されたステップ分のみです。"},
+  "All branches are estimated at {usd}. You pay for the steps that run.":{es:"La estimación para todas las ramas es de {usd}. Solo pagas por los pasos que se ejecutan.",fr:"Toutes les branches sont estimées à {usd}. Vous payez uniquement les étapes exécutées.",de:"Alle Zweige zusammen werden auf {usd} geschätzt. Du zahlst nur für ausgeführte Schritte.",pt:"O custo estimado de todos os ramos é de {usd}. Você só paga pelas etapas executadas.",ja:"すべての分岐を含む見積もりは {usd} です。料金は実行されたステップ分のみです。"},
   "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
   "subtotal + unknown GIF":{es:"subtotal + GIF desconocido",fr:"sous-total + GIF inconnu",de:"Zwischensumme + unbekannter GIF",pt:"subtotal + GIF desconhecido",ja:"小計 + 不明なGIF"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
@@ -8240,8 +8243,9 @@ window.NoodleApp = (function () {
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
+    COST.branchEstimate = STATE.graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && STATE.graph.byId(l.from.node)?.fields?.branch===true);
     // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
-    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay() };
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay(), branching: COST.branchEstimate };
     paintRunCost();
   }
   // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
@@ -8260,11 +8264,12 @@ window.NoodleApp = (function () {
     const gifUnknown = !!rc.gifUnknown;
     el.hidden = false;
     el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
-      + '<span class="rc-lbl">' + (gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
+      + '<span class="rc-lbl">' + t(gifUnknown ? "subtotal + unknown GIF" : rc.branching ? "all branches" : "/run") + (n>1 ? " · " + n + "×" : "") + '</span>';
     var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
     if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
     if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
     if(gifUnknown) tip += ". GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill";
+    if(rc.branching) tip += ". " + t("The estimate includes all branches. You pay for the steps that run.");
     tip += rc.exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
     el.title = tip;
   }
@@ -11991,6 +11996,7 @@ const PROMPT_CAPS = {
     for(const n of graph.nodes){
       const specs = SETTING_SPECS[n.type]; if(!specs) continue;
       for(const s of specs){
+        if(n.type==="decide" && n.fields.branch===true && /^(mode|options|levels|gate)$/.test(s.f)) continue;
         // a knob fed by a link is decided upstream → don't offer a control for it
         if(graph.links.some(l=> l.to.node===n.id && l.to.port===s.f)) continue;
         // vframes' frame count is shape-affecting — never offer a floor below the highest wired
@@ -14575,7 +14581,9 @@ const PROMPT_CAPS = {
       else { var app=document.querySelector(".app"); if(app) app.appendChild(box); else document.body.appendChild(box); }
     }
     var costLine = (COST.estUsd!=null && COST.estUsd>0)
-      ? '<p class="pf-cost">' + t("This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
+      ? '<p class="pf-cost">' + t(COST.branchEstimate
+        ? "All branches are estimated at {usd}. You pay for the steps that run."
+        : "This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
       : '';
     box.innerHTML =
       '<p>' + t("NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'

@@ -85,6 +85,13 @@ try {
     });
     await page.waitForFunction(type => serializeGraph().nodes.some(n => n.id === "n2" && n.type === type), routerType);
   };
+  await page.locator("#addbtn").click();
+  await page.locator("#addsearch").fill("branch");
+  await page.locator('#addlist button[data-type="decide"]').first().click();
+  const added = page.locator(".node").filter({ has: page.locator("[data-decide-mode]") }).last();
+  await added.getByRole("combobox", { name: "Decision mode" }).selectOption("yesno");
+  await added.getByRole("checkbox", { name: "Enable Yes/No branching" }).check();
+  assert.equal(await added.locator('.port[data-port="yes"], .port[data-port="no"]').count(), 2);
   await load(legacy, "decide");
   assert.equal(await page.evaluate(() => serializeGraph().nodes.find(n => n.id === "n2").fields.gate), true);
   answers = [0];
@@ -95,6 +102,17 @@ try {
   assert.equal(await page.locator('.node[data-id="n2"] [data-decide-branch]').isChecked(), true);
   const router = page.locator('.node[data-id="n2"]');
   assert.equal(await router.locator('.port[data-port="yes"], .port[data-port="no"]').count(), 2);
+  const overlaps = await page.evaluate(() => graph.nodes.flatMap((a, i) =>
+    graph.nodes.slice(i + 1).filter(b => a.x < b.x + b.el.offsetWidth && b.x < a.x + a.el.offsetWidth
+      && a.y < b.y + b.el.offsetHeight && b.y < a.y + a.el.offsetHeight).map(b => [a.id, b.id])));
+  assert.deepEqual(overlaps, [], "example cards leave all controls reachable");
+  await router.getByRole("checkbox", { name: "Enable Yes/No branching" }).click();
+  assert.equal(await router.locator("[data-decide-branch]").isChecked(), true);
+  await page.getByText("Disconnect the yes and no wires before turning branching off.", { exact: true }).waitFor();
+  await router.getByRole("combobox", { name: "Decision mode" }).selectOption("choose");
+  assert.equal(await router.locator("[data-decide-mode]").inputValue(), "yesno");
+  assert.deepEqual(await page.evaluate(() => serializeGraph().links), graph.links);
+  await page.locator("#runest").getByText("all branches").waitFor();
 
   for (const scenario of cases) {
     calls = [];
@@ -120,6 +138,13 @@ try {
   await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
   const builder = page.frameLocator("#appmodalframe");
   const runner = builder.frameLocator("#appframe");
+  await runner.locator("#app-runcost").getByText("all branches").waitFor();
+  await runner.locator("details.opt summary").click();
+  const decisionSettings = runner.locator(".setgroup").filter({ hasText: "Technical topic?" });
+  await decisionSettings.waitFor();
+  assert.equal(await decisionSettings.getByText("Question", { exact: true }).count(), 1);
+  assert.equal(await decisionSettings.getByText("Gate: stop downstream on no", { exact: true }).count(), 0);
+  assert.equal(await decisionSettings.getByText("Decide", { exact: true }).count(), 0);
   calls = [];
   answers = [0, 1];
   await runner.locator("#app-run").click();

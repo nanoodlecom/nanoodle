@@ -3,11 +3,11 @@
   "nodes": [
     {"id":"n1","type":"text","name":"Request","x":40,"y":180,"fields":{"text":"Tell me about programming languages."}},
     {"id":"n2","type":"decide-branch","name":"Technical topic?","x":350,"y":90,"fields":{"model":"perplexity/pplx-decider-v1.2","question":"Is the request about a technical subject?"}},
-    {"id":"n3","type":"llm","name":"Shared context","x":350,"y":450,"fields":{"model":"z-ai/glm-5.3-flash","system":"Summarize the request in one sentence."}},
+    {"id":"n3","type":"llm","name":"Shared context","x":320,"y":680,"fields":{"model":"z-ai/glm-5.3-flash","system":"Summarize the request in one sentence."}},
     {"id":"n4","type":"llm","name":"Technical answer","x":690,"y":60,"fields":{"model":"google/gemini-3.8-flash","prompt":"Give a concise technical explanation."}},
-    {"id":"n5","type":"decide-branch","name":"Creative topic?","x":690,"y":390,"fields":{"model":"perplexity/pplx-decider-v1.2","question":"Would a playful answer suit this request?"}},
+    {"id":"n5","type":"decide-branch","name":"Creative topic?","x":690,"y":530,"fields":{"model":"perplexity/pplx-decider-v1.2","question":"Would a playful answer suit this request?"}},
     {"id":"n6","type":"llm","name":"Playful answer","x":1070,"y":330,"fields":{"model":"openai/gpt-5-mini","prompt":"Give a short, playful answer."}},
-    {"id":"n7","type":"llm","name":"Direct answer","x":1070,"y":670,"fields":{"model":"openai/gpt-4.1-mini","prompt":"Give a short, direct answer."}},
+    {"id":"n7","type":"llm","name":"Direct answer","x":1070,"y":800,"fields":{"model":"openai/gpt-4.1-mini","prompt":"Give a short, direct answer."}},
     {"id":"n8","type":"join","name":"General answer","x":1400,"y":420,"fields":{}},
     {"id":"n9","type":"join","name":"Answer","x":1730,"y":120,"fields":{}}
   ],
