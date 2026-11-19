@@ -19954,6 +19954,7 @@ function bindWorkspaceChrome(){
     tabs.addEventListener("keydown", (e)=>{
       if(e.target && e.target.closest && e.target.closest("input, textarea")) return;
       if(workspaceChord(e)) return;   // the window listener takes one step; don't also move on the arrow
+      if(e.key==="Enter" && (e.ctrlKey || e.metaKey)) return;   // the window listener owns Run
       if(e.key==="F2"){
         const b = e.target.closest && e.target.closest(".wstab");
         if(!b) return;
