@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>nanoodle on Base — AI workflows for agents, paid in USDC (in preparation)</title>
+<meta name="description" content="nanoodle is bringing its agent payment rail to Base: build multi-model AI workflows visually, expose them as MCP tools, and let agents pay per call in USDC on Base over x402. The Base adapter is built and tested offline; live settlement is not open yet. The editor and hosted MCP are live today on other rails." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="nanoodle on Base — AI workflows for agents, paid in USDC" />
+<meta property="og:description" content="Build multi-model AI workflows visually and let agents pay per call in USDC on Base over x402. In preparation: the adapter is tested offline, live settlement is not open yet." />
+<meta property="og:url" content="https://nanoodle.com/base" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle on Base — AI workflows for agents, paid in USDC" />
+<meta name="twitter:description" content="Build multi-model AI workflows visually and let agents pay per call in USDC on Base over x402. In preparation: the adapter is tested offline, live settlement is not open yet." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/base" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://nanoodle.com/base#webpage",
+      "url": "https://nanoodle.com/base",
+      "name": "nanoodle on Base",
+      "inLanguage": "en",
+      "description": "nanoodle is bringing its agent payment rail to Base: build multi-model AI workflows visually, expose them as MCP tools, and let agents pay per call in USDC on Base over x402. The Base adapter is built and tested offline; live settlement is not open yet.",
+      "isPartOf": { "@id": "https://nanoodle.com/#website" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "nanoodle",
+      "url": "https://nanoodle.com/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "en",
+      "description": "A node playground for AI workflows: connect text, image, video, audio and 3D models from nano-gpt into one graph, run it in the browser, share it as an app, or expose it to agents as a paid MCP tool.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "sameAs": [
+        "https://x.com/nanosapien1",
+        "https://github.com/nanoodlecom",
+        "https://github.com/nanoodlecom/nanoodle",
+        "https://www.npmjs.com/package/nanoodle",
+        "https://pypi.org/project/nanoodle/"
+      ]
+    }
+  ]
+}
+</script>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{ background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center;
+        font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; padding:2rem 1.1rem 3rem; }
+  a{ color:var(--accent); text-decoration:none } a:hover{ text-decoration:underline }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+  main{ width:100%; max-width:660px }
+  .logo{ font-weight:900; font-size:1.5rem; letter-spacing:.01em; margin:0 0 1.6rem }
+  .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .logo .ui{ color:var(--dim); font-weight:700; font-size:.62rem; letter-spacing:.14em; margin-left:.35rem; vertical-align:.14em; text-transform:uppercase; }
+  h1{ font-size:2rem; line-height:1.2; margin:0 0 .6rem; letter-spacing:-.01em }
+  h2{ font-size:1.25rem; line-height:1.3; margin:2rem 0 .6rem; letter-spacing:-.01em }
+  .tagline{ color:var(--muted); font-size:1.05rem; margin:0 0 1.6rem }
+  .hero{ display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:.9rem; margin:0 0 1.8rem; }
+  p{ color:var(--ink); margin:0 0 1.1rem }
+  ul{ color:var(--ink); margin:0 0 1.1rem; padding-left:1.2rem }
+  li{ margin:0 0 .45rem }
+  li::marker{ color:var(--dim) }
+  .status{ display:inline-block; background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+           font-size:.86rem; font-weight:700; letter-spacing:.02em; padding:.35rem .8rem; border-radius:2rem; margin:0 0 1.4rem }
+  .status .dot{ display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:#f5b544; margin-right:.45rem; vertical-align:.05em }
+  .faq{ background:var(--panel); border:1px solid var(--line); border-radius:.7rem; padding:.9rem 1.1rem; margin:.4rem 0 1.8rem }
+  .faq .q{ font-weight:700; margin:0 0 .3rem } .faq .a{ color:var(--muted); margin:0 }
+  .cta{ display:inline-block; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12;
+        font-weight:800; font-size:1.05rem; padding:.8rem 1.5rem; border-radius:.6rem; }
+  .cta:hover{ text-decoration:none; filter:brightness(1.05) }
+  footer{ margin-top:2.4rem; color:var(--dim); font-size:.86rem; line-height:1.9 }
+  footer a{ color:var(--dim) } footer a:hover{ color:var(--ink) }
+  footer .langs strong{ color:var(--ink) }
+  footer .sep{ margin:0 .5rem; opacity:.5 }
+</style>
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/public-pages.css" />
+</head>
+<body>
+<main>
+  <p class="logo"><span class="nano">nanoodle</span><span class="ui">on Base</span></p>
+  <h1>AI workflows for agents, paid in USDC on Base</h1>
+  <p class="tagline">Build a multi-model workflow visually. Hand it to an agent as one tool. The agent pays per call — no account, no API key of its own.</p>
+  <p class="status"><span class="dot" aria-hidden="true"></span>Status: in preparation — Base payments are not live yet</p>
+  <img class="hero" src="/og-card.png" width="1200" height="630" alt="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+  <p>nanoodle is a node playground for AI: connect text, image, video, audio and 3D models into one workflow in the browser, then expose that workflow to agents as a single typed MCP tool through the hosted server at <a href="https://mcp.nanoodle.com">mcp.nanoodle.com</a>. Instead of a subscription or a prepaid balance, the calling agent pays for each run as it goes.</p>
+  <p>Base is the next payment rail for those calls. The design follows the <a href="https://www.x402.org" target="_blank" rel="noopener">x402</a> protocol: the server answers a paid tool call with an HTTP 402 quote, the agent pays in USDC on Base, the workflow runs, and the agent gets its result with a receipt. Pricing is quoted per run before payment, from the models the workflow actually uses.</p>
+
+  <h2>What is live today</h2>
+  <ul>
+    <li>The <a href="https://nanoodle.com/">workflow editor</a> — build and run workflows in your browser, free to open.</li>
+    <li>The <a href="https://mcp.nanoodle.com">hosted MCP server</a> — agents already pay per call there in Nano, and in NEAR or USDC on NEAR through the <a href="https://near.nanoodle.com/">NEAR front door</a>.</li>
+    <li>The Base x402 adapter itself — built against the official x402 SDKs and qualified offline with adversarial payment tests (replay, expiry, cross-network races, settlement uncertainty).</li>
+  </ul>
+
+  <h2>What is not live yet — plainly</h2>
+  <ul>
+    <li><strong>No live Base payments.</strong> The adapter stays inactive until the shared payment-authority service behind it ships; nothing on this page can take your USDC today.</li>
+    <li><strong>No marketplace listing yet.</strong> nanoodle is not listed in Coinbase's x402 Bazaar or on Agentic.Market. Bazaar indexing follows a first real settlement, so a listing can only come after live payments open — anyone claiming otherwise is ahead of the facts.</li>
+    <li><strong>No launch date.</strong> This page will drop the “in preparation” label when the first Base settlement has actually cleared, not before.</li>
+  </ul>
+
+  <div class="faq">
+    <p class="q">Can my agent pay with Base USDC right now?</p>
+    <p class="a">Not yet. Today the hosted MCP server takes Nano, NEAR and USDC on NEAR. Base USDC over x402 opens when the payment-authority service ships and a first settlement clears — the same workflow your agent runs on the live rails will then accept Base payment unchanged.</p>
+  </div>
+  <p><a class="cta" href="https://nanoodle.com/">Build a workflow now →</a></p>
+  <footer>
+    <div><a href="https://mcp.nanoodle.com">Hosted MCP server (live rails)</a><span class="sep">·</span><a href="https://near.nanoodle.com/">NEAR front door</a><span class="sep">·</span><a href="https://nano.nanoodle.com/">Also on nano.nanoodle.com</a></div>
+    <div><a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Open source (MIT) — read the code on GitHub</a></div>
+    <div><a href="/legal">Legal &amp; privacy</a></div>
+  </footer>
+</main>
+</body>
+</html>
