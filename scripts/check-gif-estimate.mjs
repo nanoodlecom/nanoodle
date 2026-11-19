@@ -152,8 +152,29 @@ try {
     "play refreshRunCost stamps gifUnknown on the forecast");
   ok(/const gifUnknown = !!rc\.gifUnknown;/.test(PLAY),
     "play paintRunCost reads gifUnknown from the forecast (harness-extractable)");
-  ok(/gifUnknown \? t\("subtotal \+ unknown GIF"\) : t\("\/run"\)/.test(PLAY),
-    "play /run chip uses subtotal label when GIF unknown");
+  const chip = {};
+  const sb = {
+    RUNS_N: 1,
+    _runCost: { usd: 0.04, priced: 1, exact: false },
+    ensureRunCostEl: () => chip,
+    fmtUsd: () => "$0.04",
+    t: value => value,
+  };
+  vm.createContext(sb);
+  const paintStart = PLAY.indexOf("function paintRunCost(");
+  const paintEnd = PLAY.indexOf("\n  function ensureRunCostEl(", paintStart);
+  vm.runInContext(PLAY.slice(paintStart, paintEnd), sb);
+  for (const [gifUnknown, branching, label] of [
+    [false, false, "/run"],
+    [false, true, "all branches"],
+    [true, false, "subtotal + unknown GIF"],
+    [true, true, "subtotal + unknown GIF"],
+  ]) {
+    Object.assign(sb._runCost, { gifUnknown, branching });
+    sb.paintRunCost();
+    ok(chip.innerHTML.includes('class="rc-lbl">' + label + "</span>"),
+      "play cost chip shows " + label + (branching ? " in a branch graph" : ""));
+  }
 
   // Behavioural: a graph with LLM + GIF must not paint a confident total that omits GIF unknown.
   // Pin via source: when gifUnknown, the suffix is the subtotal label (never bare "to run").

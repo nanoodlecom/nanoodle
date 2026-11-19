@@ -394,12 +394,13 @@ const html = `<!doctype html>
           display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
   footer .spacer{flex:1}
 </style>
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/public-pages.css" />
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
     <div class="spacer"></div>
     <a class="ghost" href="/">Open editor →</a>
   </header>

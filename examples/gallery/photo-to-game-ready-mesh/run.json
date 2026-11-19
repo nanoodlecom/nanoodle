@@ -1,0 +1,32 @@
+{
+  "label": "2026-11-18 photo to game-ready mesh, dragon sample (Gemini survey -> Idol Max Turbo mesh -> GLM guide)",
+  "startedAt": "2026-11-18T22:01:00.000Z",
+  "finishedAt": "2026-11-18T22:02:00.000Z",
+  "costUsd": 0.102948325,
+  "costExact": true,
+  "balanceBefore": 39.58326069,
+  "balanceAfter": 39.48031237,
+  "balanceDelta": 0.102948325,
+  "nodes": {
+    "src": {
+      "status": "done",
+      "costUsd": null
+    },
+    "survey": {
+      "status": "done",
+      "costUsd": 0.002948325
+    },
+    "mesh": {
+      "status": "done",
+      "costUsd": 0.1,
+      "files": {
+        "model": "model.glb"
+      }
+    },
+    "guide": {
+      "status": "done",
+      "costUsd": 0
+    }
+  },
+  "note": "The probe that proved the endpoint first (one Turbo run, $0.10) returned a GLB with exactly 30,000 triangles, TEXCOORD_0 UVs and three embedded PBR textures; this saved run's GLB parses at 29,992 triangles with the same structure. The headless runner's balance-after read returned None on both runs; balanceAfter here was read back from the account afterwards and matches balanceBefore minus the exact cost. The mesh GLB is Y-up and renders in the stock viewer - no points path. Turntable and preview are plain flat-shaded renders of the saved GLB with its own base-colour texture, labelled as renders, not shaded beauty shots."
+}
