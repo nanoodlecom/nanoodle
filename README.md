@@ -72,7 +72,9 @@ Nothing is submitted from the editor automatically.
 static site (Cloudflare Pages / Workers assets — see `wrangler.jsonc`,
 `_headers`, `_redirects`, `sw.js`). The same deployment is also served at
 https://nano.nanoodle.com — same editor, examples, guides and localized
-pages, on its own subdomain. There is no server-side code; hosting
+pages, on its own subdomain. A Base front door lives at
+https://nanoodle.com/base — the coming USDC-on-Base x402 payment rail for
+agents, currently in preparation. There is no server-side code; hosting
 adds nothing but HTTPS and the CSP headers.
 
 **Self-hosted:** serve the folder with any static file server:
