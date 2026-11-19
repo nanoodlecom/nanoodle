@@ -18430,6 +18430,7 @@ let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRe
 let wsKnownRecord = null, wsJournalRevision = -1;
 const wsPendingGenerations = new Set();
 let wsInitFlight = null, wsAuthorityEpoch = 0;
+let wsRestoreError = null, wsRecoveryRetryT = null, wsRecoveryRetries = 0;
 let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
 function wsOwnedKey(key){
   return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
@@ -18437,7 +18438,7 @@ function wsOwnedKey(key){
 function workspacePersistence(){
   return { mode:!wsValues ? "local" : wsSavedRevision===wsRevision ? "browser" : "session",
     pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure,
-    restoreFailed:wsRestoreFailed, recoveryBackup:wsRecoveryBackup };
+    restoreFailed:wsRestoreFailed, restoreError:wsRestoreError, recoveryBackup:wsRecoveryBackup };
 }
 function wsRawStorage(kind){
   try{ return kind==="local" ? localStorage : sessionStorage; }catch(_){ return null; }
@@ -18657,7 +18658,9 @@ function wsQueuePersist(){
         if(saveT) flushSave();
         wsWriteRecovery(wsValues);
       }
-      wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
+      // A failed commit cannot diagnose an unread database. Keep the restore
+      // cause until recovery succeeds instead of replacing it with "unavailable".
+      if(!wsRestoreFailed || error && error.name==="WorkspaceConflict") wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
       wsPersistenceNotice(false);
     });
   });
@@ -18699,10 +18702,26 @@ function checkpointWorkspaceEdits(){
   if(wsValues && wsRevision!==wsSavedRevision) wsWriteRecovery(wsValues);
   return saved;
 }
+function wsStorageException(name){
+  const error=new Error(name); error.name=name; return error;
+}
+function wsScheduleRecovery(){
+  // A slow disk or interrupted IDB open must not strand a healthy browser in
+  // visit-only mode forever. Retry once; quota/schema/security errors need the
+  // explicit Retry control. Never trust a late callback from the failed open.
+  if(!wsRestoreFailed || wsRecoveryRetryT!==null || wsRecoveryRetries>=1
+      || !/^(BrowserStorageTimeout|BrowserStorageBlocked|UnknownError|AbortError)$/.test(wsRestoreError||"")) return;
+  wsRecoveryRetryT=setTimeout(function retryWorkspaceRestore(){
+    wsRecoveryRetryT=null; wsRecoveryRetries++;
+    initWorkspaceStorage();
+  },1000);
+}
 function initWorkspaceStorage(){
   if(wsInitFlight) return wsInitFlight;
+  if(wsRecoveryRetryT!==null){ clearTimeout(wsRecoveryRetryT); wsRecoveryRetryT=null; }
   wsInitFlight=restoreWorkspaceStorage().finally(()=>{
     wsInitFlight=null;
+    wsScheduleRecovery();
     try{const retry=$("wspersistence-retry");if(retry)retry.disabled=false;}catch(_){}
   });
   return wsInitFlight;
@@ -18736,9 +18755,17 @@ async function restoreWorkspaceStorage(){
         if(error) reject(error); else resolve(value);
       };
       let timer = null;
-      timer = setTimeout(()=>finish(new Error("BrowserStorageTimeout")), 2500);
-      const request = indexedDB.open("nanoodle-workspaces", 1);
+      // First paint has a short deadline; recovery gets longer to read a slow
+      // disk while the visitor can keep editing the isolated recovery branch.
+      timer = setTimeout(function workspaceRestoreTimeout(){
+        finish(wsStorageException("BrowserStorageTimeout"));
+      }, wsRestoreFailed ? 10000 : 2500);
+      // Read the existing database version, just like the recovery exporter.
+      // Payload v is validated below; a compatible record in a newer database
+      // must not fail with VersionError. Never delete/recreate an unknown schema.
+      const request = indexedDB.open("nanoodle-workspaces");
       request.onupgradeneeded = ()=>request.result.createObjectStore("workspaces");
+      request.onblocked = ()=>finish(wsStorageException("BrowserStorageBlocked"));
       request.onerror = ()=>finish(request.error || new Error("BrowserStorageUnavailable"));
       request.onsuccess = ()=>{
         const db = request.result;
@@ -18754,6 +18781,10 @@ async function restoreWorkspaceStorage(){
         }catch(e){ db.close(); finish(e); }
       };
     });
+    // Retry runs while the canvas is editable. Checkpoint typing that is still
+    // inside save's debounce before selecting/merging the recovery branch.
+    if(wsValues && saveT!==null && !wsRestorePending && flushSave()===null)
+      throw wsStorageException("WorkspaceCheckpointFailed");
     wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
     invalidateWorkspaceCloseHistory(); // a close made during Retry may refer to pre-recovery tab ids
     const restored = Object.create(null);
@@ -18762,9 +18793,9 @@ async function restoreWorkspaceStorage(){
       for(const [key,value] of Object.entries(record.values)) if(wsOwnedKey(key) && typeof value==="string") restored[key]=value;
       const index = JSON.parse(restored[WS_INDEX_KEY]||"null");
       if(!index || index.v!==1 || !Array.isArray(index.tabs) || !index.tabs.some(t=>t && t.id===index.active))
-        throw new Error("InvalidWorkspaceRecord");
+        throw wsStorageException("InvalidWorkspaceRecord");
     }else if(record){
-      throw new Error("InvalidWorkspaceRecord");
+      throw wsStorageException("InvalidWorkspaceRecord");
     }
     const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
     if(visit){
@@ -18792,10 +18823,11 @@ async function restoreWorkspaceStorage(){
       try{ renderWorkspaces(); }catch(_){}
       wsQueuePersist();
     }
-    wsRestoreFailed=false;
+    wsRestoreFailed=false; wsRestoreError=null; wsPersistFailure=null;
   }catch(e){
     if(wsDatabase){ try{ wsDatabase.close(); }catch(_){} wsDatabase=null; }
-    wsPersistFailure=e && e.name || "Error";
+    wsRestoreError=e && e.name || "Error";
+    wsPersistFailure=wsRestoreError;
     wsRestoreFailed=true; wsRecoveryActive=true;
     if(!wsValues){
       wsBeginOverflow("nanoodle-workspaces",e,"restore");
