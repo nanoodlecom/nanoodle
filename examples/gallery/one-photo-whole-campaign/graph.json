@@ -1,0 +1,372 @@
+{
+ "v": 1,
+ "lid": 17,
+ "nid": 15,
+ "nodes": [
+  {
+   "fields": {
+    "color": "yellow",
+    "text": "One photo, whole campaign. Upload one product photo. A vision model writes down everything on the product first \u2014 every printed word included. Then Seedream 5.5 makes three edits in a chain, one change at a time: a new backdrop, campaign props, and the sale poster text. A blind re-read of the finished poster and a drift report close the loop: what was asked to change, and what moved that should not have. Swap the photo, rewrite the three edits, \u25b6 Run."
+   },
+   "id": "c-intent",
+   "type": "comment",
+   "w": 560,
+   "x": -40,
+   "y": -380
+  },
+  {
+   "fields": {
+    "image": ""
+   },
+   "id": "src",
+   "name": "Product photo",
+   "type": "upload",
+   "w": 320,
+   "x": -40,
+   "y": 0
+  },
+  {
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are the anchor reader in a product-photo editing pipeline. Look at this product photo and write PRODUCT ANCHORS in this exact shape:\nProduct: <what the product is, one line>\nLabel text: <every word printed on the product or its label, transcribed exactly, in reading order \u2014 or 'none'>\nColours: <the product's main colours, one line>\nMaterials and finish: <what it is made of and how it looks, one line>\nSetting now: <the background and surface in this photo, one line>\nPlain factual lines only. No advice, no markdown, no extra lines."
+   },
+   "id": "anchors",
+   "name": "Product anchors \u2014 Gemini reads the photo",
+   "type": "vision",
+   "w": 340,
+   "x": 380,
+   "y": -40
+  },
+  {
+   "fields": {
+    "text": "Change only the setting: place the candle on a dark rustic wooden table against a deep green wall, soft window light from the left. Keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   "id": "step1",
+   "name": "Edit 1 \u00b7 backdrop",
+   "type": "text",
+   "w": 340,
+   "x": -40,
+   "y": 330
+  },
+  {
+   "fields": {
+    "model": "bytedance/seedream-v5.5/edit",
+    "prompt": "",
+    "size": "1k"
+   },
+   "id": "edit1",
+   "name": "Backdrop swap \u2014 Seedream 5.5",
+   "type": "edit",
+   "w": 380,
+   "x": 380,
+   "y": 300
+  },
+  {
+   "fields": {
+    "text": "Add a small stack of two cedar wood discs and a short sprig of dried eucalyptus on the table beside the candle. Change nothing else \u2014 the backdrop stays as it is, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   "id": "step2",
+   "name": "Edit 2 \u00b7 props",
+   "type": "text",
+   "w": 340,
+   "x": -40,
+   "y": 640
+  },
+  {
+   "fields": {
+    "model": "bytedance/seedream-v5.5/edit",
+    "prompt": "",
+    "size": "1k"
+   },
+   "id": "edit2",
+   "name": "Add the props \u2014 Seedream 5.5",
+   "type": "edit",
+   "w": 380,
+   "x": 380,
+   "y": 620
+  },
+  {
+   "fields": {
+    "text": "Add elegant cream-coloured poster text in the empty wall space above the candle: '12.12 SALE' in large serif letters, and beneath it 'UP TO 30% OFF' in smaller letters. Change nothing else \u2014 the props stay where they are, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   "id": "step3",
+   "name": "Edit 3 \u00b7 offer text",
+   "type": "text",
+   "w": 340,
+   "x": -40,
+   "y": 950
+  },
+  {
+   "fields": {
+    "model": "bytedance/seedream-v5.5/edit",
+    "prompt": "",
+    "size": "1k"
+   },
+   "id": "edit3",
+   "name": "Add the offer text \u2014 Seedream 5.5",
+   "type": "edit",
+   "w": 380,
+   "x": 380,
+   "y": 940
+  },
+  {
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are a blind reader in a product-photo pipeline. Describe this finished image in this exact shape:\nProduct: <what the product is, one line>\nLabel text: <every word printed on the product or its label, transcribed exactly, in reading order \u2014 or 'none'>\nColours: <the product's main colours, one line>\nSetting: <the background, surface and any props, one line>\nAdded text: <any poster or headline text in the image that is NOT on the product label, transcribed exactly \u2014 or 'none'>\nPlain factual lines only. No advice, no markdown, no extra lines."
+   },
+   "id": "reread",
+   "name": "Blind re-read \u2014 Gemini describes the poster",
+   "type": "vision",
+   "w": 340,
+   "x": 820,
+   "y": 900
+  },
+  {
+   "fields": {
+    "sep": "\n"
+   },
+   "id": "js1",
+   "name": "Edits 1 + 2",
+   "type": "join",
+   "w": 200,
+   "x": 820,
+   "y": 300
+  },
+  {
+   "fields": {
+    "sep": "\n"
+   },
+   "id": "js2",
+   "name": "All three edits",
+   "type": "join",
+   "w": 200,
+   "x": 820,
+   "y": 460
+  },
+  {
+   "fields": {
+    "sep": "\n\nEDITS REQUESTED (the only changes that were allowed):\n"
+   },
+   "id": "j1",
+   "name": "Anchors + edits",
+   "type": "join",
+   "w": 200,
+   "x": 1060,
+   "y": 300
+  },
+  {
+   "fields": {
+    "sep": "\n\nRE-READ (a blind reader described the finished poster; it never saw the original photo):\n"
+   },
+   "id": "j2",
+   "name": "Everything + re-read",
+   "type": "join",
+   "w": 200,
+   "x": 1060,
+   "y": 460
+  },
+  {
+   "fields": {
+    "maxTokens": 500,
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "system": "You write the drift report for a three-edit product campaign. The input gives you the product anchors read from the ORIGINAL photo, the three edits that were requested (the only changes allowed), and a blind re-read of the FINISHED poster. ByteDance claims Seedream 5.5 leaves unedited regions alone across many rounds \u2014 your job is to check that claim against these two reads, not to repeat it. Print exactly three lines:\nHELD: <the label words and product details that survived all three edits unchanged \u2014 or 'nothing held'>\nDRIFTED: <anything that changed without being requested \u2014 quote the anchor wording vs the re-read wording \u2014 or 'nothing'>\nCAMPAIGN: COMPLETE if all three requested edits are visible in the re-read (new setting, the props, the poster text), otherwise INCOMPLETE \u2014 <name what is missing>\nJudge only from the two reads in the input. Do not invent details neither read names."
+   },
+   "id": "checker",
+   "name": "Drift report \u2014 GLM grades the chain",
+   "type": "llm",
+   "w": 340,
+   "x": 1300,
+   "y": 300
+  }
+ ],
+ "links": [
+  {
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "id": "l1",
+   "to": {
+    "node": "anchors",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "id": "l2",
+   "to": {
+    "node": "edit1",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "step1",
+    "port": "text"
+   },
+   "id": "l3",
+   "to": {
+    "node": "edit1",
+    "port": "prompt"
+   }
+  },
+  {
+   "from": {
+    "node": "edit1",
+    "port": "image"
+   },
+   "id": "l4",
+   "to": {
+    "node": "edit2",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "step2",
+    "port": "text"
+   },
+   "id": "l5",
+   "to": {
+    "node": "edit2",
+    "port": "prompt"
+   }
+  },
+  {
+   "from": {
+    "node": "edit2",
+    "port": "image"
+   },
+   "id": "l6",
+   "to": {
+    "node": "edit3",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "step3",
+    "port": "text"
+   },
+   "id": "l7",
+   "to": {
+    "node": "edit3",
+    "port": "prompt"
+   }
+  },
+  {
+   "from": {
+    "node": "edit3",
+    "port": "image"
+   },
+   "id": "l8",
+   "to": {
+    "node": "reread",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "step1",
+    "port": "text"
+   },
+   "id": "l9",
+   "to": {
+    "node": "js1",
+    "port": "a"
+   }
+  },
+  {
+   "from": {
+    "node": "step2",
+    "port": "text"
+   },
+   "id": "l10",
+   "to": {
+    "node": "js1",
+    "port": "b"
+   }
+  },
+  {
+   "from": {
+    "node": "js1",
+    "port": "text"
+   },
+   "id": "l11",
+   "to": {
+    "node": "js2",
+    "port": "a"
+   }
+  },
+  {
+   "from": {
+    "node": "step3",
+    "port": "text"
+   },
+   "id": "l12",
+   "to": {
+    "node": "js2",
+    "port": "b"
+   }
+  },
+  {
+   "from": {
+    "node": "anchors",
+    "port": "text"
+   },
+   "id": "l13",
+   "to": {
+    "node": "j1",
+    "port": "a"
+   }
+  },
+  {
+   "from": {
+    "node": "js2",
+    "port": "text"
+   },
+   "id": "l14",
+   "to": {
+    "node": "j1",
+    "port": "b"
+   }
+  },
+  {
+   "from": {
+    "node": "j1",
+    "port": "text"
+   },
+   "id": "l15",
+   "to": {
+    "node": "j2",
+    "port": "a"
+   }
+  },
+  {
+   "from": {
+    "node": "reread",
+    "port": "text"
+   },
+   "id": "l16",
+   "to": {
+    "node": "j2",
+    "port": "b"
+   }
+  },
+  {
+   "from": {
+    "node": "j2",
+    "port": "text"
+   },
+   "id": "l17",
+   "to": {
+    "node": "checker",
+    "port": "prompt"
+   }
+  }
+ ]
+}

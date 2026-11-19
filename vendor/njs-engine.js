@@ -1,5 +1,5 @@
-/* data-hash=dbc8c33628b8e197 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-615065be438d (20 modules) */
+/* data-hash=fcffbbc99a05ef1a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-023296a08393 (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -33,6 +33,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
+{ const __m = __req("branches.mjs"); __x.planBranches = __m.planBranches; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
 { const __m = __req("local-media.mjs"); __x.resizePlan = __m.resizePlan; __x.maskToSource = __m.maskToSource; __x.resizeCropImage = __m.resizeCropImage; __x.encodeWavMono = __m.encodeWavMono; }
 { const __m = __req("x402.mjs"); __x.parseNanoInvoice = __m.parseNanoInvoice; }
@@ -49,6 +50,7 @@ const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
 const { learnPromptCap, withFittedPrompt } = __req("prompt-caps.mjs");
 const { decodeShareUrl, isShareRef } = __req("share.mjs");
+const { isBranchDecider, planBranches } = __req("branches.mjs");
 
 /** Env / process access — safe when `process` is missing (browsers, some workers). */
 function envApiKey() {
@@ -334,6 +336,7 @@ class Workflow {
     }
 
     const order = topoSort(graph); // throws naming cyclic nodes
+    const branches = planBranches(graph, order.map(n => n.id));
 
     // Local-only graphs never POST media — skip the ~4 MB inline cap on inputs.
     // Mixed/network graphs keep the cap so we fail before spending on an oversize body.
@@ -449,7 +452,17 @@ class Workflow {
       let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
-        const inbound = graph.links.filter((l) => l.to.node === n.id);
+        let inbound = graph.links.filter((l) => l.to.node === n.id);
+        if (branches) {
+          await Promise.allSettled(inbound.map(l => promises.get(l.from.node)));
+          inbound = branches.activeLinks(n.id, id => nodesRec[id]?.status === "done" ? nodesRec[id].out : null);
+          if (inbound === null) {
+            rec.status = "skipped";
+            rec.skipReason = "branch";
+            emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "branch" });
+            return {};
+          }
+        }
         const inp = {};
         let fields = effFields.get(n.id);
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
@@ -504,6 +517,7 @@ class Workflow {
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
         // and report it below. The graph's own prompts are never rewritten to avoid this.
+        if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
         rec.started = true;
@@ -566,7 +580,7 @@ class Workflow {
         // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
         // dependents see undefined ports. A run-level abort/timeout is never skipped.
         const onError = (effFields.get(n.id) || {}).onError;
-        if (onError === "skip" && !ac.signal.aborted) {
+        if (onError === "skip" && !isBranchDecider(n) && !ac.signal.aborted) {
           rec.status = "skipped";
           rec.skippedOnError = true;
           rec.out = {};
@@ -1308,7 +1322,6 @@ class NanoClient {
     const body = { model, messages };
     // Carbon has no sampling-temperature control; omit it rather than restoring a default.
     if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if (opts.response_format) body.response_format = opts.response_format;
     // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
     // Let the provider use its default rather than forwarding reasoning_effort.
@@ -1899,8 +1912,9 @@ function materialize(data) {
     const id = String(raw.id);
     if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
     seenIds.add(id);
-    const type = raw.type === "audio" ? "tts" : raw.type;
+    const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    if (raw.type === "decide-branch") n.fields.branch = true;
     if (!NODE_TYPES[type]) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
@@ -2084,7 +2098,6 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -3096,7 +3109,6 @@ const SETTING_SPECS = {
   llm: [
     { f: "model", label: "Model", kind: "model" },
     { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
-    { f: "maxTokens", label: "Max tokens", kind: "number" },
     { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
     { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
     { f: "showThinking", label: "Show thinking", kind: "boolean" },
@@ -3289,6 +3301,65 @@ function resolveSettingKey(graph, settings, userKey) {
 }
 
 __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+});
+__def("branches.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+function isBranchDecider(node) {
+  return node.type === "decide" && node.fields?.branch === true;
+}
+
+const branchPort = (port) => port === "yes" || port === "no";
+
+/**
+ * Build per-run routing over a topologically ordered set of node IDs.
+ * Explicit Yes/No wires control entry to a branch. Further downstream, any
+ * active routed input opens a join. Ordinary dependencies never open a branch.
+ */
+function planBranches(graph, order) {
+  const deciders = new Map(graph.nodes.filter(n => n.type === "decide").map(n => [n.id, n]));
+  const direct = new Set();
+  for (const link of graph.links) {
+    const source = deciders.get(link.from.node);
+    if (!source || !branchPort(link.from.port)) continue;
+    if (!isBranchDecider(source)) {
+      throw new NanoodleError(`node ${source.id}: enable branching on Decide to wire ${link.from.port}`, { code: "decide-branch" });
+    }
+    direct.add(link);
+  }
+  if (!direct.size) return null;
+
+  const inbound = new Map(order.map(id => [id, []]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+  const selectors = new Map();
+  for (const id of order) {
+    const links = inbound.get(id);
+    const fromDeciders = links.filter(link => direct.has(link));
+    const controls = fromDeciders.length ? fromDeciders : links.filter(link => selectors.has(link.from.node));
+    if (controls.length) selectors.set(id, controls);
+  }
+  const skipped = new Set();
+  return {
+    // Call after this node's upstreams have settled. A failed router is left
+    // to the usual upstream-error handling, which must also prevent execution.
+    activeLinks(id, outFor) {
+      const closed = (link) => {
+        if (skipped.has(link.from.node)) return true;
+        if (!direct.has(link)) return false;
+        const branch = outFor(link.from.node)?.decision?.branch;
+        return branchPort(branch) && branch !== link.from.port;
+      };
+      const controls = selectors.get(id);
+      if (controls?.every(closed)) {
+        skipped.add(id);
+        return null;
+      }
+      return inbound.get(id).filter(link => !closed(link));
+    },
+  };
+}
+
+__x.isBranchDecider = isBranchDecider; __x.planBranches = planBranches;
 });
 __def("share.mjs", function (__x, __req) {
 const { gunzip, gunzipLax } = __req("zlib.mjs");
@@ -5703,6 +5774,7 @@ const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
 
 function decideMode(f) {
+  if (f?.branch === true) return "yesno";
   const m = f && f.mode;
   return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
 }
@@ -5846,7 +5918,17 @@ async function decideRun(f, model, text, imgs, lim, send, fit) {
   } else {
     j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
   }
-  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  const answer = j?.answers?.answer;
+  const branching = f?.branch === true;
+  if (branching && (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1)) {
+    throw new NanoodleError("Decide needs a valid yes/no answer to select a branch", { code: "decide-branch" });
+  }
+  const out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if (branching) {
+    out.decision.branch = out.text;
+    out[out.text] = text || out.text;
+    return out;
+  }
   if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
   return out;
 }
@@ -6354,5 +6436,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-615065be438d";
+  window.NanoodleEngine.version = "src-023296a08393";
 })();

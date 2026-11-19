@@ -102,6 +102,7 @@ function extractSlab(src, startAnchor, endFnName) {
 // fixture (we test the resolver's rule, not the real node table).
 function buildSandbox(src, opts = {}) {
   const normChat = extractFunction(src, "normChat");
+  const normDecision = extractFunction(src, "normDecision");
   // CATALOG .. modelSupportsAudio, verbatim (CATALOG, catalogs, cache fns,
   // fetch/load/refresh, catItem, passesFilter, defModelFor, modelSupports*).
   const slab = extractSlab(src, "const CATALOG = {", "modelSupportsAudio");
@@ -116,15 +117,17 @@ function buildSandbox(src, opts = {}) {
   // fetch stub — behaviour set per test; counts calls.
   let fetchCount = 0;
   const fetchState = { mode: opts.fetchMode || "throw", data: opts.fetchData || [] };
-  const fetch = async () => {
+  const fetch = async (url) => {
     fetchCount++;
     if (fetchState.mode === "throw") throw new Error("stub: network down");
     if (fetchState.mode === "500") {
-      // a real 500 body has no .data — the shipped `.data || []` path yields [],
-      // which normalizes to an empty (but non-null) list.
-      return { json: async () => ({ error: "server error" }) };
+      // Also model a malformed HTTP 200 with no .data.
+      return { ok:true, json: async () => ({ error: "server error" }) };
     }
-    return { json: async () => ({ data: fetchState.data }) };
+    const data = url.includes("/decision-models")
+      ? [{ id:"test/decision", architecture:{ output_modalities:["decisions"] }, decision_input:{ image_input:true } }]
+      : fetchState.data;
+    return { ok:true, json: async () => ({ data }) };
   };
 
   // Deps the catalog slab references but that live elsewhere in index.html.
@@ -139,7 +142,7 @@ function buildSandbox(src, opts = {}) {
   const names = ["localStorage", "fetch", "EST", "getKey", "NANOGPT",
     "normChat", "normImg", "normVideo", "normAudio", "norm3d", "NODE_TYPES"];
   const program =
-    `${normChat}\n` +
+    `${normChat}\n${normDecision}\n` +
     `${slab}\n` +
     `return { catalogs, CATALOG, primeCatalogsFromCache, fetchCatalog, loadCatalog,` +
     ` refreshCatalog, refreshCatalogsIfStale, catalogIsStale, catalogFetchedAt, CATALOG_STALE_MS, CATALOG_KINDS,` +
@@ -288,7 +291,7 @@ async function runChecks(src) {
   // and hid same-day NanoGPT launches (Grok 4.7, MiMo V2.6, H3 Singularity) from the
   // picker until a hard reload. refreshCatalog must stamp catalogFetchedAt, and
   // refreshCatalogsIfStale must refetch when that stamp is older than CATALOG_STALE_MS.
-  const KINDS = ["chat", "image", "video", "audio"];
+  const KINDS = ["chat", "decision", "image", "video", "audio"];
   try {
     const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
     if (typeof s.api.refreshCatalogsIfStale !== "function")
@@ -341,7 +344,7 @@ async function runChecks(src) {
       fail("INV6 cache-primed stale revalidate must replace the last-good list with the live catalog");
   } catch (e) { fail("INV6 cache-primed stale threw: " + (e && e.message ? e.message : e)); }
 
-  // All-fresh: do not hammer NanoGPT. A dropped early-return re-fetches 4 catalogs on
+  // All-fresh: do not hammer NanoGPT. A dropped early-return re-fetches all catalogs on
   // every picker open / visibilitychange / 15m tick.
   try {
     const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
@@ -381,7 +384,7 @@ async function runChecks(src) {
   } catch (e) { fail("INV6 fail-keep threw: " + (e && e.message ? e.message : e)); }
 
   // Concurrent kicks (picker open + visibilitychange + interval) share one in-flight
-  // wave. Without coalescing, a stale tab would triple-fetch all four catalogs.
+  // wave. Without coalescing, a stale tab would triple-fetch all catalogs.
   try {
     const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
     for (const k of KINDS) s.api.catalogFetchedAt[k] = Date.now() - s.api.CATALOG_STALE_MS - 1;
@@ -392,7 +395,7 @@ async function runChecks(src) {
     if (a !== true || b !== true)
       fail(`INV6 coalesced refresh should succeed once, got ${JSON.stringify([a, b])}`);
     // async wrappers make p1!==p2 even when they share _catRefreshInflight; the
-    // load-bearing pin is one fetch wave (4 kinds), not promise identity.
+    // load-bearing pin is one fetch wave, not promise identity.
     if (s.fetchCount !== before + KINDS.length)
       fail(`INV6 overlapping refreshCatalogsIfStale must fetch each kind once (${KINDS.length} calls), got ${s.fetchCount - before}`);
   } catch (e) { fail("INV6 inflight threw: " + (e && e.message ? e.message : e)); }

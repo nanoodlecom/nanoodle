@@ -147,7 +147,6 @@ async function consumeSseStream(resp, onToken) {
  * @param {string} [opts.baseUrl]
  * @param {string} opts.model
  * @param {Array<object>} opts.messages
- * @param {number} [opts.maxTokens]
  * @param {number} [opts.temperature]
  * @param {number} [opts.budgetTokens] Anthropic extended-thinking budget
  * @param {(text: string) => void} [opts.onToken] when provided, the request is
@@ -165,7 +164,6 @@ export async function callLlm({
   baseUrl,
   model,
   messages,
-  maxTokens = null,
   temperature = 1.0,
   budgetTokens = null,
   onToken = null,
@@ -187,9 +185,9 @@ export async function callLlm({
       if (m.role === 'system') systemMessage = m.content;
       else filtered.push(convertOpenAiMessageToAnthropic(m));
     }
-    // Anthropic's API requires max_tokens, so fall back to a generous default
-    // only on this path; callers can still pass an explicit cap.
-    const data = { model, messages: filtered, max_tokens: maxTokens ?? 32000, temperature };
+    // Native Anthropic requires this protocol field. Website planners inject
+    // NanoGPT transports instead; legacy caller output caps are ignored.
+    const data = { model, messages: filtered, max_tokens: 32000, temperature };
     if (systemMessage) data.system = systemMessage;
     if (budgetTokens) {
       data.temperature = 1;
@@ -229,12 +227,11 @@ export async function callLlm({
 
   // OpenAI-compatible (NanoGPT) path, with backoff on transient errors.
   const endpoint = joinUrl(url, '/chat/completions');
-  // Only send max_tokens when explicitly capped; otherwise let the model emit its full output.
+  // NanoGPT output budgets are provider-managed; legacy caller caps are ignored.
   const requestBody = JSON.stringify({
     model,
     messages,
     temperature,
-    ...(maxTokens ? { max_tokens: maxTokens } : {}),
     // Streaming: ask for SSE deltas plus a final usage chunk.
     ...(onToken ? { stream: true, stream_options: { include_usage: true } } : {}),
   });
