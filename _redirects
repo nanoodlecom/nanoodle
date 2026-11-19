@@ -4,3 +4,7 @@
 # Only the virtual /app alias (no app.html on disk) needs an explicit rewrite.
 /app      /index.html   200
 /editor   /index.html   200
+# /gallery.html is a plausible guess for the reviewed gallery and was a dead
+# end (no file, no redirect). Neither path is a real file, so no loop risk.
+/gallery        /examples/gallery/   301
+/gallery.html   /examples/gallery/   301
