@@ -9117,6 +9117,18 @@ function scrollPickerToCurrent(list){
   list.scrollTop += s.getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - s.offsetHeight)/2;
   return true;
 }
+function pickerShortlistRows(ids, byId, seen, cap){
+  const rows = [];
+  for(const id of ids){
+    if(rows.length >= cap) break;
+    if(seen.has(id)) continue;
+    const model = byId.get(id);
+    if(!model) continue;
+    seen.add(id);
+    rows.push(model);
+  }
+  return rows;
+}
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
@@ -9172,10 +9184,8 @@ function renderPicker(){
   if(!qNorm){
     const sugIds = galleryTagged ? [...galleryTagged] : (pin ? [pin] : []);
     const seen = new Set();
-    const take = (ids, cap)=> ids.map(id=> byId.get(id)).filter(Boolean)
-      .filter(m=>{ if(seen.has(m.id)) return false; seen.add(m.id); return true; }).slice(0, cap);
-    recentRows = take(modelRecent(picker.kind), 5);
-    suggestedRows = take(sugIds, 5);
+    recentRows = pickerShortlistRows(modelRecent(picker.kind), byId, seen, 5);
+    suggestedRows = pickerShortlistRows(sugIds, byId, seen, 5);
     if(recentRows.length || suggestedRows.length) mainRows = shown.filter(m=> !seen.has(m.id));
   }
   const sectioned = !!(recentRows.length || suggestedRows.length);

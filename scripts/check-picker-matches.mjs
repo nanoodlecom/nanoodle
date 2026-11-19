@@ -248,6 +248,26 @@ if (!IDX.includes("pickerModelLabel(m)") || IDX.includes("${esc(m.id)}")) {
 } else ok("renderPicker shows pickerModelLabel, not the raw id");
 
 {
+  const recentIds = Array.from({ length: 8 }, (_, index) => "recent-" + index);
+  const models = [...recentIds, "suggested", "catalog-only"].map((id) => ({ id }));
+  const byId = new Map(models.map((model) => [model.id, model]));
+  const seen = new Set();
+  const shortlist = vm.runInNewContext(
+    block(IDX, "function pickerShortlistRows(") + "\npickerShortlistRows"
+  );
+  const recent = shortlist(recentIds, byId, seen, 5);
+  const suggested = shortlist([recentIds[0], "missing", recentIds[5], "suggested"], byId, seen, 5);
+  const all = models.filter((model) => !seen.has(model.id));
+  if (recent.map((model) => model.id).join() !== recentIds.slice(0, 5).join())
+    fail("Recently used should show the five most recent matching picks");
+  else if (suggested.map((model) => model.id).join() !== "recent-5,suggested")
+    fail("Suggested should skip displayed and unavailable IDs and retain eligible recent overflow");
+  else if (all.map((model) => model.id).join() !== "recent-6,recent-7,catalog-only")
+    fail("All models should retain recent picks that overflow both shortlists");
+  else ok("picker shortlists deduplicate displayed rows and preserve overflow in the catalog");
+}
+
+{
   const PLAY = readFileSync(join(ROOT, "play.html"), "utf8");
   const fn = block(IDX, "function pickerModelLabel(m){");
   const copies = PLAY.split("function pickerModelLabel(m){").length - 1;
