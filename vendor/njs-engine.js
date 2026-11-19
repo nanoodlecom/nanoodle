@@ -1,5 +1,5 @@
-/* data-hash=b08906fe31dc87a3 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-214a9d6078b2 (20 modules) */
+/* data-hash=8ac85401cfcf8e0f */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-2551ecd6d15d (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -33,6 +33,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
+{ const __m = __req("branches.mjs"); __x.planBranches = __m.planBranches; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
 { const __m = __req("local-media.mjs"); __x.resizePlan = __m.resizePlan; __x.maskToSource = __m.maskToSource; __x.resizeCropImage = __m.resizeCropImage; __x.encodeWavMono = __m.encodeWavMono; }
 { const __m = __req("x402.mjs"); __x.parseNanoInvoice = __m.parseNanoInvoice; }
@@ -49,6 +50,7 @@ const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
 const { learnPromptCap, withFittedPrompt } = __req("prompt-caps.mjs");
 const { decodeShareUrl, isShareRef } = __req("share.mjs");
+const { isBranchDecider, planBranches } = __req("branches.mjs");
 
 /** Env / process access — safe when `process` is missing (browsers, some workers). */
 function envApiKey() {
@@ -334,6 +336,7 @@ class Workflow {
     }
 
     const order = topoSort(graph); // throws naming cyclic nodes
+    const branches = planBranches(graph, order.map(n => n.id));
 
     // Local-only graphs never POST media — skip the ~4 MB inline cap on inputs.
     // Mixed/network graphs keep the cap so we fail before spending on an oversize body.
@@ -449,7 +452,17 @@ class Workflow {
       let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
-        const inbound = graph.links.filter((l) => l.to.node === n.id);
+        let inbound = graph.links.filter((l) => l.to.node === n.id);
+        if (branches) {
+          await Promise.allSettled(inbound.map(l => promises.get(l.from.node)));
+          inbound = branches.activeLinks(n.id, id => nodesRec[id]?.status === "done" ? nodesRec[id].out : null);
+          if (inbound === null) {
+            rec.status = "skipped";
+            rec.skipReason = "branch";
+            emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "branch" });
+            return {};
+          }
+        }
         const inp = {};
         let fields = effFields.get(n.id);
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
@@ -504,6 +517,7 @@ class Workflow {
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
         // and report it below. The graph's own prompts are never rewritten to avoid this.
+        if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
         rec.started = true;
@@ -566,7 +580,7 @@ class Workflow {
         // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
         // dependents see undefined ports. A run-level abort/timeout is never skipped.
         const onError = (effFields.get(n.id) || {}).onError;
-        if (onError === "skip" && !ac.signal.aborted) {
+        if (onError === "skip" && !isBranchDecider(n) && !ac.signal.aborted) {
           rec.status = "skipped";
           rec.skippedOnError = true;
           rec.out = {};
@@ -945,12 +959,13 @@ class MediaRef {
   toString() { return this.url; }
   toJSON() { return this.url; }
 
-  /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
-  async bytes() {
+  /** Read the raw media bytes, optionally cancelling the download with a signal. */
+  async bytes({ signal } = {}) {
+    signal?.throwIfAborted();
     let bytes;
     if (this.url.startsWith("data:")) bytes = dataUrlBytes(this.url).bytes;
     else {
-      const downloaded = await downloadMedia(this.url, { fetch: this._fetch });
+      const downloaded = await downloadMedia(this.url, { fetch: this._fetch, signal });
       bytes = downloaded.bytes;
       if (!this._mime) {
         const r = downloaded.response;
@@ -1306,10 +1321,17 @@ class NanoClient {
   /** POST /api/v1/chat/completions (non-streaming). Returns the assistant text. */
   async chat(messages, model, opts = {}, { onCost, signal } = {}) {
     const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
+    // Carbon has no sampling-temperature control; omit it rather than restoring a default.
+    if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.response_format) body.response_format = opts.response_format;
-    if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
+    // Let the provider use its default rather than forwarding reasoning_effort.
+    if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // max_tokens is the one token budget forwarded, and only when a runner
+    // explicitly opts in via opts (the graph's maxTokens field, D1 ruling).
+    // The legacy spellings (max_completion_tokens, max_output_tokens,
+    // maxTokens) are never read here, so they can never leak into the body.
+    if (opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -1570,9 +1592,12 @@ class NanoClient {
   /**
    * Resolve a provider media URL before it is handed to another node or returned
    * as a node output. Relative content paths (Grok Imagine's
-   * `/api/generate-video/content?...`) and same-origin `/api` or `/v1` URLs are
-   * joined onto `baseUrl` and fetched with the API key, redirects manual so the
-   * key is never forwarded to the file host. A redirect Location becomes the
+   * `/api/generate-video/content?...`) and the exact same-origin content paths
+   * in CONTENT_API_PATHS are joined onto `baseUrl` and fetched with the API key,
+   * redirects manual so the key is never forwarded to the file host. Any other
+   * same-origin `/api` or `/v1` URL, including a user-supplied upload URL, is
+   * refused and not fetched — a 200 from those paths must not be inlined with
+   * the caller's credentials. A redirect Location becomes the
    * absolute file URL (presigned queries stay on that URL — the next provider
    * needs them — and are never put in errors). A direct 200 is inlined as a
    * data URL only when it fits MEDIA_INLINE_MAX; an over-cap clip must come
@@ -1596,10 +1621,31 @@ class NanoClient {
   }
 }
 
-/** Paths that still need the API key (a content endpoint), not a public file. */
+/**
+ * Exact content paths that return provider media. Credentials are sent only here.
+ * A prefix (`/api/…`, `/v1/…`) is not enough: `/api/v1/models`, an upload URL, or
+ * `/api/generate-video/content/extra` would otherwise be fetched with the key and
+ * a 200 body inlined into the graph output.
+ */
+const CONTENT_API_PATHS = new Set([
+  "/api/generate-video/content",
+  "/api/images/content",
+  "/v1/audio/content",
+]);
+
 function isContentApiPath(pathname) {
+  return CONTENT_API_PATHS.has(pathname);
+}
+
+/** Same-origin API surface. These are not fetched unless the path is allowlisted. */
+function isSameOriginApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/")
     || pathname === "/v1" || pathname.startsWith("/v1/");
+}
+
+function refuseNonContentApi(pathname) {
+  if (!isSameOriginApiPath(pathname) || isContentApiPath(pathname)) return;
+  throw new NanoodleError("that URL is not a provider content file, so it was not fetched");
 }
 
 function apiBase(baseUrl) {
@@ -1667,15 +1713,20 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
   try {
     if (/^https?:/i.test(s)) {
       const abs = new URL(s);
-      if (abs.origin !== origin || !isContentApiPath(abs.pathname)) return s;
+      if (abs.origin !== origin) return s;
+      refuseNonContentApi(abs.pathname);
+      if (!isContentApiPath(abs.pathname)) return s;
       start = abs;
     } else if (s.startsWith("/") && !s.startsWith("//")) {
       start = new URL(s, base + "/");
+      refuseNonContentApi(start.pathname);
       if (!isContentApiPath(start.pathname)) return start.href;
     } else {
       return s;
     }
-  } catch {
+  } catch (e) {
+    // A refused /api or /v1 URL must not be swallowed as "leave it unchanged".
+    if (e && e.name === "NanoodleError") throw e;
     return s;
   }
 
@@ -1706,6 +1757,9 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
       catch { throw new NanoodleError("provider media redirect had no usable location"); }
       // File host or a non-API path: hand back the absolute URL. Do not fetch it
       // (that would pull a multi-megabyte clip and might attach the key).
+      // A same-origin /api or /v1 hop that is not itself a content file is refused
+      // outright — its body must never be inlined with the caller's credentials.
+      if (next.origin === origin) refuseNonContentApi(next.pathname);
       if (next.origin !== origin || !isContentApiPath(next.pathname)) return next.href;
       current = next.href;
       continue;
@@ -1792,7 +1846,7 @@ const NODE_TYPES = {
   decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
   ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
-  model3d: { title: "3D model",        inputs: ["image"], outputs: [{ name: "model", type: "model3d" }], network: true },
+  model3d: { title: "3D model",        inputs: ["image", "model"], outputs: [{ name: "model", type: "model3d" }], network: true },
   vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
   vframes: { title: "Video → frames",  inputs: ["video"], outputs: [{ name: "frame1", type: "image" }], local: true, framesOut: true }, // dynamic frame1..N
   combine: { title: "Combine videos",  inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
@@ -1896,8 +1950,9 @@ function materialize(data) {
     const id = String(raw.id);
     if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
     seenIds.add(id);
-    const type = raw.type === "audio" ? "tts" : raw.type;
+    const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    if (raw.type === "decide-branch") n.fields.branch = true;
     if (!NODE_TYPES[type]) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
@@ -2081,7 +2136,10 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
+  // maxTokens is opt-in (D1 ruling, 2026-11-18): absent by default, honored
+  // exactly when the node sets it — twin of nanoodle-py _run_llm (truthy +
+  // numeric → int(float(v)); non-numeric degrades gracefully, sends nothing).
+  if (f.maxTokens && Number.isFinite(+f.maxTokens)) o.max_tokens = Math.trunc(+f.maxTokens);
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -2117,6 +2175,7 @@ function normalizeLoraUrl(raw) {
 function loraFamily(model) {
   const m = String(model || "");
   if (/spicy/i.test(m)) return null;
+  if (/p-h3-image/i.test(m)) return "ph3"; // wavespeed p-h3-image: lora_url_1..3 (ids lack "lora")
   if (/p-image/i.test(m)) return "pimage";
   if (/klein/i.test(m)) return "flux2klein";
   if (/flux-2/i.test(m)) return "flux2dev";
@@ -2140,6 +2199,7 @@ function imageTakesLora(id) {
   if (/flux-2-klein/i.test(id)) return true;
   if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
+  if (/p-h3-image/i.test(id)) return true; // Pruna P-H3 Image (2026-11-05): lora_url_1..3
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
 
@@ -2153,7 +2213,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": case "ph3": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -2169,7 +2229,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21" || fam === "ph3") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -2781,23 +2841,32 @@ const RUNNERS = {
   },
 
   // 🧊 3D model: image and/or text → model asset via the video submit/poll API.
+  // Mesh-processing models (e.g. Hyper3D Rigging) instead take an existing
+  // model on the `model` wire and receive it as the `model_url` parameter.
   async model3d(n, inp, ctx) {
     const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
     const mods = model3dInputMods(ctx && ctx.catalog, model);
     const prompt = promptOf(n, inp);
     let image = mods.image ? (inp.image || "") : "";
+    const mesh = mods.mesh ? (inp.model || "") : "";
     if (inp.image && !mods.image && ctx && ctx.progress) {
       ctx.progress("This model takes text only — the image wire stays, but this run ignores it.");
+    }
+    if (inp.model && !mods.mesh && ctx && ctx.progress) {
+      ctx.progress("This model generates from scratch — the model wire stays, but this run ignores it.");
     }
     if (prompt && !mods.text && ctx && ctx.progress) {
       ctx.progress("This model takes an image only — the prompt stays, but this run ignores it.");
     }
-    if (mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
-    if (mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
-    if (mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
+    if (mods.mesh && !mesh) throw new NanoodleError("Connect a model first.");
+    if (!mods.mesh && mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
+    if (!mods.mesh && mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
+    if (!mods.mesh && mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
     if (image) image = await fitImage(image, ctx, "source image");
+    const extra = { ...(n.fields.modelOpts || {}) };
+    if (mesh) extra.model_url = mesh; // the wire wins over a static modelOpts copy
     const url = await ctx.video(model, mods.text ? prompt : "", {
-      extra: n.fields.modelOpts || {},
+      extra,
       mediaKind: "model3d",
     }, image || null);
     return { model: url };
@@ -2844,12 +2913,12 @@ function model3dInputMods(catalog, id) {
     || (it.architecture && Array.isArray(it.architecture.input_modalities) && it.architecture.input_modalities)
   );
   if (raw && raw.length) {
-    const mods = raw.filter((x) => x === "image" || x === "text");
-    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text") };
+    const mods = raw.filter((x) => x === "image" || x === "text" || x === "3d");
+    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text"), mesh: mods.includes("3d") };
   }
-  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false };
-  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true };
-  return { image: true, text: true };
+  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false, mesh: false };
+  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true, mesh: false };
+  return { image: true, text: true, mesh: false };
 }
 
 __x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS; __x.vEditTakesImage = vEditTakesImage;
@@ -3284,6 +3353,65 @@ function resolveSettingKey(graph, settings, userKey) {
 }
 
 __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+});
+__def("branches.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+function isBranchDecider(node) {
+  return node.type === "decide" && node.fields?.branch === true;
+}
+
+const branchPort = (port) => port === "yes" || port === "no";
+
+/**
+ * Build per-run routing over a topologically ordered set of node IDs.
+ * Explicit Yes/No wires control entry to a branch. Further downstream, any
+ * active routed input opens a join. Ordinary dependencies never open a branch.
+ */
+function planBranches(graph, order) {
+  const deciders = new Map(graph.nodes.filter(n => n.type === "decide").map(n => [n.id, n]));
+  const direct = new Set();
+  for (const link of graph.links) {
+    const source = deciders.get(link.from.node);
+    if (!source || !branchPort(link.from.port)) continue;
+    if (!isBranchDecider(source)) {
+      throw new NanoodleError(`node ${source.id}: enable branching on Decide to wire ${link.from.port}`, { code: "decide-branch" });
+    }
+    direct.add(link);
+  }
+  if (!direct.size) return null;
+
+  const inbound = new Map(order.map(id => [id, []]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+  const selectors = new Map();
+  for (const id of order) {
+    const links = inbound.get(id);
+    const fromDeciders = links.filter(link => direct.has(link));
+    const controls = fromDeciders.length ? fromDeciders : links.filter(link => selectors.has(link.from.node));
+    if (controls.length) selectors.set(id, controls);
+  }
+  const skipped = new Set();
+  return {
+    // Call after this node's upstreams have settled. A failed router is left
+    // to the usual upstream-error handling, which must also prevent execution.
+    activeLinks(id, outFor) {
+      const closed = (link) => {
+        if (skipped.has(link.from.node)) return true;
+        if (!direct.has(link)) return false;
+        const branch = outFor(link.from.node)?.decision?.branch;
+        return branchPort(branch) && branch !== link.from.port;
+      };
+      const controls = selectors.get(id);
+      if (controls?.every(closed)) {
+        skipped.add(id);
+        return null;
+      }
+      return inbound.get(id).filter(link => !closed(link));
+    },
+  };
+}
+
+__x.isBranchDecider = isBranchDecider; __x.planBranches = planBranches;
 });
 __def("share.mjs", function (__x, __req) {
 const { gunzip, gunzipLax } = __req("zlib.mjs");
@@ -4690,9 +4818,16 @@ function parseNanoInvoice(body, baseUrl) {
 
 const RESULT_KEYS = ["choices", "data", "output", "runId", "url", "audioUrl", "transcription", "text"];
 
-/** Does a complete-endpoint body already carry the replayed API result? */
+/**
+ * Does a complete-endpoint body already carry the replayed API result?
+ * A paid decision comes back as { answers, usage }. That is success. Treating
+ * it as a bare receipt makes the client resend the original request, and the
+ * API answers 402 because the payment was already consumed.
+ */
 function looksLikeResult(j) {
-  return !!j && typeof j === "object" && RESULT_KEYS.some((k) => j[k] != null);
+  if (!j || typeof j !== "object") return false;
+  if (RESULT_KEYS.some((k) => j[k] != null)) return true;
+  return j.answers != null && j.usage != null && typeof j.usage === "object";
 }
 
 __x.assertPaymentOption = assertPaymentOption; __x.parseNanoInvoice = parseNanoInvoice; __x.looksLikeResult = looksLikeResult;
@@ -5698,6 +5833,7 @@ const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
 
 function decideMode(f) {
+  if (f?.branch === true) return "yesno";
   const m = f && f.mode;
   return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
 }
@@ -5841,7 +5977,17 @@ async function decideRun(f, model, text, imgs, lim, send, fit) {
   } else {
     j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
   }
-  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  const answer = j?.answers?.answer;
+  const branching = f?.branch === true;
+  if (branching && (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1)) {
+    throw new NanoodleError("Decide needs a valid yes/no answer to select a branch", { code: "decide-branch" });
+  }
+  const out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if (branching) {
+    out.decision.branch = out.text;
+    out[out.text] = text || out.text;
+    return out;
+  }
   if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
   return out;
 }
@@ -6349,5 +6495,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-214a9d6078b2";
+  window.NanoodleEngine.version = "src-2551ecd6d15d";
 })();

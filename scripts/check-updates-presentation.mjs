@@ -6,6 +6,7 @@ import vm from "node:vm";
 const root = new URL("../", import.meta.url);
 const index = readFileSync(new URL("index.html", root), "utf8");
 const html = readFileSync(new URL("changelog.html", root), "utf8");
+const feed = readFileSync(new URL("feed.xml", root), "utf8");
 const gen = readFileSync(new URL("scripts/gen-changelog.mjs", root), "utf8");
 const articles = JSON.parse(readFileSync(new URL("articles.json", root), "utf8"));
 let failed = 0;
@@ -40,6 +41,40 @@ check("public autolinks trim alternating punctuation until stable", ()=>{
     ["https://x.y/a_(b).)", "https://x.y/a_(b)", ".)"],
     ["https://x.y/a_(b)).", "https://x.y/a_(b)", ")."],
   ]) assert.equal(box.linkify(text), `<a href="${href}">${href.slice(8)}</a>${tail}`);
+});
+check("workflow destinations have a compact label and reject unsafe links on both surfaces", ()=>{
+  const generator = gen.slice(gen.indexOf("const escHtml ="), gen.indexOf("// An entry's optional"));
+  const safe = index.slice(index.indexOf("function updSafeUrl("), index.indexOf("function updSafeUrl(") + 650).match(/function updSafeUrl\([\s\S]*?\n\}/)?.[0];
+  const workflow = index.slice(index.indexOf("function updWorkflowLink("), index.indexOf("let updatesOpenGen ="));
+  assert.ok(safe && workflow);
+  const box = { URL, t:s=>s, document:{createElement:tag=>({tag})} };
+  vm.createContext(box);
+  vm.runInContext(generator + safe + workflow + "\nglobalThis.publicLink = workflowHtml;", box);
+  const long = "https://nanoodle.com/#g=" + "a".repeat(5000);
+  const panel = box.updWorkflowLink({workflow:long});
+  assert.equal(panel.textContent, "Open workflow");
+  assert.equal(panel.href, long);
+  assert.equal(panel.target, "_blank");
+  assert.equal(panel.rel, "noopener");
+  assert.equal(box.publicLink({workflow:long}), `<a class="workflow-link" href="${long}">Open workflow</a>`);
+  assert.equal(box.publicLink({workflow:'https://example.com/?a=1&b="quoted"'}), '<a class="workflow-link" href="https://example.com/?a=1&amp;b=%22quoted%22">Open workflow</a>');
+  for(const value of [undefined, null, 42, "javascript:alert(1)", "data:text/html,unsafe", "file:///tmp/x", "mailto:a@b.c", "http://example.com/", "//example.com/", "https://user:pass@example.com/", "https://example.com/\nunsafe", " https://example.com/"]){
+    assert.equal(box.updWorkflowLink({workflow:value}), null, String(value));
+    assert.equal(box.publicLink({workflow:value}), "", String(value));
+  }
+});
+check("Atom preserves labeled workflow links as escaped HTML", ()=>{
+  const updates = JSON.parse(readFileSync(new URL("updates.json", root), "utf8"));
+  const code = gen.slice(gen.indexOf("const escHtml ="), gen.indexOf("// An entry's optional"));
+  const box = {URL}; vm.createContext(box);
+  vm.runInContext(code + "\nglobalThis.content = e=>escXml(escHtml(e.text) + ' ' + workflowHtml(e));", box);
+  const entries = [...feed.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m=>m[1]);
+  assert.equal(entries.length, updates.length);
+  for(const entry of updates.filter(e=>e.workflow)){
+    const content = box.content(entry);
+    assert.equal(entries.filter(xml=>xml.includes(`<content type="html">${content}</content>`)).length,1);
+    assert.ok(content.includes('&gt;Open workflow&lt;/a&gt;'), "the destination remains behind a label in feed readers");
+  }
 });
 check("document visibility pauses Updates clips only when hidden", ()=>{
   const code = index.slice(index.indexOf("// Updates media stops when its document is hidden.")).match(/document\.addEventListener\("visibilitychange", \(\)=>\{[\s\S]*?\n\}\);/)?.[0];

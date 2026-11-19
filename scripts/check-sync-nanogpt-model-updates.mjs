@@ -13,9 +13,11 @@ import { fileURLToPath } from "node:url";
 import {
   cardsFromHtml,
   classifyCard,
+  fetchApiUpdates,
   groupPending,
   MEDIA_FLOOR_DATE,
   selectPending,
+  shouldStopFetching,
   toChangelogText,
 } from "./lib/nanogpt-updates.mjs";
 
@@ -40,6 +42,23 @@ function lineFor(card, seen = []) {
 }
 
 console.log("sync-nanogpt-model-updates (fixture)");
+
+// The bounded seen history is a pagination checkpoint. Once a retained ID is
+// reached, older pages containing pruned September IDs must not be fetched.
+{
+  const latest = { id: "latest", date: "2026-11-10" };
+  const checkpoint = { id: "retained", date: "2026-11-05" };
+  const pruned = { id: "pruned-september", date: "2026-09-02" };
+  const offsets = [];
+  const seen = ["id:retained"];
+  const cards = await fetchApiUpdates(async url => {
+    const offset = Number(new URL(url).searchParams.get("offset"));
+    offsets.push(offset);
+    return { ok: true, json: async () => ({ updates: offset ? [pruned] : [latest, checkpoint], hasMore: true }) };
+  }, { limit: 2, shouldStop: all => shouldStopFetching(all, seen) });
+  check("retained checkpoint stops before pruned history", offsets.length === 1 && offsets[0] === 0);
+  check("pruned history cannot enter this pending batch", !cards.some(card => card.id === pruned.id));
+}
 
 // (a) a video /media card becomes "New video model"
 {
@@ -364,6 +383,42 @@ console.log("sync-nanogpt-model-updates (fixture)");
   check("sync entry: provider card linking a model the catalog dates to the card's day → not provider", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
   out = runSync("nocatalog", [{ ...base, id: "1382", text: providerText() }], "not json");
   check("sync entry: catalog unavailable → errs toward new models", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+}
+
+// Current upstream wording must not turn changes to existing models into launches.
+{
+  const model = "[Existing Model](https://nano-gpt.com/conversation?model=existing)";
+  for (const title of ["Fable Latest Now Uses Claude Fable 5.2", "Artemis 31B v1.2 Included in Subscription", "Animated GIFs With GPT Image 2.6 in Studio", "OrcaCyber Models Get Their Own IDs"]) {
+    const line = lineFor({ id: title, date: "2026-11-10", title, text: `${model} now supports this feature.` });
+    check(`${title} is an update, not a launch`, line?.startsWith("Updated:"), line);
+  }
+  check("removed quantization UI label is not a model retirement", classifyCard({
+    id: "1448", date: "2026-11-07", title: "Quantization Removed From Auto",
+    text: "The Auto row in provider lists no longer shows a quantization label."
+  }).skip === true);
+}
+
+// The scheduled freshness mode fails closed and never writes, even with auto-push set.
+{
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "nanogpt-freshness-"));
+  const paths = ["updates.json", "changelog.html", "feed.xml", "scripts/nanogpt-model-updates-seen.json"];
+  const before = paths.map(p => readFileSync(join(root, p), "utf8"));
+  try {
+    const cards = join(dir, "cards.json"), seen = join(dir, "seen.json"), catalog = join(dir, "catalog.json");
+    writeFileSync(catalog, JSON.stringify({ data: [] }));
+    const card = { id: "freshness-test", date: "2026-11-10", title: "New test model", text: "[Test](https://nano-gpt.com/conversation?model=test) is now available." };
+    const run = (items, keys) => {
+      writeFileSync(cards, JSON.stringify(items)); writeFileSync(seen, JSON.stringify({ seen: keys }));
+      return spawnSync(process.execPath, [join(root, "scripts/sync-nanogpt-model-updates.mjs"), "--check", "--no-translate"], { encoding: "utf8", env: { ...process.env, NANOGPT_UPDATES_FIXTURE: cards, NANOGPT_SEEN_FILE: seen, NANOGPT_CATALOG_FIXTURE: catalog, NOODLE_SYNC_AUTO_PUSH: "1" } });
+    };
+    check("freshness check fails for pending cards", run([card], []).status === 1);
+    check("freshness check succeeds when caught up", run([card], ["id:freshness-test"]).status === 0);
+    check("freshness check fails for empty upstream", run([], []).status === 1);
+    check("freshness check never changes feed artifacts", paths.every((p, i) => readFileSync(join(root, p), "utf8") === before[i]));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 if (fail) {

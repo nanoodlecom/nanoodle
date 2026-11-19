@@ -30,30 +30,31 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="canonical" href="https://nanoodle.com/play" />
-<link rel="stylesheet" href="/vendor/righteous/righteous.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/app-shell.css" />
 <meta name="theme-color" content="#0b0d12" />
+<script src="/brand/nanoodle-v1.0.0/fonts/app-fonts.js"></script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
   /* Builder chrome — dark theme tokens mirror index.html, accent #7c8cff. */
   :root{
     color-scheme: dark;
-    --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-    --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
-    --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
-    --ok:#46d27a; --danger:#ff6b6b;
+    --bg:var(--nano-color-canvas,#0d0f17); --panel:var(--nano-color-panel,#161a27); --panel2:var(--nano-color-raised,#1d2236); --line:var(--nano-color-line,#2a3150);
+    --ink:var(--nano-color-ink,#e6e9f5); --dim:var(--nano-color-dim,#aab3c7); --faint:#8792ad; --muted:var(--nano-color-muted,#c0c7d6);
+    --accent:var(--nano-color-accent,#7c8cff); --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
+    --ok:var(--nano-color-success,#46d27a); --danger:var(--nano-color-error,#ff6b6b);
   }
   *{ box-sizing:border-box; }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{ margin:0; height:100%; }
-  body{ background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif, system-ui, sans-serif;
+  body{ background:var(--bg); color:var(--ink); font:15px/1.5 var(--nano-font-body,system-ui,sans-serif);
         display:flex; flex-direction:column; }
-  a{ color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  a{ color:var(--nano-color-accent-ink,#a9b6ff); text-decoration:none; } a:hover{ text-decoration:underline; }
   .dim{ color:var(--dim); } .grow{ flex:1; }
 
   /* ---------- top bar ---------- */
   #bar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
         padding:.55rem .8rem; border-bottom:1px solid var(--line);
-        background:linear-gradient(180deg,#161a27,#11141f);
+        background:var(--panel);
         position:relative; z-index:70; }   /* stays above the first-run overlay (sign-in / Share remain usable) */
   /* ---------- incomplete/damaged share-link banner (shown when an #a= link won't decode) ---------- */
   /* :not([hidden]) so the `hidden` attribute actually hides it — a bare `display:flex`
@@ -77,9 +78,9 @@
   #recwelcome .rw-x{ flex:0 0 auto; background:transparent; border:0; color:inherit; cursor:pointer;
                   font-size:1rem; line-height:1; opacity:.65; padding:.15rem .35rem; border-radius:.3rem; }
   #recwelcome .rw-x:hover{ opacity:1; background:#ffffff14; }
-  .brand{ font-family:"Righteous", ui-sans-serif, system-ui, sans-serif;
+  .brand{ font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif);
           font-weight:400; font-size:1.2rem; letter-spacing:.01em; }
-  .brand .nano{ color:var(--accent); }
+  .brand .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); background-clip:text; color:transparent; }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                color:var(--ink); font-weight:600; opacity:.9; }
   /* the app title doubles as a rename field — click it to edit in place */
@@ -91,7 +92,7 @@
   #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
   #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
-  #bal{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; }
+  #bal{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums; }
   #bal b{ color:var(--ink); }
   #bal .costspend{ color:var(--dim); font-weight:400; }
   #bal .costdelta{ display:inline-block; margin-left:.2rem; color:#ffcf6b; font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none; }
@@ -195,14 +196,9 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink); }
   /* the command wraps in full view (a clipped <input> would hide the highlighted key mid-string);
      the variable part — the masked key or the your-key swap token — is the one highlighted bit */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
-                     background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
-                     line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all; }
   #agentpop .ap-cmd .ap-key{ background:var(--accent-soft); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem; }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
-           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
   /* the showcase nudge is owner-only: a recipient sharing someone else's app has nothing of
@@ -292,7 +288,7 @@
 
   #cust-status{ font-size:.78rem; min-height:1.1em; margin-top:.4rem; }
   #cust-status .ok{ color:var(--ok); } #cust-status .err{ color:var(--danger); }
-  #cust-status .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; }
+  #cust-status .meter{ font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim); opacity:.9; white-space:nowrap; }
   .spin{ display:inline-block; animation:spin 1s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
@@ -343,7 +339,7 @@
   #mpicklist button:hover{ background:var(--panel2); }
   #mpicklist button.sel{ background:var(--accent-soft); font-weight:600; }
   #mpicklist .mname{ min-width:0; word-break:break-all; }
-  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem; }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.74rem; }
 
   #toast{ position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
           background:var(--panel); border:1px solid var(--accent-line); color:var(--ink);
@@ -379,19 +375,21 @@
   /* ---------- narrow widths: keep the builder bar + composer from wrapping into ragged rows ---------- */
   @media (max-width:640px){
     #recwelcome{ font-size:.8rem; padding:.5rem .75rem; align-items:flex-start; }   /* wraps to a few lines — keep ✕ pinned top */
-    #bar{ gap:.35rem; padding:.45rem .6rem; }
+    #bar{ gap:.35rem; padding:.45rem .6rem; flex-wrap:nowrap; }
+    #bar > .grow{ display:none; }
+    #bar > :is(#myapps,#langbtn-b,#barmore){ flex:none; }
     #bar button{ padding:.35rem .55rem; font-size:.78rem; }
     #bar .sep{ display:none; }
     #bar #sharehint{ display:none; }
     #auth-status{ display:none; }        /* the sign-in link / sign-out button carry the state; drop the status text */
     #bal{ display:none; }                /* balance follows the status text into the ⋯ menu */
-    .title-wrap{ max-width:14ch; }
+    .title-wrap{ flex:1 1 auto; min-width:0; max-width:none; }
     .cust-label{ display:none; }
     #goal{ min-width:140px; }
     #modelpick{ max-width:120px; }
     /* --- mobile: creator chrome → overflow ⋯ menu; composer → ✨ handle; Run rises above the fold --- */
     .brand{ display:none; }            /* the title identifies the app; reclaim width for a one-row bar */
-    #barmore{ display:inline-flex; align-items:center; font-size:1.1rem; padding:.2rem .5rem; min-height:44px; }
+    #barmore{ display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem; padding:.2rem .5rem; min-width:44px; min-height:44px; }
     #baractions{ display:none; position:absolute; top:calc(100% + .3rem); right:.5rem; z-index:92;
                  flex-direction:column; align-items:stretch; gap:.4rem; min-width:210px;
                  background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
@@ -620,8 +618,8 @@
 
 <!-- njs-engine lockstep: nanoodle-js@227b4ee (vedit character image on image+video->video) -->
 <!-- NJS-ENGINE:BEGIN (generated by scripts/gen-js-engine.mjs — do not edit by hand) -->
-<script id="njs-engine" data-hash="b08906fe31dc87a3">
-/* nanoodle-js browser engine — generated from nanoodle-js@src-214a9d6078b2 (20 modules) */
+<script id="njs-engine" data-hash="8ac85401cfcf8e0f">
+/* nanoodle-js browser engine — generated from nanoodle-js@src-2551ecd6d15d (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -655,6 +653,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
+{ const __m = __req("branches.mjs"); __x.planBranches = __m.planBranches; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
 { const __m = __req("local-media.mjs"); __x.resizePlan = __m.resizePlan; __x.maskToSource = __m.maskToSource; __x.resizeCropImage = __m.resizeCropImage; __x.encodeWavMono = __m.encodeWavMono; }
 { const __m = __req("x402.mjs"); __x.parseNanoInvoice = __m.parseNanoInvoice; }
@@ -671,6 +670,7 @@ const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
 const { learnPromptCap, withFittedPrompt } = __req("prompt-caps.mjs");
 const { decodeShareUrl, isShareRef } = __req("share.mjs");
+const { isBranchDecider, planBranches } = __req("branches.mjs");
 
 /** Env / process access — safe when `process` is missing (browsers, some workers). */
 function envApiKey() {
@@ -956,6 +956,7 @@ class Workflow {
     }
 
     const order = topoSort(graph); // throws naming cyclic nodes
+    const branches = planBranches(graph, order.map(n => n.id));
 
     // Local-only graphs never POST media — skip the ~4 MB inline cap on inputs.
     // Mixed/network graphs keep the cap so we fail before spending on an oversize body.
@@ -1071,7 +1072,17 @@ class Workflow {
       let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
-        const inbound = graph.links.filter((l) => l.to.node === n.id);
+        let inbound = graph.links.filter((l) => l.to.node === n.id);
+        if (branches) {
+          await Promise.allSettled(inbound.map(l => promises.get(l.from.node)));
+          inbound = branches.activeLinks(n.id, id => nodesRec[id]?.status === "done" ? nodesRec[id].out : null);
+          if (inbound === null) {
+            rec.status = "skipped";
+            rec.skipReason = "branch";
+            emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "branch" });
+            return {};
+          }
+        }
         const inp = {};
         let fields = effFields.get(n.id);
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
@@ -1126,6 +1137,7 @@ class Workflow {
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
         // and report it below. The graph's own prompts are never rewritten to avoid this.
+        if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
         rec.started = true;
@@ -1188,7 +1200,7 @@ class Workflow {
         // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
         // dependents see undefined ports. A run-level abort/timeout is never skipped.
         const onError = (effFields.get(n.id) || {}).onError;
-        if (onError === "skip" && !ac.signal.aborted) {
+        if (onError === "skip" && !isBranchDecider(n) && !ac.signal.aborted) {
           rec.status = "skipped";
           rec.skippedOnError = true;
           rec.out = {};
@@ -1567,12 +1579,13 @@ class MediaRef {
   toString() { return this.url; }
   toJSON() { return this.url; }
 
-  /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
-  async bytes() {
+  /** Read the raw media bytes, optionally cancelling the download with a signal. */
+  async bytes({ signal } = {}) {
+    signal?.throwIfAborted();
     let bytes;
     if (this.url.startsWith("data:")) bytes = dataUrlBytes(this.url).bytes;
     else {
-      const downloaded = await downloadMedia(this.url, { fetch: this._fetch });
+      const downloaded = await downloadMedia(this.url, { fetch: this._fetch, signal });
       bytes = downloaded.bytes;
       if (!this._mime) {
         const r = downloaded.response;
@@ -1928,10 +1941,17 @@ class NanoClient {
   /** POST /api/v1/chat/completions (non-streaming). Returns the assistant text. */
   async chat(messages, model, opts = {}, { onCost, signal } = {}) {
     const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
+    // Carbon has no sampling-temperature control; omit it rather than restoring a default.
+    if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.response_format) body.response_format = opts.response_format;
-    if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
+    // Let the provider use its default rather than forwarding reasoning_effort.
+    if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // max_tokens is the one token budget forwarded, and only when a runner
+    // explicitly opts in via opts (the graph's maxTokens field, D1 ruling).
+    // The legacy spellings (max_completion_tokens, max_output_tokens,
+    // maxTokens) are never read here, so they can never leak into the body.
+    if (opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -2192,9 +2212,12 @@ class NanoClient {
   /**
    * Resolve a provider media URL before it is handed to another node or returned
    * as a node output. Relative content paths (Grok Imagine's
-   * `/api/generate-video/content?...`) and same-origin `/api` or `/v1` URLs are
-   * joined onto `baseUrl` and fetched with the API key, redirects manual so the
-   * key is never forwarded to the file host. A redirect Location becomes the
+   * `/api/generate-video/content?...`) and the exact same-origin content paths
+   * in CONTENT_API_PATHS are joined onto `baseUrl` and fetched with the API key,
+   * redirects manual so the key is never forwarded to the file host. Any other
+   * same-origin `/api` or `/v1` URL, including a user-supplied upload URL, is
+   * refused and not fetched — a 200 from those paths must not be inlined with
+   * the caller's credentials. A redirect Location becomes the
    * absolute file URL (presigned queries stay on that URL — the next provider
    * needs them — and are never put in errors). A direct 200 is inlined as a
    * data URL only when it fits MEDIA_INLINE_MAX; an over-cap clip must come
@@ -2218,10 +2241,31 @@ class NanoClient {
   }
 }
 
-/** Paths that still need the API key (a content endpoint), not a public file. */
+/**
+ * Exact content paths that return provider media. Credentials are sent only here.
+ * A prefix (`/api/…`, `/v1/…`) is not enough: `/api/v1/models`, an upload URL, or
+ * `/api/generate-video/content/extra` would otherwise be fetched with the key and
+ * a 200 body inlined into the graph output.
+ */
+const CONTENT_API_PATHS = new Set([
+  "/api/generate-video/content",
+  "/api/images/content",
+  "/v1/audio/content",
+]);
+
 function isContentApiPath(pathname) {
+  return CONTENT_API_PATHS.has(pathname);
+}
+
+/** Same-origin API surface. These are not fetched unless the path is allowlisted. */
+function isSameOriginApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/")
     || pathname === "/v1" || pathname.startsWith("/v1/");
+}
+
+function refuseNonContentApi(pathname) {
+  if (!isSameOriginApiPath(pathname) || isContentApiPath(pathname)) return;
+  throw new NanoodleError("that URL is not a provider content file, so it was not fetched");
 }
 
 function apiBase(baseUrl) {
@@ -2289,15 +2333,20 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
   try {
     if (/^https?:/i.test(s)) {
       const abs = new URL(s);
-      if (abs.origin !== origin || !isContentApiPath(abs.pathname)) return s;
+      if (abs.origin !== origin) return s;
+      refuseNonContentApi(abs.pathname);
+      if (!isContentApiPath(abs.pathname)) return s;
       start = abs;
     } else if (s.startsWith("/") && !s.startsWith("//")) {
       start = new URL(s, base + "/");
+      refuseNonContentApi(start.pathname);
       if (!isContentApiPath(start.pathname)) return start.href;
     } else {
       return s;
     }
-  } catch {
+  } catch (e) {
+    // A refused /api or /v1 URL must not be swallowed as "leave it unchanged".
+    if (e && e.name === "NanoodleError") throw e;
     return s;
   }
 
@@ -2328,6 +2377,9 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
       catch { throw new NanoodleError("provider media redirect had no usable location"); }
       // File host or a non-API path: hand back the absolute URL. Do not fetch it
       // (that would pull a multi-megabyte clip and might attach the key).
+      // A same-origin /api or /v1 hop that is not itself a content file is refused
+      // outright — its body must never be inlined with the caller's credentials.
+      if (next.origin === origin) refuseNonContentApi(next.pathname);
       if (next.origin !== origin || !isContentApiPath(next.pathname)) return next.href;
       current = next.href;
       continue;
@@ -2414,7 +2466,7 @@ const NODE_TYPES = {
   decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
   ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
-  model3d: { title: "3D model",        inputs: ["image"], outputs: [{ name: "model", type: "model3d" }], network: true },
+  model3d: { title: "3D model",        inputs: ["image", "model"], outputs: [{ name: "model", type: "model3d" }], network: true },
   vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
   vframes: { title: "Video → frames",  inputs: ["video"], outputs: [{ name: "frame1", type: "image" }], local: true, framesOut: true }, // dynamic frame1..N
   combine: { title: "Combine videos",  inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
@@ -2518,8 +2570,9 @@ function materialize(data) {
     const id = String(raw.id);
     if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
     seenIds.add(id);
-    const type = raw.type === "audio" ? "tts" : raw.type;
+    const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    if (raw.type === "decide-branch") n.fields.branch = true;
     if (!NODE_TYPES[type]) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
@@ -2703,7 +2756,10 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
+  // maxTokens is opt-in (D1 ruling, 2026-11-18): absent by default, honored
+  // exactly when the node sets it — twin of nanoodle-py _run_llm (truthy +
+  // numeric → int(float(v)); non-numeric degrades gracefully, sends nothing).
+  if (f.maxTokens && Number.isFinite(+f.maxTokens)) o.max_tokens = Math.trunc(+f.maxTokens);
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -2739,6 +2795,7 @@ function normalizeLoraUrl(raw) {
 function loraFamily(model) {
   const m = String(model || "");
   if (/spicy/i.test(m)) return null;
+  if (/p-h3-image/i.test(m)) return "ph3"; // wavespeed p-h3-image: lora_url_1..3 (ids lack "lora")
   if (/p-image/i.test(m)) return "pimage";
   if (/klein/i.test(m)) return "flux2klein";
   if (/flux-2/i.test(m)) return "flux2dev";
@@ -2762,6 +2819,7 @@ function imageTakesLora(id) {
   if (/flux-2-klein/i.test(id)) return true;
   if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
+  if (/p-h3-image/i.test(id)) return true; // Pruna P-H3 Image (2026-11-05): lora_url_1..3
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
 
@@ -2775,7 +2833,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": case "ph3": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -2791,7 +2849,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21" || fam === "ph3") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -3403,23 +3461,32 @@ const RUNNERS = {
   },
 
   // 🧊 3D model: image and/or text → model asset via the video submit/poll API.
+  // Mesh-processing models (e.g. Hyper3D Rigging) instead take an existing
+  // model on the `model` wire and receive it as the `model_url` parameter.
   async model3d(n, inp, ctx) {
     const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
     const mods = model3dInputMods(ctx && ctx.catalog, model);
     const prompt = promptOf(n, inp);
     let image = mods.image ? (inp.image || "") : "";
+    const mesh = mods.mesh ? (inp.model || "") : "";
     if (inp.image && !mods.image && ctx && ctx.progress) {
       ctx.progress("This model takes text only — the image wire stays, but this run ignores it.");
+    }
+    if (inp.model && !mods.mesh && ctx && ctx.progress) {
+      ctx.progress("This model generates from scratch — the model wire stays, but this run ignores it.");
     }
     if (prompt && !mods.text && ctx && ctx.progress) {
       ctx.progress("This model takes an image only — the prompt stays, but this run ignores it.");
     }
-    if (mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
-    if (mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
-    if (mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
+    if (mods.mesh && !mesh) throw new NanoodleError("Connect a model first.");
+    if (!mods.mesh && mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
+    if (!mods.mesh && mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
+    if (!mods.mesh && mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
     if (image) image = await fitImage(image, ctx, "source image");
+    const extra = { ...(n.fields.modelOpts || {}) };
+    if (mesh) extra.model_url = mesh; // the wire wins over a static modelOpts copy
     const url = await ctx.video(model, mods.text ? prompt : "", {
-      extra: n.fields.modelOpts || {},
+      extra,
       mediaKind: "model3d",
     }, image || null);
     return { model: url };
@@ -3466,12 +3533,12 @@ function model3dInputMods(catalog, id) {
     || (it.architecture && Array.isArray(it.architecture.input_modalities) && it.architecture.input_modalities)
   );
   if (raw && raw.length) {
-    const mods = raw.filter((x) => x === "image" || x === "text");
-    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text") };
+    const mods = raw.filter((x) => x === "image" || x === "text" || x === "3d");
+    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text"), mesh: mods.includes("3d") };
   }
-  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false };
-  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true };
-  return { image: true, text: true };
+  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false, mesh: false };
+  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true, mesh: false };
+  return { image: true, text: true, mesh: false };
 }
 
 __x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS; __x.vEditTakesImage = vEditTakesImage;
@@ -3906,6 +3973,65 @@ function resolveSettingKey(graph, settings, userKey) {
 }
 
 __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+});
+__def("branches.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+function isBranchDecider(node) {
+  return node.type === "decide" && node.fields?.branch === true;
+}
+
+const branchPort = (port) => port === "yes" || port === "no";
+
+/**
+ * Build per-run routing over a topologically ordered set of node IDs.
+ * Explicit Yes/No wires control entry to a branch. Further downstream, any
+ * active routed input opens a join. Ordinary dependencies never open a branch.
+ */
+function planBranches(graph, order) {
+  const deciders = new Map(graph.nodes.filter(n => n.type === "decide").map(n => [n.id, n]));
+  const direct = new Set();
+  for (const link of graph.links) {
+    const source = deciders.get(link.from.node);
+    if (!source || !branchPort(link.from.port)) continue;
+    if (!isBranchDecider(source)) {
+      throw new NanoodleError(`node ${source.id}: enable branching on Decide to wire ${link.from.port}`, { code: "decide-branch" });
+    }
+    direct.add(link);
+  }
+  if (!direct.size) return null;
+
+  const inbound = new Map(order.map(id => [id, []]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+  const selectors = new Map();
+  for (const id of order) {
+    const links = inbound.get(id);
+    const fromDeciders = links.filter(link => direct.has(link));
+    const controls = fromDeciders.length ? fromDeciders : links.filter(link => selectors.has(link.from.node));
+    if (controls.length) selectors.set(id, controls);
+  }
+  const skipped = new Set();
+  return {
+    // Call after this node's upstreams have settled. A failed router is left
+    // to the usual upstream-error handling, which must also prevent execution.
+    activeLinks(id, outFor) {
+      const closed = (link) => {
+        if (skipped.has(link.from.node)) return true;
+        if (!direct.has(link)) return false;
+        const branch = outFor(link.from.node)?.decision?.branch;
+        return branchPort(branch) && branch !== link.from.port;
+      };
+      const controls = selectors.get(id);
+      if (controls?.every(closed)) {
+        skipped.add(id);
+        return null;
+      }
+      return inbound.get(id).filter(link => !closed(link));
+    },
+  };
+}
+
+__x.isBranchDecider = isBranchDecider; __x.planBranches = planBranches;
 });
 __def("share.mjs", function (__x, __req) {
 const { gunzip, gunzipLax } = __req("zlib.mjs");
@@ -5312,9 +5438,16 @@ function parseNanoInvoice(body, baseUrl) {
 
 const RESULT_KEYS = ["choices", "data", "output", "runId", "url", "audioUrl", "transcription", "text"];
 
-/** Does a complete-endpoint body already carry the replayed API result? */
+/**
+ * Does a complete-endpoint body already carry the replayed API result?
+ * A paid decision comes back as { answers, usage }. That is success. Treating
+ * it as a bare receipt makes the client resend the original request, and the
+ * API answers 402 because the payment was already consumed.
+ */
 function looksLikeResult(j) {
-  return !!j && typeof j === "object" && RESULT_KEYS.some((k) => j[k] != null);
+  if (!j || typeof j !== "object") return false;
+  if (RESULT_KEYS.some((k) => j[k] != null)) return true;
+  return j.answers != null && j.usage != null && typeof j.usage === "object";
 }
 
 __x.assertPaymentOption = assertPaymentOption; __x.parseNanoInvoice = parseNanoInvoice; __x.looksLikeResult = looksLikeResult;
@@ -6320,6 +6453,7 @@ const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
 
 function decideMode(f) {
+  if (f?.branch === true) return "yesno";
   const m = f && f.mode;
   return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
 }
@@ -6463,7 +6597,17 @@ async function decideRun(f, model, text, imgs, lim, send, fit) {
   } else {
     j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
   }
-  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  const answer = j?.answers?.answer;
+  const branching = f?.branch === true;
+  if (branching && (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1)) {
+    throw new NanoodleError("Decide needs a valid yes/no answer to select a branch", { code: "decide-branch" });
+  }
+  const out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if (branching) {
+    out.decision.branch = out.text;
+    out[out.text] = text || out.text;
+    return out;
+  }
   if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
   return out;
 }
@@ -6971,7 +7115,7 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-214a9d6078b2";
+  window.NanoodleEngine.version = "src-2551ecd6d15d";
 })();
 </script>
 <!-- NJS-ENGINE:END -->
@@ -7284,6 +7428,9 @@ window.NoodleApp = (function () {
   "generation":{es:"generación",fr:"génération",de:"Generierung",pt:"geração",ja:"生成"},
   "generations":{es:"generaciones",fr:"générations",de:"Generierungen",pt:"gerações",ja:"生成"},
   "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
+  "all branches":{es:"todas las ramas",fr:"toutes les branches",de:"alle Zweige",pt:"todos os ramos",ja:"すべての分岐"},
+  "The estimate includes all branches. You pay for the steps that run.":{es:"La estimación incluye todas las ramas. Solo pagas por los pasos que se ejecutan.",fr:"L’estimation inclut toutes les branches. Vous payez uniquement les étapes exécutées.",de:"Die Schätzung umfasst alle Zweige. Du zahlst nur für ausgeführte Schritte.",pt:"A estimativa inclui todos os ramos. Você só paga pelas etapas executadas.",ja:"見積もりにはすべての分岐が含まれます。料金は実行されたステップ分のみです。"},
+  "All branches are estimated at {usd}. You pay for the steps that run.":{es:"La estimación para todas las ramas es de {usd}. Solo pagas por los pasos que se ejecutan.",fr:"Toutes les branches sont estimées à {usd}. Vous payez uniquement les étapes exécutées.",de:"Alle Zweige zusammen werden auf {usd} geschätzt. Du zahlst nur für ausgeführte Schritte.",pt:"O custo estimado de todos os ramos é de {usd}. Você só paga pelas etapas executadas.",ja:"すべての分岐を含む見積もりは {usd} です。料金は実行されたステップ分のみです。"},
   "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
   "subtotal + unknown GIF":{es:"subtotal + GIF desconocido",fr:"sous-total + GIF inconnu",de:"Zwischensumme + unbekannter GIF",pt:"subtotal + GIF desconhecido",ja:"小計 + 不明なGIF"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
@@ -8098,7 +8245,7 @@ window.NoodleApp = (function () {
   async function nodeUnitUsdPlay(n){
     const kind = SETTING_MODEL_KIND[n.type]; if(!kind) return null;
     const f = effectiveModelFieldsPlay(n);
-    const id = f && f.model; if(!id) return null;
+    const id = kind==="decision" ? decideModelId(f?.model) || DECIDE_DEFAULT_MODEL : f?.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
     const pricing = applyVideoQuotePricing(id, m.pricing);
     if(kind==="image"){
@@ -8132,7 +8279,7 @@ window.NoodleApp = (function () {
       const imgs = (STATE && STATE.graph) ? STATE.graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length : 0;
       const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
       const u = chatUnitUsd(pricing, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }
-    if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
+    if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(n.type==="cleanvoice"){   // bills the source's length — twin of the editor: the wired node's duration knob, else 30 s
       const g = STATE && STATE.graph, l = g ? g.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")) : null;
       const src = l ? g.nodes.find(x=> x.id===l.from.node) : null;
@@ -8158,8 +8305,9 @@ window.NoodleApp = (function () {
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
     COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
+    COST.branchEstimate = STATE.graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && STATE.graph.byId(l.from.node)?.fields?.branch===true);
     // gifUnknown rides on the forecast so paintRunCost stays extractable (check-run-gating lifts it alone).
-    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay() };
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact, gifUnknown: graphHasGifImageNodesPlay(), branching: COST.branchEstimate };
     paintRunCost();
   }
   // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
@@ -8178,11 +8326,12 @@ window.NoodleApp = (function () {
     const gifUnknown = !!rc.gifUnknown;
     el.hidden = false;
     el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
-      + '<span class="rc-lbl">' + (gifUnknown ? t("subtotal + unknown GIF") : t("/run")) + (n>1 ? " · " + n + "×" : "") + '</span>';
+      + '<span class="rc-lbl">' + t(gifUnknown ? "subtotal + unknown GIF" : rc.branching ? "all branches" : "/run") + (n>1 ? " · " + n + "×" : "") + '</span>';
     var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
     if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
     if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
     if(gifUnknown) tip += ". GIF cost is unknown until settlement — billed on tokens; the still-image catalog price is not the GIF bill";
+    if(rc.branching) tip += ". " + t("The estimate includes all branches. You pay for the steps that run.");
     tip += rc.exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
     el.title = tip;
   }
@@ -8211,7 +8360,7 @@ window.NoodleApp = (function () {
   function llmOpts(n){
     const f = n.fields, o = {};
     if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
-    if(f.maxTokens) o.max_tokens = +f.maxTokens;
+  
     if(f.format==="JSON") o.response_format = { type:"json_object" };
     if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
     if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
@@ -8462,10 +8611,10 @@ function imgExtra(n){
       // Skip it for JSON/structured mode: the directive corrupts json_object output and localizes
       // tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
       const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
-      body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-      if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
+      if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
-      if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+      if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
@@ -10003,11 +10152,13 @@ return "image/png";
      image is shrunk to fit on-device first (decideFitImage). Shared twin: index.html and play.html
      RUNTIME_JS carry this block character-identical after trim. NO backticks (String.raw template).
      ====================================================================== */
-  var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";   // sees images (pick-best needs that), 262K context, cheapest per token at launch
+  var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.2";
+  function decideModelId(id){ return id==="perplexity/pplx-decider-v1.1-27b" ? DECIDE_DEFAULT_MODEL : id; }
+  function decideNeedsVision(fields, hasImages){ return decideMode(fields)==="pick" || hasImages; }
   var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
   var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
   var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
-  function decideMode(f){ var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
+  function decideMode(f){ if(f && f.branch===true) return "yesno"; var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
   function decideLines(s){ return String(s==null ? "" : s).split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
   function decideDefaultQuestion(mode){
     if(mode==="pick") return "Which image best matches the brief?";
@@ -10176,7 +10327,13 @@ return "image/png";
     } else {
       j = await send({ model:model, state:decideState(text, sent), questions:{ answer:q } });
     }
-    var out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+    var answer = j && j.answers && j.answers.answer;
+    var branching = f && f.branch===true;
+    if(branching && (!answer || answer.type!=="noul" || !Number.isFinite(answer.noul) || answer.noul<0 || answer.noul>1)){
+      throw new Error("Decide needs a valid yes/no answer to select a branch");
+    }
+    var out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+    if(branching){ out.decision.branch = out.text; out[out.text] = text || out.text; return out; }
     if(mode==="yesno" && (f.gate===true || f.gate==="true") && out.decision.yes < 0.5) throw decideGateError(out.decision);
     return out;
   }
@@ -10764,9 +10921,9 @@ return "image/png";
       inputs:[{name:"text", type:"text"}], imageInputs:"vision",
       outputs:[{name:"text", type:"text"},{name:"image", type:"image"}],
       async run(n, inp, ctx){
-        const model = mdl(n);
-        const dm = await rawCatItem("chat", model);
-        return decideRun(n.fields, model, inp.text, collectImageInputs(inp), decideImageLimits(dm && dm.decision_input, !!dm),
+        const model = decideModelId(n.fields.model) || DECIDE_DEFAULT_MODEL;
+        const dm = await rawCatItem("decision", model);
+        return decideRun(n.fields, model, inp.text, collectImageInputs(inp), decideImageLimits(dm && dm.decision_input, !!dm?.decision_input),
           function(body){ return ctx.genDecision(body); }, urlToDataUrl);
       }
     },
@@ -11056,12 +11213,17 @@ return "image/png";
   // header, result card, live-runner label, plain-text description). Backtick-free (RUNTIME_JS).
   const displayName = (n)=> (n && n.name && String(n.name).trim()) || (NODE_TYPES[n && n.type] && NODE_TYPES[n.type].title) || (n && n.type) || "?";
   function materialize(data){
-    const ALIAS = { audio:"tts" };
+    const ALIAS = { audio:"tts", "decide-branch":"decide" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
       const type = ALIAS[sn.type] || sn.type;
       if(!NODE_TYPES[type]) continue;
-      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
+      const fields = { ...(sn.fields||{}) };
+      if(type==="decide"){
+        fields.model = decideModelId(fields.model) || DECIDE_DEFAULT_MODEL;
+        if(sn.type==="decide-branch") fields.branch = true;
+      }
+      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields, out:{} });
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
     const ids = new Set(nodes.map(n=>n.id));
@@ -11461,6 +11623,13 @@ const PROMPT_CAPS = {
     const seedSet = new Set(seedList);
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
     const r = topoOrder(graph, ids);
+    let branches = null;
+    if(graph.nodes.some(n=> n.type==="decide" && n.fields.branch===true) ||
+       graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && byId(l.from.node)?.type==="decide")){
+      const engine = window.NanoodleEngine;
+      if(!engine?.planBranches) throw new Error("Branch routing is unavailable in this app export.");
+      branches = engine.planBranches(graph, r.order);
+    }
     if(opts.onStart) opts.onStart(r.order.slice());
     r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
     // A targeted Play re-rolls only its seed(s); succeeded ancestors keep .out so the
@@ -11487,54 +11656,61 @@ const PROMPT_CAPS = {
         const n = byId(id); if(!n) return;
         const t = NODE_TYPES[n.type], inp = {};
         if(t.note) return;   // annotation node — nothing to run, no cost, no status
+        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        if(activeLinks===null){
+          onStatus && onStatus(id, "skip", "skipped — branch not selected");
+          return;
+        }
+        const activeDeps = branches ? activeLinks.map(l=> l.from.node) : deps;
         // Poison-propagate (editor runGroup twin): failed/cyclic upstream → leftover typed fields would still reach a paid call. Skip.
-        if(deps.some(d=> failed.has(d))){
-          const byGate = deps.some(d=> gated.has(d)) && deps.every(d=> !failed.has(d) || gated.has(d));
+        if(activeDeps.some(d=> failed.has(d))){
+          const byGate = activeDeps.some(d=> gated.has(d)) && activeDeps.every(d=> !failed.has(d) || gated.has(d));
           failed.add(id); if(byGate) gated.add(id);
           onStatus && onStatus(id, "skip", byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"); return; }
         for(const port of t.inputs){
-          const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
+          const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
           if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
         const imgRe = t.imageInputs ? imgPortRe(t) : null;
-        if(imgRe) for(const l of graph.links){
+        if(imgRe) for(const l of activeLinks){
           if(l.to.node===id && imgRe.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
-        if(t.videoInputs) for(const l of graph.links){
+        if(t.videoInputs) for(const l of activeLinks){
           if(l.to.node===id && VID_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // the single audio port on audio-input chat models → read by run() as inp.audio
-        if(t.audioInput) for(const l of graph.links){
+        if(t.audioInput) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="audio"){ const src = byId(l.from.node); inp.audio = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // the single video port on video-input chat models → read by run() as inp.video
-        if(t.videoInput) for(const l of graph.links){
+        if(t.videoInput) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="video"){ const src = byId(l.from.node); inp.video = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // the optional end-frame port on the ivideo node → read by run() as inp.endframe (twin of the editor).
         // The exported graph only carries an endframe wire the editor authored against a last_image model;
         // run() re-checks the model (in case of a runtime swap) before sending it.
-        if(t.endFrame) for(const l of graph.links){
+        if(t.endFrame) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="endframe"){ const src = byId(l.from.node); inp.endframe = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // the character port on the vedit node → read by run() as inp.image (twin of the editor); run() re-checks the model.
-        if(t.charInput) for(const l of graph.links){
+        if(t.charInput) for(const l of activeLinks){
           if(l.to.node===id && l.to.port==="image"){ const src = byId(l.from.node); inp.image = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs() (twin of the
         // editor). The exported graph only carries ref wires the editor authored against a ref-image model; run()
         // re-checks the model (in case of a runtime swap) before sending them.
-        if(t.refInputs) for(const l of graph.links){
+        if(t.refInputs) for(const l of activeLinks){
           if(l.to.node===id && REF_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above.
         // Custom endpoint url/mode: path segments (/post) must ride inp for endpointResolveTarget
         // to join onto the typed host — twin of index.html runGroup (gallery $0 httpbingo echo).
         const fieldOverrides = {};
-        for(const l of graph.links){
+        for(const l of activeLinks){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
+          if(n.type==="decide" && l.to.port==="branch") continue;
           if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
@@ -11787,7 +11963,6 @@ const PROMPT_CAPS = {
   const SETTING_SPECS = {
     llm:     [{ f:"model", label:"Model", kind:"model" },
               { f:"temperature",     label:"Temperature",       kind:"number", min:0, max:2, step:"0.1", def:"0.8" },
-              { f:"maxTokens",       label:"Max tokens",        kind:"number", min:1 },
               { f:"format",          label:"Output format",     kind:"select", options:[["Text","Text"],["JSON","JSON"]], def:"Text" },
               { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["none","none"],["minimal","minimal"],["low","low"],["medium","medium"],["high","high"],["xhigh","xhigh"],["max","max"]], def:"default" },  // fallback; fillReasonEffortLists rewrites from catalog reasoning_efforts when present
               { f:"showThinking",    label:"Show thinking",      kind:"boolean" }],
@@ -11874,7 +12049,7 @@ const PROMPT_CAPS = {
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
   const SETTING_MODEL_KIND = {
-    llm:"chat", vision:"chat", decide:"chat", image:"image", edit:"image", inpaint:"image",
+    llm:"chat", vision:"chat", decide:"decision", image:"image", edit:"image", inpaint:"image",
     tvideo:"video", ivideo:"video", vedit:"video", lipsync:"video",
     music:"audio", remix:"audio", tts:"audio", transcribe:"audio", cleanvoice:"audio",
   };
@@ -11883,6 +12058,7 @@ const PROMPT_CAPS = {
     for(const n of graph.nodes){
       const specs = SETTING_SPECS[n.type]; if(!specs) continue;
       for(const s of specs){
+        if(n.type==="decide" && n.fields.branch===true && /^(mode|options|levels|gate)$/.test(s.f)) continue;
         // a knob fed by a link is decided upstream → don't offer a control for it
         if(graph.links.some(l=> l.to.node===n.id && l.to.port===s.f)) continue;
         // vframes' frame count is shape-affecting — never offer a floor below the highest wired
@@ -11911,14 +12087,19 @@ const PROMPT_CAPS = {
      These catalog endpoints are PUBLIC (no key needed), so we load them even
      signed-out; the proxy allows them read-only. A failed/empty fetch just
      leaves the model field as free text. */
-  const CATALOG_URL = { chat:"/api/v1/models?detailed=true", image:"/api/v1/image-models", video:"/api/v1/video-models", audio:"/api/v1/audio-models" };
+  const CATALOG_URL = { chat:"/api/v1/models?detailed=true", decision:"/api/v1/decision-models", image:"/api/v1/image-models", video:"/api/v1/video-models", audio:"/api/v1/audio-models" };
   const _catCache = {};   // kind -> Promise<rawItem[]> (only cached once it resolves non-empty)
   function loadCatalogRaw(kind){
     if(_catCache[kind]) return _catCache[kind];
     return (_catCache[kind] = (async()=>{
       try{
-        const r = await apiFetch(NANOGPT + CATALOG_URL[kind], { headers:authHeaders() });
-        const data = (await r.json()).data || [];
+        const url = NANOGPT + CATALOG_URL[kind];
+        // Public decision metadata neither needs a key nor an auth-triggered CORS preflight.
+        const r = kind==="decision" && !EMBEDDED ? await fetch(url) : await apiFetch(url, { headers:kind==="decision" ? {} : authHeaders() });
+        if(r.ok===false) throw new Error("catalog unavailable");
+        const rows = (await r.json()).data;
+        let data = Array.isArray(rows) ? rows : [];
+        if(kind==="decision") data = data.filter(m=> m && m.id && isDecisionRaw(m) && m.decision_input?.available!==false);
         if(!data.length) delete _catCache[kind];   // empty (blocked/transient/pre-auth) → allow a later retry
         return data;
       }catch(e){ delete _catCache[kind]; return []; }   // transient failure → allow a later retry
@@ -11933,7 +12114,8 @@ const PROMPT_CAPS = {
     // inpaint runs a paid image send (mdl(n)→genImage) but is absent from SETTING_MODEL_KIND (its model
     // isn't a runtime-swappable setting), so map it explicitly — otherwise a drifted inpaint model would
     // slip past this preflight in play while the editor's mdl() still blocks it (dual-engine parity).
-    const kind = SETTING_MODEL_KIND[n.type] || (n.type==="inpaint" ? "image" : null), id = n.fields && n.fields.model;
+    const kind = SETTING_MODEL_KIND[n.type] || (n.type==="inpaint" ? "image" : null);
+    const id = kind==="decision" ? decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL : n.fields?.model;
     if(!kind || !id) return;                       // not a model-bearing node, or empty (mdl() reports that)
     let raw; try{ raw = await loadCatalogRaw(kind); }catch(e){ return; }
     if(!raw || !raw.length) return;                // catalog unavailable → honor the authored id
@@ -11946,7 +12128,7 @@ const PROMPT_CAPS = {
   // control. Family regex, not an id list, so new gpt-5.x / oN releases stay covered; gpt-*chat*
   // is the non-reasoning branch that DOES sample; -search-preview = OpenAI web-search models,
   // which also take no sampling params. Not metadata-derivable (no catalog params flag).
-  const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$/;
+  const TEMP_LOCKED = /(^|\/)(azure-)?o[134](-|$)|(^|\/)gpt-5(?![.\d-]*chat)|(^|\/)gpt-latest$|-search-preview$|^google\/gemini-4-carbon$/;
   const tempLocked = id => TEMP_LOCKED.test(String(id||""));
   // Edit models verified to honor a brushed mask (index.html INPAINT_OK) — plus true *inpaint* ids.
   // Keep in lockstep with the editor allowlist; not metadata-derivable (many advertise inpainting yet
@@ -12129,7 +12311,10 @@ const PROMPT_CAPS = {
     const wiredLinks = (node && STATE && STATE.graph) ? STATE.graph.links : null;
     const roleFits = (id)=>{ const r = IMG_INPUT_ROLES[id]; if(!r || type!=="edit") return true;
       return !!wiredLinks && r.every((_,i)=> wiredLinks.some(l=> l.to.node===node.id && l.to.port===(i ? "image"+(i+1) : "image"))); };
-    const pool = raw.filter(m=> m && m.id && modelSuits(type, m) && roleFits(m.id));
+    const needsVision = type==="decide" && decideNeedsVision(node?.fields, !!node && !!wiredLinks?.some(l=> l.to.node===node.id && IMG_PORT_RE.test(l.to.port)));
+    if(type==="decide" && !raw.length) return [{ id:DECIDE_DEFAULT_MODEL, name:"PPLX Decider v1.2 (fallback; live list unavailable)" }];
+    const pool = raw.filter(m=> m && m.id && modelSuits(type, m) && roleFits(m.id)
+      && (!needsVision || m.decision_input?.image_input===true));
     // Preserve each item's index in the raw (API) list before filtering so audio can reverse
     // oldest-first family order the same way the editor does.
     const nat = new Map();   // family signature → first native index in the unfiltered catalog
@@ -12310,6 +12495,9 @@ const PROMPT_CAPS = {
     if(type==="image" || type==="edit" || type==="inpaint"){
       const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
         ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
+      // Preserve the editor's custom 960-square GPT Image 2.6 option through
+      // player settings and built-in/njs SEND, without changing the tier default.
+      if(res.length && /^gpt-image-2\.6-(flare|sunburst)$/.test(m.id) && !res.includes("960x960")) res.push("960x960");
       if(res.length){ out.size = res.map(r=>[r,r]); out.def.size = res[0]; }
       const asp = imageAspectFor(m.id, m);
       if(asp){ out.aspect = asp.options; out.def.aspect = asp.def; }
@@ -12548,7 +12736,7 @@ const PROMPT_CAPS = {
       rawCatItem("chat", modelAtStart).then(m=>{
         const el = document.getElementById("set_"+i); if(!el || el.tagName!=="SELECT") return;
         if(it.node.fields.model !== modelAtStart) return;   // stale: user swapped models before this catalog row landed
-        const cat = (m && Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length)
+        const cat = modelAtStart === "google/gemini-4-carbon" ? ["default"] : (m && Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length)
           ? m.reasoning_efforts.map(String) : null;
         if(!cat) return;   // keep fallback options when catalog omits the list
         const cur = it.node.fields[it.field];
@@ -12924,7 +13112,7 @@ const PROMPT_CAPS = {
         if(!input || !ids.length) return;
         const cur = it.node.fields[it.field];
         const all = ids.slice();
-        if(cur && !all.some(r=> r.id===cur)) all.unshift({ id:cur, name:"" });   // keep the current id even if filtered out
+        if(it.node.type!=="decide" && cur && !all.some(r=> r.id===cur)) all.unshift({ id:cur, name:"" });   // keep the current id even if filtered out
         MODEL_OPTS.set(input, all.slice(0,300));
         if(document.activeElement===input) input.dispatchEvent(new Event("modelrefresh"));
       }).catch(()=>{});
@@ -12951,7 +13139,10 @@ const PROMPT_CAPS = {
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
     function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); fillReasonEffortLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
-    input.addEventListener("focus", ()=> open(true));
+    input.addEventListener("focus", ()=>{
+      open(true);
+      if(it.node.type==="decide" && !_catCache.decision) fillModelLists();   // recover from a failed catalog without reloading the app
+    });
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
     input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); refreshTempRows(); checkDirty(); refreshRunCost(); });   // temp row is a pure id check → cheap enough per keystroke (dim/lang rewrites wait for a pick)
     input.addEventListener("blur", ()=> setTimeout(close, 120));   // let a menu click land first
@@ -14458,7 +14649,9 @@ const PROMPT_CAPS = {
       else { var app=document.querySelector(".app"); if(app) app.appendChild(box); else document.body.appendChild(box); }
     }
     var costLine = (COST.estUsd!=null && COST.estUsd>0)
-      ? '<p class="pf-cost">' + t("This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
+      ? '<p class="pf-cost">' + t(COST.branchEstimate
+        ? "All branches are estimated at {usd}. You pay for the steps that run."
+        : "This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
       : '';
     box.innerHTML =
       '<p>' + t("NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'
@@ -15073,6 +15266,7 @@ function defaultFiles(graph){
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(tagline)}" />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="nanoodle-app-brand" content="1.0.0" />
 <style><!-- include: app.css --></style>
 </head>
 <body>
@@ -15108,18 +15302,18 @@ function defaultFiles(graph){
   const appCss =
 `:root{
   color-scheme: dark;
-  --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-  --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
+  --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --line:#262c3a; --control-line:#67728a;
+  --ink:#eef1f7; --dim:#aeb7c8; --faint:#8792ad; --muted:#c3c9d6;
   --accent:${ACCENT}; --accent-soft:${ACCENT}22; --accent-line:${ACCENT}66;
-  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
+  --ok:#3ddc97; --danger:#ff6b6b; --radius:12px; --control-radius:8px;
 }
 *{ box-sizing:border-box; }
 html,body{ margin:0; }
-body{ background:
-    radial-gradient(900px 520px at 50% -10%, #1a2147 0%, transparent 60%), var(--bg);
-  color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; min-height:100vh; }
+body{ background:var(--bg);
+  color:var(--ink); font:16px/1.6 Manrope, system-ui, sans-serif; min-height:100vh; }
 .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
-.app-head h1{ font-size:1.5rem; margin:0 0 .25rem; letter-spacing:.01em; }
+.app-head h1{ font:400 clamp(1.6rem,5vw,2.65rem)/1.12 Righteous, system-ui, sans-serif; margin:0 0 .35rem; letter-spacing:-.02em; overflow-wrap:anywhere; }
+:focus-visible{ outline:2px solid #a9b6ff; outline-offset:3px; }
 .app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
 .app-head .auth input{ font:inherit; padding:.3rem .45rem; border-radius:.4rem; background:var(--panel); border:1px solid var(--line); color:var(--ink); }
 .app-head .auth .link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; }
@@ -15131,8 +15325,8 @@ body{ background:
 .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
 .field label{ display:block; font-size:.8rem; color:var(--muted); font-weight:700; margin-bottom:.3rem; }
 .field input, .field textarea, .field select{
-  width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
-  background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+  width:100%; min-height:44px; font:inherit; padding:.6rem .7rem; border-radius:var(--control-radius);
+  background:var(--panel); border:1px solid var(--control-line); color:var(--ink); }
 .field textarea{ min-height:90px; resize:vertical; }
 .field input::placeholder, .field textarea::placeholder{ color:#b8c0d0; opacity:1; }
 .field input:focus, .field textarea:focus, .field select:focus{
@@ -15154,10 +15348,9 @@ body{ background:
 .app-note-b{ white-space:pre-wrap; line-height:1.45; word-break:break-word; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
-.run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
-  background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
-  box-shadow:0 0 26px ${ACCENT}33; }
-.run:hover{ box-shadow:0 0 36px ${ACCENT}55; }
+.run{ min-height:44px; font:inherit; font-weight:750; padding:.6rem 1.6rem; border-radius:var(--control-radius); cursor:pointer;
+  background:var(--accent); border:1px solid var(--accent); color:#0b0d12; }
+.run:hover{ filter:brightness(1.12); }
 .run:disabled{ opacity:.5; box-shadow:none; cursor:default; }
 /* Stop state — destructive red while a run is in flight */
 .run.stop{ background:linear-gradient(180deg,#ff8a8a,#ef5a5a); border-color:#ff8a8a;
@@ -15203,7 +15396,7 @@ body{ background:
 .prog-node{ font-weight:700; }
 /* Long video poll lines carry job id + status URL — allow wrap so they stay readable. */
 .prog-msg{ color:var(--dim); word-break:break-word; white-space:normal; max-width:100%; }
-.prog-el{ margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem;
+.prog-el{ margin-left:auto; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem;
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .prog-errhint{ margin-top:.35rem; font-size:.8rem; color:var(--danger); white-space:pre-wrap; word-break:break-word; }
@@ -15388,6 +15581,10 @@ function bundle(files){
   // or a version. Only a deliberate choice is baked ("" → nothing); the viewer's own pick still wins.
   const _appLang = bakedAppLang();
   if(_appLang) html = injectInHead(html, '<script>window.NOODLE_APP_LANG=' + JSON.stringify(_appLang) + ';<\/script>');
+  // The fonts ride in the rendered DOM and standalone HTML, outside saved templates and share links.
+  if (typeof NANOODLE_APP_FONTS !== "undefined" && html.includes('name="nanoodle-app-brand" content="1.0.0"')) {
+    html = injectInHead(html, "<style>" + NANOODLE_APP_FONTS + "</style>");
+  }
   return html;
 }
 
@@ -15527,7 +15724,7 @@ const PACE = { cap:120, refill:40, tokens:120, last:0, held:false, lifted:false 
 function classifyBridgePath(pathname){
   const CHARGE = ["/v1/images/generations", "/api/v1/chat/completions", "/api/v1/decisions", "/api/generate-video", "/api/v1/audio/speech"];   // decisions: ⚖️ Decide (input tokens only)
   const POLL_PREFIXES = ["/api/video/status", "/api/tts/status"];   // long jobs poll for minutes — never spend
-  const CATALOG = ["/api/v1/models", "/api/v1/image-models", "/api/v1/video-models", "/api/v1/audio-models"];
+  const CATALOG = ["/api/v1/models", "/api/v1/decision-models", "/api/v1/image-models", "/api/v1/video-models", "/api/v1/audio-models"];
   const READ = ["/api/generate-video/content", "/api/images/content", "/v1/images/content", "/v1/audio/content", "/api/v1/audio/content"];
   if(CHARGE.includes(pathname)) return "charge";
   if(CATALOG.includes(pathname)) return "catalog";
@@ -15732,7 +15929,8 @@ addEventListener("message", async (e) => {
       // initiate spend, "poll"/"catalog" never do.
       const kind = classifyBridgePath(u.pathname);
       if(!kind) return reply({ error:"blocked: this app endpoint is not permitted" });
-      if(kind === "read"){
+      const publicDecisionCatalog = u.pathname === "/api/v1/decision-models";
+      if(kind === "read" || publicDecisionCatalog){
         const mth = String(d.method || "GET").toUpperCase();
         if(mth !== "GET" && mth !== "HEAD") return reply({ error:"blocked: this app endpoint is not permitted" });
       }
@@ -15750,7 +15948,7 @@ addEventListener("message", async (e) => {
         // nothing — the runtime just sees a failed request until the viewer resumes it via the notice.
         if(!paceChargeCall()) return reply({ error:"paused: this app is making an unusual number of paid requests" });
       }
-      const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
+      const headers = publicDecisionCatalog ? {} : Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const init = { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) };
       // Content reads are redirect:manual in every iframe mode, and they do not
       // carry x-api-key. An explicit follow, or an omitted redirect (fetch defaults
@@ -15810,7 +16008,7 @@ async function loadChatCatalog(){
   const list = raw.map(m=>{ const p = m.pricing || {};
     return { id:m.id, name:m.name||m.id, created:m.created,
       pin: p.prompt!=null ? +p.prompt : null, pout: p.completion!=null ? +p.completion : null,  // USD per 1M
-      maxOut: m.max_output_tokens!=null ? +m.max_output_tokens : null,   // max_tokens ceiling — bounds the explicit output budget below
+      maxOut: m.max_output_tokens!=null ? +m.max_output_tokens : null,   // provider-reported output capacity (informational)
       reasoningEfforts: Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length ? m.reasoning_efforts.map(String) : null,   // gates GEN_EFFORT
       price: p.prompt!=null ? "$"+(+p.prompt).toFixed(2)+"/$"+(+p.completion).toFixed(2)+" ·1M" : "" }; })
     .filter(m=>m.id);
@@ -15949,27 +16147,16 @@ function usageMeter(live){
 function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact = true; }
 
 function streamingCallLlm(phase, { effort=false }={}){
-  return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
+  return async ({ apiKey, baseUrl, model, messages, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
-    // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
-    // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
-    // always-thinking model burns it all reasoning and ends with finish_reason "length" and zero
-    // content. For Moonshot models ONLY, ask for real room explicitly. Other routes are
-    // live-probed fine uncapped (gpt-5.4-mini 23k out, glm-5.2 29k, both finish=stop) — an
-    // explicit cap would CREATE a ceiling they don't have, so don't send one. (The model's full
-    // maxOut also 400s: input + requested output must fit the context window.)
-    const OUT_BUDGET = 240000;   // app files are big — a whole-file rewrite must fit
     const send = (m)=>{
-      const quirky = /^moonshotai\//.test(String(m||""));
-      const cat = priceOf(m), ceil = cat && +cat.maxOut;
-      const cap = maxTokens || (quirky ? Math.min(ceil || OUT_BUDGET, OUT_BUDGET) : null);   // kimi's ceiling is 1M — 240k always fits
       const re = effort ? genEffort(m) : null;   // generate call only, catalog-gated per rung (the fallback rung too)
       return fetch(endpoint, {
         method:"POST",
         headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
-        body: JSON.stringify({ model:m, messages, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}), temperature, stream:true }),
+        body: JSON.stringify({ model:m, messages, ...(m!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}), ...(m!=="google/gemini-4-carbon"?{temperature}:{}), stream:true }),
         signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
       });
     };
@@ -16073,6 +16260,7 @@ let pendingHandoff = null;   // editor __handoff__ parked while a customize/port
 // run button): a stalled LLM can always be cancelled instead of leaving the bar permanently disabled.
 function stopCustomize(){ if(custAbort && !custAbort.signal.aborted) custAbort.abort(); }
 function setCustBusy(on){
+  $("versions")?.querySelectorAll("button").forEach(b=>{ b.disabled = on; });
   const a = $("apply"); if(!a) return;
   if(on){ a.disabled = false; a.classList.add("stop"); a.classList.remove("idle"); a.textContent = "■ Stop"; a.onclick = stopCustomize; }
   else { a.classList.remove("stop"); a.textContent = "✦ Apply"; a.onclick = applyCustomize; a.disabled = false; syncApply(); }   // signed-out stays clickable — the click kicks sign-in
@@ -16097,15 +16285,24 @@ async function runDiffPass(goal, opts){
   const key = getKey();
   if(!goal || !goal.trim()) return false;
   if(busy) return false; busy = true;
+  const target = APP_STATE;
+  const before = { "index.html":target.files["index.html"], "app.css":target.files["app.css"] };
+  const targetGraph = target.graph;
+  const stillCurrent = ()=>{
+    const same = APP_STATE===target && target.graph===targetGraph &&
+      target.files["index.html"]===before["index.html"] && target.files["app.css"]===before["app.css"];
+    if(!same) $("cust-status").textContent = "The app changed while editing. Your request is kept.";
+    return same;
+  };
   custAbort = new AbortController();
   setCustBusy(true); $("undo").disabled = true;
   const t0 = performance.now();
   resetUsage();
-  await loadChatCatalog().catch(()=>{});   // make sure per-model prices are available for the live cost
-
   try{
-    const env = buildEnvironment({ "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] });
-    const appDesc = NoodleApp.describeGraph(NoodleApp.materialize(APP_STATE.graph));
+    await loadChatCatalog().catch(()=>{});
+    if(!stillCurrent()) return false;
+    const env = buildEnvironment(before);
+    const appDesc = NoodleApp.describeGraph(NoodleApp.materialize(targetGraph));
     const prompt = CONTRACT
       + "\n\n--- WHAT THIS APP DOES ---\n" + appDesc + "\n--- END ---\n"
       + (opts.preamble ? "\n" + opts.preamble + "\n" : "")
@@ -16119,7 +16316,7 @@ async function runDiffPass(goal, opts){
       return false;
     }
     const applyLlm = streamingCallLlm(opts.applyLabel || "Applying changes");
-    const before = { "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] };
+    if(!stillCurrent()) return false;
     const updated = await smartapply(diff, before, {
       // Applying a diff is mechanical whole-file rewriting — the fast, reliable FALLBACK_MODEL
       // beats the user's (possibly slow thinking) pick here, and only runs at all when the
@@ -16127,6 +16324,8 @@ async function runDiffPass(goal, opts){
       apiKey:key, model:FALLBACK_MODEL,
       callLlmForApply: (p,o,d,m,o2) => callLlmForApply(p,o,d,m,{ ...o2, callLlm:applyLlm }),
     });
+
+    if(!stillCurrent()) return false;
 
     // merge edited files back; runtime.js/graph.json are never in the map so they survive untouched
     APP_STATE.files = { ...APP_STATE.files, "index.html":updated["index.html"], "app.css":updated["app.css"] };
@@ -16152,10 +16351,14 @@ async function runDiffPass(goal, opts){
   }
 }
 async function applyCustomize(){
-  const goal = $("goal").value.trim();
+  const input = $("goal"), draft = input.value;
+  const goal = draft.trim();
   if(!goal){ $("goal").focus(); return; }
   const ok = await runDiffPass(goal);
-  if(ok){ $("goal").value = ""; if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); } }
+  if(ok){
+    if(input.value===draft) input.value = "";
+    if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); }
+  }
 }
 
 // PORT — re-fit the app's UI to a workflow whose shape changed. Always uses patchling
@@ -16198,20 +16401,25 @@ function offerPort(oldGraph){
 
 /* ---------- version strip (index.html .ver pattern; branch-on-edit) ---------- */
 function renderVersions(){
-  const wrap = $("versions"); wrap.innerHTML = "";
+  const wrap = $("versions"), focused = document.activeElement;
+  const focusVer = focused && wrap.contains(focused) ? focused.getAttribute("data-ver") : null;
+  wrap.innerHTML = "";
   const vs = APP_STATE.versions;
   if(vs.length <= 1) return;                       // nothing to switch between yet
   const lab = document.createElement("span"); lab.className="vlabel"; lab.textContent="versions:"; wrap.appendChild(lab);
   vs.forEach((v,i)=>{
     const b = document.createElement("button");
     b.className = "ver" + (i===APP_STATE.curVer?" cur":"") + (i===0?" seed":"");
+    b.dataset.ver = String(i); b.disabled = busy;
     b.textContent = "v"+i;
     b.title = i===0 ? "the first version" : (v.goal ? "goal: "+v.goal : "version "+i);
     b.onclick = () => selectVersion(i);
     wrap.appendChild(b);
   });
+  if(focusVer!==null) wrap.querySelector(`[data-ver="${focusVer}"]`)?.focus();
 }
 function selectVersion(i){
+  if(busy) return;
   const vs = APP_STATE.versions;
   if(i<0 || i>=vs.length || i===APP_STATE.curVer) return;
   // Live in-app edits (model swaps, prompt tweaks) are ephemeral runtime state in the running
@@ -17733,7 +17941,10 @@ if(IN_EDITOR){
 
 $("linkerr-x").onclick = ()=>{ $("linkerr").hidden = true; };
 $("apply").onclick = applyCustomize;
-$("goal").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); if(!busy) applyCustomize(); } });
+$("goal").addEventListener("keydown", (e)=>{
+  if(e.key!=="Enter" || e.defaultPrevented || e.isComposing || e.keyCode===229 || e.repeat) return;
+  e.preventDefault(); e.stopPropagation(); if(!busy) applyCustomize();
+});
 $("undo").onclick = () => { if(APP_STATE.curVer > 0) selectVersion(APP_STATE.curVer - 1); };
 $("goal").addEventListener("focus", exitFirstRun);           // first focus settles the composer at full strength
 

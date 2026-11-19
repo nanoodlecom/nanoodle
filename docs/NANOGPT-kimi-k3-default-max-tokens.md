@@ -1,3 +1,5 @@
+> Historical provider investigation. As of 2026-11-12 Nanoodle no longer sends app-owned output-token limits, including the Moonshot workaround described below. Provider defaults can still truncate output.
+
 # Bug report — kimi-k3 route: tiny default output cap + entire reply streamed as `reasoning`
 
 **Endpoint:** `POST /api/v1/chat/completions` (streaming), `model: moonshotai/kimi-k3`

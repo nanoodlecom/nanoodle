@@ -8,7 +8,7 @@
       "y": -560,
       "w": 460,
       "fields": {
-        "text": "Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still. One look, one action \u2014 the video continues the restyled beat, it does not invent a new scene.",
+        "text": "Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.0 Lite (720p, 5 s, silent) animates the finished still. One look, one action \u2014 the video continues the restyled beat, it does not invent a new scene.",
         "color": "yellow"
       }
     },
@@ -158,14 +158,12 @@
       },
       "name": "Shot \u00b7 5s",
       "fields": {
-        "model": "bytedance-seedance-v1.5-pro",
+        "model": "seedance-lite-video",
         "prompt": "",
         "duration": "5",
         "resolution": "720p",
         "aspect": "16:9",
-        "modelOpts": {
-          "generateAudio": false
-        },
+        "modelOpts": {},
         "loras": []
       }
     }
