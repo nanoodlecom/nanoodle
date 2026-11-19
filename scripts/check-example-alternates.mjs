@@ -7,6 +7,7 @@ import { dirname, join, basename, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
+import { alternateEditorial } from './lib/gallery-editorial.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const GALLERY = join(ROOT, 'examples/gallery');
@@ -80,10 +81,14 @@ function checkRendered(page, slug, a, graphBytes, texts, guide) {
   const summary = block.slice(0, block.indexOf('</summary>'));
   assert(summary.includes(`src="${local(a.preview)}"`), id + ': thumbnail missing from alternate summary');
   assert(summary.includes(esc(a.title)), id + ': alternate title missing');
-  for (const value of [a.review, a.date, a.note]) assert(block.includes(esc(value)), id + ': review/date/note omitted');
-  const costLabel = guide ? 'Reported saved run: ' : 'Reported generation cost: ';
-  assert(block.includes(costLabel + cost(a) + '.'), id + ': shown cost differs from saved run');
-  assert(block.includes('Sampled models: ' + a.models.map(esc).join(', ') + '.'), id + ': shown model list differs');
+  const note = guide ? a.note : alternateEditorial[a.id] || a.note;
+  for (const value of [a.review, a.date, note]) assert(block.includes(esc(value)), id + ': review/date/note omitted');
+  const renderedCost = guide ? 'Reported saved run: ' + cost(a) + '.' : 'Saved run <strong>' + cost(a) + '</strong>';
+  assert(block.includes(renderedCost), id + ': shown cost differs from saved run');
+  const shownModels = guide
+    ? block.includes('Sampled models: ' + a.models.map(esc).join(', ') + '.')
+    : a.models.every(model => block.includes('<li><code>' + esc(model) + '</code></li>'));
+  assert(shownModels, id + ': shown model list differs');
   for (const input of a.inputs) {
     assert(block.includes(esc(input.label)) && block.includes(esc(input.text)), id + ': shown input omitted: ' + input.label);
   }
@@ -99,7 +104,8 @@ function checkRendered(page, slug, a, graphBytes, texts, guide) {
     const matches = figures.filter(f => f.includes(`href="${local(output.src)}" download`));
     assert.equal(matches.length, 1, id + ': missing or duplicated downloadable output: ' + output.src);
     const figure = matches[0];
-    assert(figure.includes(esc(output.label)), id + ': output label omitted');
+    const labelParts = guide ? [output.label] : output.label.replace(/^\d+\. /, '').split(' · ');
+    assert(labelParts.every(part => figure.includes(esc(part))), id + ': output label omitted');
     if (output.kind === 'text') {
       const text = texts.get(output.src);
       const quotes = [...figure.matchAll(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/g)];

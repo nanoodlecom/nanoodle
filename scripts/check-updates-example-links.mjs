@@ -15,6 +15,7 @@ const read = f => readFileSync(join(ROOT, f), 'utf8');
 const updates = JSON.parse(read('updates.json'));
 const samples = JSON.parse(read('examples/gallery/samples.json'));
 const gallery = read('examples/gallery/index.html');
+const galleryScript = read('examples/gallery/gallery.js');
 const editor = read('index.html');
 
 // id → { title, kind } for every gallery example and alternate run.
@@ -24,6 +25,7 @@ for (const s of samples) {
   for (const a of s.alternates || []) targets.set(s.slug + '--' + a.id, { title: a.title, kind: 'alternate', slug: s.slug });
 }
 const decode = v => v.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+const sectionTag = id => `<section id="${id}"[^>]*>`;
 
 let links = 0;
 const errs = [];
@@ -40,16 +42,16 @@ updates.forEach((e, i) => {
     if (x.title !== t.title) errs.push(`${where}: ${x.id} title "${x.title}" ≠ gallery title "${t.title}"`);
     const tag = t.kind === 'alternate'
       ? new RegExp(`<details class="alternate" id="${x.id}">`)
-      : new RegExp(`<section id="${x.id}">`);
+      : new RegExp(sectionTag(x.id));
     if (!tag.test(gallery)) errs.push(`${where}: examples/gallery/index.html has no ${t.kind} with id ${x.id} (run node scripts/sync-gallery-samples.mjs)`);
     if (t.kind === 'section') {
-      const h = gallery.match(new RegExp(`<section id="${x.id}">.*?<h2>(.*?)</h2>`));
+      const h = gallery.match(new RegExp(`${sectionTag(x.id)}(?:(?!</section>).)*?<h2[^>]*>(.*?)</h2>`, 's'));
       if (!h || decode(h[1]) !== t.title) errs.push(`${where}: gallery section ${x.id} heading does not read "${t.title}"`);
     } else {
       const b = gallery.match(new RegExp(`<details class="alternate" id="${x.id}">.*?<b>Another run: (.*?)</b>`));
       if (!b || decode(b[1]) !== t.title) errs.push(`${where}: gallery alternate ${x.id} does not read "Another run: ${t.title}"`);
       // An alternate must sit inside its own example's section.
-      const sec = gallery.indexOf(`<section id="${t.slug}">`), alt = gallery.indexOf(`id="${x.id}"`);
+      const sec = gallery.search(new RegExp(sectionTag(t.slug))), alt = gallery.indexOf(`id="${x.id}"`);
       const next = gallery.indexOf('<section id=', sec + 1);
       if (!(sec >= 0 && alt > sec && (next < 0 || alt < next))) errs.push(`${where}: alternate ${x.id} is not inside section ${t.slug}`);
     }
@@ -87,7 +89,11 @@ updates.forEach((e, i) => {
 // The editor renders the link exactly as examples/gallery/#<id>, and the gallery opens
 // a closed alternate <details> when its hash arrives.
 if (!editor.includes('a.href = "examples/gallery/#" + x.id;')) errs.push('index.html: Updates renderer no longer links examples/gallery/#<id>');
-if (!/addEventListener\('hashchange',go\)/.test(gallery) || !/d\.tagName==='DETAILS'\)d\.open=true/.test(gallery)) errs.push('examples/gallery/index.html: missing the hash opener for alternate runs');
+if (!gallery.includes('<script src="gallery.js" defer></script>') ||
+    !galleryScript.includes("addEventListener('hashchange', revealFragment)") ||
+    !galleryScript.includes('if (element instanceof HTMLDetailsElement) element.open = true')) {
+  errs.push('examples/gallery/: missing the hash opener for alternate runs');
+}
 
 if (errs.length) { console.error('✗ Updates example links:\n  ' + errs.join('\n  ')); process.exit(1); }
 console.log(`✓ Updates example links: ${links} links across ${updates.filter(e => e.examples).length} entries resolve to their gallery examples`);
