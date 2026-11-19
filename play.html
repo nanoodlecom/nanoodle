@@ -7175,6 +7175,7 @@ const ACCENT = "#7c8cff";
 const PLAY_I18N_B = {
   "Create app for this workflow":{es:"Crear app para este flujo",fr:"Créer une app pour ce workflow",de:"App für diesen Workflow erstellen",pt:"Criar app para este fluxo",ja:"このワークフローのアプリを作成"},
   "The current edit is still running. The requested app action will follow.":{es:"La edición actual sigue en curso. Después se aplicará la acción de la app.",fr:"La modification est en cours. L’action sur l’app suivra.",de:"Die aktuelle Bearbeitung läuft noch. Danach folgt die App-Aktion.",pt:"A edição atual ainda está em andamento. A ação do app será realizada em seguida.",ja:"編集中です。完了後にアプリの操作を実行します。"},
+  "Wait for the current edit to finish before changing language.":{es:"Espera a que termine la edición para cambiar de idioma.",fr:"Attendez la fin de la modification avant de changer de langue.",de:"Warte mit dem Sprachwechsel, bis die aktuelle Bearbeitung abgeschlossen ist.",pt:"Aguarde o fim da edição para mudar de idioma.",ja:"編集中の操作が完了してから言語を変更してください。"},
   "Retry save":{es:"Volver a guardar",fr:"Réessayer l’enregistrement",de:"Erneut speichern",pt:"Tentar salvar novamente",ja:"保存を再試行"},
   "App updated in this browser. Copy a new link to share this version.":{es:"App actualizada en este navegador. Copia un enlace nuevo para compartir esta versión.",fr:"App mise à jour dans ce navigateur. Copiez un nouveau lien pour partager cette version.",de:"App in diesem Browser aktualisiert. Kopiere einen neuen Link, um diese Version zu teilen.",pt:"App atualizado neste navegador. Copie um novo link para compartilhar esta versão.",ja:"このブラウザーでアプリを更新しました。このバージョンを共有するには新しいリンクをコピーしてください。"},
   "App created and saved in My apps on this browser.":{es:"App creada y guardada en Mis apps en este navegador.",fr:"App créée et enregistrée dans Mes apps dans ce navigateur.",de:"App erstellt und in diesem Browser unter Meine Apps gespeichert.",pt:"App criado e salvo em Meus apps neste navegador.",ja:"アプリを作成し、このブラウザーのマイアプリに保存しました。"},
@@ -7307,7 +7308,25 @@ function mountLangPickerB(){
   // Solid dark background so the native option-list popup renders dark, not the OS white default.
   sel.style.cssText="font:inherit;font-size:.8rem;background:var(--panel,#161a27);color:var(--ink,#e6e9f5);border:0;padding:0;cursor:pointer;";
   PLAY_B_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_B_ENDONYM[c]; o.setAttribute("data-no-i18n",""); o.style.background="var(--panel,#161a27)"; o.style.color="var(--ink,#e6e9f5)"; if(c===LANG_B) o.selected=true; sel.appendChild(o); });
-  sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
+  sel.addEventListener("change", ()=>{
+    if(IN_EDITOR){
+      if(busy){
+        sel.value = LANG_B;
+        toast(tB("Wait for the current edit to finish before changing language."));
+        return;
+      }
+      if((failedEditorAction || uncommittedChanges) && !confirm(tB("Leave the unsaved app preview? You can retry saving or export it first."))){
+        sel.value = LANG_B;
+        return;
+      }
+      // A frame reload should restore the app actually being viewed, including a
+      // library app from another workspace. Use this frame's own history entry.
+      history.replaceState({editorAppId:CUR_ID}, "", location.pathname + "?editor=1");
+      abandonAppSave();
+    }
+    try{ localStorage.setItem("noodle_lang", sel.value); }catch(_){}
+    location.reload();
+  });
   wrap.appendChild(gl); wrap.appendChild(sel);
   const grow=bar.querySelector(".grow"); if(grow&&grow.parentNode) grow.parentNode.insertBefore(wrap, grow); else bar.appendChild(wrap);
 }
@@ -17197,13 +17216,14 @@ $("am-close").onclick = closeAppsMenu;
 $("am-create-workflow").onclick = ()=> parent.postMessage({type:"__createappfromlibrary__"}, "*");
 function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu(); }
 function openApp(id){
-  const a = loadApps().find(x=>x.id===id); if(!a) return;
+  const a = loadApps().find(x=>x.id===id); if(!a) return false;
   closeAppsMenu();
   installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang, ranOnce:a.ranOnce, armed:a.armed, samples:a.samples, openOnly:true });
   if(!IN_EDITOR){
     // Remember which standalone app was open without touching the library entry.
     try{ localStorage.setItem(LS_KEY, JSON.stringify({id:a.id, v:1})); }catch(_){}
   }
+  return true;
 }
 function deleteApp(id){
   if(!saveApps(loadApps().filter(a=>a.id!==id))) return;
@@ -17681,11 +17701,12 @@ async function doShare(){
     }
     const fit = await packShareFit(base, samples, location.origin + location.pathname, shrinkShareMedia);
     const url = fit.url;
-    history.replaceState({}, "", url);                       // surface it so a failed copy can still be grabbed
+    const viewUrl = location.origin + location.pathname + location.search;
+    history.replaceState(history.state, "", viewUrl + new URL(url).hash);
     const ok = await copyText(url);
     // On a successful copy, strip the #a= back out of OUR url (mirror consumeHandoff): leaving the
     // handoff hash means a later reload re-imports it as a fresh "imported" library entry — a duplicate.
-    if(ok){ try{ history.replaceState({}, "", location.origin + location.pathname); }catch(_){} }
+    if(ok){ try{ history.replaceState(history.state, "", viewUrl); }catch(_){} }
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
     // Pack samples by default when the creator has run; otherwise nudge them so the next share
     // can show recipients a preview before sign-in (the viral #a= path's biggest drop-off).
@@ -17928,8 +17949,7 @@ async function doOpenEditor(){
   const graph = APP_STATE.graph, appId = CUR_ID || null;
   const title = ($("bar-title").textContent || "").trim() || null;
   if(IN_EDITOR){
-    const embedded = new URLSearchParams(location.search).get("editor")==="1";
-    const message = failedEditorAction ? {type:"__closeapp__"} : {type:embedded ? "__editappworkflow__" : "__editflow__", appId, graph, title};
+    const message = failedEditorAction ? {type:"__closeapp__"} : {type:EMBEDDED_EDITOR ? "__editappworkflow__" : "__editflow__", appId, graph, title};
     try{ parent.postMessage(message, "*"); }catch(_){ /* no parent */ }
     return;
   }
@@ -18028,6 +18048,8 @@ async function loadFromHash(){
    WIRING + BOOT
    ====================================================================== */
 const IN_EDITOR = window.parent && window.parent !== window;   // opened as a popup inside the editor
+const EMBEDDED_EDITOR = IN_EDITOR && new URLSearchParams(location.search).get("editor")==="1";
+const appBootId = newId();
 $("share").onclick = doShare;
 $("recwelcome-x").onclick = dismissRecipientWelcome;
 $("recwelcome-signin").onclick = ()=> $("signin").click();
@@ -18367,9 +18389,10 @@ async function boot(){
   migrateLegacy();
   renderAppsBtn();
 
-  if(IN_EDITOR && new URLSearchParams(location.search).get("editor")==="1"){
-    showEmpty();
-    parent.postMessage({ type:"__appready__" }, "*");
+  if(EMBEDDED_EDITOR){
+    const previousAppId = history.state?.editorAppId;
+    if(!previousAppId || !openApp(previousAppId)) showEmpty();
+    parent.postMessage({ type:"__appready__", bootId:appBootId }, "*");
     return;
   }
 
@@ -18422,7 +18445,7 @@ async function boot(){
   // earlier it would find no listener, or this boot would overwrite it with the stale
   // hash graph). The editor parks handoffs until this arrives. Posted AFTER any commit
   // above, so a bind-on-create __appsaved__ is already in flight ahead of it.
-  if(IN_EDITOR){ try{ parent.postMessage({ type:"__appready__" }, "*"); }catch(_){} }
+  if(IN_EDITOR){ try{ parent.postMessage({ type:"__appready__", bootId:appBootId }, "*"); }catch(_){} }
 }
 boot();
 </script>

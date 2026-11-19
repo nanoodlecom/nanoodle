@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const modulePath = process.env.NANOODLE_PLAYWRIGHT;
@@ -98,6 +99,16 @@ async function verifyAppLifecycle(page) {
     await frame.locator('#openeditor').click();
     await page.locator('#appmodal').waitFor({state:'hidden'});
   };
+  const sharedGraph=async()=>{
+    if(!await frame.locator('#share').isVisible()) await frame.locator('#barmore').click();
+    await frame.locator('#share').click();
+    const link = await frame.locator('#sharemenu:not([hidden]) #sm-url').inputValue();
+    await frame.locator('#shareback').click({position:{x:4,y:4}});
+    const hash = new URL(link).hash;
+    assert.match(hash,/^#a=/);
+    const data = Buffer.from(hash.startsWith('#a=u') ? hash.slice(4) : hash.slice(3),'base64url');
+    return JSON.parse(hash.startsWith('#a=u') ? data : gunzipSync(data)).graph;
+  };
   await action.getByText("Create app", {exact:true}).waitFor();
   await action.click();
   await status.getByText('App created and saved in My apps on this browser.').waitFor();
@@ -106,6 +117,7 @@ async function verifyAppLifecycle(page) {
   const originalTitle=await frame.locator("#bar-title").textContent();
   assert.equal((await saved()).length,1);
   const originalWorkflow=await page.evaluate(()=>readWorkspaces().active);
+  const sharedOriginal=await sharedGraph();
   await editorAction();
   assert.equal(await action.locator('#wsapplabel').textContent(),'Open app');
   await action.locator('#wsappname').getByText(originalTitle,{exact:true}).waitFor();
@@ -122,6 +134,8 @@ async function verifyAppLifecycle(page) {
   assert.equal(await id(),original);
   assert.equal((await saved()).length,1);
   assert.ok(JSON.stringify((await saved())[0].graph).includes(changed));
+  assert.ok(!JSON.stringify(sharedOriginal).includes(changed));
+  assert.ok(JSON.stringify(await sharedGraph()).includes(changed));
   await dismiss.click();
 
   // Deny the next local library write in the mounted builder, then allow retry.
@@ -206,6 +220,15 @@ async function verifyAppLifecycle(page) {
   await frame.getByRole('button',{name:'Create app for this workflow',exact:true}).click();
   await status.getByText(/App created and saved/).waitFor();
   await page.waitForFunction(()=>!!pendingAppId);
+  assert.equal((await saved()).length,3);
+
+  // Changing the builder language reloads only the frame and reopens this app.
+  const selectedApp = await id();
+  const selectedTitle = await rename.textContent();
+  await frame.locator('#langbtn-b select').selectOption('fr');
+  await frame.locator('#openeditor').getByText('✎ Modifier le flux',{exact:true}).waitFor({state:'attached'});
+  await rename.getByText(selectedTitle,{exact:true}).waitFor();
+  assert.equal(await id(),selectedApp);
   assert.equal((await saved()).length,3);
 }
 

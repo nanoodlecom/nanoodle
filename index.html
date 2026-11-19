@@ -20959,6 +20959,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu
 // The builder stays mounted. Each request names the intended operation and
 // returns its result separately from preview navigation and unrelated library actions.
 let appFrameLoaded = false;
+let appFrameBootId = null;
 let appBootTimer = null;
 let appRequest = null;
 let unsavedAppRequest = null;
@@ -21181,8 +21182,9 @@ addEventListener("message", e=>{
     if(!$("appmodal").hidden) showAppModal("");
   }
   else if(e.data.type==="__appactionresult__") finishAppRequest(e.data);
-  else if(e.data.type==="__appready__" && !appFrameLoaded){
+  else if(e.data.type==="__appready__" && (!appFrameLoaded || e.data.bootId!==appFrameBootId)){
     appFrameLoaded = true;
+    appFrameBootId = e.data.bootId;
     clearTimeout(appBootTimer);
     sendAppRequest();
   }
