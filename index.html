@@ -367,22 +367,22 @@
              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem }
   #agentpop[hidden]{ display:none }
   #agentpop .ap-note{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem }
-  /* the hosted-server lead — accent-tinted so the zero-setup path reads first */
-  #agentpop .ap-hosted{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem;
-                        padding:.45rem .55rem; border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
-                        border-radius:.55rem; background:color-mix(in srgb, var(--accent) 9%, transparent) }
-  #agentpop .ap-hosted a{ color:var(--accent); font-weight:700; text-decoration:none; white-space:nowrap }
-  #agentpop .ap-hosted a:hover{ color:var(--ink); text-decoration:underline }
+  #agentpop a.ap-hosted{ display:block; font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem;
+                         padding:.55rem .65rem; border:1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+                         border-radius:.55rem; background:color-mix(in srgb, var(--accent) 11%, var(--panel));
+                         text-decoration:none }
+  #agentpop a.ap-hosted:hover, #agentpop a.ap-hosted:focus-visible{ border-color:var(--accent);
+                         background:color-mix(in srgb, var(--accent) 18%, var(--panel)) }
+  #agentpop .ap-hosted-title{ display:flex; justify-content:space-between; align-items:center;
+                              gap:.5rem; margin-bottom:.2rem; font-size:.95rem; font-weight:700; color:var(--accent) }
   #agentpop .ap-agents{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.45rem .15rem .1rem }
   #agentpop .ap-agents b{ color:var(--ink); font-weight:600 }
   #agentpop .ap-links{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
   #agentpop a{ color:var(--dim) }
   #agentpop a:hover{ color:var(--ink) }
-  /* the MCP path folds behind one conditional row — native <details>, no JS state.
-     Bordered like the command field above so it reads as interactive, not prose;
-     the trailing chevron rotates open. */
   #agentpop details{ margin:.55rem .15rem .1rem; border:1px solid var(--line); border-radius:.55rem;
                      padding:.1rem .55rem; transition:border-color .15s }
+  #agentpop details details{ margin:.65rem 0 0 }
   #agentpop details:hover{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)) }
   #agentpop details[open]{ padding-bottom:.5rem }
   #agentpop summary{ list-style:none; cursor:pointer; font-size:.75rem; color:var(--dim); line-height:1.45;
@@ -390,10 +390,11 @@
   #agentpop summary::-webkit-details-marker{ display:none }
   #agentpop summary::after{ content:"›"; margin-left:auto; flex:none; color:var(--accent);
                             font-size:1.05rem; line-height:1; transition:transform .15s }
-  #agentpop details[open] summary::after{ transform:rotate(90deg) }
-  #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink) }
+  #agentpop details[open] > summary::after{ transform:rotate(90deg) }
+  #agentpop summary:hover, #agentpop details[open] > summary{ color:var(--ink) }
   /* the MCP command wraps in full view (a clipped <input> hid the your-key placeholder mid-string);
      the swap-me token — or the injected, masked key — is highlighted so the one variable part is obvious */
+  #agentpop .ap-cmd{ flex:1; min-width:0; overflow-wrap:anywhere; font-size:.75rem; line-height:1.45 }
   #agentpop .ap-cmd .ap-key{ background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
@@ -1484,41 +1485,37 @@
 <div id="agentpill">
   <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener" title="Star nanoodle on GitHub — this whole site is one MIT-licensed repo">⭐ <span class="lbl" data-no-i18n>GitHub</span></a>
   <span class="split" aria-hidden="true"></span>
-  <button id="agentbtn" title="Load nanoodle into your coding agent" aria-haspopup="true" aria-expanded="false">🤖 <span class="lbl">Use in your agent</span></button>
+  <button id="agentbtn" title="Load nanoodle into your coding agent" aria-label="Use in your agent" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false">🤖 <span class="lbl">Use in your agent</span></button>
 </div>
 </div>
 
-<!-- 🤖 "use in your agent" popover — highlighted hosted MCP links offer payment in Nano
-     at mcp.nanoodle.com or NEAR / USDC at near.nanoodle.com; below them the skill (one npx command installs
-     the nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent
-     Skills reader); the self-hosted MCP server is the power-user path once you've saved a
-     folder of graphs, folded behind one conditional <details> line so first-timers never face
-     a choice. A quiet popover, not a modal: closes on outside click or Esc.
-     The MCP command needs the user's NanoGPT key inside it, so it's built per-open
-     (renderAgentMcp): signed in → their key is baked into the copy (masked on screen),
-     signed out → the your-key placeholder stays highlighted in a wrapping <code> with a
-     hint naming the swap. The key never leaves the browser except onto their clipboard. -->
+<!-- Hosted MCP is the primary path. Local MCP setup lives inside the skill disclosure. -->
 <div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
   <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
-  <p class="ap-hosted"><a href="https://mcp.nanoodle.com" target="_blank" rel="noopener" data-no-i18n>⚡ mcp.nanoodle.com</a> <span>— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.</span></p>
-  <p class="ap-hosted"><a href="https://near.nanoodle.com" target="_blank" rel="noopener" data-no-i18n>⚡ near.nanoodle.com</a> <span>— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.</span></p>
-  <p class="ap-note">One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.</p>
-  <div class="sm-urlrow">
-    <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
-    <button id="agentcopy" class="sm-copy">Copy</button>
-  </div>
-  <details id="agentmcp">
-    <summary>Built up a folder of saved graphs? Serve them all as tools with the MCP server.</summary>
-    <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
+  <a class="ap-hosted" href="https://mcp.nanoodle.com" target="_blank" rel="noopener">
+    <span class="ap-hosted-title"><span data-no-i18n>mcp.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+    <span>Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.</span>
+  </a>
+  <details id="agentskill">
+    <summary>Run a workflow as a skill</summary>
+    <p class="ap-note">Install the skill to design and run workflows from your terminal using your NanoGPT key.</p>
     <div class="sm-urlrow">
-      <code id="agentmcpcmd" class="ap-cmd" aria-label="MCP install command" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class="ap-key">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>
-      <button id="agentmcpcopy" class="sm-copy">Copy</button>
+      <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
+      <button id="agentcopy" class="sm-copy">Copy</button>
     </div>
-    <p class="ap-keyhint" id="agentmcphint">swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you</p>
-    <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
+    <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
+    <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a></p>
+    <details id="agentmcp">
+      <summary>Serve a folder of workflows over MCP</summary>
+      <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
+      <div class="sm-urlrow">
+        <code id="agentmcpcmd" class="ap-cmd" aria-label="MCP install command" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class="ap-key">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>
+        <button id="agentmcpcopy" class="sm-copy">Copy</button>
+      </div>
+      <p class="ap-keyhint" id="agentmcphint">swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you</p>
+      <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
+    </details>
   </details>
-  <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
-  <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a></p>
 </div>
 
 <!-- ⛽ Refuel — opens when a run just failed for lack of credit, or from a click on the balance
@@ -2391,14 +2388,14 @@ const I18N = {
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrina. Todas las apps que hay siguen siendo nuestras; haz que la tuya sea la primera que no lo sea. Una línea.",
     "Use in your agent":"Úsalo en tu agente",
     "nanoodle in your coding agent":"nanoodle en tu agente de código",
-    "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Un solo comando enseña a tu agente a diseñar y ejecutar flujos de nanoodle — desde tu terminal, con tu propia clave de NanoGPT.",
-    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la vía más fácil: cada flujo de awesome-noodles, alojado como una herramienta que tu agente puede invocar ahora mismo. Nada que instalar, sin clave, sin registro — paga por ejecución en Nano.",
-    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— paga por ejecución en NEAR o USDC. Conecta tu agente por MCP, sin necesidad de una clave de NanoGPT.",
+    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Ejecuta flujos alojados desde tu agente. Paga por ejecución en Nano, NEAR o USDC en la red NEAR.",
+    "Run a workflow as a skill":"Ejecutar un flujo como skill",
+    "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Instala la skill para diseñar y ejecutar flujos desde tu terminal con tu clave de NanoGPT.",
+    "Serve a folder of workflows over MCP":"Servir una carpeta de flujos mediante MCP",
     "works in":"funciona en",
     "& more":"y más",
     "skill source":"código de la skill",
     "prebuilt skills":"skills listas para usar",
-    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"¿Ya tienes una carpeta de grafos guardados? Sírvelos todos como herramientas con el servidor MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo de la carpeta se convierte en una herramienta tipada que tu agente puede invocar.",
     "other agents & wallet mode → setup guide":"otros agentes y modo cartera → guía de instalación",
     "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"cambia your-key por tu clave API de NanoGPT — o inicia sesión aquí primero y se rellena sola",
@@ -3169,14 +3166,14 @@ const I18N = {
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrine. Toutes les apps qui s’y trouvent sont encore les nôtres ; faites de la vôtre la première qui ne l’est pas. Une ligne.",
     "Use in your agent":"Utiliser dans votre agent",
     "nanoodle in your coding agent":"nanoodle dans votre agent de code",
-    "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Une seule commande apprend à votre agent à concevoir et exécuter des flux nanoodle — depuis votre terminal, avec votre propre clé NanoGPT.",
-    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la voie la plus simple : chaque flux d’awesome-noodles, hébergé comme un outil que votre agent peut appeler tout de suite. Rien à installer, pas de clé, pas d’inscription — il paie à l’exécution en Nano.",
-    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— payez à l’exécution en NEAR ou en USDC. Connectez votre agent via MCP, sans clé NanoGPT.",
+    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Exécutez des workflows hébergés depuis votre agent. Payez à chaque exécution en Nano, en NEAR ou en USDC sur le réseau NEAR.",
+    "Run a workflow as a skill":"Exécuter un workflow avec une skill",
+    "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Installez la skill pour concevoir et exécuter des workflows depuis votre terminal avec votre clé NanoGPT.",
+    "Serve a folder of workflows over MCP":"Exposer un dossier de workflows via MCP",
     "works in":"fonctionne dans",
     "& more":"et plus",
     "skill source":"code de la skill",
     "prebuilt skills":"skills prêtes à l’emploi",
-    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Vous avez accumulé un dossier de graphes enregistrés ? Servez-les tous comme outils avec le serveur MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Chaque graphe du dossier devient un outil typé que votre agent peut appeler.",
     "other agents & wallet mode → setup guide":"autres agents & mode portefeuille → guide d’installation",
     "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"remplacez your-key par votre clé API NanoGPT — ou connectez-vous d’abord ici et elle se remplit toute seule",
@@ -3947,14 +3944,14 @@ const I18N = {
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— das Schaufenster. Alle Apps darin sind noch unsere eigenen; mach deine zur ersten, die es nicht ist. Eine Zeile.",
     "Use in your agent":"In deinem Agenten nutzen",
     "nanoodle in your coding agent":"nanoodle in deinem Coding-Agenten",
-    "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Ein Befehl bringt deinem Agenten bei, nanoodle-Workflows zu entwerfen und auszuführen — direkt im Terminal, mit deinem eigenen NanoGPT-Schlüssel.",
-    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— der einfachste Einstieg: jeder awesome-noodles-Workflow, gehostet als Tool, das dein Agent sofort aufrufen kann. Nichts zu installieren, kein Schlüssel, keine Anmeldung — bezahlt wird pro Lauf in Nano.",
-    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— bezahle pro Lauf in NEAR oder USDC. Verbinde deinen Agenten über MCP, ohne NanoGPT-Schlüssel.",
+    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Starte gehostete Workflows aus deinem Agenten. Bezahle pro Ausführung in Nano, NEAR oder USDC im NEAR-Netzwerk.",
+    "Run a workflow as a skill":"Einen Workflow als Skill ausführen",
+    "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Installiere den Skill, um mit deinem NanoGPT-Schlüssel Workflows im Terminal zu erstellen und auszuführen.",
+    "Serve a folder of workflows over MCP":"Einen Ordner mit Workflows per MCP bereitstellen",
     "works in":"funktioniert in",
     "& more":"& mehr",
     "skill source":"Skill-Quellcode",
     "prebuilt skills":"fertige Skills",
-    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Schon einen Ordner voller gespeicherter Graphen? Stelle sie alle als Tools über den MCP-Server bereit.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Jeder Graph im Ordner wird zu einem typisierten Tool, das dein Agent aufrufen kann.",
     "other agents & wallet mode → setup guide":"weitere Agents & Wallet-Modus → Setup-Anleitung",
     "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"ersetze your-key durch deinen NanoGPT-API-Schlüssel — oder melde dich zuerst hier an, dann wird er automatisch eingesetzt",
@@ -4725,14 +4722,14 @@ const I18N = {
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— a vitrine. Todos os apps nela ainda são nossos; faça o seu ser o primeiro que não é. Uma linha.",
     "Use in your agent":"Use no seu agente",
     "nanoodle in your coding agent":"nanoodle no seu agente de código",
-    "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Um único comando ensina o seu agente a criar e executar fluxos do nanoodle — do seu terminal, com a sua própria chave NanoGPT.",
-    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— o caminho mais fácil: cada fluxo do awesome-noodles, hospedado como uma ferramenta que o seu agente pode chamar agora mesmo. Nada para instalar, sem chave, sem cadastro — paga por execução em Nano.",
-    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— pague por execução em NEAR ou USDC. Conecte seu agente via MCP, sem precisar de uma chave NanoGPT.",
+    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Execute fluxos hospedados a partir do seu agente. Pague por execução em Nano, NEAR ou USDC na rede NEAR.",
+    "Run a workflow as a skill":"Executar um fluxo como skill",
+    "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Instale a skill para criar e executar fluxos no terminal com sua chave do NanoGPT.",
+    "Serve a folder of workflows over MCP":"Disponibilizar uma pasta de fluxos via MCP",
     "works in":"funciona no",
     "& more":"e mais",
     "skill source":"código da skill",
     "prebuilt skills":"skills prontas",
-    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Já tem uma pasta de grafos guardados? Sirva-os todos como ferramentas com o servidor MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo da pasta torna-se uma ferramenta tipada que o seu agente pode chamar.",
     "other agents & wallet mode → setup guide":"outros agentes e modo carteira → guia de instalação",
     "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"troque your-key pela sua chave de API NanoGPT — ou entre aqui primeiro e ela se preenche sozinha",
@@ -5503,14 +5500,14 @@ const I18N = {
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— ショーケースです。今あるアプリはまだ全部わたしたちのもの。最初の1つは、あなたのアプリに。追加は1行です。",
     "Use in your agent":"エージェントで使う",
     "nanoodle in your coding agent":"コーディングエージェントで nanoodle",
-    "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"コマンド1つで、エージェントが nanoodle ワークフローを設計・実行できるようになります — ターミナルから、自分の NanoGPT キーで。",
-    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— いちばん手軽な入口：awesome-noodles の全ワークフローが、エージェントが今すぐ呼び出せるツールとしてホスト済み。インストール不要、キー不要、登録不要 — 実行ごとに Nano で支払います。",
-    "— pay per run in NEAR or USDC. Connect your agent over MCP, with no NanoGPT key needed.":"— 実行ごとに NEAR または USDC で支払います。NanoGPT キーなしで、MCP 経由でエージェントを接続できます。",
+    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"エージェントからホスト済みのワークフローを実行できます。実行ごとに Nano、NEAR、または NEAR ネットワーク上の USDC で支払います。",
+    "Run a workflow as a skill":"スキルでワークフローを実行する",
+    "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"スキルをインストールすると、NanoGPT キーを使ってターミナルからワークフローを作成・実行できます。",
+    "Serve a folder of workflows over MCP":"フォルダ内のワークフローを MCP で公開する",
     "works in":"対応:",
     "& more":"ほか多数",
     "skill source":"スキルのソース",
     "prebuilt skills":"既製スキル",
-    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"保存したグラフがフォルダに溜まってきたら？MCP サーバーでまとめてツールとして提供できます。",
     "Every graph in the folder becomes a typed tool your agent can call.":"フォルダ内の各グラフが、エージェントが呼び出せる型付きツールになります。",
     "other agents & wallet mode → setup guide":"他のエージェント & ウォレットモード → セットアップガイド",
     "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"your-key をあなたの NanoGPT API キーに置き換えてください — 先にここでサインインすれば自動で入ります",
@@ -22162,7 +22159,18 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidd
 /* ⭐/🤖 corner pill — the "use in your agent" popover (installs the nanoodle Agent Skill).
    No stopPropagation dance: the document-level closer skips clicks inside the pill/popover,
    so the toggle below wins on the trigger itself (same idiom as #moremenu). */
-function setAgentPop(open){ if(open) renderAgentMcp(); $("agentpop").hidden = !open; $("agentbtn").setAttribute("aria-expanded", String(open)); }
+function setAgentPop(open){
+  const panel = $("agentpop");
+  const trigger = $("agentbtn");
+  const restoreFocus = !open && panel.contains(document.activeElement);
+  panel.hidden = !open;
+  trigger.setAttribute("aria-expanded", String(open));
+  if(open){
+    renderAgentMcp();
+    panel.scrollTop = 0;
+  }
+  if(restoreFocus) trigger.focus();
+}
 $("agentbtn").onclick = ()=> setAgentPop($("agentpop").hidden);
 document.addEventListener("click", e=>{ if(!$("agentpop").hidden && !$("agentpop").contains(e.target) && !$("agentpill").contains(e.target)) setAgentPop(false); });
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("agentpop").hidden) setAgentPop(false); });
