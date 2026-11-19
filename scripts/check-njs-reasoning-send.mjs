@@ -86,7 +86,7 @@ for (const label of ["play.html #njs-engine", "vendor/njs-engine.js"]) {
   };
   for (const [name, fields, want] of CASES) {
     for (const model of ["google/gemini-4-carbon", "google/gemini-4-argon", "fixture/other"]) {
-      await client.chat([], model, {...llmOpts({fields}), max_tokens:1536});
+      await client.chat([], model, llmOpts({fields}));
       const expected = model === "google/gemini-4-carbon" ? undefined : want;
       if (body.reasoning_effort !== expected || "thinking" in body || "max_tokens" in body) {
         fail(`${label}: ${model} ${name} send contract`);
