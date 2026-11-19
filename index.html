@@ -1028,6 +1028,22 @@
           width:min(560px,92vw); max-height:74vh; flex-direction:column; background:var(--panel);
           border:1px solid var(--line); border-radius:.8rem; box-shadow:0 18px 60px #000a; overflow:hidden }
   #mpick.open{ display:flex }
+  /* Popovers used to appear in a single frame — measured transition-duration
+     0s on every one — while the toast glides (.18s). Give the whole popover
+     family the toast's entrance: a short fade + settle. Keyframes, not
+     transitions, because these surfaces flip display:none -> flex, which a
+     transition cannot start from. Entrance only; closing stays instant. */
+  @keyframes popIn{ from{ opacity:0; transform:translateY(-6px) scale(.985) } to{ opacity:1; transform:translateY(0) scale(1) } }
+  @keyframes mpickIn{ from{ opacity:0; transform:translateX(-50%) translateY(-8px) scale(.99) } to{ opacity:1; transform:translateX(-50%) translateY(0) scale(1) } }
+  @keyframes fadeIn{ from{ opacity:0 } to{ opacity:1 } }
+  #addpop.open, #quickadd.open, #selmenu.open, #langpop.open, #authpop.open, #keyrow.open, #morepop.open{ animation:popIn .16s ease }
+  #mpick.open{ animation:mpickIn .18s ease }
+  #mpickback.show, #shareback:not([hidden]){ animation:fadeIn .15s ease }
+  #sharemenu:not([hidden]){ animation:popIn .16s ease }
+  @media (prefers-reduced-motion: reduce){
+    #addpop.open, #quickadd.open, #selmenu.open, #langpop.open, #authpop.open, #keyrow.open, #morepop.open,
+    #mpick.open, #mpickback.show, #shareback:not([hidden]), #sharemenu:not([hidden]){ animation:none }
+  }
   #mpick .mphead{ display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-bottom:1px solid var(--line) }
   #mpick .mphead .spacer{ flex:1 }
   #mpicksort{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:.5rem; padding:.25rem .4rem; font-size:.8rem; cursor:pointer }
