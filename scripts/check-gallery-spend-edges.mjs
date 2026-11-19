@@ -3,7 +3,7 @@
 // Those PRs already lock shelf membership, guide pages, samples provenance,
 // and capability fixtures. This file pins the leftover spend contract those
 // checks never hit: the exact catalog ids and the cheap demo knobs. Swapping
-// TRELLIS.2 for a pricier 3D id, lifting Seedance to 1080p / audio-on, or
+// TRELLIS.2 for a pricier 3D id, lifting Seedance Lite to 1080p, or
 // replacing GLM Flash would still pass the slug-list toys while the Examples
 // shelf billed a different run. Offline, zero API spend. New file so it does
 // not collide with check-example-results / check-arena-example-edges.
@@ -73,14 +73,13 @@ function byType(ex, type) {
       fail("finished look must stay Muse Edit at 16:9, got " + JSON.stringify(look[0] && look[0].fields));
     else if (
       shot.length !== 1 ||
-      shot[0].fields.model !== "bytedance-seedance-v1.5-pro" ||
+      shot[0].fields.model !== "seedance-lite-video" ||
       shot[0].fields.duration !== "5" ||
       shot[0].fields.resolution !== "720p" ||
-      !shot[0].fields.modelOpts ||
-      shot[0].fields.modelOpts.generateAudio !== false
+      shot[0].fields.modelOpts?.generateAudio === true
     )
-      fail("shot must stay Seedance 1.5 Pro 720p 5s silent, got " + JSON.stringify(shot[0] && shot[0].fields));
-    else ok("blockout-to-shot keeps GLM Flash ×3 → Muse 16:9 → Muse Edit → Seedance 720p 5s silent");
+      fail("shot must stay Seedance Lite 720p 5s without audio opt-in, got " + JSON.stringify(shot[0] && shot[0].fields));
+    else ok("blockout-to-shot keeps GLM Flash ×3 → Muse 16:9 → Muse Edit → Seedance Lite 720p 5s");
   }
 }
 
