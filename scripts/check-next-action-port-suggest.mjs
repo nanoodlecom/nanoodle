@@ -137,11 +137,13 @@ assert(!tables.weightsUrl, "port corpus must not carry a weightsUrl");
 }
 
 {
+  // Weak-edge fixture: tts.audio→trim.audio is the gallery's remaining
+  // single-occurrence edge (text→tts.prompt reached two with talking-photo).
   const weak = rankDropTypes(tables, {
     dir: "out",
-    srcType: "text",
-    srcPort: "text",
-    candidates: [{ type: "tts", ports: [{ name: "prompt" }] }],
+    srcType: "tts",
+    srcPort: "audio",
+    candidates: [{ type: "trim", ports: [{ name: "audio" }] }],
   });
   assert(weak === null, "a single gallery edge is not confident enough to rank");
 }
