@@ -1046,6 +1046,11 @@
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
   .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
+  /* picker sections (Recently used / Suggested / All models) — quiet headers so the
+     inline shortlists read as part of the one list, not three separate widgets */
+  #mpicklist .mpicksec{ padding:.55rem .55rem .15rem; font-size:.66rem; font-weight:700; letter-spacing:.08em;
+                       text-transform:uppercase; color:var(--dim); pointer-events:none }
+  #mpicklist .mpicksec:first-child{ padding-top:.1rem }
 
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -1836,6 +1841,9 @@ const I18N = {
     "Recent":"Recientes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "Recently used":"Usados recientemente",
+    "All models":"Todos los modelos",
+    "recent":"reciente",
     "often wired":"a menudo cableado",
     "common first node":"nodo inicial habitual",
     "often added next":"se suele añadir después",
@@ -2616,6 +2624,9 @@ const I18N = {
     "Recent":"Récent",
     "Suggested":"Suggérés",
     "suggested":"suggéré",
+    "Recently used":"Utilisés récemment",
+    "All models":"Tous les modèles",
+    "recent":"récent",
     "often wired":"souvent câblé",
     "common first node":"premier nœud courant",
     "often added next":"souvent ajouté ensuite",
@@ -3390,6 +3401,9 @@ const I18N = {
     "Recent":"Zuletzt verwendet",
     "Suggested":"Vorgeschlagen",
     "suggested":"vorgeschlagen",
+    "Recently used":"Zuletzt verwendet",
+    "All models":"Alle Modelle",
+    "recent":"zuletzt",
     "often wired":"oft verdrahtet",
     "common first node":"üblicher erster Node",
     "often added next":"oft als Nächstes hinzugefügt",
@@ -4156,6 +4170,9 @@ const I18N = {
     "Recent":"Recentes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "Recently used":"Usados recentemente",
+    "All models":"Todos os modelos",
+    "recent":"recente",
     "often wired":"a menudo cableado",
     "common first node":"nó inicial comum",
     "often added next":"costuma ser adicionado em seguida",
@@ -4926,6 +4943,9 @@ const I18N = {
     "Recent":"最近",
     "Suggested":"候補",
     "suggested":"候補",
+    "Recently used":"最近使用したモデル",
+    "All models":"すべてのモデル",
+    "recent":"最近",
     "often wired":"よく接続",
     "common first node":"よく最初に置くノード",
     "often added next":"次によく追加",
@@ -8975,6 +8995,28 @@ function pickerRowPrice(m){
   }
   return m.price;
 }
+/* Most-recently-used models, per picker kind, newest first. Stored as one small
+   localStorage object ({ chat:[ids…], image:[ids…] }); capped so it stays a
+   shortlist, never a second catalog. Recorded centrally in renderPicker's row
+   click so every pick path (node button, double-click, Describe-changes) counts. */
+const MODEL_RECENT_KEY = "nn_model_recent";
+const MODEL_RECENT_CAP = 8;
+function modelRecent(kind){
+  try{
+    const all = JSON.parse(localStorage.getItem(MODEL_RECENT_KEY) || "{}");
+    const l = all && all[kind];
+    return Array.isArray(l) ? l.filter(x=> typeof x === "string" && x) : [];
+  }catch{ return []; }
+}
+function recordModelRecent(kind, id){
+  if(!kind || !id) return;
+  try{
+    const all = JSON.parse(localStorage.getItem(MODEL_RECENT_KEY) || "{}") || {};
+    const prev = Array.isArray(all[kind]) ? all[kind] : [];
+    all[kind] = [id, ...prev.filter(x=> x !== id)].slice(0, MODEL_RECENT_CAP);
+    localStorage.setItem(MODEL_RECENT_KEY, JSON.stringify(all));
+  }catch{}
+}
 function openPicker(kind, opts){
   // Kick a background revalidate if the in-memory catalog is stale so brand-new
   // NanoGPT models show up without requiring a hard reload. Non-blocking.
@@ -9086,6 +9128,18 @@ function scrollPickerToCurrent(list){
   list.scrollTop += s.getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - s.offsetHeight)/2;
   return true;
 }
+function pickerShortlistRows(ids, byId, seen, cap){
+  const rows = [];
+  for(const id of ids){
+    if(rows.length >= cap) break;
+    if(seen.has(id)) continue;
+    const model = byId.get(id);
+    if(!model) continue;
+    seen.add(id);
+    rows.push(model);
+  }
+  return rows;
+}
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
@@ -9132,12 +9186,27 @@ function renderPicker(){
     } else d.textContent = t(hint);
     frag.appendChild(d);
   }
-  const rows = shown.slice(0,400);
-  if(picker.current && !rows.some(m=>m.id===picker.current)){ const cur = shown.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
-  for(const m of rows){
+  // Inline shortlists, only when not searching: Recently used (this browser's own
+  // picks for this kind), then Suggested (the same pin / gallery lift the flat list
+  // used to bury at the top), then everything else under "All models". A search
+  // query keeps the single flat list, exactly as before.
+  const byId = new Map(matches.map(m=> [m.id, m]));
+  let recentRows = [], suggestedRows = [], mainRows = shown;
+  if(!qNorm){
+    const sugIds = galleryTagged ? [...galleryTagged] : (pin ? [pin] : []);
+    const seen = new Set();
+    recentRows = pickerShortlistRows(modelRecent(picker.kind), byId, seen, 5);
+    suggestedRows = pickerShortlistRows(sugIds, byId, seen, 5);
+    if(recentRows.length || suggestedRows.length) mainRows = shown.filter(m=> !seen.has(m.id));
+  }
+  const sectioned = !!(recentRows.length || suggestedRows.length);
+  const rows = mainRows.slice(0,400);
+  const rendered = new Set([...recentRows, ...suggestedRows, ...rows].map(m=> m.id));
+  if(picker.current && !rendered.has(picker.current)){ const cur = shown.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
+  const rowFor = (m, badge)=>{
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
-    const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
+    const sug = badge==="suggested";
     if(sug) b.classList.add("suggested");
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.video_input?'<span class="tag edit">video in</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
@@ -9147,13 +9216,32 @@ function renderPicker(){
     const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
     const label = pickerModelLabel(m);
     if(label !== String(m.id||"")) b.title = String(m.id||"");
-    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
-    b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
-    frag.appendChild(b);
+    const pill = badge==="recent" ? `<span class="sug">recent</span>`
+               : sug ? `<span class="sug" title="${sugTitle}">suggested</span>` : "";
+    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${pill}<span class="price">${esc(pickerRowPrice(m))}</span>`;
+    b.onclick = ()=>{ recordModelRecent(picker.kind, m.id); picker.onPick(m.id); closePicker(); };
+    return b;
+  };
+  const secHead = (key)=>{
+    const d = document.createElement("div");
+    d.className = "mpicksec";
+    d.textContent = t(key);
+    frag.appendChild(d);
+  };
+  let rowCount = 0;
+  if(sectioned){
+    if(recentRows.length){ secHead("Recently used"); for(const m of recentRows){ frag.appendChild(rowFor(m, "recent")); rowCount++; } }
+    if(suggestedRows.length){ secHead("suggested"); for(const m of suggestedRows){ frag.appendChild(rowFor(m, "suggested")); rowCount++; } }
+    if(rows.length) secHead("All models");
+  }
+  for(const m of rows){
+    const sug = !sectioned && (galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin));
+    frag.appendChild(rowFor(m, sug ? "suggested" : null));
+    rowCount++;
   }
   $("mpicklist").replaceChildren(frag);
   translateTree($("mpicklist"));
-  if(picker.toCurrent && rows.length){ picker.toCurrent = false; scrollPickerToCurrent($("mpicklist")); }   // first full render only — typing a filter keeps its own scroll
+  if(picker.toCurrent && rowCount){ picker.toCurrent = false; scrollPickerToCurrent($("mpicklist")); }   // first full render only — typing a filter keeps its own scroll
 }
 
 /* ======================================================================
@@ -13024,8 +13112,65 @@ editor.addEventListener("dblclick", e=>{
     try{ tryDblclickDanglingAddWire(portEl); }catch(_){}
     return;
   }
+  // Double-click a node → open its model selector (the same picker the node's
+  // model button opens, with Recently used / Suggested inline). Never hijack
+  // the double-clicks that mean something else: text fields (word select),
+  // buttons, summaries, links, or the model button itself (its own clicks
+  // already opened the picker). Nodes without a model button fall through.
+  // The node under the cursor is the ground truth, not e.target: selecting a
+  // node on the first click can re-render it, which retargets the browser's
+  // dblclick at the canvas — e.target then names no node even though the user
+  // clearly double-clicked one. Fall back to the point when the target missed.
+  const hitEl = (e.target && e.target.closest && e.target.closest(".node")) ? e.target
+    : (typeof e.clientX === "number" ? document.elementFromPoint(e.clientX, e.clientY) : null);
+  const nodeEl = hitEl && hitEl.closest && hitEl.closest(".node");
+  if(nodeEl && editor.contains(nodeEl)){
+    if(hitEl.closest("input, textarea, select, [contenteditable], button, summary, a")) return;
+    if(openNodePickerDbl(nodeEl)){ e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
   if(onBg(e.target)) fitView();
-});   // port dblclick → add+wire (·40); empty canvas → reframe
+});   // port dblclick → add+wire (·40); node dblclick → model picker; empty canvas → reframe
+// Real pointer input on a node never produces that dblclick event: the drag
+// gesture preventDefaults pointerdown on nodes, which suppresses the
+// compatibility click/dblclick entirely (verified: two taps on a node header
+// fire pointerdown/up only). So detect the double-tap here, in the pointer
+// layer: two quick, still pointerups on the same node (not on a port, field,
+// button or link — those keep their own double-click meanings). Both paths
+// share openNodePickerDbl's debounce so they can't double-open.
+let _pickerDblGuard = { id:"", t:0 };
+function openNodePickerDbl(nodeEl){
+  const mp = nodeEl && nodeEl.querySelector(".modelpick");
+  if(!mp || mp.hidden || mp.disabled) return false;
+  const id = nodeEl.dataset.id || "";
+  const now = performance.now();
+  if(_pickerDblGuard.id === id && now - _pickerDblGuard.t < 700) return true;   // the other path just opened it
+  _pickerDblGuard = { id, t: now };
+  mp.click();
+  return true;
+}
+let _nodeTap = null, _nodeTapDown = null;
+editor.addEventListener("pointerdown", e=>{
+  _nodeTapDown = (e.isPrimary !== false && e.target && e.target.closest && e.target.closest(".node"))
+    ? { x: e.clientX, y: e.clientY } : null;
+}, true);
+editor.addEventListener("pointerup", e=>{
+  const down = _nodeTapDown; _nodeTapDown = null;
+  if(e.isPrimary === false || !down) return;
+  if(Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) { _nodeTap = null; return; }   // it was a drag, not a tap
+  const t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest(".port, input, textarea, select, [contenteditable], button, summary, a")){ _nodeTap = null; return; }
+  const nodeEl = t.closest(".node");
+  if(!nodeEl || !editor.contains(nodeEl)){ _nodeTap = null; return; }
+  const now = performance.now();
+  const prev = _nodeTap;
+  _nodeTap = { id: nodeEl.dataset.id || "", t: now, x: e.clientX, y: e.clientY };
+  if(prev && prev.id === _nodeTap.id && now - prev.t < 450 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 24){
+    _nodeTap = null;
+    openNodePickerDbl(nodeEl);
+  }
+});
 // Disclosure toggles (⚙️ advanced, LoRA, model options…) reflow the node, moving every port
 // below them — reroute wires. And a section holding a WIRED field port can't collapse: hiding
 // the socket would leave its wire dangling at a zero-rect anchor. ("toggle" doesn't bubble →
