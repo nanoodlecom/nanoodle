@@ -1,31 +1,31 @@
 {
   "unigram": {
-    "add:text": 477,
+    "add:text": 480,
     "add:image": 223,
-    "set:model": 628,
-    "wire": 1152,
+    "set:model": 637,
+    "wire": 1158,
     "add:ivideo": 55,
     "add:vedit": 19,
-    "add:comment": 180,
-    "run": 172,
-    "add:llm": 115,
+    "add:comment": 183,
+    "run": 175,
+    "add:llm": 118,
     "add:join": 104,
     "add:edit": 132,
     "add:resize": 46,
     "add:music": 36,
-    "add:tts": 20,
-    "add:lipsync": 28
+    "add:tts": 23,
+    "add:lipsync": 31
   },
   "bigram": {
     "add:text": {
       "add:text": 227,
       "add:image": 131,
       "add:ivideo": 12,
-      "add:llm": 41,
+      "add:llm": 42,
       "add:join": 30,
       "add:edit": 16,
       "add:music": 10,
-      "add:tts": 7,
+      "add:tts": 9,
       "add:comment": 1,
       "add:lipsync": 2
     },
@@ -33,25 +33,25 @@
       "set:model": 223
     },
     "set:model": {
-      "wire": 619,
-      "add:comment": 3,
+      "wire": 625,
+      "add:comment": 4,
       "add:join": 3,
-      "add:text": 3
+      "add:text": 5
     },
     "wire": {
       "add:ivideo": 43,
       "wire": 389,
       "add:vedit": 19,
-      "add:comment": 168,
+      "add:comment": 170,
       "add:text": 78,
       "add:image": 92,
       "add:join": 69,
-      "add:llm": 68,
+      "add:llm": 70,
       "add:edit": 115,
       "add:resize": 46,
       "add:music": 26,
-      "add:lipsync": 26,
-      "add:tts": 13
+      "add:lipsync": 27,
+      "add:tts": 14
     },
     "add:ivideo": {
       "set:model": 55
@@ -60,11 +60,11 @@
       "set:model": 19
     },
     "add:comment": {
-      "run": 172,
+      "run": 175,
       "add:comment": 8
     },
     "add:llm": {
-      "set:model": 115
+      "set:model": 118
     },
     "add:join": {
       "wire": 98,
@@ -82,23 +82,25 @@
       "set:model": 36
     },
     "add:tts": {
-      "set:model": 20
+      "set:model": 23
     },
     "add:lipsync": {
-      "set:model": 28
+      "set:model": 31
     }
   },
   "coldStart": {
-    "add:text": 167,
+    "add:text": 168,
     "add:llm": 3,
     "add:edit": 1,
-    "add:join": 1
+    "add:join": 1,
+    "add:lipsync": 2
   },
   "firstNode": {
-    "add:text": 167,
+    "add:text": 168,
     "add:llm": 3,
     "add:edit": 1,
-    "add:join": 1
+    "add:join": 1,
+    "add:lipsync": 2
   },
   "firstTrio": [
     {
@@ -239,6 +241,22 @@
     },
     {
       "actions": [
+        "add:lipsync",
+        "add:text",
+        "add:llm"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:lipsync",
+        "add:text",
+        "add:tts"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
         "add:text",
         "add:edit",
         "add:join"
@@ -260,7 +278,15 @@
         "add:llm"
       ],
       "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:tts",
+        "add:llm"
+      ],
+      "count": 1
     }
   ],
-  "total": 3387
+  "total": 3420
 }

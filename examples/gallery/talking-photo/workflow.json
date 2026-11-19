@@ -1,0 +1,154 @@
+{
+ "v": 1,
+ "lid": 6,
+ "nid": 8,
+ "nodes": [
+  {
+   "id": "c-intent",
+   "type": "comment",
+   "name": "How it works",
+   "fields": {
+    "color": "yellow",
+    "text": "Talking photo. Upload one front-facing photo with a story in its face \u2014 a statue, a painting, a portrait \u2014 write one short line, and the photo performs it: a voice model reads the line, LTX-2.5 Fast takes the photo and the voice clip as direct inputs and moves the mouth to the audio. Five seconds is the discipline: the clip follows the audio, and audio-driven runs bill per second. Swap the photo and the line, then \u25b6 Run. Have your own voice clip instead? It can replace the speech node \u2014 wire an audio upload into the same port."
+   },
+   "w": 900,
+   "x": -40,
+   "y": -380
+  },
+  {
+   "id": "src",
+   "type": "upload",
+   "name": "Subject photo",
+   "fields": {
+    "image": ""
+   },
+   "w": 320,
+   "x": -40,
+   "y": 0
+  },
+  {
+   "id": "script",
+   "type": "text",
+   "name": "Script \u2014 what the photo says",
+   "fields": {
+    "text": "Direction: an ancient marble emperor, woken after two thousand years. Low, gravelly, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
+   },
+   "w": 340,
+   "x": -40,
+   "y": 300
+  },
+  {
+   "id": "voice",
+   "type": "tts",
+   "name": "Voice \u2014 Sulafat performs the script",
+   "fields": {
+    "model": "gemini-3.1-flash-tts-preview",
+    "voice": "Sulafat",
+    "response_format": "wav"
+   },
+   "w": 340,
+   "x": 380,
+   "y": 300
+  },
+  {
+   "id": "clip",
+   "type": "trim",
+   "name": "Voice clip \u2014 first 5 seconds",
+   "fields": {
+    "start": "0",
+    "length": "5"
+   },
+   "w": 260,
+   "x": 800,
+   "y": 300
+  },
+  {
+   "id": "talk",
+   "type": "lipsync",
+   "name": "Talking photo \u2014 LTX-2.5 Fast",
+   "fields": {
+    "model": "lightricks/ltx-2.5/fast",
+    "prompt": "The subject in the photo speaks the supplied audio aloud, mouth moving in sync with the words. Locked camera, same framing. Only the mouth, jaw and a slight head movement move; everything else stays exactly as it is. No cuts, no new objects, no camera motion.",
+    "resolution": "720p",
+    "modelOpts": {
+     "generateAudio": false
+    },
+    "sample": "examples/gallery/talking-photo/talking-photo.mp4"
+   },
+   "w": 380,
+   "x": 800,
+   "y": 0
+  },
+  {
+   "id": "guide",
+   "type": "llm",
+   "name": "Guide \u2014 GLM writes what you made",
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "maxTokens": "500",
+    "reasoningEffort": "low",
+    "system": "You write the guide that ships with a talking-photo video. The input is the script node: a Direction line plus the spoken line after 'Script:'. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU MADE \u2014 a still photo performed one spoken line as a short video: quote the spoken line (only the words after 'Script:'), name the subject neutrally as the photo's subject, and say the mouth is driven by the voice clip, not generated speech.\nHOW IT WORKS \u2014 the script is performed by a Gemini TTS voice (Sulafat), trimmed to five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs with generated audio off; the clip's length follows the audio, and audio-driven runs render at 1080p even when 720p is selected.\nTHE HONEST EDGES \u2014 this bills per second: $0.14 a second at the audio-driven 1080p rate, so a five-second clip is about $0.70 plus a few cents of speech; keep lines to about ten words. No current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of the field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best; statues and paintings forgive more than photographs of real people.\nPlain sentences, no markdown, no hype. Do not invent details the input does not name."
+   },
+   "w": 340,
+   "x": 1260,
+   "y": 300
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "talk",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "script",
+    "port": "text"
+   },
+   "to": {
+    "node": "voice",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "voice",
+    "port": "audio"
+   },
+   "to": {
+    "node": "clip",
+    "port": "audio"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "clip",
+    "port": "audio"
+   },
+   "to": {
+    "node": "talk",
+    "port": "audio"
+   }
+  },
+  {
+   "id": "l5",
+   "from": {
+    "node": "script",
+    "port": "text"
+   },
+   "to": {
+    "node": "guide",
+    "port": "prompt"
+   }
+  }
+ ]
+}

@@ -81,6 +81,8 @@ const catalogs = {
     { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '768p', '1080p']), duration: opts(['5','6','7','8','9','10','11','12','13','14','15']),
         camera_motion: opts(['orbit-right','orbit-left','push-in','pull-back','rise']) } } },
+    { id: 'lightricks/ltx-2.5/fast', architecture: { modality: 'text+image+audio->video', input_modalities: ['text', 'image', 'audio'] }, capabilities: { text_to_video: true, image_to_video: true, audio_input: true, audio_generation: true },
+      supported_parameters: { parameters: { resolution: opts(['720p', '1080p', '1440p', '2160p']), duration: opts(['6','8','10','12','14','16','18','20']), generateAudio: { type: 'switch', default: true } } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
     { id: 'wan-video-image-to-video', capabilities: { image_to_video: true },
@@ -105,7 +107,7 @@ const catalogs = {
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
-    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
+    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore', 'Sulafat'] } },
     { id: 'gpt-4o-mini-tts', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] } },
     { id: 'elevenlabs/eleven-v4-turbo', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Alicia', 'Aria', 'Roger', 'Sarah', 'Laura', 'Charlie', 'George', 'Callum', 'River', 'Liam', 'Charlotte', 'Alice', 'Matilda', 'Will', 'Jessica', 'Eric', 'Chris', 'Brian', 'Daniel', 'Lily', 'Bill'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },

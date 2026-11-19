@@ -1,0 +1,11 @@
+WHAT YOU MADE
+
+This is a still photo performed as a short video. The subject is an ancient marble emperor, and the clip shows him delivering one spoken line: "Two thousand years silent... and you wake me NOW?" The mouth moves because it is driven by the voice clip, not generated speech. The photograph does the acting; the audio does the talking, and the two are joined at render time.
+
+HOW IT WORKS
+
+The script is performed by a Gemini TTS voice named Sulafat, then trimmed to five seconds. LTX-2.5 Fast takes the photo and that audio as direct inputs, with generated audio turned off. The clip's length follows the audio, so the video runs as long as the voice does. Note that audio-driven runs render at 1080p even when 720p is selected.
+
+THE HONEST EDGES
+
+This bills per second: $0.14 a second at the audio-driven 1080p rate, so a five-second clip is about $0.70 plus a few cents of speech. Keep lines to about ten words. No current model reliably closes the mouth on pauses — in a frame-counted shootout LTX was best of the field and still only closed on 2 of 6 pauses — so short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best; statues and paintings forgive more than photographs of real people.
