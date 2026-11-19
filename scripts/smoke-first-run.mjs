@@ -161,7 +161,7 @@ try {
         assert.ok(await page.locator("#top").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "the compact toolbar fits at 320px");
         await page.setViewportSize(viewport);
       }
-      assert.equal(await page.locator("#makeapp").isVisible(), false, "Create app stays in More");
+      assert.equal(await page.locator("#makeapp").isVisible(), false, "Create app stays in Share workflow");
       const mcp = page.getByRole("button", {name:"Connect to MCP"});
       await mcp.press("Enter");
       const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted");
@@ -187,8 +187,21 @@ try {
         "sample image actually decodes");
       await page.locator("#demox").click();
 
-      await page.getByRole("button", {name:"More actions"}).click();
-      await page.getByRole("button", {name:"Create app", exact:true}).click();
+      const shareWorkflow = page.getByRole("button", {name:"Share workflow", exact:true});
+      await page.evaluate(() => {
+        window.workflowLinksCopied = [];
+        copyText = async text => { window.workflowLinksCopied.push(text); return true; };
+      });
+      await shareWorkflow.click();
+      const sharePanel = page.getByRole("dialog", {name:"Share this workflow"});
+      await sharePanel.waitFor();
+      const workflowLink = await sharePanel.locator("#sm-url").inputValue();
+      assert.match(workflowLink, /#[gj]=/);
+      assert.deepEqual(await page.evaluate(() => window.workflowLinksCopied), [], "opening Share does not overwrite the clipboard");
+      await sharePanel.getByRole("button", {name:"Copy", exact:true}).click();
+      await page.waitForFunction(() => window.workflowLinksCopied.length === 1);
+      assert.deepEqual(await page.evaluate(() => window.workflowLinksCopied), [workflowLink]);
+      await sharePanel.getByRole("button", {name:"Create app", exact:true}).click();
       // The iframe element exists before play.html wires its controls and loads
       // the handoff. Use the editor's validated __appready__ handshake instead.
       await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
@@ -211,8 +224,8 @@ try {
       assert.match(download.suggestedFilename(), /\.html$/);
       assert.equal(await download.failure(), null);
       await page.locator("#appmodalclose").click();
-      await page.getByRole("button", {name:"More actions"}).click();
-      await page.getByRole("button", {name:"My apps", exact:true}).click();
+      await shareWorkflow.click();
+      await sharePanel.getByRole("button", {name:"My apps", exact:true}).click();
       await builder.locator("#appsmenu:not([hidden])").waitFor();
 
       const recipient = await (await newContext()).newPage();

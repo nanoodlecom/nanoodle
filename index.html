@@ -1073,8 +1073,8 @@
   #appblock #appblockx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .35rem; border-radius:.4rem }
   #appblock #appblockx:hover{ background:var(--panel2); color:var(--ink) }
 
-  /* ---------- More menu — app actions and narrow-toolbar overflow ---------- */
-  #moremenu{ position:relative }
+  /* ---------- Narrow-toolbar overflow ---------- */
+  #moremenu{ position:relative; display:none }
   #morepop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
             border-radius:var(--nano-radius-card,12px); padding:.35rem; display:none; flex-direction:column; gap:.1rem;
             width:min(240px, calc(100vw - 1.1rem)); max-height:calc(100dvh - 4rem); overflow:auto;
@@ -1085,8 +1085,7 @@
   #morepop button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12 }
   #morepop button:hover{ background:var(--panel2) }
   #morepop #status{ padding:.45rem .65rem; font-size:.76rem; color:var(--dim) }
-  #morepop .mdiv{ display:none; height:1px; background:var(--line); margin:.25rem .2rem }
-  body.narrowbar #morepop .mdiv{ display:block }
+  #moreaccountdivider{ height:1px; background:var(--line); margin:.25rem .2rem }
   #morepop > *{ flex:none }
 
   /* Keep i18n available without making it look like a primary product surface. */
@@ -1101,6 +1100,7 @@
   body.narrowbar #run{ min-width:3.3rem }
   body.narrowbar #agentbtn .lbl{ display:none }
   body.narrowbar #agentbtn .compact{ display:inline }
+  body.narrowbar #moremenu{ display:block }
   body.narrowbar #agentmenu, body.narrowbar #moremenu{ position:static }
   body.narrowbar #agentpop, body.narrowbar #morepop{ top:calc(100% + .35rem); left:auto; right:max(.55rem,env(safe-area-inset-right)) }
   body.narrowbar #top .spacer{ display:none }
@@ -1162,8 +1162,19 @@
   #sharemenu{ position:fixed; right:.6rem; top:calc(52px + var(--ws-h) + .35rem); z-index:191; width:min(360px,94vw);
               max-height:80vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
               border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem; }
+  @media (max-height:650px){
+    #sharemenu{ max-height:calc(100dvh - 52px - var(--ws-h) - 1rem) }
+  }
   #sharemenu[hidden], #shareback[hidden]{ display:none; }
   .sm-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); padding:.3rem .5rem .35rem; }
+  #sharemenu .sm-header{ display:flex; justify-content:space-between; align-items:center; gap:.4rem; margin-bottom:.35rem }
+  #shareclose{ background:none; color:var(--dim); padding:.2rem .6rem }
+  #sharemenu .sm-apps{ display:flex; flex-wrap:wrap; gap:.2rem .45rem; padding:.25rem 0;
+                       margin:.6rem .15rem; border-block:1px solid var(--line) }
+  #sharemenu .sm-apps button{ border:0; background:transparent; color:var(--dim);
+                              padding:.4rem .45rem; font-size:.8rem; text-align:left }
+  #sharemenu .sm-apps button:hover{ color:var(--ink); background:var(--panel2) }
+  @media (pointer:coarse){ #shareclose, #sharemenu .sm-apps button{ min-height:44px } }
   .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--dim); margin:.4rem .15rem .1rem; line-height:1.4; }
@@ -1187,6 +1198,10 @@
   #workspaces{ position:fixed; top:52px; left:0; right:0; height:var(--ws-h); z-index:29;
     display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
     background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
+  #share{ flex:none; align-self:center; margin-left:auto; min-height:27px; padding:0 .65rem;
+          color:var(--dim); font-size:.78rem; white-space:nowrap }
+  #share:hover, #share[aria-expanded="true"]{ color:var(--ink); border-color:var(--nano-color-control-line,#67728a) }
+  #share .compact{ display:none }
   /* The active tab paints 1px over this bar's border (.wstab.on::after). That
      pixel has to sit inside the strip, or overflow-x:auto computes a vertical
      scrollbar between the last tab and +. A visible horizontal bar steals the
@@ -1264,6 +1279,9 @@
   @media (max-width:720px){
     :root{ --ws-h:52px }
     #workspaces{ align-items:center; padding-left:max(.5rem, env(safe-area-inset-left)); padding-right:max(.5rem, env(safe-area-inset-right)); }
+    #share{ margin-left:.25rem; min-height:44px; font-size:.88rem }
+    #share .lbl{ display:none }
+    #share .compact{ display:inline }
     #wstabs{ display:none }
     #wsaddwrap{ display:none }
     #wsdrop{ display:inline-flex; align-items:center; gap:.4rem; flex:1 1 auto; min-width:0; width:100%;
@@ -1297,11 +1315,6 @@
 <header id="top">
   <h1 class="vh">nanoodle — AI workflows and MCP tools</h1>
   <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
-  <div id="addmenu">
-    <button id="addbtn" title="Add a node" aria-label="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
-    <div id="addpop"></div>
-  </div>
-  <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ <span>Run</span></button>
   <div id="agentmenu">
     <button id="agentbtn" type="button" aria-label="Connect to MCP" title="Connect to MCP" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Connect to MCP</span><span class="compact" data-no-i18n>MCP</span></button>
     <div id="agentpop" hidden role="dialog" aria-labelledby="agenttitle">
@@ -1333,7 +1346,12 @@
       </details>
     </div>
   </div>
-  <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 <span>Share workflow</span></button>
+  <div class="sep"></div>
+  <div id="addmenu">
+    <button id="addbtn" title="Add a node" aria-label="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
+    <div id="addpop"></div>
+  </div>
+  <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ <span>Run</span></button>
   <button id="save" title="download this graph as JSON">⭳ <span>Save</span></button>
   <button id="load" title="open a graph JSON file">⭱ <span>Load</span></button>
   <button id="updates" title="What’s new in nanoodle">📣 <span>Updates</span><span id="updbadge" hidden></span></button>
@@ -1341,11 +1359,7 @@
   <div id="moremenu">
     <button id="morebtn" type="button" title="More actions" aria-label="More actions" aria-controls="morepop" aria-expanded="false">⋯</button>
     <div id="morepop">
-      <div id="moreworkflowdivider" class="mdiv" aria-hidden="true"></div>
-      <button id="makeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
-      <button id="newapp" type="button" hidden title="Save this as a brand-new app — the one you’re editing stays untouched">Save as a new app</button>
-      <button id="openapps" type="button" hidden title="Open one of your saved apps — created or imported">My apps</button>
-      <div class="mdiv" aria-hidden="true"></div>
+      <div id="moreaccountdivider" aria-hidden="true"></div>
     </div>
   </div>
   <div class="sep"></div>
@@ -1383,6 +1397,7 @@
     </div>
   </div>
   <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
+  <button id="share" type="button" aria-label="Share workflow" title="Share workflow" aria-haspopup="dialog" aria-controls="sharemenu" aria-expanded="false"><span class="lbl">Share workflow</span><span class="compact">Share</span></button>
 </div>
 <div id="wspersistence" hidden role="status"><span id="wspersistence-text"></span><button id="wspersistence-save" type="button" hidden>Save this workflow</button><button id="wspersistence-retry" type="button" hidden>Retry saving</button></div>
 
@@ -1515,13 +1530,21 @@
 </div>
 
 <!-- SHARE popover — copy / shorten (opt-in, first-party nanolink) / share-to-social. Same as the app share. -->
-<div id="sharemenu" hidden>
-  <div class="sm-head">Share this workflow</div>
+<div id="sharemenu" hidden role="dialog" aria-labelledby="sharetitle">
+  <div class="sm-header">
+    <div id="sharetitle" class="sm-head">Share this workflow</div>
+    <button id="shareclose" type="button" aria-label="Close" title="Close">×</button>
+  </div>
   <div class="sm-urlrow">
     <input id="sm-url" class="sm-url" readonly />
     <button id="sm-copy" class="sm-copy">Copy</button>
   </div>
   <p class="sm-note">This link opens your exact workflow for anyone to run or remix.</p>
+  <div class="sm-apps">
+    <button id="makeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
+    <button id="newapp" type="button" hidden title="Save this as a brand-new app — the one you’re editing stays untouched">Save as a new app</button>
+    <button id="openapps" type="button" hidden title="Open one of your saved apps — created or imported">My apps</button>
+  </div>
 
   <div class="sm-head">Make it shorter — optional</div>
   <p class="sm-warn">nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens. <a href="https://github.com/nanoodlecom/nanolink" target="_blank" rel="noopener">view nanolink source</a></p>
@@ -17597,8 +17620,8 @@ document.addEventListener("click", e=>{ if(!$("authmenu").contains(e.target)) $(
 $("authpop").addEventListener("click", e=>{ if(e.target.closest("button,a")) $("authpop").classList.remove("open"); });
 
 /* ---------- responsive toolbar: move secondary workflow and account controls into More ----------
-   App actions live in More at every width. Moved controls retain their handlers. */
-const WORKFLOW_RELOC = ["share","save","load","updates"];
+   Moved controls retain their handlers. */
+const WORKFLOW_RELOC = ["save","load","updates"];
 const ACCOUNT_RELOC = ["signin","pastebtn","authnew","signout","status"];
 let topOrder = null;
 // Collapse into ⋯ by MEASURING true one-line overflow, not a fixed media query: the bar's natural width
@@ -17612,7 +17635,7 @@ function expandBar(){
   $("authpop").appendChild($("authnew"));                    // ...and put the create-account link back below it (collapseBar moved it into ⋯ via RELOC)
 }
 function collapseBar(){
-  const pop = $("morepop"), divider = $("moreworkflowdivider");
+  const pop = $("morepop"), divider = $("moreaccountdivider");
   document.body.classList.add("narrowbar");
   WORKFLOW_RELOC.forEach(id=> pop.insertBefore($(id), divider));
   ACCOUNT_RELOC.forEach(id=> pop.appendChild($(id)));
@@ -17621,6 +17644,7 @@ function layoutBar(){
   if(!topOrder) return;                                // boot hasn't snapshotted the original order yet
   expandBar();
   if($("top").scrollWidth > $("top").clientWidth + 1) collapseBar();   // one line wouldn't fit → move secondary actions into ⋯
+  else if($("morepop").classList.contains("open")) setMorePop(false);
 }
 let barRAF = 0;
 addEventListener("resize", ()=>{ if(barRAF) return; barRAF = requestAnimationFrame(()=>{ barRAF = 0; layoutBar(); }); });
@@ -18299,20 +18323,6 @@ async function shortenWith(svc, longUrl){
   if(!/^https?:\/\/\S+$/.test(t)) throw new Error("no link returned");
   return t;
 }
-async function shareUrl(){
-  const url = await buildShareUrl();
-  const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
-  const ok = await copyText(url);
-  // Surface the #g= in the address bar ONLY when the copy failed (so "copy it from the
-  // address bar" stays valid). On success leave OUR own URL clean: a leftover handoff hash
-  // gets re-consumed on the next reload — loadFromHash runs setPendingApp(null), unbinding the
-  // app so "✨ Update app" reverts to "✨ Create app" and the next save spawns a duplicate.
-  if(!ok) history.replaceState({}, "", url);
-  toast((ok
-    ? t("✓ Workflow link copied — shorten or share it below")
-    : t("Workflow link is in the address bar — copy it below")) + big, ok?"":"err");
-  openShareMenu(url);                                // same popover the app share uses: copy / shorten / share-to-social
-}
 // ---- share popover (ported from play.html's app share; reused here for the workflow link) ----
 let curShareUrl = "";    // the link the popover currently reflects (long, or a shortened one)
 let curLongShareUrl = ""; // the FULL long link the popover was opened with — what shortening always acts on
@@ -18353,8 +18363,22 @@ function syncShortenButtons(){
   const social = document.querySelector("#sharemenu .sm-social");
   if(social){ social.hidden = over; if(social.previousElementSibling) social.previousElementSibling.hidden = over; }
 }
-function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); syncShortenButtons(); $("sharemenu").hidden = false; $("shareback").hidden = false; }
-function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
+function openShareMenu(url){
+  curLongShareUrl = url;
+  setShareUrl(url);
+  syncShortenButtons();
+  $("sharemenu").hidden = false;
+  $("shareback").hidden = false;
+  $("share").setAttribute("aria-expanded", "true");
+}
+function closeShareMenu(){
+  const panel = $("sharemenu");
+  const restoreFocus = !panel.hidden && panel.contains(document.activeElement);
+  panel.hidden = true;
+  $("shareback").hidden = true;
+  $("share").setAttribute("aria-expanded", "false");
+  if(restoreFocus) $("share").focus();
+}
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
 // this id so the app updates in place instead of spawning a fresh default app.
@@ -20706,9 +20730,19 @@ async function loadFromHash(){
     return false;
   }
 }
-$("share").onclick = ()=> shareUrl().catch(e=> flash(t("share failed")+": "+e.message));
+$("share").onclick = async ()=>{
+  try{
+    openShareMenu(await buildShareUrl());
+    $("sm-copy").focus();
+  }catch(e){ flash(t("share failed")+": "+e.message); }
+};
+$("shareclose").onclick = closeShareMenu;
 $("shareback").onclick = closeShareMenu;
-$("sm-copy").onclick = async ()=>{ const ok = await copyText(curShareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
+$("sm-copy").onclick = async ()=>{
+  const ok = await copyText(curShareUrl);
+  if(!ok){ $("sm-url").focus(); $("sm-url").select(); }
+  toast(ok?t("✓ Copied"):t("copy failed"), ok?"":"err");
+};
 $("sm-url").onclick = ()=> $("sm-url").select();
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
@@ -20867,11 +20901,15 @@ async function openCreateApp(){
   }
   openAppModal(hash);
 }
-$("makeapp").onclick = openCreateApp;
+$("makeapp").onclick = ()=>{ closeShareMenu(); return openCreateApp(); };
 // "Save as a new app" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
-$("newapp").onclick = ()=>{ try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; } openCreateApp(); };
-$("openapps").onclick = openMyApps;
+$("newapp").onclick = ()=>{
+  closeShareMenu();
+  try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
+  return openCreateApp();
+};
+$("openapps").onclick = ()=>{ closeShareMenu(); openMyApps(); };
 function showCreateAppBlock(){
   const el = $("appblock"); if(!el) return;
   const names = graph.nodes.filter(n=> n.type==="model3d" || n.type==="mupload")

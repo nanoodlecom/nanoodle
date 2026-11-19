@@ -17,7 +17,7 @@
 //
 // INVARIANTS ENFORCED
 //   Editor (index.html):
-//    1. A workflow loaded via #ga=<id> binds to that app. More shows "Update <name>"
+//    1. A workflow loaded via #ga=<id> binds to that app. Share shows "Update <name>"
 //       and "Save as a new app". The update action re-emits #ga=<same id>.
 //    2. That binding SURVIVES a plain reload (persisted outside noodle_graph), so the
 //       next Create app still updates — never duplicates. [the lost-on-reload bug]
