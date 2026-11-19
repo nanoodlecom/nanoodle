@@ -7739,7 +7739,13 @@ function refreshModelOpts(n){
   const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
   const defs = videoOptDefs(n.fields.model, n.type);
   if(!defs.length){ box.innerHTML=""; return; }
-  const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
+  // Read-only until a knob is actually set (the listeners below materialize on
+  // first edit). Writing an empty {} into fields here would mutate the graph on
+  // mere render: save() persists the blob, and the signed-out demo's exact-match
+  // signature (appHandoffSig over fields) can then never match the shipped
+  // starter — a pristine first run gets misread as an edited one ("your edits
+  // aren't reflected yet" shown to a visitor who edited nothing).
+  const cur = n.fields.modelOpts || {};
   for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
   for(const d of defs){               // quality / mode / similar selects: same clamp as duration/size
     if(d.type!=="select") continue;
@@ -7786,13 +7792,16 @@ function refreshModelOpts(n){
   box.querySelectorAll("[data-of]").forEach(el=>{
     const key = el.dataset.of;
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
-      if(el.type==="checkbox") cur[key] = el.checked;
-      else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
+      // First real edit materializes fields.modelOpts; clearing a knob on a node
+      // that never stored options must not leave an empty object behind either.
+      const store = ()=> n.fields.modelOpts || (n.fields.modelOpts = {});
+      if(el.type==="checkbox") store()[key] = el.checked;
+      else if(el.value===""){ if(n.fields.modelOpts) delete n.fields.modelOpts[key]; }   // omit empty → the model's own default applies (send-only-when-nonempty)
       else if(el.type==="number"){
         const num=Number(el.value), dd=defs.find(x=>x.key===key);
-        cur[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
+        store()[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
       }
-      else cur[key] = el.value;                                    // select / text / textarea
+      else store()[key] = el.value;                                // select / text / textarea
       // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
       updateNodePrice(n); refreshRunEstimate();
       save();
