@@ -63,7 +63,7 @@ const files=n=>({'index.html':'<title>v'+n+'</title>','app.css':'/*v'+n+'*/'});
 function builder(){
  const d=dom(),ctx={...d,console,AbortController,performance,busy:false,custAbort:null,pendingHandoff:null,appDirty:false,CONTRACT:'offline',MODEL:'offline',FALLBACK_MODEL:'offline',
  APP_STATE:{files:{...files(1),'runtime.js':'keep-runtime'},graph:{nodes:[]},versions:[{files:files(0),goal:'start'},{files:files(1),goal:'one'}],curVer:1},
- getKey:()=> 'offline-test',loadChatCatalog:async()=>{},resetUsage(){},buildEnvironment:x=>x,NoodleApp:{materialize:x=>x,describeGraph:()=> 'offline graph'},streamingCallLlm:()=>()=>{},parseDiffPerFile:()=>[{}],ioSignature:()=> 'offline',exitFirstRun(){},syncTitleFromFiles(){},renderApp(){},commit(){},persist(){},usageMeter:()=>'',esc:s=>s,friendlyRunError:e=>e.message,newSuggestion(){},syncSuggest(){},syncApply(){},toast(){}};
+ getKey:()=> 'offline-test',loadChatCatalog:async()=>{},resetUsage(){},buildEnvironment:x=>x,NoodleApp:{materialize:x=>x,describeGraph:()=> 'offline graph'},streamingCallLlm:()=>()=>{},parseDiffPerFile:()=>[{}],ioSignature:()=> 'offline',exitFirstRun(){},syncTitleFromFiles(){},renderApp(){},commit(){return true;},persist(){},usageMeter:()=>'',esc:s=>s,friendlyRunError:e=>e.message,newSuggestion(){},syncSuggest(){},syncApply(){},toast(){}};
  vm.createContext(ctx);vm.runInContext(['renderVersions','selectVersion','pushVersion','stopCustomize','setCustBusy','runDiffPass','applyCustomize'].map(n=>fn(play,n)).join('\n'),ctx);ctx.renderVersions();return ctx;
 }
 function deferred(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}

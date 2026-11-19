@@ -84,6 +84,131 @@ const cspByPath = new Map();
   }
 }
 const cspFor = (pathname) => cspByPath.get(pathname) || (pathname === "/" ? cspByPath.get("/index.html") : "") || "";
+async function verifyAppLifecycle(page) {
+  await page.goto(origin, {waitUntil:'networkidle'});
+  const action=page.locator('#wsmakeapp');
+  const dismiss=page.locator('#appmodalclose');
+  const frame=page.frameLocator('#appmodalframe');
+  const status=frame.locator('#app-transition-message');
+  const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('noodle_apps')||'[]'));
+  const id=()=>page.evaluate(()=>pendingAppId);
+  const openShare=async()=>{await page.locator('#share').click(); await page.locator('#sharemenu').waitFor();};
+  const editorAction=async()=>{
+    if(!await frame.locator('#openeditor').isVisible()) await frame.locator('#barmore').click();
+    await frame.locator('#openeditor').click();
+    await page.locator('#appmodal').waitFor({state:'hidden'});
+  };
+  await action.getByText("Create app", {exact:true}).waitFor();
+  await action.click();
+  await status.getByText('App created and saved in My apps on this browser.').waitFor();
+  const original=await id();
+  assert.ok(original);
+  const originalTitle=await frame.locator("#bar-title").textContent();
+  assert.equal((await saved()).length,1);
+  const originalWorkflow=await page.evaluate(()=>readWorkspaces().active);
+  await editorAction();
+  assert.equal(await action.locator('#wsapplabel').textContent(),'Open app');
+  await action.locator('#wsappname').getByText(originalTitle,{exact:true}).waitFor();
+
+  const note=page.locator('.node textarea').first();
+  const changed='A revised story prompt used to test app updates.';
+  await note.evaluate((el,text)=>{el.value=text;el.dispatchEvent(new Event("input",{bubbles:true}));},changed);
+  await action.getByText('Update app',{exact:true}).waitFor();
+  await action.locator('#wsappname').getByText(originalTitle,{exact:true}).waitFor();
+  await openShare();
+  await page.locator('#appcontext').getByText(/Previously shared links keep their version/).waitFor();
+  await page.locator('#makeapp').click();
+  await status.getByText(/Copy a new link to share this version/).waitFor();
+  assert.equal(await id(),original);
+  assert.equal((await saved()).length,1);
+  assert.ok(JSON.stringify((await saved())[0].graph).includes(changed));
+  await dismiss.click();
+
+  // Deny the next local library write in the mounted builder, then allow retry.
+  const builder=page.frames().find(f=>new URL(f.url()).pathname==='/play.html');
+  await builder.evaluate(()=>{
+    const set=Storage.prototype.setItem;
+    window.failLibrarySave=true;
+    Storage.prototype.setItem=function(key,value){
+      if(key==='noodle_apps'&&window.failLibrarySave) throw new DOMException('Fixture quota','QuotaExceededError');
+      return set.call(this,key,value);
+    };
+  });
+  await openShare();
+  await page.locator('#appcopycontext').getByText(/starts with the default layout/).waitFor();
+  await page.locator('#newapp').click();
+  await status.getByText(/App not saved/).waitFor();
+  assert.equal(await id(),original);
+  assert.equal((await saved()).length,1);
+  await dismiss.click();
+  await action.getByText('Unsaved app', {exact:true}).waitFor();
+  await action.click();
+  await status.getByText(/App not saved/).waitFor();
+  await builder.evaluate(()=>{ window.failLibrarySave=false; });
+  await frame.locator('#retry-app-save').click();
+  await status.getByText(/App created and saved/).waitFor();
+  await page.waitForFunction(previous=>pendingAppId && pendingAppId!==previous,original);
+  const copy=await id();
+  const copyTitle="Distinct replacement preview";
+  const rename=frame.locator('#bar-title');
+  await rename.press('Enter');
+  await rename.fill(copyTitle);
+  await rename.press('Enter');
+  await page.waitForFunction(({copy,copyTitle})=>JSON.parse(localStorage.getItem('noodle_apps')).some(app=>app.id===copy&&app.title===copyTitle),{copy,copyTitle});
+  assert.equal((await saved()).length,2);
+  await dismiss.click();
+
+  // Browse a different app, close it, then reopen the one this workspace owns.
+  await openShare();
+  await page.locator('#openapps').click();
+  const library=frame.locator('#am-list .am-main');
+  await library.first().waitFor();
+  await library.last().click();
+  await frame.locator("#bar-title").getByText(originalTitle,{exact:true}).waitFor();
+  await dismiss.click();
+  const beforeOpen=await saved();
+  await action.click();
+  await page.waitForFunction(()=>!document.querySelector('#appmodalframe').hidden);
+  await frame.locator("#bar-title").getByText(copyTitle,{exact:true}).waitFor();
+  assert.equal(await id(),copy);
+  assert.deepEqual(await saved(),beforeOpen);
+  await dismiss.click();
+
+  // Edit an unrelated app from My apps; the original workspace is kept.
+  await openShare();
+  await page.locator('#openapps').click();
+  await library.last().click();
+  await editorAction();
+  assert.equal(await id(),original);
+  assert.notEqual(await page.evaluate(()=>readWorkspaces().active), originalWorkflow);
+  assert.equal(await page.evaluate(previous=>readWorkspaces().tabs.find(tab=>tab.id===previous).app.id, originalWorkflow),copy);
+  await page.evaluate(()=>{
+    localStorage.setItem('noodle_apps', JSON.stringify(JSON.parse(localStorage.getItem('noodle_apps')).filter(app=>app.id!==pendingAppId)));
+    updateTitle();
+  });
+  await action.getByText('App unavailable').waitFor();
+  await action.click();
+  await page.locator('#makeapp').getByText('Create replacement app').waitFor();
+  assert.equal((await saved()).length,1);
+  await page.locator('#makeapp').click();
+  await status.getByText(/App created and saved/).waitFor();
+  assert.notEqual(await id(),original);
+  assert.equal((await saved()).length,2);
+  await dismiss.click();
+
+  // An unlinked workspace gives direct access to saved apps and its own create action.
+  await page.evaluate(()=>openWorkspaceWithGraph(textToImageGraph(),'Another workflow',{fit:true}));
+  await action.getByText('My apps',{exact:true}).waitFor();
+  await action.click();
+  await frame.getByRole('button',{name:'Create app for this workflow',exact:true}).waitFor();
+  assert.equal(await id(),null);
+  assert.equal((await saved()).length,2);
+  await frame.getByRole('button',{name:'Create app for this workflow',exact:true}).click();
+  await status.getByText(/App created and saved/).waitFor();
+  await page.waitForFunction(()=>!!pendingAppId);
+  assert.equal((await saved()).length,3);
+}
+
 let browser;
 try {
   browser = await chromium.launch({ headless:true,
@@ -230,7 +355,7 @@ try {
       await page.locator("#appmodalclose").click();
       await shareWorkflow.click();
       const shareApp = sharePanel.locator("#makeapp");
-      assert.equal(await shareApp.getAttribute("title"), await page.locator("#wsmakeapp").getAttribute("title"), "both app actions target the same saved app");
+      assert.ok((await shareApp.getAttribute("title")).includes(await page.locator("#wsappname").textContent()), "both app actions name the same saved app");
       await shareApp.click();
       await builder.locator("#appframe").waitFor();
       await page.locator("#appmodalclose").click();
@@ -258,6 +383,10 @@ try {
       assert.equal(oauth.searchParams.get("client_id"), "browser-smoke-client");
       assert.deepEqual(forbidden, [], "sample, share and export make no paid or unexpected external requests");
       assert.deepEqual(errors, [], "no browser JavaScript errors");
+      await verifyAppLifecycle(await (await newContext()).newPage());
+      assert.deepEqual(forbidden, [], "app lifecycle makes no paid requests");
+      assert.deepEqual(errors, [], "app lifecycle has no browser errors");
+      console.log(`✓ ${label}: create, update, retry a failed copy, reopen after browsing, edit in a separate workspace, replace a missing app`);
       console.log(`✓ ${label}: sample → app → share/export → recipient NanoGPT OAuth; no paid calls`);
     } catch (error) {
       const builderFrame = page.frames().find(frame => {
