@@ -515,22 +515,36 @@ const producerCands = [
 {
   const start = index.indexOf("function quickSpawn(");
   const source = index.slice(start, index.indexOf("// pan (one finger", start));
+  const layout = index.slice(index.indexOf("function geoFitInputs("), index.indexOf("function geoUpstreamY("));
   function run(geometry, muted = false, throws = false) {
+    const ports = ["a", "b"].map(port => ({ dataset: { node: "new", port }, classList: { contains: () => false } }));
     const ctx = { undoMuted: muted, graph: { nodes: [{ id: "source" }], links: [] }, snapshots: [],
       pushUndo() { if (!ctx.undoMuted) ctx.snapshots.push(JSON.stringify(ctx.graph)); },
-      addNode(type) { ctx.pushUndo(); if (throws) throw new Error("render failed"); const n = { id: "new", type, el: { querySelectorAll: () => [{ dataset: { node: "new", port: "prompt" }, classList: { contains: () => false } }] } }; ctx.graph.nodes.push(n); return n; },
+      addNode(type, x, y) {
+        ctx.pushUndo();
+        if (throws) throw new Error("render failed");
+        const n = { id: "new", type, x, y, el: { style: {}, querySelectorAll: () => ports } };
+        ctx.graph.nodes.push(n);
+        return n;
+      },
       separateOnAdd() {}, rememberAdd() {}, select() {}, geoOn: () => geometry,
       byId: id => ctx.graph.nodes.find(n => n.id === id),
-      geoSettleNew(n) { ctx.connect("source", "text", n.id, "prompt"); },
-      connect(fromNode, fromPort, toNode, toPort) { ctx.pushUndo(); ctx.graph.links.push({ from: { node: fromNode, port: fromPort }, to: { node: toNode, port: toPort } }); },
+      geoAnim: 0, window: {}, save() {}, costChipReduceMotion: () => true,
+      connect(fromNode, fromPort, toNode, toPort) {
+        ctx.pushUndo();
+        ctx.graph.links.push({ from: { node: fromNode, port: fromPort }, to: { node: toNode, port: toPort } });
+        return true;
+      },
       ensureModelForInput() {}, redraw() {}, dismissConnectHint() {},
     };
-    vm.createContext(ctx); new vm.Script(source).runInContext(ctx);
-    try { ctx.quickSpawn("image", 400, 200, "out", "text", { dataset: { node: "source", port: "text" } }); } catch (e) { if (!throws) throw e; }
+    vm.createContext(ctx); new vm.Script(source + "\n" + layout).runInContext(ctx);
+    try { ctx.quickSpawn("join", 400, 200, "out", "text", { dataset: { node: "source", port: "text" } }); } catch (e) { if (!throws) throw e; }
     return ctx;
   }
   for (const geometry of [true, false]) {
     const c = run(geometry);
+    const link = c.graph.links[0];
+    toy("join-first-inlet-" + geometry, link?.from.node === "source" && link.from.port === "text" && link.to.node === "new" && link.to.port === "a", "Text.text wires into Join.a");
     toy("one-choice-one-undo-" + geometry, c.snapshots.length === 1 && JSON.parse(c.snapshots[0]).nodes.length === 1 && c.graph.nodes.length === 2 && c.graph.links.length === 1 && c.undoMuted === false, "pre-choice snapshot and connected pair");
   }
   const nested = run(true, true);

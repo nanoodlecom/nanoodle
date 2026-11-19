@@ -13003,26 +13003,26 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
     separateOnAdd(n, { x: Math.round(x), y: Math.round(wy - 24) });
     rememberAdd(typeKey);
     select(n);
-    if(typeof geoOn==="function" && geoOn()){
-      geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node), drop:{ x: Math.round(x), y: Math.round(wy - 24) } });
-      return;
-    }
-    const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
-    let ports = [...n.el.querySelectorAll(sel)];
-    // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
-    // the model so the wire can actually land, then re-read the now-enabled ports
-    if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
-      ensureModelForInput(n, type);
-      ports = [...n.el.querySelectorAll(sel)];
-    }
-    ports = ports.filter(p=> !p.classList.contains("disabled"));
-    // wire the dragged port to the new node's first matching, free socket
-    const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
-    redraw();
-    if(target){
+    const wire = ()=>{
+      const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+      let ports = [...n.el.querySelectorAll(sel)];
+      // A disabled socket may need a compatible model before the wire can land.
+      if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
+        ensureModelForInput(n, type);
+        ports = [...n.el.querySelectorAll(sel)];
+      }
+      ports = ports.filter(p=> !p.classList.contains("disabled"));
+      const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+      if(!target) return false;
       const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
-      connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
-      dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
+      if(!connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port)) return false;
+      dismissConnectHint();
+      return true;
+    };
+    if(typeof geoOn==="function" && geoOn()){
+      geoSettleNew(n, { dir, anchor:byId(originPort.dataset.node), drop:{ x: Math.round(x), y: Math.round(wy - 24) }, wire });
+    }else if(!wire()){
+      redraw();
     }
   }finally{ undoMuted = wasMuted; }
 }
@@ -16608,8 +16608,8 @@ $("refuelcopy").onclick = async ()=>{
 
 /* LAYOUT — free slot on add, tidy on the selection.
    One engine. A new node (Add menu, wire-drop, suggestion) lands in the
-   first free slot beside its source and auto-wires only when exactly one
-   port fits, through connect(). Tidy (context menu / Shift+T) packs the
+   first free slot near its source or drop point. An Add-menu placement
+   auto-wires only when exactly one pair fits. Tidy (context menu / Shift+T) packs the
    multi-selection left-to-right by data flow. ?product=off / ?na=0 leaves
    placement, selection, and menus as they were. No idle rAF. */
 function geoOn(){
@@ -16800,28 +16800,6 @@ function geoReadInputs(n, type){
   return ports;
 }
 function geoWireNew(n, spec){
-  const origin = spec.originPort, dir = spec.dir || "out", type = spec.type;
-  if(origin && type && dir === "out"){
-    let raw = geoReadInputs(n, type);
-    if(raw.length && !raw.some(p => !p.disabled)){
-      ensureModelForInput(n, type);
-      raw = geoReadInputs(n, type);
-    }
-    const fit = geoFitInputs(raw);
-    if(fit.length !== 1) return false;
-    const target = raw.find(p => p.name === fit[0].name && !p.disabled);
-    if(!target) return false;
-    connect(origin.dataset.node, origin.dataset.port, target.el.dataset.node, target.el.dataset.port);
-    dismissConnectHint();
-    return true;
-  }
-  if(origin && type && dir === "in"){
-    const outs = [...n.el.querySelectorAll('.port[data-dir="out"][data-ptype="' + type + '"]')].filter(p => !p.classList.contains("disabled"));
-    if(outs.length !== 1) return false;
-    connect(outs[0].dataset.node, outs[0].dataset.port, origin.dataset.node, origin.dataset.port);
-    dismissConnectHint();
-    return true;
-  }
   const anchor = spec.anchor;
   if(!anchor || !anchor.el || anchor === n) return false;
   const outs = [...anchor.el.querySelectorAll('.port[data-dir="out"]')];
@@ -16901,7 +16879,7 @@ function geoSettleNew(n, spec){
   n.x = slot.x; n.y = slot.y;
   n.el.style.left = slot.x + "px";
   n.el.style.top = slot.y + "px";
-  const wired = geoWireNew(n, spec || {});
+  const wired = spec.wire ? spec.wire() : geoWireNew(n, spec);
   if(!wired) redraw();
   save();
   geoEnter(n);
