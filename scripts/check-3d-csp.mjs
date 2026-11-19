@@ -12,6 +12,21 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Paint budget for the dropped GLB. A fixed 10s (40 × 250ms) expired on slow
+// runners before SwiftShader drew. CHECK_3D_CSP_DRAW_TIMEOUT_MS overrides it
+// only when the value is a base-10 integer from 1 to 600000. Anything else
+// warns and keeps this default, so a bad override does not fail the CSP check.
+const DRAW_TIMEOUT_DEFAULT_MS = 45000;
+const DRAW_TIMEOUT_MAX_MS = 600000;
+function drawTimeoutMsFromEnv(raw) {
+  if (raw == null) return DRAW_TIMEOUT_DEFAULT_MS;
+  const text = String(raw).trim();
+  const n = Number(text);
+  if (/^[0-9]+$/.test(text) && Number.isInteger(n) && n >= 1 && n <= DRAW_TIMEOUT_MAX_MS) return n;
+  console.warn("⚠ CHECK_3D_CSP_DRAW_TIMEOUT_MS=" + JSON.stringify(raw) + " is not an integer from 1 to " + DRAW_TIMEOUT_MAX_MS + "; using " + DRAW_TIMEOUT_DEFAULT_MS + "ms");
+  return DRAW_TIMEOUT_DEFAULT_MS;
+}
+const drawTimeoutMs = drawTimeoutMsFromEnv(process.env.CHECK_3D_CSP_DRAW_TIMEOUT_MS);
 const chrome = ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
   .find((p) => existsSync(p));
 if (!chrome) {
@@ -80,9 +95,17 @@ const ws = new WebSocket(page.webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
 const waitOpen = new Promise((res, rej) => { ws.addEventListener("open", res); ws.addEventListener("error", rej); });
+const listeners = new Set();
 ws.addEventListener("message", (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); }
+  else if (msg.method) for (const l of [...listeners]) l(msg);
+});
+// Resolve on the next CDP event named `method` (or after `ms`, resolving null).
+const nextEvent = (method, ms) => new Promise((res) => {
+  const t = setTimeout(() => { listeners.delete(on); res(null); }, ms);
+  const on = (msg) => { if (msg.method === method) { clearTimeout(t); listeners.delete(on); res(msg); } };
+  listeners.add(on);
 });
 await waitOpen;
 const send = (method, params = {}) => new Promise((res) => {
@@ -101,15 +124,31 @@ await send("Page.addScriptToEvaluateOnNewDocument", { source: `
   window.__csp = [];
   document.addEventListener("securitypolicyviolation", (e) => { window.__csp.push(e.violatedDirective + " " + e.blockedURI); });
 ` });
+// Mark the current document so the new one can be told apart after the reload.
+await send("Runtime.evaluate", { expression: "window.__cspOldDoc = true", returnByValue: true });
+const loaded = nextEvent("Page.loadEventFired", 30000);
 await send("Page.reload", { ignoreCache: true });
-const glb = readFileSync(join(ROOT, "examples/product-shot/sample.glb")).toString("base64");
-for (let i = 0; i < 40; i++) {
-  const ready = await send("Runtime.evaluate", { expression: "!!document.querySelector('#editor')", returnByValue: true });
-  if (ready.result && ready.result.result && ready.result.result.value) break;
-  await new Promise((r) => setTimeout(r, 250));
+await loaded; // null on timeout; the readiness poll below is the real gate
+
+// Ready = the reloaded document (no old-doc marker), fully parsed and its scripts run
+// (readyState complete), with the editor and the app's drop routing defined.
+const READY = `(() => document.readyState === "complete" && !window.__cspOldDoc &&
+  !!document.querySelector("#editor") && typeof droppedFileKind === "function" && typeof addNode === "function")()`;
+async function waitReady() {
+  for (let i = 0; i < 120; i++) {
+    const r = await send("Runtime.evaluate", { expression: READY, returnByValue: true });
+    if (r.result && r.result.result && r.result.result.value === true) return true;
+    await new Promise((res) => setTimeout(res, 250));
+  }
+  return false;
 }
-const drop = await send("Runtime.evaluate", {
-  expression: `(() => {
+if (!(await waitReady())) fail("reloaded page never became ready (new document, load complete, drop handling defined)");
+
+const glb = readFileSync(join(ROOT, "examples/product-shot/sample.glb")).toString("base64");
+// The drop re-checks readiness in the same evaluation, so it can't land in a document
+// that replaced the ready one in between (still running its scripts, no drop handler yet).
+const DROP = `(() => {
+    if (!${READY}) return "not-ready";
     const bin = Uint8Array.from(atob(${JSON.stringify(glb)}), (c) => c.charCodeAt(0));
     const file = new File([bin], "duck.glb", { type: "model/gltf-binary" });
     const dt = new DataTransfer();
@@ -120,18 +159,40 @@ const drop = await send("Runtime.evaluate", {
     const ev = new DragEvent("drop", { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + 180 });
     Object.defineProperty(ev, "dataTransfer", { value: dt });
     editor.dispatchEvent(ev);
+    window.__cspDropped = true;
     return "dropped";
-  })()`,
-  returnByValue: true,
-});
-if (!drop.result || drop.result.result.value !== "dropped") fail("drop did not run: " + JSON.stringify(drop.result && drop.result.result));
+  })()`;
+// A CDP error (no result), e.g. "Execution context was destroyed", means the page navigated mid-step.
+async function dropOnce() {
+  const drop = await send("Runtime.evaluate", { expression: DROP, returnByValue: true });
+  if (!drop.result) return { navigated: true, detail: JSON.stringify(drop.error || drop) };
+  if (drop.result.result && drop.result.result.value === "not-ready") return { navigated: true, detail: "page was not ready (navigated)" };
+  if (drop.result.result && drop.result.result.value === "dropped") return { ok: true };
+  return { detail: JSON.stringify(drop.result.exceptionDetails || drop.result.result) };
+}
+let retried = false;
+async function drop() {
+  let d = await dropOnce();
+  if (d.navigated && !retried) {
+    retried = true;
+    console.log("  ↻ page navigated during the drop; waiting for it and retrying once");
+    if (!(await waitReady())) fail("page never became ready again after navigating mid-drop");
+    d = await dropOnce();
+  }
+  if (!d.ok) fail("drop did not run: " + d.detail);
+}
+await drop();
+const drawPollMs = 250;
 let drew = false;
-for (let i = 0; i < 40; i++) {
+let lastState = null;
+const drawDeadline = Date.now() + drawTimeoutMs;
+while (Date.now() < drawDeadline) {
   const probe = await send("Runtime.evaluate", {
     expression: `(() => {
       const canvas = document.querySelector(".node .glb-canvas");
       const err = document.querySelector(".glb-err");
       return JSON.stringify({
+        dropped: !!window.__cspDropped,
         vis: canvas ? canvas.style.visibility : "",
         err: err ? err.textContent : "",
         csp: (window.__csp || []).filter((s) => /connect-src/.test(s) && /data:/.test(s))
@@ -142,13 +203,24 @@ for (let i = 0; i < 40; i++) {
   const raw = probe.result && probe.result.result && probe.result.result.value;
   if (raw) {
     const state = JSON.parse(raw);
+    lastState = state;
+    if (!state.dropped) {
+      // the document holding the drop is gone: the page navigated after the drop step
+      if (retried) fail("page navigated again after the retried drop");
+      retried = true;
+      console.log("  ↻ page navigated after the drop; waiting for it and retrying once");
+      if (!(await waitReady())) fail("page never became ready again after navigating");
+      const d = await dropOnce();
+      if (!d.ok) fail("drop did not run: " + d.detail);
+      continue;
+    }
     if (state.csp.length) fail("CSP blocked a data: fetch: " + state.csp.join("; "));
     if (state.err) fail("viewer error: " + state.err);
     if (state.vis && state.vis !== "hidden") { drew = true; break; }
   }
-  await new Promise((r) => setTimeout(r, 250));
+  await new Promise((r) => setTimeout(r, drawPollMs));
 }
-if (!drew) fail("dropped GLB did not draw a canvas under the production CSP");
+if (!drew) fail("dropped GLB did not draw a canvas under the production CSP within " + drawTimeoutMs + "ms; last state " + JSON.stringify(lastState));
 console.log("✓ check-3d-csp: dropped GLB draws under the _headers CSP");
 ws.close();
 proc.kill("SIGKILL");

@@ -27,7 +27,13 @@ export const MONTHS = {
   July: "07", August: "08", September: "09", October: "10", November: "11", December: "12",
 };
 
-const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?(conversation\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=)([^)\s"']+)/i;
+// NanoGPT also links new launches as /chat?model= (GPT-6.1 Terra, 2026-10-26) and
+// /studio/image|video|audio?model= (Qwen Image 3 Uncensored, 2026-10-25); the
+// classifier used to skip those cards, so the launches never reached 📣.
+// 2026-11-05 (#1435 GPT Image 2.6 Flare & Sunburst): NanoGPT also links bare
+// /media?model= with no mode=. Those parse as kind "media" and classifyCard
+// resolves image/video/audio from the card's own words (mediaKindFromText).
+const MODEL_PATH_RE = /(?:https?:\/\/nano-gpt\.com)?\/?((?:conversation|chat)\?model=|media\?mode=(image|video|audio)&(?:amp;)?model=|studio\/(image|video|audio)\?model=|media\?model=)([^)\s"'&]+)/i;
 
 export function seenKeyForId(id) {
   return id != null && String(id) !== "" ? `${ID_PREFIX}${id}` : null;
@@ -70,18 +76,28 @@ function decodeSlug(raw) {
   try { return decodeURIComponent(cleaned); } catch { return cleaned; }
 }
 
+export function isProviderCard(text) {
+  const t = String(text || "");
+  return /nano-gpt\.com\/provider\//i.test(t) || /\bprovider (?:selector|option|picker)\b/i.test(t);
+}
+
 export function titleIntent(title) {
   const t = String(title || "").toLowerCase();
   // "remov" must be the verb (removed/removal/removing), not a product noun:
   // 2026-10-01's "HeyGen Video 1 and Video Music Remover" launch shipped as
   // "Retired: …" because /remov/ matched "Remover".
-  if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset/.test(t)) return "retired";
-  if (/\bnow use\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
+  // "availability changes" (NanoGPT #1423 / #1417) is retirement guidance, not a
+  // launch — distinct from "now available" product nouns, which stay "new".
+  if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset|\bavailability changes?\b/.test(t)) return "retired";
+  if (/\bnow uses?\b|\bincluded in (?:the )?subscription\b|^animated gifs? with\b|\bmodels get their own ids\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
   if (/\bpric(?:e|es|ing)\b|\bcheaper\b|\bdiscount\b|\b\d+%\s*off\b/.test(t)) return "pricing";
   return "new";
 }
 
-// "For X, try [Y]" / "try [A] or [B]" — Y/A/B are substitutes, not the subject.
+// "For X, try [Y]" / "try [A] or [B]" / "recommend switching to [Y]" —
+// Y/A/B are substitutes, not the subject. NanoGPT #1423 said "deprecated …
+// recommend switching to [MiMo V2.6 Pro]"; without the switch(ing) to prefix
+// that recommendation became the "New LLM model" headline.
 export function isReplacementLinkPrefix(prefix) {
   const plain = String(prefix || "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -90,6 +106,7 @@ export function isReplacementLinkPrefix(prefix) {
     .replace(/\s+/g, " ")
     .trimEnd();
   if (/\btry(?:\s+the)?$/i.test(plain)) return true;
+  if (/\b(?:recommend(?:ed)?\s+)?switch(?:ing)?\s+to$/i.test(plain)) return true;
   if (!/\btry\b/i.test(plain) || !/(?:,|and|or|&)$/i.test(plain)) return false;
   const afterTry = plain.slice(plain.toLowerCase().lastIndexOf("try"));
   return !/[.!?]\s+\S/.test(afterTry);
@@ -137,10 +154,24 @@ export function extractHtmlModelLinks(html) {
 export function parseModelUrl(url) {
   const m = String(url || "").match(MODEL_PATH_RE);
   if (!m) return null;
-  const kind = m[1].startsWith("conversation") ? "chat" : m[2];
-  const slug = decodeSlug(m[3]);
+  const kind = /^(conversation|chat)\?/i.test(m[1]) ? "chat" : (m[2] || m[3] || "media").toLowerCase();
+  const slug = decodeSlug(m[4]);
   if (!slug) return null;
   return { slug, kind };
+}
+
+// A bare /media?model= link carries no mode, so read the card: the title wins,
+// then the body. Video before audio before image, because video cards often say
+// "turns an image into video" and audio cards rarely mention video. Default image.
+export function mediaKindFromText(title, text) {
+  const pick = (t) => {
+    const s = String(t || "");
+    if (/\b(video|videos|footage|clip|clips|film|films|movie|movies|animation)\b/i.test(s)) return "video";
+    if (/\b(audio|music|song|songs|voice|speech|sound|sfx|tts)\b/i.test(s)) return "audio";
+    if (/\b(image|images|photo|photos|picture|pictures|gif|gifs)\b/i.test(s)) return "image";
+    return null;
+  };
+  return pick(title) || pick(text) || "image";
 }
 
 function cardKindFromModels(models) {
@@ -176,16 +207,92 @@ function subjectModels(title, models, intent) {
   return mentioned.length ? mentioned : [];
 }
 
+// Generic "Model Availability Changes" cards (#1417 / #1423) often have no
+// subject-model links — only list pages or a replacement. Pull the retired
+// subjects from the body bullets so the changelog headline names them.
+export function availabilitySubjectTitles(title, description) {
+  if (!/\bavailability changes?\b/i.test(String(title || ""))) return null;
+  const text = String(description || "");
+  let raw = [];
+  // Prefer real newline bullets. A single flattened line matching ^- … must NOT
+  // win here: markdownToPlain turns "- A. - B." into one line, and .+? would
+  // swallow the later bullets.
+  if (/\n/.test(text)) {
+    for (const line of text.split(/\n+/)) {
+      const m = line.match(/^\s*[-•*]\s+(.+?)\s*$/);
+      if (m) raw.push(m[1]);
+    }
+  }
+  if (!raw.length) {
+    // Flattened: "lead-in: - item - item" or "- item - item"
+    const parts = text.split(/(?:^|\s)-\s+/).map(s => s.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      raw = /\bfollowing models\b/i.test(parts[0]) || /:\s*$/.test(parts[0])
+        ? parts.slice(1)
+        : parts;
+    }
+  }
+  const subjects = [];
+  for (const b of raw) {
+    let s = String(b || "").trim();
+    s = s.replace(/\s+(?:If your app|Perplexity)\b[\s\S]*$/i, "").trim();
+    const sentence = s.match(/^(.+?[.!?])(?:\s+[A-Z][\s\S]*)?$/);
+    if (sentence) s = sentence[1];
+    s = s
+      .replace(/\s+(?:is|are)\s+no longer available\.?$/i, "")
+      .replace(/\s+(?:is|are|has been|have been)\s+deprecated\b[\s\S]*$/i, "")
+      .replace(/,?\s+following\b[\s\S]*$/i, "")
+      .replace(/\.?\s*$/, "")
+      .trim();
+    if (s && !/^if your app\b/i.test(s) && !/^perplexity\b/i.test(s) && !/\bfollowing models\b/i.test(s)) subjects.push(s);
+  }
+  return subjects.length ? subjects : null;
+}
+
 function displayTitles(card, models, intent) {
   const title = String(card && card.title || "").trim();
   if (intent === "retired") {
     const cleaned = stripRetiredSuffix(title) || title;
     const mentioned = (models || []).filter(m => nameInTitle(cleaned, m.name));
     if (mentioned.length) return mentioned.map(m => m.name);
+    const fromBody = availabilitySubjectTitles(title, card && card.description);
+    if (fromBody && fromBody.length) return fromBody;
     return [cleaned];
   }
   if (models.length) return models.map(m => m.name);
   return [title];
+}
+
+const LAUNCH_RE = /\b(new|introduc\w*|launch\w*|releas\w*|debut\w*|added|adding|now available|now live|just landed)\b/i;
+// The one phrase a provider card is allowed: "<provider> is now available
+// through the provider selector" / "added as a (new) provider". Only that
+// phrase is neutralised; every sentence, provider sentences included, is then
+// scanned for launch wording ("… selector for the new Zeta 9" is a launch).
+const PROVIDER_PHRASE_RE = /\b(?:(?:is|are|has been|have been)\s+)?(?:now\s+)?(?:available|added|live)\s+(?:as|through|via|on|in)\s+(?:the\s+|a\s+|an\s+)?(?:new\s+)?(?:inference\s+)?provider(?:\s+(?:selector|option|picker))?\b/gi;
+const NEW_PROVIDER_RE = /\b(?:a|an)\s+new\s+(?:inference\s+)?provider\b/gi;
+// NanoGPT /api/v1/models → Map(slug → YYYY-MM-DD created).
+export function catalogCreatedMap(json) {
+  const list = Array.isArray(json) ? json : (json && Array.isArray(json.data) ? json.data : []);
+  const out = new Map();
+  for (const m of list) {
+    if (!m || typeof m.id !== "string" || !Number.isFinite(Number(m.created)) || !Number(m.created)) continue;
+    out.set(modelSlugKey(m.id), new Date(Number(m.created) * 1000).toISOString().slice(0, 10));
+  }
+  return out;
+}
+export function modelSlugKey(slug) {
+  return String(slug || "").toLowerCase();
+}
+export function addsNewModels(title, rawText, models, knownSlugs) {
+  const launch = (t) => LAUNCH_RE.test(String(t || "").replace(PROVIDER_PHRASE_RE, " ").replace(NEW_PROVIDER_RE, " provider "));
+  if (launch(title)) return true;
+  const sentences = markdownToPlain(String(rawText || "")).split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
+  if (sentences.some(launch)) return true;
+  if (knownSlugs) {
+    const known = new Set([...knownSlugs].map(modelSlugKey));
+    if ((models || []).some(m => m && m.slug && !known.has(modelSlugKey(m.slug)))) return true;
+  }
+  return false;
 }
 
 export function classifyCard(card) {
@@ -193,10 +300,35 @@ export function classifyCard(card) {
   const title = card && card.title ? String(card.title).trim() : "";
   const rawText = card && card.text != null ? String(card.text) : "";
   const extracted = Array.isArray(card && card.models) ? card.models : extractMarkdownModelLinks(rawText);
-  const intent = titleIntent(title);
+  let intent = titleIntent(title);
+  // A removed UI label is not a retired model. This product-only card has no
+  // model links and should remain outside the model announcements feed.
+  if (!extracted.length && /^quantization removed from auto$/i.test(title)) intent = "updated";
+  // 2026-10-27 (#1379): "RunAnywhere … is now available through the provider
+  // selector for [GLM 5.3] …" links seven EXISTING models. It adds a NanoGPT
+  // inference provider, not models, so it must not read "New LLM models: …".
+  // Narrow: provider-only when the card adds NO new models — no launch wording
+  // in the title or in any sentence outside the provider sentence, and (when the
+  // caller passes card.knownSlugs) every linked model is already known.
+  if (intent === "new" && isProviderCard(rawText) && !addsNewModels(title, rawText, extracted, card && card.knownSlugs)) intent = "provider";
   const models = subjectModels(title, extracted, intent);
-  const linkKind = cardKindFromModels(models);
   const description = markdownToPlain(rawText);
+  // "Try it at [nano-gpt.com/media](…?model=longstories%2Fstory-fast)" (#1433):
+  // link text that is a URL is not a model name — use the title head instead.
+  // Require an alphabetic TLD (…\.com) so dotted version names like Qwen3.8 /
+  // GLM-5.3 are not treated as hosts (that used to rewrite "New Model: Qwen3.8"
+  // into "New LLM model: New Model").
+  for (const m of models) {
+    if (/^(?:https?:\/\/)?(?:www\.)?[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/\S*)?$/i.test(String(m.name || "").trim())) {
+      const head = title.split(/\s*[:—–]\s+|\s+-\s+/)[0].trim();
+      m.name = models.length === 1 && head ? head : m.slug;
+    }
+  }
+  let linkKind = cardKindFromModels(models);
+  if (linkKind === "media") {
+    linkKind = mediaKindFromText(title, description);
+    for (const m of models) if (m.kind === "media") m.kind = linkKind;
+  }
 
   let skip = false;
   let kind = linkKind;
@@ -236,9 +368,10 @@ export function isChatPath(info) {
 }
 
 // Newest-first walk. After the first media expansion (seen file has id: keys)
-// we stop at the first already-seen API id. Until then, chat uses the existing
-// "stop adding historical chat once we hit a seen date|slug" rule, and
-// media/retired/pricing cards are only ingested from MEDIA_FLOOR_DATE onward.
+// already-seen API ids are skipped so a missing older card (e.g. NanoGPT #1417
+// sitting between seen neighbors) can still backfill. Until expansion, chat uses
+// the existing "stop adding historical chat once we hit a seen date|slug" rule,
+// and media/retired/pricing cards are only ingested from MEDIA_FLOOR_DATE onward.
 export function selectPending(cards, seen, opts = {}) {
   const seenList = Array.isArray(seen) ? seen : [];
   const seenSet = new Set(seenList);
@@ -247,12 +380,35 @@ export function selectPending(cards, seen, opts = {}) {
   const pending = [];
   let hitSeenChat = false;
 
-  for (const card of cards) {
-    const info = classifyCard(card);
+  // Known models for the provider check (production source): every model a
+  // strictly OLDER card in the feed linked (cards arrive newest-first), plus
+  // every date|slug in the seen file dated before the card, plus (sync passes
+  // opts.catalogCreated from NanoGPT's public /api/v1/models) every catalog
+  // model whose `created` date is before the card's date. A provider card
+  // linking anything outside that is announcing a model, not just a provider.
+  const seenDated = seenList.filter(k => typeof k === "string" && /^\d{4}-\d\d-\d\d\|/.test(k))
+    .map(k => ({ date: k.slice(0, 10), slug: modelSlugKey(k.slice(11)) }));
+  const olderSlugs = new Array(cards.length);
+  { const acc = new Set();
+    for (let i = cards.length - 1; i >= 0; i--) {
+      olderSlugs[i] = new Set(acc);
+      const c = cards[i];
+      const links = Array.isArray(c && c.models) ? c.models : extractMarkdownModelLinks(c && c.text != null ? String(c.text) : "");
+      for (const m of links) if (m && m.slug) acc.add(modelSlugKey(m.slug));
+    } }
+  for (let ci = 0; ci < cards.length; ci++) {
+    const card = cards[ci];
+    const d = parseDate(card && card.date) || "";
+    const known = olderSlugs[ci];
+    for (const k of seenDated) if (k.date < d) known.add(k.slug);
+    if (opts.catalogCreated) for (const [slug, created] of opts.catalogCreated) if (created && created < d) known.add(modelSlugKey(slug));
+    const info = classifyCard(card && card.knownSlugs ? card : { ...card, knownSlugs: known });
     if (!info.date) continue;
 
     const idKey = seenKeyForId(info.id);
-    if (expanded && idKey && seenSet.has(idKey)) break;
+    // Skip (do not break): a hard stop at the first seen id blocked backfill of
+    // gaps like #1417 when newer neighbors were already recorded.
+    if (expanded && idKey && seenSet.has(idKey)) continue;
 
     if (info.skip) continue;
 
@@ -306,6 +462,7 @@ function fallbackSentence(titles, intent, kind) {
 }
 
 export function changelogLabel(intent, kind, count) {
+  if (intent === "provider") return "NanoGPT provider update";
   if (intent === "retired") return "Retired";
   if (intent === "updated") return "Updated";
   if (intent === "pricing") return "Pricing";
@@ -317,6 +474,11 @@ export function toChangelogText(titles, description, intent = "new", kind = "cha
   const detail = trimDetail(description);
   const title = titles.join(" & ");
   const label = changelogLabel(intent, kind, titles.length);
+  if (intent === "provider") {
+    // The models already exist; the news is the provider. Say where the choice lives.
+    const body = detail || `a new provider option for ${title}.`;
+    return `${label}: ${body} The provider selector is part of NanoGPT, not nanoodle; no new models were added.`.replace(/\s+/g, " ").trim();
+  }
   const text = detail
     ? `${label}: ${title} — ${detail}`
     : `${label}: ${fallbackSentence(titles, intent, kind)}`;

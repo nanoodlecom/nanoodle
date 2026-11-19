@@ -1,0 +1,41 @@
+{
+  "label": "2026-10-27 swap-the-character cartoon dancer → plush fox (Muse 16:9 ×2 → minimax/h3-max-turbo 480p 5 s → wan-22-animate mode=replace 480p)",
+  "startedAt": "2026-10-27T17:41:31.013Z",
+  "finishedAt": "2026-10-27T17:44:29Z",
+  "costUsd": 0.447,
+  "costExact": true,
+  "balanceBefore": 9.53859305,
+  "balanceAfter": 9.09159305,
+  "balanceDelta": 0.447,
+  "nodes": {
+    "scene": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "plaza.webp"
+      }
+    },
+    "char": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "fox.webp"
+      }
+    },
+    "driver": {
+      "status": "done",
+      "costUsd": 0.125,
+      "files": {
+        "video": "dancer.mp4"
+      }
+    },
+    "swap": {
+      "status": "done",
+      "costUsd": 0.3,
+      "files": {
+        "video": "fox-dance.mp4"
+      }
+    }
+  },
+  "note": "Run in two passes. Pass 1 ran the two Muse stills and the H3 Max Turbo clip through nanoodle-js (832×480, 24 fps, 5.18 s, with sound). Pass 2 was the Video edit call, sent by hand before the Video edit node had its character port (added in this PR): the same body the node now sends (model wan-22-animate, empty prompt, resolution 480p, mode replace, the fox still as imageDataUrl), except the driver went inline as a re-encoded data URL (CRF 26, same frames) rather than as the H3 output URL. Wan 2.2 Animate returned 832×464, 30 fps, 5.1 s with the driver's sound carried over, and billed $0.30 (6 s at $0.05/s) for the 5.18 s driver. Images re-saved as WebP (max 1024 px) and both clips re-encoded (H.264 CRF 24, AAC) for size; same frames. No retakes."
+}

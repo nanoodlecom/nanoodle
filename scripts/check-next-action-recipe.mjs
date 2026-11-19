@@ -59,7 +59,9 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
 
 {
   const sketch = { numNodes: 2, nodeTypeCounts: { text: 1, image: 1 } };
-  const rec = recommendRecipes(corpus, sketch, 8);
+  // Gallery growth keeps adding short text→image recipes (color-to-manga, mix-the-references…);
+  // keep k wide enough that talking-avatar still appears.
+  const rec = recommendRecipes(corpus, sketch, 16);
   const ta = rec.find((r) => r.slug === "talking-avatar");
   assert(ta && ta.actions.length >= 2 && ta.actions.every((a) => a.startsWith("add:")), "talking-avatar partial");
   assert(
@@ -72,7 +74,7 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
 {
   const sketch = { numNodes: 2, nodeTypeCounts: { text: 1, llm: 1 } };
   // Gallery growth added short text→llm recipes; keep k wide enough that sing still appears.
-  const rec = recommendRecipes(corpus, sketch, 8);
+  const rec = recommendRecipes(corpus, sketch, 10);
   const sing = rec.find((r) => r.slug === "sing");
   const sprites = rec.find((r) => r.slug === "character-sprites");
   assert(sing && sing.remaining.includes("music"), "sing partial keeps music");

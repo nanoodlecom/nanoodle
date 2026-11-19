@@ -86,6 +86,7 @@ function loadAssigns(src, name) {
   const LAST_YES = [
     "minimax-h3", "Minimax-H3", "MINIMAX-H3",
     "minimax/h3-max", "MiniMax/H3-Max",
+    "minimax/h3-max-turbo", "MiniMax/H3-Max-Turbo",   // live-verified 2026-10-22 (seamless-loop example)
     "alibaba/wan-3.0-prime",
     "alibaba/wan-3.0/image-to-video",
     "google/gemini-omni-flash/v1.1",
@@ -95,6 +96,7 @@ function loadAssigns(src, name) {
     "minimax-hailuo", "hailuo-02", "seedance-2.0", "luma-ray", "kling-v2", "",
     "minimax-h3-max",              // NanoGPT's real id uses a slash, not a second hyphen — don't over-match
     "minimax/h3",                  // must not leak into the sibling id's own slash form
+    "minimax/h3-max-turbo-fast",   // unlisted sibling — don't over-match
     "alibaba/wan-3.0/text-to-video",       // no image input at all — last-frame is meaningless here
     "alibaba/wan-3.0/reference-to-video",  // takes image/video/audio REFERENCES, not a first/last-frame pair
     "alibaba/wan-3.0",

@@ -535,5 +535,31 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
     "editor Play button is gated on isInputKind / hidePlay");
 }
 
+// Stopping an ancestor's own work (rather than the leaf's Play) must poison
+// every downstream step too. Exercise both an abort-aware runner and a runner
+// whose response races Stop and still resolves. Old output must never be used.
+for (const resolvesAfterStop of [false, true]) {
+  const w = makeWorld(3, false);
+  let began, release;
+  const started = new Promise(r => { began = r; });
+  const hold = new Promise(r => { release = r; });
+  w.NODE_TYPES.img.run = async n => {
+    began();
+    await hold;
+    if (!resolvesAfterStop) throw Object.assign(new Error("aborted"), { name:"AbortError" });
+    return { image:"RESPONSE_AFTER_STOP" };
+  };
+  const ctx = bindWorld(w);
+  const pending = ctx.runGroup(["n2"]);
+  await started;
+  w.nodeWork.get("n0").ctl.abort();
+  release();
+  await pending;
+  ok(w.nodes.n0._st === "stopped", "ancestor stays stopped after its work aborts");
+  ok(w.paid.length === 0, `cancelled upstream never starts a paid dependent (late success=${resolvesAfterStop}, paid=${JSON.stringify(w.paid)})`);
+  ok(w.nodes.n1._st === "skip" && w.nodes.n2._st === "skip", "cancellation skips dependents transitively");
+  ok(!w.nodeWork.size && !w.runningNodes.size && !w.seedRuns.size, "cancelled work releases promises and run locks");
+}
+
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
 console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; healthy graphs unaffected.");

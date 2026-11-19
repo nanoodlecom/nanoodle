@@ -40,7 +40,9 @@ const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg|vtt)$/
 let failed = 0;
 const fail = (msg) => { console.error("✗ check-updates-media: " + msg); failed++; };
 
-const list = JSON.parse(readFileSync(join(root, "updates.json"), "utf8"));
+const updates = JSON.parse(readFileSync(join(root, "updates.json"), "utf8"));
+const articles = JSON.parse(readFileSync(join(root, "articles.json"), "utf8"));
+const list = [...updates, ...articles];
 
 // .assetsignore: the folder must ship (a docs/-style ignore would 404 every clip).
 const ignore = readFileSync(join(root, ".assetsignore"), "utf8").split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#"));
@@ -90,7 +92,7 @@ let clips = 0;
 list.forEach((e, i) => {
   const m = e && e.media;
   if (m === undefined) return;
-  const where = `updates.json[${i}] (${e.date})`;
+  const where = `${i < updates.length ? "updates.json" : "articles.json"}[${i < updates.length ? i : i-updates.length}] (${e.date})`;
   if (!m || !MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src) || !MEDIA_RE.test(m.poster || "")) {
     fail(`${where}: media must be { src:"${DIR}/<name>.mp4", poster:"${DIR}/<name>.webp", w, h }`); return;
   }
@@ -140,7 +142,7 @@ list.forEach((e, i) => {
 
 if (existsSync(join(root, DIR))) {
   for (const f of readdirSync(join(root, DIR))) {
-    if (!referenced.has(`${DIR}/${f}`)) fail(`${DIR}/${f} is not referenced by any updates.json entry (orphans still deploy) — attach it or delete it`);
+    if (!referenced.has(`${DIR}/${f}`)) fail(`${DIR}/${f} is not referenced by any update or article (orphans still deploy) — attach it or delete it`);
   }
 }
 
@@ -148,7 +150,8 @@ if (existsSync(join(root, DIR))) {
 const idx = readFileSync(join(root, "index.html"), "utf8");
 if (!/function updClip\(e\)/.test(idx) || !/updClip\(e\)/.test(idx.split("function updClip(e)")[0])) fail("index.html openUpdates() no longer renders media via updClip(e)");
 if (!/preload = "none"/.test(idx) || !/IntersectionObserver/.test(idx)) fail("index.html update clips must stay lazy (preload none + IntersectionObserver)");
-if (!/function openUpdClip\(/.test(idx) || !/v\.muted = !narrated/.test(idx)) fail("index.html enlarged view must unmute only narrated clips (media.audio)");
+if (!/clipVid\.controls = true/.test(idx)) fail("index.html clips need native inline controls");
+if (/v\.play\(\)/.test(idx.slice(idx.indexOf("function updClipObserver()"), idx.indexOf("function closeUpdates()")))) fail("Updates must not autoplay media");
 if (!/clipVid\.muted = true/.test(idx)) fail("index.html panel clips must stay muted (autoplay-safe)");
 const gen = readFileSync(join(root, "scripts", "gen-changelog.mjs"), "utf8");
 if (!/clipHtml\(e\)/.test(gen) || !/loading="lazy"/.test(gen)) fail("gen-changelog.mjs no longer renders lazy clip posters");

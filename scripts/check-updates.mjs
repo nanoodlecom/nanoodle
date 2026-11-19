@@ -2,7 +2,9 @@
 // Validate updates.json: a newest-first array of
 //   { date:"YYYY-MM-DD", text:"one line", i18n?:{ es,fr,de,pt,ja:"one line" },
 //     media?:{ src:"updates-media/x.mp4", poster:"updates-media/x.webp", w, h,
-//              audio?:true, captions?:{ en:"updates-media/x.en.vtt", … }, burned?:"en" } }.
+//              audio?:true, captions?:{ en:"updates-media/x.en.vtt", … }, burned?:"en" },
+//     examples?:[{ id:"gallery-slug" | "gallery-slug--alternate-id", title:"Gallery title" }],
+//     workflow?:"https://…" (shown as Open workflow) }.
 // The pre-commit hook runs this when updates.json is staged, so a malformed hand
 // edit can't ship and break the in-app Updates changelog.
 //
@@ -48,6 +50,14 @@ if (!Array.isArray(list)) {
     if (typeof e.text !== "string" || !e.text.trim()) errs.push(`#${i}: text must be a non-empty string`);
     else if (/[\r\n]/.test(e.text)) errs.push(`#${i}: text must be a single line`);
 
+    if (e.workflow !== undefined) {
+      let valid = false;
+      if (typeof e.workflow === "string" && !/[\u0000-\u0020\u007f]/.test(e.workflow)) {
+        try { const url = new URL(e.workflow); valid = url.protocol === "https:" && !!url.hostname && !url.username && !url.password; } catch {}
+      }
+      if (!valid) errs.push(`#${i}: workflow must be an absolute HTTPS URL without credentials or whitespace`);
+    }
+
     // Optional usage clip — language-neutral, so one per entry (not per i18n lang).
     // Shape only here; scripts/check-updates-media.mjs checks the files themselves.
     if (e.media !== undefined) {
@@ -72,6 +82,19 @@ if (!Array.isArray(list)) {
         if (m.audio === true && !(m.captions && m.captions.en)) errs.push(`#${i}: a narrated clip (media.audio) needs English captions (media.captions.en)`);
         if (m.burned !== undefined && !(m.captions && m.captions[m.burned])) errs.push(`#${i}: media.burned must name a language in media.captions`);
       }
+    }
+
+    // Optional gallery links: examples:[{ id:"slug" | "slug--alternate", title }]. Shape only
+    // here; scripts/check-updates-example-links.mjs checks each id/title against the gallery.
+    if (e.examples !== undefined) {
+      if (!Array.isArray(e.examples) || !e.examples.length) errs.push(`#${i}: examples must be a non-empty array of { id, title }`);
+      else e.examples.forEach((x, j) => {
+        if (typeof x !== "object" || x === null || Array.isArray(x)) { errs.push(`#${i}: examples[${j}] must be { id, title }`); return; }
+        const extraX = Object.keys(x).filter(k => !["id", "title"].includes(k));
+        if (extraX.length) errs.push(`#${i}: examples[${j}] has unknown key(s): ${extraX.join(", ")}`);
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?$/.test(x.id || "")) errs.push(`#${i}: examples[${j}].id must be a gallery slug or slug--alternate`);
+        if (typeof x.title !== "string" || !x.title.trim() || /[\r\n]/.test(x.title)) errs.push(`#${i}: examples[${j}].title must be a non-empty single line`);
+      });
     }
 
     if (e.i18n === undefined) { untranslated.push(i); return; }

@@ -1,0 +1,155 @@
+{
+  "slug": "song-to-music-video",
+  "case": "owl-lighthouse-lullaby",
+  "recordedAt": "2026-10-30T16:57:20.649Z",
+  "elapsedMs": 292141,
+  "graphSha256": "9ac8ce047a657ffbf0632e324e66227d76a473395ff8e5d40ee8c7bb8bf1750a",
+  "executedGraphSha256": "23f7e1c51313645e1778ad12e9196f7070510f003a11403bee0b9a4740530882",
+  "executedGraphNote": "The executed graph differs from graph.json here only in the layout size of the intro comment.",
+  "costUsd": 0.611038745,
+  "costExact": true,
+  "errors": [],
+  "captureErrors": [],
+  "runner": "nanoodle-js",
+  "mediaNote": "Displayed media are size-reduced re-encodes of the run outputs; the originals are linked per output.",
+  "nodes": [
+    {
+      "id": "c-intent",
+      "name": null,
+      "type": "comment",
+      "status": "skipped",
+      "outputs": []
+    },
+    {
+      "id": "idea",
+      "name": "Song idea",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "idea-text.txt",
+          "bytes": 141,
+          "sha256": "3b5005e0bcfc39b737af8569794fc6b63dd4f6827233c330c3bbb296a19736b5"
+        }
+      ]
+    },
+    {
+      "id": "lyrics",
+      "name": "Lyricist",
+      "type": "llm",
+      "model": "z-ai/glm-5.3-flash",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "lyrics-text.txt",
+          "bytes": 142,
+          "sha256": "2aab5bf1d0065e119e0be66e8c8622e133ec5b7f23d2ba2e90ef3f0503035b81"
+        }
+      ]
+    },
+    {
+      "id": "song",
+      "name": "Song · MiniMax Music 2.6",
+      "type": "music",
+      "model": "Minimax-Music-2.6",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "audio",
+          "kind": "audio",
+          "file": "song-audio.mp3",
+          "bytes": 1038722,
+          "sha256": "8cd8b3920af7f9092c92856a19cd7e34d7f154ba7331517aae6e2580857e5e87",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-song-to-music-video/song-full.mp3"
+        }
+      ],
+      "fieldOverrides": {
+        "prompt": {
+          "sha256": "6d3bde5dc4c726d686cc250a118bbe8ddf8399700ba81c7a0ee5b5edd55ed950",
+          "bytes": 163
+        }
+      }
+    },
+    {
+      "id": "cut15",
+      "name": "Trim to 15 s (caps the video bill)",
+      "type": "trim",
+      "status": "done",
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "performer",
+      "name": "Performer & stage",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "performer-text.txt",
+          "bytes": 338,
+          "sha256": "f16964e382ffb1a3a37dae4f89c7883c71398b09c3315e646c93eeb253ec66eb"
+        }
+      ]
+    },
+    {
+      "id": "still",
+      "name": "Performer · FLUX.3 Klein",
+      "type": "image",
+      "model": "blackforestlabs/flux-3/klein/text-to-image",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "still-image.webp",
+          "bytes": 321712,
+          "sha256": "24c2225caa5aa7c447eb5de9ea570a90c96dacbbbfe5c8db1cdfb233e2819b98",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-song-to-music-video/performer-flux3-klein.jpg"
+        }
+      ]
+    },
+    {
+      "id": "mv",
+      "name": "Music video · Music Video Generator",
+      "type": "lipsync",
+      "model": "music-video-generator",
+      "status": "done",
+      "error": null,
+      "outputs": [],
+      "fieldOverrides": {
+        "prompt": {
+          "sha256": "d7b0ef57cf569253e09b32420838889389efd65b43844efa508f656148cc8f93",
+          "bytes": 211
+        }
+      }
+    },
+    {
+      "id": "final",
+      "name": "Music video · original song",
+      "type": "soundtrack",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "final-video.mp4",
+          "bytes": 1006496,
+          "sha256": "6fa6b89b27cec49b3dd01c2a29b4295e0b3041ac7b552fe79faeae0fca2277d1",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-song-to-music-video/music-video.mp4"
+        }
+      ]
+    }
+  ]
+}

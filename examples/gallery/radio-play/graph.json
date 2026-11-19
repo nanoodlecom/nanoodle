@@ -1,0 +1,126 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -200,
+      "w": 940,
+      "fields": {
+        "text": "Two voices from one Speech node. GLM 5.3 Flash writes a short radio play as \"Name: line\" lines. Join puts a fixed cast note in front: \"TTS the following conversation between Tilly and Rotor\", which voice goes with which character, and \"Do not read the speaker names aloud\". Gemini 3.1 Flash TTS reads the whole thing as a two-person scene. Keep the cast note's wording close to this; when it was rephrased as \"a lively radio play\", every line came back in one voice. Rename the characters in both the idea and the cast note. Inspired by @jeffreyabrick's two-voice radio play (https://x.com/jeffreyabrick/status/2113269680702156843).",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-idea",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "fields": {
+        "text": "A one-minute radio play. Tilly, a calm old village baker, and Rotor, a jumpy young delivery drone on its very first morning, have to get a three-tier birthday cake up a windy hill to the lighthouse before the party at noon. Rotor is nervous and too literal; Tilly is patient and dry. A small mishap, a clever fix, and a happy landing."
+      },
+      "name": "Story idea",
+      "w": 320
+    },
+    {
+      "id": "script",
+      "type": "llm",
+      "x": 400,
+      "y": 40,
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Write a short, original, family-friendly radio play from the idea. Only two speakers: Tilly and Rotor. Output only dialogue lines, one per line, each starting with the speaker's name and a colon, for example \"Tilly: ...\". 8 to 10 lines, alternating speakers, 90 to 120 words in total. Give it a clear beginning, a small problem, a fix and a warm ending; no line repeats an earlier beat. No narrator, no sound-effect lines, no stage directions outside the lines, no markdown, no title."
+      },
+      "name": "Script · GLM 5.3 Flash",
+      "w": 300,
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "p-cast",
+      "type": "text",
+      "x": 40,
+      "y": 720,
+      "fields": {
+        "text": "TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud."
+      },
+      "name": "Cast · voice direction",
+      "w": 320
+    },
+    {
+      "id": "cast",
+      "type": "join",
+      "x": 400,
+      "y": 740,
+      "fields": {
+        "sep": "\\n"
+      },
+      "name": "Direction + script",
+      "w": 220
+    },
+    {
+      "id": "voice",
+      "type": "tts",
+      "x": 760,
+      "y": 560,
+      "fields": {
+        "model": "gemini-3.1-flash-tts-preview",
+        "voice": "Puck",
+        "response_format": "wav"
+      },
+      "name": "Two-voice radio play · Gemini 3.1 Flash TTS",
+      "w": 300,
+      "sizes": {
+        "prompt": 0
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "script",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "p-cast",
+        "port": "text"
+      },
+      "to": {
+        "node": "cast",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "script",
+        "port": "text"
+      },
+      "to": {
+        "node": "cast",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "cast",
+        "port": "text"
+      },
+      "to": {
+        "node": "voice",
+        "port": "prompt"
+      }
+    }
+  ]
+}

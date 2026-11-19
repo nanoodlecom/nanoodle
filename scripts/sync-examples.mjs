@@ -5,7 +5,10 @@
 // noodles were added there and never landed here, and four entries lived on here after being
 // removed there. This makes the repo the source of truth mechanically — one card per
 // graphs/*.noodle-graph.json, plus the editor-only teaching cards listed in
-// LOCAL_ONLY_EXAMPLE_SLUGS (not MCP tools, not gallery files).
+// LOCAL_ONLY_EXAMPLE_SLUGS (not MCP tools, not gallery files), plus GALLERY_SAVED_EXAMPLE_SLUGS:
+// cards with no awesome-noodles graph whose source of truth is the saved run's
+// examples/gallery/<slug>/graph.json (what the gallery page, samples.json's sha256 and the guide
+// use). They sync and --check VERBATIM from that file, like an upstream graph.
 //
 //   node scripts/sync-examples.mjs --check     verify parity, touch nothing (the guard)
 //   node scripts/sync-examples.mjs             rewrite index.html's EXAMPLES array in place
@@ -49,6 +52,8 @@ const GRAPHS = gi >= 0 ? argv[gi + 1] : join(ROOT, "..", "awesome-noodles", "gra
 // scripts/check-example-results.mjs compares the two and requires teaching cards
 // to hide "See result" instead of linking examples/gallery/#<slug>.
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
+// Saved-run examples synced from examples/gallery/<slug>/graph.json (see the header).
+const GALLERY_SAVED_EXAMPLE_SLUGS = new Set(["creator-ad"]);
 
 if (!existsSync(GRAPHS)) {
   console.log(`sync-examples: SKIP — no awesome-noodles checkout at ${GRAPHS}`);
@@ -94,8 +99,15 @@ const slugs = readdirSync(GRAPHS)
   .map((f) => basename(f, ".noodle-graph.json"))
   .sort();
 
+// Gallery-saved examples: no upstream graph, but a saved run's graph.json in examples/gallery/<slug>/.
+const galleryGraph = (slug) => join(ROOT, "examples", "gallery", slug, "graph.json");
+const gallerySaved = new Set([...GALLERY_SAVED_EXAMPLE_SLUGS].filter((s) => !slugs.includes(s)));
+for (const s of GALLERY_SAVED_EXAMPLE_SLUGS) {
+  if (!existsSync(galleryGraph(s))) { console.error(`✗ gallery-saved example ${s} has no examples/gallery/${s}/graph.json`); process.exit(1); }
+  if (slugs.includes(s)) { console.error(`✗ ${s} is in awesome-noodles — drop it from GALLERY_SAVED_EXAMPLE_SLUGS and re-run so it syncs from upstream`); process.exit(1); }
+}
 const missing = slugs.filter((s) => !cards.has(s));           // in the repo, no card here
-const extra = order.filter((s) => !slugs.includes(s) && !LOCAL_ONLY_EXAMPLE_SLUGS.has(s));
+const extra = order.filter((s) => !slugs.includes(s) && !LOCAL_ONLY_EXAMPLE_SLUGS.has(s) && !gallerySaved.has(s));
 const promoted = slugs.filter((s) => LOCAL_ONLY_EXAMPLE_SLUGS.has(s));
 if (promoted.length) {
   for (const s of promoted)
@@ -134,7 +146,7 @@ const built = order.map((slug) => {
     return card;
   }
   const c = cards.get(slug);
-  const g = JSON.parse(readFileSync(join(GRAPHS, `${slug}.noodle-graph.json`), "utf8"));
+  const g = JSON.parse(readFileSync(gallerySaved.has(slug) ? galleryGraph(slug) : join(GRAPHS, `${slug}.noodle-graph.json`), "utf8"));
   const nodes = g.nodes.map(portNode).map((s, i) => (i ? "           " : "") + s).join(",\n");
   const links = g.links
     .map((l) => `{id:${j(l.id)},from:{node:${j(l.from.node)},port:${j(l.from.port)}},to:{node:${j(l.to.node)},port:${j(l.to.port)}}}`)
@@ -148,7 +160,7 @@ const built = order.map((slug) => {
 const next = "const EXAMPLES = [\n" + built.join("\n") + "\n];";
 
 if (next === current) {
-  console.log(`✓ examples gallery matches awesome-noodles (${slugs.length} noodles)`);
+  console.log(`✓ examples gallery matches awesome-noodles (${slugs.length} noodles) + ${gallerySaved.size} gallery-saved`);
   process.exit(0);
 }
 if (CHECK) {

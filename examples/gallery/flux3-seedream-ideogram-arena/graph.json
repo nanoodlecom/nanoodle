@@ -7,7 +7,7 @@
       "x": -338,
       "y": -242,
       "fields": {
-        "text": "One brief, four image models. Run makes four paid posters. Compare the heading, the footer, and the bowl."
+        "text": "One brief, five image models. Run makes five paid posters. Compare the heading, the footer, and the bowl."
       },
       "w": 340
     },
@@ -70,6 +70,18 @@
         "variations": "1"
       },
       "name": "Recraft V4.1 Flash"
+    },
+    {
+      "id": "n7",
+      "type": "image",
+      "x": 1290,
+      "y": 180,
+      "fields": {
+        "model": "moss-image",
+        "size": "1024x1024",
+        "variations": "1"
+      },
+      "name": "MOSS Image"
     }
   ],
   "links": [
@@ -114,6 +126,17 @@
       },
       "to": {
         "node": "n6",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n7",
         "port": "prompt"
       }
     }
