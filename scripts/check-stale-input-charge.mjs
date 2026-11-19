@@ -156,7 +156,6 @@ function bindWorld(world, opts = {}) {
     // reaching a paid call, not about how long the prompt that reaches it is.
     withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
     friendlyRunError: (e) => e?.message || String(e),   // identity here — the real mapper is UX-only
-    maybeAppNudge: () => {},   // post-first-wow "Create app" nudge — UI-only, inert here
     console,
   };
   ctx.globalThis = ctx;

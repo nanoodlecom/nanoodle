@@ -134,6 +134,7 @@ try {
   }
   console.log("✓ Editor: legacy import, both branches, joins, nested routes, malformed answers and fresh decisions on retry");
 
+  await page.locator("#morebtn").click();
   await page.locator("#makeapp").click();
   await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
   const builder = page.frameLocator("#appmodalframe");

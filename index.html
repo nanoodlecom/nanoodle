@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="nanoodle-build" content="dev" /><!-- stamped with the deploy commit sha7 by scripts/stamp-sw.mjs; read by scripts/smoke-live.mjs -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>nanoodle — turn NanoGPT prompts into reusable apps</title>
-<meta name="description" content="Turn your NanoGPT prompts into reusable AI apps. Sign in with NanoGPT, connect text, image, video and audio models, then share a link or export one HTML file. Runs use your NanoGPT balance. No analytics; your key stays in your browser." />
+<title>nanoodle — AI workflows and MCP tools</title>
+<meta name="description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
-<meta property="og:title" content="nanoodle — turn NanoGPT prompts into reusable apps" />
-<meta property="og:description" content="Sign in with NanoGPT, turn your prompts into reusable apps, and share a link or export one HTML file. Runs use your own NanoGPT balance. No analytics; your key stays in your browser." />
+<meta property="og:title" content="nanoodle — AI workflows and MCP tools" />
+<meta property="og:description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
 <meta property="og:url" content="https://nanoodle.com/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -20,8 +20,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="nanoodle — turn NanoGPT prompts into reusable apps" />
-<meta name="twitter:description" content="Sign in with NanoGPT, turn your prompts into reusable apps, and share a link or export one HTML file. Runs use your own NanoGPT balance. No analytics; your key stays in your browser." />
+<meta name="twitter:title" content="nanoodle — AI workflows and MCP tools" />
+<meta name="twitter:description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -54,7 +54,7 @@
       "url": "https://nanoodle.com/",
       "name": "nanoodle",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Build AI workflows with NanoGPT. ComfyUI-style, but way simpler. Share or export, no analytics.",
+      "description": "Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP.",
       "sameAs": [
         "https://x.com/nanosapien1",
         "https://github.com/nanoodlecom",
@@ -70,7 +70,7 @@
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "A tiny ComfyUI-style node playground for AI: wire text, image, video, audio and LLM nodes into workflows in your browser, then turn one into a shareable app. No analytics.",
+      "description": "Connect text, image, video, audio and other AI models in a visual workflow editor. Run hosted workflows from your agent over the Model Context Protocol (MCP).",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "sameAs": [
         "https://x.com/nanosapien1",
@@ -112,10 +112,6 @@
   #top{ position:fixed; inset:0 0 auto 0; height:52px; z-index:30; display:flex; align-items:center; gap:.6rem;
         padding:0 .9rem; background:rgba(18,21,29,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
   #top button{ white-space:nowrap }   /* a toolbar label must never wrap into a multi-line pill — overflow is measured & collapsed into ⋯ (layoutBar) */
-  #makeapp .lbl{ display:inline-block; max-width:14ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom }  /* long "Update <title>" can't blow up the bar */
-  /* Flagship conversion next to Run: accent outline so Create app isn't chrome-identical to Save/Load */
-  #makeapp{ border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent); }
-  #makeapp:hover{ border-color:var(--accent); filter:brightness(1.06) }
   #top .logo{display:inline-flex; align-items:center; gap:.35rem; font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif); font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
   #top .logo img{width:22px; height:22px; flex:none}
   #top .logo .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
@@ -347,25 +343,26 @@
   /* bottom-left corner pills — the quiet 📚 Examples entry lives here */
   #cornerpills{ position:fixed; left:1rem; bottom:1rem; z-index:120; display:flex; align-items:flex-end; gap:.5rem; flex-wrap:wrap; pointer-events:none }
   #cornerpills > *{ pointer-events:auto }
-  #examples{ display:flex; align-items:center; gap:.4rem; cursor:pointer; padding:.55rem .85rem;
+  #examples, #githublink{ display:flex; align-items:center; gap:.4rem; cursor:pointer; padding:.55rem .85rem;
              border:1px solid var(--line); border-radius:2rem; font:inherit; font-size:.84rem; font-weight:600;
-             color:var(--dim); background:var(--panel); box-shadow:0 4px 14px #0005 }
-  #examples:hover{ color:var(--ink); border-color:var(--accent) }
-  /* ⭐/🤖 open-source pill — GitHub link + "use in your agent" popover trigger. Same quiet
-     pill idiom as 📚 Examples: always on, never a modal, so the first-run flow is untouched. */
-  #agentpill{ display:flex; align-items:stretch; overflow:hidden; border:1px solid var(--line);
-              border-radius:2rem; background:var(--panel); box-shadow:0 4px 14px #0005 }
-  #agentpill > a, #agentpill > button{ display:flex; align-items:center; gap:.4rem; cursor:pointer;
-              padding:.55rem .85rem; border:0; font:inherit; font-size:.84rem; font-weight:600;
-              color:var(--dim); background:transparent; text-decoration:none }
-  #agentpill > a:hover, #agentpill > button:hover{ color:var(--ink); background:var(--panel2) }
-  #agentpill .split{ width:1px; background:var(--line) }
-  /* the popover sits just above the pill; sharemenu's panel look, bottom-left anchored */
-  #agentpop{ position:fixed; left:1rem; bottom:calc(var(--db-h,3rem) + 3.8rem); z-index:190;
-             width:min(420px, calc(100vw - 2rem)); max-height:calc(100dvh - var(--db-h,3rem) - 4.8rem);
+             color:var(--dim); background:var(--panel); box-shadow:0 4px 14px #0005; text-decoration:none }
+  #examples:hover, #githublink:hover{ color:var(--ink); border-color:var(--accent) }
+
+  /* Hosted MCP in the editor toolbar */
+  #agentmenu{ position:relative }
+  #agentbtn{ min-height:var(--nano-control-height,44px); border-radius:var(--nano-radius-control,8px);
+             border-color:color-mix(in srgb, var(--accent) 65%, var(--line));
+             background:color-mix(in srgb, var(--accent) 12%, var(--panel));
+             color:var(--nano-color-accent-ink,#a9b6ff); font-weight:700 }
+  #agentbtn:hover, #agentbtn[aria-expanded="true"]{ border-color:var(--accent);
+             background:color-mix(in srgb, var(--accent) 22%, var(--panel)) }
+  #agentbtn .compact{ display:none }
+  #agentpop{ position:absolute; top:calc(100% + .55rem); left:0; z-index:40;
+             width:min(420px, calc(100vw - 1.1rem)); max-height:calc(100dvh - 4rem);
              overflow-y:auto; background:var(--panel); border:1px solid var(--line);
-             border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem }
+             border-radius:var(--nano-radius-card,12px); box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem }
   #agentpop[hidden]{ display:none }
+  #agenttitle{ margin:.1rem .15rem .3rem; font:400 1.2rem/1.3 var(--nano-font-display,"Righteous",system-ui,sans-serif) }
   #agentpop .ap-note{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem }
   #agentpop a.ap-hosted{ display:block; font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem;
                          padding:.55rem .65rem; border:1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
@@ -374,7 +371,7 @@
   #agentpop a.ap-hosted:hover, #agentpop a.ap-hosted:focus-visible{ border-color:var(--accent);
                          background:color-mix(in srgb, var(--accent) 18%, var(--panel)) }
   #agentpop .ap-hosted-title{ display:flex; justify-content:space-between; align-items:center;
-                              gap:.5rem; margin-bottom:.2rem; font-size:.95rem; font-weight:700; color:var(--accent) }
+                              gap:.5rem; margin-bottom:.2rem; font-size:.95rem; font-weight:700; color:var(--nano-color-accent-ink,#a9b6ff) }
   #agentpop .ap-agents{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.45rem .15rem .1rem }
   #agentpop .ap-agents b{ color:var(--ink); font-weight:600 }
   #agentpop .ap-links{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
@@ -398,7 +395,6 @@
   #agentpop .ap-cmd .ap-key{ background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
-  @media (max-width:700px){ #agentpill .lbl{ display:none } #agentpill > a, #agentpill > button{ padding:.55rem .7rem } }
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
   /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
@@ -532,8 +528,7 @@
   @media (prefers-reduced-motion: reduce){ #cost .costdelta.on{ animation:none; opacity:1 } }
 
   /* ---------- editor surface ---------- */
-  /* the quiet site-links row: Terms/Privacy. (The GitHub / open-source affordance lives in the
-     bottom-left #agentpill now — the no-tracking promise stays verifiable, just more findable.) */
+  /* the quiet site-links row: Terms/Privacy. */
   #sitelinks{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20;
               display:flex; gap:.7rem; font-size:.62rem; line-height:1; pointer-events:auto; }   /* right-aligned under the control bar's right edge, clear of the lifted row */
   #sitelinks a{ color:var(--dim); opacity:.4; text-decoration:none }
@@ -624,7 +619,7 @@
   #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
   #canvashint{ flex-wrap:wrap }
   #canvashint .ht2{ flex-basis:100%; margin-top:.15rem; font-size:.74rem; line-height:1.3; opacity:.85 }   /* pay-per-use pitch wraps to its own full-width row */
-  /* Inline actions reuse the existing sign-in, Run, Create app and Examples flows. */
+  /* Inline actions reuse the existing Run and Examples flows. */
   #canvashint .link{ font-weight:600; white-space:nowrap; font-size:inherit; cursor:pointer }
   #canvashint .link:hover{ text-decoration:underline }
   #connecthint b{ color:var(--accent); font-weight:600 }   /* the ● reads as a port dot */
@@ -1067,51 +1062,32 @@
   .mprice{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.7rem; color:var(--muted); text-align:right;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:.8rem }
 
-  /* ---------- app action: primary "Create/Update app" + a caret split-button that reveals "Save as a new app" ---------- */
-  #appmenu{ position:relative; display:inline-flex; align-items:stretch }
-  /* the headline conversion — second-tier CTA: accent ring + tint, never a second filled primary (that's Run's) */
-  #makeapp, #appmore.caret{ border-color:var(--accent); color:#aeb6ff; background:#7c8cff14; font-weight:600 }
-  #makeapp:hover:not(:disabled), #appmore.caret:hover:not(:disabled){ border-color:var(--accent); background:#7c8cff2e }
-  /* joined split button: pull the seam to a single line & flatten the touching corners so the caret reads as one
-     control with the primary, not a detached box (mirrors the #authmenu split button). */
-  /* scoped to :not(.narrowbar) so that when narrowbar hides the caret (display:none) the primary keeps its full pill */
-  body:not(.narrowbar) #makeapp:has(+ #appmore:not([hidden])){ border-radius:.5rem 0 0 .5rem }
-  #appmore.caret{ padding:.4rem .5rem; margin-left:-1px; border-left-color:#7c8cff40; border-radius:0 .5rem .5rem 0;
-                  font-size:.8rem; line-height:1; transition:transform .15s ease }
-  #appmenu:has(#apppop.open) #appmore.caret{ transform:rotate(180deg) }   /* flip to point at the open menu */
-  #apppop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
-           border-radius:.6rem; padding:.35rem; display:none; flex-direction:column; gap:.1rem; min-width:210px;
-           box-shadow:0 12px 40px #0008; z-index:40 }
-  #apppop.open{ display:flex }
-  #apppop button{ text-align:left; border:none; background:none; width:100%; padding:.6rem .65rem; border-radius:.45rem; font-size:.92rem; white-space:nowrap }
-  #apppop button:hover{ background:var(--panel2) }
-  /* one-time post-first-run nudge, anchored under the ✨ button (same pill styling as #canvashint) */
-  #appnudge[hidden]{ display:none }
-  #appnudge{ position:absolute; top:115%; right:0; z-index:41; display:flex; align-items:center; gap:.4rem;
-             white-space:nowrap; max-width:calc(100vw - 1rem); background:var(--panel); border:1px solid var(--accent); border-radius:2rem;
-             padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007; cursor:pointer }
-  #appnudge b{ color:var(--ink); font-weight:600; white-space:nowrap }
-  #appnudge #appnudgex{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
-  #appnudge #appnudgex:hover{ background:var(--panel2); color:var(--ink) }
-  /* 3D blocks Create app. Same anchor as the nudge, but it does not open the builder or burn the one-shot flag. */
+  /* Show unsupported-node feedback after the More menu closes. */
   #appblock[hidden]{ display:none }
-  #appblock{ position:absolute; top:115%; right:0; z-index:41; display:flex; align-items:flex-start; gap:.4rem;
-             max-width:min(280px, calc(100vw - 1rem)); background:var(--panel); border:1px solid var(--warn); border-radius:.8rem;
-             padding:.45rem .4rem .45rem .75rem; font-size:.78rem; color:var(--dim); box-shadow:0 6px 22px #0007; white-space:normal; line-height:1.35 }
+  #appblock{ position:fixed; top:calc(58px + var(--ws-h)); left:50%; transform:translateX(-50%);
+             z-index:28; display:flex; align-items:flex-start; justify-content:space-between; gap:.4rem;
+             width:max-content; max-width:min(420px, calc(100vw - 1rem)); background:var(--panel);
+             border:1px solid var(--warn); border-radius:var(--nano-radius-card,12px);
+             padding:.45rem .4rem .45rem .75rem; font-size:.78rem; color:var(--dim); box-shadow:0 6px 22px #0007; line-height:1.35 }
+  #appblock [data-msg]{ overflow-wrap:anywhere }
   #appblock #appblockx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .35rem; border-radius:.4rem }
   #appblock #appblockx:hover{ background:var(--panel2); color:var(--ink) }
 
-  /* ---------- overflow ("⋯ More") menu — desktop keeps actions inline, mobile collapses them here ---------- */
-  #moremenu{ position:relative; display:none }
+  /* ---------- More menu — app actions and narrow-toolbar overflow ---------- */
+  #moremenu{ position:relative }
   #morepop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
-            border-radius:.6rem; padding:.35rem; display:none; flex-direction:column; gap:.1rem; min-width:200px;
+            border-radius:var(--nano-radius-card,12px); padding:.35rem; display:none; flex-direction:column; gap:.1rem;
+            width:min(240px, calc(100vw - 1.1rem)); max-height:calc(100dvh - 4rem); overflow:auto;
             box-shadow:0 12px 40px #0008; z-index:40 }
   #morepop.open{ display:flex }
   #morepop button{ text-align:left; border:none; background:none; width:100%; padding:.6rem .65rem; border-radius:.45rem; font-size:.92rem }
+  #top #morepop button{ white-space:normal }
   #morepop button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12 }
   #morepop button:hover{ background:var(--panel2) }
   #morepop #status{ padding:.45rem .65rem; font-size:.76rem; color:var(--dim) }
-  #morepop .mdiv{ height:1px; background:var(--line); margin:.25rem .2rem }
+  #morepop .mdiv{ display:none; height:1px; background:var(--line); margin:.25rem .2rem }
+  body.narrowbar #morepop .mdiv{ display:block }
+  #morepop > *{ flex:none }
 
   /* Keep i18n available without making it look like a primary product surface. */
   #langcur{ display:none }              /* globe + ▾ only — the menu still lists every language */
@@ -1122,12 +1098,21 @@
   body.narrowbar #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
   body.narrowbar #top .logo{ font-size:1.05rem; margin-right:.1rem }
   body.narrowbar #addbtn .lbl{ display:none }          /* ＋ ▾ only — the popover lists every node anyway */
-  body.narrowbar #makeapp .lbl{ display:none }         /* ✨ only — the flagship action stays in the bar, never buried in ⋯ */
-  body.narrowbar #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
-  body.narrowbar #moremenu{ display:block }            /* reveal the overflow trigger */
-  /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
-  body.narrowbar #appnudge{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
-  body.narrowbar #appblock{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none }
+  body.narrowbar #run{ min-width:3.3rem }
+  body.narrowbar #agentbtn .lbl{ display:none }
+  body.narrowbar #agentbtn .compact{ display:inline }
+  body.narrowbar #agentmenu, body.narrowbar #moremenu{ position:static }
+  body.narrowbar #agentpop, body.narrowbar #morepop{ top:calc(100% + .35rem); left:auto; right:max(.55rem,env(safe-area-inset-right)) }
+  body.narrowbar #top .spacer{ display:none }
+  body.narrowbar #langmenu{ margin-left:auto }
+  @media (max-width:420px){
+    body.narrowbar #top{ gap:.3rem }
+    body.narrowbar :is(#addbtn,#run,#agentbtn,#morebtn){ padding-inline:.4rem }
+    body.narrowbar #morebtn{ min-width:2.25rem }
+  }
+  @media (max-width:360px){
+    body.narrowbar #top .logo > span{ display:none }
+  }
   body.narrowbar #top .sep{ display:none }
   body.narrowbar #cost{ display:none }                 /* balance is non-essential chrome when the bar is tight */
   body.narrowbar #authmenu{ display:none }             /* its sign-in/paste-key buttons move into ⋯ (RELOC); only the empty caret shell stays behind */
@@ -1310,22 +1295,43 @@
 <body>
 
 <header id="top">
-  <h1 class="vh">nanoodle — AI workflow editor</h1>
+  <h1 class="vh">nanoodle — AI workflows and MCP tools</h1>
   <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
   <div id="addmenu">
-    <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
+    <button id="addbtn" title="Add a node" aria-label="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ <span>Run</span></button>
-  <div id="appmenu">
-    <button id="makeapp" title="Turn this workflow into a shareable app">✨<span class="lbl"> Create app</span></button>
-    <button id="appmore" class="caret" title="More app options" aria-label="More app options" aria-haspopup="true" hidden>▾</button>
-    <div id="apppop">
-      <button id="newapp" title="Save this as a brand-new app — the one you’re editing stays untouched">✨ <span>Save as a new app</span></button>
-      <button id="openapps" hidden title="Open one of your saved apps — created or imported">≡ <span>My apps</span></button>
+  <div id="agentmenu">
+    <button id="agentbtn" type="button" aria-label="Connect to MCP" title="Connect to MCP" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Connect to MCP</span><span class="compact" data-no-i18n>MCP</span></button>
+    <div id="agentpop" hidden role="dialog" aria-labelledby="agenttitle">
+      <h2 id="agenttitle">Run workflows from your agent</h2>
+      <p class="ap-note">Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.</p>
+      <a class="ap-hosted" href="https://mcp.nanoodle.com/" target="_blank" rel="noopener">
+        <span class="ap-hosted-title"><span data-no-i18n>mcp.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+        <span>Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.</span>
+      </a>
+      <details id="agentskill">
+        <summary>Run a workflow as a skill</summary>
+        <p class="ap-note">Install the skill to design and run workflows from your terminal using your NanoGPT key.</p>
+        <div class="sm-urlrow">
+          <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
+          <button id="agentcopy" class="sm-copy">Copy</button>
+        </div>
+        <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
+        <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a></p>
+        <details id="agentmcp">
+          <summary>Serve a folder of workflows over MCP</summary>
+          <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
+          <div class="sm-urlrow">
+            <code id="agentmcpcmd" class="ap-cmd" aria-label="MCP install command" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class="ap-key">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>
+            <button id="agentmcpcopy" class="sm-copy">Copy</button>
+          </div>
+          <p class="ap-keyhint" id="agentmcphint">swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you</p>
+          <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
+        </details>
+      </details>
     </div>
-    <div id="appnudge" hidden role="status"><span>Like it? <b>✨ Turn this into an app</b> you can share</span><button id="appnudgex" title="Got it" aria-label="Dismiss">×</button></div>
-    <div id="appblock" hidden role="status"><span data-msg></span><button id="appblockx" type="button" title="Dismiss" aria-label="Dismiss">×</button></div>
   </div>
   <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 <span>Share workflow</span></button>
   <button id="save" title="download this graph as JSON">⭳ <span>Save</span></button>
@@ -1333,8 +1339,14 @@
   <button id="updates" title="What’s new in nanoodle">📣 <span>Updates</span><span id="updbadge" hidden></span></button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
   <div id="moremenu">
-    <button id="morebtn" title="More actions">⋯</button>
-    <div id="morepop"></div>
+    <button id="morebtn" type="button" title="More actions" aria-label="More actions" aria-controls="morepop" aria-expanded="false">⋯</button>
+    <div id="morepop">
+      <div id="moreworkflowdivider" class="mdiv" aria-hidden="true"></div>
+      <button id="makeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
+      <button id="newapp" type="button" hidden title="Save this as a brand-new app — the one you’re editing stays untouched">Save as a new app</button>
+      <button id="openapps" type="button" hidden title="Open one of your saved apps — created or imported">My apps</button>
+      <div class="mdiv" aria-hidden="true"></div>
+    </div>
   </div>
   <div class="sep"></div>
   <span id="cost"></span>
@@ -1354,6 +1366,7 @@
   </div>
   <button id="signout" class="link" style="display:none">sign out</button>
 </header>
+<div id="appblock" hidden><span data-msg role="status"></span><button id="appblockx" type="button" title="Dismiss" aria-label="Dismiss">×</button></div>
 
 <div id="workspaces">
   <div id="wstabs" role="tablist" aria-label="Workspaces" aria-keyshortcuts="Control+Alt+ArrowRight Control+Alt+ArrowLeft"></div>
@@ -1450,11 +1463,7 @@
       <div id="communitytop" data-no-i18n hidden></div>
       <div id="communitymore" data-no-i18n hidden></div>
     </div>
-    <div id="examplesnote">Opening an example adds a workspace. The one you are on stays put. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
-      <!-- second link, second question: the gallery answers "what can I start from", the showcase
-           answers "does this make anything real". Same sentence shape as the line above, so the
-           text nodes around the (untranslated) repo name stay their own i18n keys. -->
-      <span>Made an app from one?</span> <a href="https://github.com/nanoodlecom/built-with-nanoodle" target="_blank" rel="noopener" data-no-i18n>built-with-nanoodle</a><span> — the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.</span></div>
+    <div id="examplesnote">Opening an example adds a workspace. The one you are on stays put. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span></div>
   </div>
 </div>
 
@@ -1482,40 +1491,7 @@
 <!-- bottom-left corner pills -->
 <div id="cornerpills">
 <button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
-<div id="agentpill">
-  <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener" title="Star nanoodle on GitHub — this whole site is one MIT-licensed repo">⭐ <span class="lbl" data-no-i18n>GitHub</span></a>
-  <span class="split" aria-hidden="true"></span>
-  <button id="agentbtn" title="Load nanoodle into your coding agent" aria-label="Use in your agent" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false">🤖 <span class="lbl">Use in your agent</span></button>
-</div>
-</div>
-
-<!-- Hosted MCP is the primary path. Local MCP setup lives inside the skill disclosure. -->
-<div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
-  <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
-  <a class="ap-hosted" href="https://mcp.nanoodle.com" target="_blank" rel="noopener">
-    <span class="ap-hosted-title"><span data-no-i18n>mcp.nanoodle.com</span><span aria-hidden="true">↗</span></span>
-    <span>Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.</span>
-  </a>
-  <details id="agentskill">
-    <summary>Run a workflow as a skill</summary>
-    <p class="ap-note">Install the skill to design and run workflows from your terminal using your NanoGPT key.</p>
-    <div class="sm-urlrow">
-      <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
-      <button id="agentcopy" class="sm-copy">Copy</button>
-    </div>
-    <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
-    <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a></p>
-    <details id="agentmcp">
-      <summary>Serve a folder of workflows over MCP</summary>
-      <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
-      <div class="sm-urlrow">
-        <code id="agentmcpcmd" class="ap-cmd" aria-label="MCP install command" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class="ap-key">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>
-        <button id="agentmcpcopy" class="sm-copy">Copy</button>
-      </div>
-      <p class="ap-keyhint" id="agentmcphint">swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you</p>
-      <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
-    </details>
-  </details>
+<a id="githublink" href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener" title="Star nanoodle on GitHub — this whole site is one MIT-licensed repo"><span aria-hidden="true">⭐</span> <span data-no-i18n>GitHub</span></a>
 </div>
 
 <!-- ⛽ Refuel — opens when a run just failed for lack of credit, or from a click on the balance
@@ -1570,7 +1546,7 @@
   <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1776,7 +1752,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
     "A live AI workflow. Press":"Un flujo de IA en vivo. Pulsa",
-    "Turn NanoGPT prompts into reusable apps.":"Convierte prompts de NanoGPT en apps reutilizables.",
+    "Build with NanoGPT. Run hosted workflows over MCP.":"Crea con NanoGPT. Ejecuta flujos alojados mediante MCP.",
     "Edit the prompt":"Edita el prompt",
     "to save and share.":"para guardar y compartir.",
     "Signed out? Run previews a prerecorded sample.":"¿Sin sesión? Ejecutar muestra un ejemplo pregrabado.",
@@ -2386,9 +2362,9 @@ const I18N = {
     "— remix one and send us yours.":"— remezcla uno y envíanos el tuyo.",
     "Made an app from one?":"¿Hiciste una app con uno?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrina. Todas las apps que hay siguen siendo nuestras; haz que la tuya sea la primera que no lo sea. Una línea.",
-    "Use in your agent":"Úsalo en tu agente",
-    "nanoodle in your coding agent":"nanoodle en tu agente de código",
-    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Ejecuta flujos alojados desde tu agente. Paga por ejecución en Nano, NEAR o USDC en la red NEAR.",
+    "Connect to MCP":"Conectar con MCP",
+    "Run workflows from your agent":"Ejecuta flujos desde tu agente",
+    "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Consulta el precio y paga por ejecución en Nano, NEAR o USDC en la red NEAR.",
     "Run a workflow as a skill":"Ejecutar un flujo como skill",
     "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Instala la skill para diseñar y ejecutar flujos desde tu terminal con tu clave de NanoGPT.",
     "Serve a folder of workflows over MCP":"Servir una carpeta de flujos mediante MCP",
@@ -2406,7 +2382,7 @@ const I18N = {
     "MCP install command":"comando de instalación del MCP",
     "Use nanoodle in your coding agent":"Usa nanoodle en tu agente de código",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Dale una estrella a nanoodle en GitHub — todo este sitio es un único repo con licencia MIT",
-    "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
+    "Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.":"Conéctate mediante el protocolo MCP (Model Context Protocol) para usar flujos alojados como herramientas."
   },
   fr:{
     "Undo":"Annuler",
@@ -2561,7 +2537,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
     "A live AI workflow. Press":"Un workflow d’IA en direct. Appuyez sur",
-    "Turn NanoGPT prompts into reusable apps.":"Transformez vos prompts NanoGPT en apps réutilisables.",
+    "Build with NanoGPT. Run hosted workflows over MCP.":"Créez avec NanoGPT. Exécutez des workflows hébergés via MCP.",
     "Edit the prompt":"Modifiez le prompt",
     "to save and share.":"pour enregistrer et partager.",
     "Signed out? Run previews a prerecorded sample.":"Sans connexion ? Exécuter affiche un exemple préenregistré.",
@@ -3164,9 +3140,9 @@ const I18N = {
     "— remix one and send us yours.":"— remixez-en un et envoyez-nous le vôtre.",
     "Made an app from one?":"Vous en avez fait une app ?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrine. Toutes les apps qui s’y trouvent sont encore les nôtres ; faites de la vôtre la première qui ne l’est pas. Une ligne.",
-    "Use in your agent":"Utiliser dans votre agent",
-    "nanoodle in your coding agent":"nanoodle dans votre agent de code",
-    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Exécutez des workflows hébergés depuis votre agent. Payez à chaque exécution en Nano, en NEAR ou en USDC sur le réseau NEAR.",
+    "Connect to MCP":"Se connecter à MCP",
+    "Run workflows from your agent":"Exécutez des workflows depuis votre agent",
+    "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Obtenez un devis et payez à chaque exécution en Nano, en NEAR ou en USDC sur le réseau NEAR.",
     "Run a workflow as a skill":"Exécuter un workflow avec une skill",
     "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Installez la skill pour concevoir et exécuter des workflows depuis votre terminal avec votre clé NanoGPT.",
     "Serve a folder of workflows over MCP":"Exposer un dossier de workflows via MCP",
@@ -3184,7 +3160,7 @@ const I18N = {
     "MCP install command":"commande d’installation du MCP",
     "Use nanoodle in your coding agent":"Utilisez nanoodle dans votre agent de code",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Mettez une étoile à nanoodle sur GitHub — tout ce site tient dans un seul dépôt sous licence MIT",
-    "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
+    "Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.":"Connectez-vous via le protocole MCP (Model Context Protocol) pour utiliser les workflows hébergés comme outils."
   },
   de:{
     "Undo":"Rückgängig",
@@ -3340,7 +3316,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
     "A live AI workflow. Press":"Ein live KI-Workflow. Drücke",
-    "Turn NanoGPT prompts into reusable apps.":"Mach aus NanoGPT-Prompts wiederverwendbare Apps.",
+    "Build with NanoGPT. Run hosted workflows over MCP.":"Erstelle Workflows mit NanoGPT. Starte gehostete Workflows per MCP.",
     "Edit the prompt":"Bearbeite den Prompt",
     "to save and share.":"zum Speichern und Teilen.",
     "Signed out? Run previews a prerecorded sample.":"Abgemeldet? Ausführen zeigt ein vorab aufgenommenes Beispiel.",
@@ -3942,9 +3918,9 @@ const I18N = {
     "— remix one and send us yours.":"— remixe eins und schick uns deins.",
     "Made an app from one?":"Daraus eine App gebaut?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— das Schaufenster. Alle Apps darin sind noch unsere eigenen; mach deine zur ersten, die es nicht ist. Eine Zeile.",
-    "Use in your agent":"In deinem Agenten nutzen",
-    "nanoodle in your coding agent":"nanoodle in deinem Coding-Agenten",
-    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Starte gehostete Workflows aus deinem Agenten. Bezahle pro Ausführung in Nano, NEAR oder USDC im NEAR-Netzwerk.",
+    "Connect to MCP":"Mit MCP verbinden",
+    "Run workflows from your agent":"Workflows aus deinem Agenten starten",
+    "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Hol ein Preisangebot ein und zahle pro Ausführung in Nano, NEAR oder USDC im NEAR-Netzwerk.",
     "Run a workflow as a skill":"Einen Workflow als Skill ausführen",
     "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Installiere den Skill, um mit deinem NanoGPT-Schlüssel Workflows im Terminal zu erstellen und auszuführen.",
     "Serve a folder of workflows over MCP":"Einen Ordner mit Workflows per MCP bereitstellen",
@@ -3962,7 +3938,7 @@ const I18N = {
     "MCP install command":"MCP-Installationsbefehl",
     "Use nanoodle in your coding agent":"Nutze nanoodle in deinem Coding-Agenten",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Gib nanoodle einen Stern auf GitHub — die ganze Seite ist ein einziges MIT-lizenziertes Repo",
-    "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
+    "Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.":"Verbinde deinen Agenten über das Model Context Protocol (MCP), um gehostete Workflows als Tools zu nutzen."
   },
   pt:{
     "Undo":"Desfazer",
@@ -4111,7 +4087,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
     "A live AI workflow. Press":"Um fluxo de IA ao vivo. Pressione",
-    "Turn NanoGPT prompts into reusable apps.":"Transforme prompts NanoGPT em apps reutilizáveis.",
+    "Build with NanoGPT. Run hosted workflows over MCP.":"Crie com NanoGPT. Execute fluxos hospedados via MCP.",
     "Edit the prompt":"Edite o prompt",
     "to save and share.":"para salvar e compartilhar.",
     "Signed out? Run previews a prerecorded sample.":"Sem sessão? Executar mostra uma amostra pré-gravada.",
@@ -4720,9 +4696,9 @@ const I18N = {
     "— remix one and send us yours.":"— remixe um e mande o seu.",
     "Made an app from one?":"Fez um app a partir de um deles?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— a vitrine. Todos os apps nela ainda são nossos; faça o seu ser o primeiro que não é. Uma linha.",
-    "Use in your agent":"Use no seu agente",
-    "nanoodle in your coding agent":"nanoodle no seu agente de código",
-    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"Execute fluxos hospedados a partir do seu agente. Pague por execução em Nano, NEAR ou USDC na rede NEAR.",
+    "Connect to MCP":"Conectar ao MCP",
+    "Run workflows from your agent":"Execute fluxos a partir do seu agente",
+    "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Receba uma cotação e pague por execução em Nano, NEAR ou USDC na rede NEAR.",
     "Run a workflow as a skill":"Executar um fluxo como skill",
     "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"Instale a skill para criar e executar fluxos no terminal com sua chave do NanoGPT.",
     "Serve a folder of workflows over MCP":"Disponibilizar uma pasta de fluxos via MCP",
@@ -4740,7 +4716,7 @@ const I18N = {
     "MCP install command":"comando de instalação do MCP",
     "Use nanoodle in your coding agent":"Use o nanoodle no seu agente de código",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Dê uma estrela ao nanoodle no GitHub — este site inteiro é um único repositório com licença MIT",
-    "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
+    "Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.":"Conecte-se pelo Model Context Protocol (MCP) para usar fluxos hospedados como ferramentas."
   },
   ja:{
     "Undo":"元に戻す",
@@ -4885,7 +4861,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
     "A live AI workflow. Press":"ライブのAIワークフローです。",
-    "Turn NanoGPT prompts into reusable apps.":"NanoGPTのプロンプトを何度も使えるアプリに。",
+    "Build with NanoGPT. Run hosted workflows over MCP.":"NanoGPT で作成。MCP でホスト済みのワークフローを実行。",
     "Edit the prompt":"プロンプトを編集",
     "to save and share.":"で保存・共有できます。",
     "Signed out? Run previews a prerecorded sample.":"未サインイン時の実行は、事前に生成したサンプルを表示します。",
@@ -5498,9 +5474,9 @@ const I18N = {
     "— remix one and send us yours.":"— リミックスして、あなたの作品もぜひ送ってください。",
     "Made an app from one?":"そこからアプリを作りましたか？",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— ショーケースです。今あるアプリはまだ全部わたしたちのもの。最初の1つは、あなたのアプリに。追加は1行です。",
-    "Use in your agent":"エージェントで使う",
-    "nanoodle in your coding agent":"コーディングエージェントで nanoodle",
-    "Run hosted workflows from your agent. Pay per run in Nano, NEAR, or USDC on NEAR.":"エージェントからホスト済みのワークフローを実行できます。実行ごとに Nano、NEAR、または NEAR ネットワーク上の USDC で支払います。",
+    "Connect to MCP":"MCP に接続",
+    "Run workflows from your agent":"エージェントからワークフローを実行",
+    "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"実行ごとに料金を確認し、Nano、NEAR、または NEAR ネットワーク上の USDC で支払えます。",
     "Run a workflow as a skill":"スキルでワークフローを実行する",
     "Install the skill to design and run workflows from your terminal using your NanoGPT key.":"スキルをインストールすると、NanoGPT キーを使ってターミナルからワークフローを作成・実行できます。",
     "Serve a folder of workflows over MCP":"フォルダ内のワークフローを MCP で公開する",
@@ -5518,7 +5494,7 @@ const I18N = {
     "MCP install command":"MCP のインストールコマンド",
     "Use nanoodle in your coding agent":"コーディングエージェントで nanoodle を使う",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"GitHub で nanoodle にスターを — このサイト全体が MIT ライセンスの単一リポジトリです",
-    "Load nanoodle into your coding agent":"コーディングエージェントに nanoodle を読み込む"
+    "Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.":"Model Context Protocol（MCP）で接続し、ホスト済みのワークフローをツールとして使えます。"
   }
 };
 /* === I18N-MAPS-END === */
@@ -14451,10 +14427,6 @@ async function runGroup(seedIds, ctx){
       })();
     }
     await Promise.all(order.map(id=> done[id]));
-    // a clean finish (nothing failed or Stopped, ≥1 node actually produced output) is the
-    // post-wow moment — one-time nudge toward ✨ Create app. Not after a demo run: the one
-    // next step there is signing in (the demo popover already owns that CTA).
-    if(!ctx.demo && !failed.size && !ctl.signal.aborted && order.some(id=>{ const n = byId(id); return n?.out && Object.keys(n.out).length; })) maybeAppNudge();
   } finally {
     seedSet.forEach(id=>{ seedRuns.delete(id); if(seedCtl.get(id)===ctl) seedCtl.delete(id); if(typeof dropWorkHolder==="function") dropWorkHolder(id, false); });
     unlockRunIds(lock);
@@ -17624,33 +17596,26 @@ $("authcaret").onclick = (e)=>{ e.stopPropagation(); $("authpop").classList.togg
 document.addEventListener("click", e=>{ if(!$("authmenu").contains(e.target)) $("authpop").classList.remove("open"); });
 $("authpop").addEventListener("click", e=>{ if(e.target.closest("button,a")) $("authpop").classList.remove("open"); });
 
-/* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
-   Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["share","save","load","updates","signin","pastebtn","authnew","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS). authnew rides along so the "create an account" CTA isn't stranded in the hidden #authpop on collapse
+/* ---------- responsive toolbar: move secondary workflow and account controls into More ----------
+   App actions live in More at every width. Moved controls retain their handlers. */
+const WORKFLOW_RELOC = ["share","save","load","updates"];
+const ACCOUNT_RELOC = ["signin","pastebtn","authnew","signout","status"];
 let topOrder = null;
 // Collapse into ⋯ by MEASURING true one-line overflow, not a fixed media query: the bar's natural width
-// swings ~1100–1300px with auth state and app-title length, so any single px breakpoint is dishonest
-// (leaves 641–909px viewports with wrapped pills + off-screen sign-in). Expand first (so the measure is
-// honest), read scrollWidth, then collapse only if it wouldn't fit. Expand→measure→collapse is one
-// synchronous task, so the user never sees the intermediate expanded frame.
+// depends on language and auth state. Expand first, read scrollWidth, and collapse when needed.
 function expandBar(){
-  const pop = $("morepop"), top = $("top");
+  const top = $("top");
   document.body.classList.remove("narrowbar");
   topOrder.forEach(n=> top.appendChild(n));            // re-append originals in order → pulls them back out of the menu
-  $("apppop").appendChild($("newapp"));                // hand the "Save as a new app" fork back to the caret popover
-  $("apppop").appendChild($("openapps"));              // ...and the "≡ My apps" entry alongside it
   $("authmenu").insertBefore($("signin"), $("authcaret"));   // signin/pastebtn nest INSIDE the auth split-button, so the
   $("authpop").prepend($("pastebtn"));                       // topOrder re-append above can't restore them — re-nest by hand (paste key sits above the create-account link)
   $("authpop").appendChild($("authnew"));                    // ...and put the create-account link back below it (collapseBar moved it into ⋯ via RELOC)
-  pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
 }
 function collapseBar(){
-  const pop = $("morepop");
+  const pop = $("morepop"), divider = $("moreworkflowdivider");
   document.body.classList.add("narrowbar");
-  $("apppop").classList.remove("open");                // the caret popover would otherwise linger as an empty box once its fork moves out
-  pop.appendChild($("newapp"));                        // the ▾ caret is hidden when collapsed, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
-  pop.appendChild($("openapps"));                      // "≡ My apps" rides along (hidden while the library is empty, like the caret)
-  RELOC.forEach((id)=>{ const el=$(id); if(!el) return; if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild(el); });   // skip ids whose button was removed so one gap can't abort the whole collapse
+  WORKFLOW_RELOC.forEach(id=> pop.insertBefore($(id), divider));
+  ACCOUNT_RELOC.forEach(id=> pop.appendChild($(id)));
 }
 function layoutBar(){
   if(!topOrder) return;                                // boot hasn't snapshotted the original order yet
@@ -17659,9 +17624,17 @@ function layoutBar(){
 }
 let barRAF = 0;
 addEventListener("resize", ()=>{ if(barRAF) return; barRAF = requestAnimationFrame(()=>{ barRAF = 0; layoutBar(); }); });
-$("morebtn").onclick = (e)=>{ e.stopPropagation(); $("morepop").classList.toggle("open"); };
-$("morepop").addEventListener("click", e=>{ if(e.target.closest("button")) $("morepop").classList.remove("open"); });
-document.addEventListener("click", e=>{ if(!$("moremenu").contains(e.target)) $("morepop").classList.remove("open"); });
+function setMorePop(open){
+  const pop = $("morepop"), trigger = $("morebtn");
+  const restoreFocus = !open && pop.contains(document.activeElement);
+  pop.classList.toggle("open", open);
+  trigger.setAttribute("aria-expanded", String(open));
+  if(restoreFocus) trigger.focus();
+}
+$("morebtn").onclick = ()=> setMorePop(!$("morepop").classList.contains("open"));
+$("morepop").addEventListener("click", e=>{ if(e.target.closest("button,a")) setMorePop(false); });
+document.addEventListener("click", e=>{ if($("morepop").classList.contains("open") && !$("moremenu").contains(e.target)) setMorePop(false); }, true);
+addEventListener("keydown", e=>{ if(e.key==="Escape" && $("morepop").classList.contains("open")) setMorePop(false); });
 
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
@@ -17822,7 +17795,7 @@ function save(){
   try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
-  if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
+  refreshAppButton();                   // update Open/Update as edits diverge from the app's saved graph
   clearTimeout(saveT);
   if(typeof markWorkspaceDirty==="function") markWorkspaceDirty();
   saveT = setTimeout(()=>{
@@ -18421,52 +18394,37 @@ function boundAppUpToDate(){
 }
 // Just the primary app-action button's label + tooltip — the slice of updateTitle() that must
 // stay live as the graph is edited (save() calls this on every change). When bound and already
-// up to date it says "✨ Open <app>" (clicking still just re-opens the builder — the openCreateApp
-// same-graph fast path — so the label finally tells the truth); a divergent canvas keeps "Update".
-// Returns true iff the visible label TEXT changed (Open↔Update↔Create flips the button width →
-// the caller re-runs layoutBar()); the tooltip is refreshed unconditionally (cheap, no reflow).
-let _appBtnLabel = null;
+// up to date it says "Open <app>"; a divergent canvas keeps "Update".
 function refreshAppButton(){
   const mk = $("makeapp");
-  if(!mk) return false;
+  if(!mk) return;
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  // Name the destination so the primary can never quietly overwrite the wrong app.
-  // The label rides in a .lbl span so phones can collapse the button to ✨ (title keeps the words).
+  // Name the destination so users can tell which app the action will update.
   const short = appTitle ? (appTitle.length > 20 ? appTitle.slice(0,19)+"…" : appTitle) : "app";
   let label, title;
   if(!pendingAppId){
     label = t("Create app");
     title = t("Turn this workflow into a shareable app");
   } else if(boundAppUpToDate()){
-    label = t("Open {app}").replace("{app}", esc(short));
-    title = t("Open “{app}” — it already has this workflow").replace("{app}", appTitle || t("your app"));
+    label = t("Open {app}").replace("{app}", ()=>short);
+    title = t("Open “{app}” — it already has this workflow").replace("{app}", ()=>appTitle || t("your app"));
   } else {
-    label = t("Update {app}").replace("{app}", esc(short));
-    title = t("Update “{app}” with this workflow").replace("{app}", appTitle || t("your app"));
+    label = t("Update {app}").replace("{app}", ()=>short);
+    title = t("Update “{app}” with this workflow").replace("{app}", ()=>appTitle || t("your app"));
   }
   mk.title = title;
-  const changed = label !== _appBtnLabel;
-  if(changed){ _appBtnLabel = label; mk.innerHTML = `✨<span class="lbl"> ${label}</span>`; }
-  return changed;
+  if(mk.textContent !== label) mk.textContent = label;
 }
-// "nanoodle — like ComfyUI, but way simpler" while noodling; "nanoodle - <app> app" once an app's workflow is loaded.
-// Also keeps the action button honest: it says "Update app" (and reveals a "New" escape hatch)
-// whenever a binding is live, so "Create app" can never quietly overwrite an app you forgot about.
 function updateTitle(){
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — like ComfyUI, but way simpler";
-  const nw = $("newapp"), more = $("appmore");
+  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — AI workflows and MCP tools";
   refreshAppButton();
-  // The caret opens for two reasons: a live binding (the "Save as a new app" escape hatch)
-  // or a non-empty app library ("≡ My apps" — the way back to your apps from the editor).
-  // Each fork hides on its own condition, so the popover only ever lists what applies.
+  // Show Save as a new app for a bound workflow and My apps for a non-empty library.
   let lib = 0;
   try{ const a = JSON.parse(localStorage.getItem("noodle_apps") || "[]"); lib = Array.isArray(a) ? a.length : 0; }catch(_){}
+  const nw = $("newapp");
   if(nw) nw.hidden = !pendingAppId;
   const oa = $("openapps"); if(oa) oa.hidden = !lib;
-  if(more) more.hidden = !pendingAppId && !lib;
-  if(!pendingAppId && !lib) $("apppop").classList.remove("open");
-  layoutBar();   // binding swaps "Create app" ↔ "Update <title>" → the bar's width changes, re-measure fit
 }
 /* WORKSPACES-BEGIN
    Each tab is one autosaved graph. noodle_graph stays the ACTIVE tab, same JSON as before,
@@ -20846,12 +20804,11 @@ function closeAppModal(){
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
 function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
-// "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
+// My apps opens the builder's library over whichever app was last open.
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
 function openMyApps(){
   if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
-  $("apppop").classList.remove("open"); $("morepop").classList.remove("open");
   if(appFrameLoaded || appFrameBooting){
     $("appmodal").hidden = false;
     if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){} }
@@ -20867,6 +20824,7 @@ function openMyApps(){
   $("appmodal").hidden = false;
 }
 async function openCreateApp(){
+  $("appblock").hidden = true;
   if(!graph.nodes.length){ flash("add a node first"); return; }
   if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   queuedMyApps = false;   // a Create/Update supersedes a parked menu-open — don't pop the library over the fresh handoff
@@ -20874,16 +20832,14 @@ async function openCreateApp(){
   // Same graph + builder loaded (or still booting off this very graph) → just bring your
   // app back (no reload, no fresh draft).
   if((appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig){
-    dismissAppNudge();
     $("appmodal").hidden = false;
     try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
     return;
   }
   if(graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
-    showCreateAppBlock();   // anchored under ✨ — does not burn the one-shot nudge or open the builder
+    showCreateAppBlock();
     return;
   }
-  dismissAppNudge();   // they've reached the builder — the post-run nudge is spent
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
@@ -20912,28 +20868,10 @@ async function openCreateApp(){
   openAppModal(hash);
 }
 $("makeapp").onclick = openCreateApp;
-// "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
+// "Save as a new app" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
-$("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; } openCreateApp(); };
+$("newapp").onclick = ()=>{ try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; } openCreateApp(); };
 $("openapps").onclick = openMyApps;
-// Caret next to "Update app": reveal the "Save as a new app" fork (desktop only — phones hide the caret and layoutBar moves the fork into ⋯).
-$("appmore").onclick = (e)=>{ e.stopPropagation(); $("apppop").classList.toggle("open"); };
-document.addEventListener("click", e=>{ if(!$("appmenu").contains(e.target)) $("apppop").classList.remove("open"); });
-/* One-time post-first-wow nudge — the first run that finishes clean is the natural "turn it
-   into an app" moment, so surface it once. Local flag only, no tracking; skipped when the
-   workflow is already bound to an app, the builder intro was seen (they know the feature), or
-   another coach pill is up (never stack two — an unflagged skip retries on the next clean run).
-   Click = open the builder; only the ✕ or opening the builder burns the one-shot flag
-   (canvashint idiom: no ambient any-click dismissal, so a stray post-run click can't eat it). */
-const APP_NUDGE_KEY = "noodle_makeapp_nudge_done";
-function dismissAppNudge(){ const el = $("appnudge"); if(el && !el.hidden){ el.hidden = true; try{ localStorage.setItem(APP_NUDGE_KEY,"1"); }catch(_){} } }
-function maybeAppNudge(){
-  if(pendingAppId || !$("appmodal").hidden) return;   // already an app / builder already open
-  if(!$("canvashint").hidden || !$("connecthint").hidden) return;   // a coach pill is up — don't pile on
-  try{ if(localStorage.getItem(APP_NUDGE_KEY) || localStorage.getItem("noodle_appbuilder_intro_seen")) return; }catch(_){ return; }
-  $("appnudge").hidden = false;
-}
-$("appnudge").onclick = (e)=>{ e.stopPropagation(); const justX = e.target.id==="appnudgex"; dismissAppNudge(); if(!justX) openCreateApp(); };
 function showCreateAppBlock(){
   const el = $("appblock"); if(!el) return;
   const names = graph.nodes.filter(n=> n.type==="model3d" || n.type==="mupload")
@@ -21070,7 +21008,7 @@ const CONNECT_HINT_KEY = "noodle_connect_hint_dismissed";
 function dismissConnectHint(){ const h = $("connecthint"); if(h) h.hidden = true; try{ localStorage.setItem(CONNECT_HINT_KEY,"1"); }catch{} }
 function maybeShowConnectHint(){
   try{ if(localStorage.getItem(CONNECT_HINT_KEY)) return; }catch{ return; }
-  if(!$("canvashint").hidden || !$("appnudge").hidden) return;   // another coach pill is up → wait, don't stack (this retries on every Run/Add-node)
+  if(!$("canvashint").hidden) return;
   if((graph.nodes||[]).length >= 2) $("connecthint").hidden = false;
 }
 $("connecthintx").onclick = dismissConnectHint;
@@ -22151,14 +22089,11 @@ function loadExample(i){
 $("examples").onclick = openExamples;
 $("examplesclose").onclick = closeExamples;
 $("hintrun").onclick = ()=> $("run").click();    // banner "▶ Run" = the toolbar Run (it dismisses the hint, then runs/stops)
-$("hintmake").onclick = openCreateApp;           // banner "✨ Create app" = the toolbar ✨ button (opens the modal, keeps the hint like Examples)
 $("hintexamples").onclick = openExamples;        // first-run banner link — must NOT dismiss the hint
 $("examplesmodal").addEventListener("click", e=>{ if(e.target.id==="examplesmodal") closeExamples(); });   // dim-backdrop close
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidden) closeExamples(); });
 
-/* ⭐/🤖 corner pill — the "use in your agent" popover (installs the nanoodle Agent Skill).
-   No stopPropagation dance: the document-level closer skips clicks inside the pill/popover,
-   so the toggle below wins on the trigger itself (same idiom as #moremenu). */
+/* Hosted MCP and local agent setup. */
 function setAgentPop(open){
   const panel = $("agentpop");
   const trigger = $("agentbtn");
@@ -22168,11 +22103,12 @@ function setAgentPop(open){
   if(open){
     renderAgentMcp();
     panel.scrollTop = 0;
+    panel.querySelector(".ap-hosted").focus();
   }
   if(restoreFocus) trigger.focus();
 }
 $("agentbtn").onclick = ()=> setAgentPop($("agentpop").hidden);
-document.addEventListener("click", e=>{ if(!$("agentpop").hidden && !$("agentpop").contains(e.target) && !$("agentpill").contains(e.target)) setAgentPop(false); });
+document.addEventListener("click", e=>{ if(!$("agentpop").hidden && !$("agentmenu").contains(e.target)) setAgentPop(false); }, true);
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("agentpop").hidden) setAgentPop(false); });
 $("agentcopy").onclick = async ()=>{ const ok = await copyText($("agentcmd").value); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
 /* The MCP command carries the user's NanoGPT key, so it's rebuilt on every open: signed in →

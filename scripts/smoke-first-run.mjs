@@ -153,7 +153,24 @@ try {
     page.setDefaultTimeout(15000);
     try {
       await page.goto(origin, {waitUntil:"networkidle"});
-      assert.match(await page.locator("#canvashint").innerText(), /NanoGPT/);
+      assert.match(await page.locator("#canvashint").innerText(), /NanoGPT.*MCP/);
+      if (mobile) {
+        const viewport = page.viewportSize();
+        await page.setViewportSize({ ...viewport, width:320 });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        assert.ok(await page.locator("#top").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "the compact toolbar fits at 320px");
+        await page.setViewportSize(viewport);
+      }
+      assert.equal(await page.locator("#makeapp").isVisible(), false, "Create app stays in More");
+      const mcp = page.getByRole("button", {name:"Connect to MCP"});
+      await mcp.press("Enter");
+      const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted");
+      await hosted.waitFor();
+      assert.equal(await hosted.getAttribute("href"), "https://mcp.nanoodle.com/");
+      assert.equal(await hosted.evaluate(el => el === document.activeElement), true);
+      await hosted.press("Escape");
+      await hosted.waitFor({state:"hidden"});
+      assert.equal(await mcp.evaluate(el => el === document.activeElement), true);
       await page.locator("#run").click();
       const imageNodeId = starter.nodes.find(n => n.type === "image").id;
       await page.locator(`.node[data-id="${imageNodeId}"][data-status="done"] .result img`).waitFor();
@@ -170,7 +187,8 @@ try {
         "sample image actually decodes");
       await page.locator("#demox").click();
 
-      await page.locator("#makeapp").click();
+      await page.getByRole("button", {name:"More actions"}).click();
+      await page.getByRole("button", {name:"Create app", exact:true}).click();
       // The iframe element exists before play.html wires its controls and loads
       // the handoff. Use the editor's validated __appready__ handshake instead.
       await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
@@ -192,6 +210,10 @@ try {
       ]);
       assert.match(download.suggestedFilename(), /\.html$/);
       assert.equal(await download.failure(), null);
+      await page.locator("#appmodalclose").click();
+      await page.getByRole("button", {name:"More actions"}).click();
+      await page.getByRole("button", {name:"My apps", exact:true}).click();
+      await builder.locator("#appsmenu:not([hidden])").waitFor();
 
       const recipient = await (await newContext()).newPage();
       await recipient.goto(link, {waitUntil:"networkidle"});

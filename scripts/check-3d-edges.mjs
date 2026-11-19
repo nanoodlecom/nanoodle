@@ -176,13 +176,13 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
     "an oversize data: GLB is blanked and leaves no stub");
 }
 
-const resumeAt = IDX.indexOf("appSyncSig()===lastHandoffSig");
-const blockAt = IDX.indexOf('n.type==="model3d" || n.type==="mupload"');
-const nudgeAt = IDX.indexOf("they've reached the builder — the post-run nudge is spent");
+const createApp = IDX.slice(IDX.indexOf("async function openCreateApp()"), IDX.indexOf('$("makeapp").onclick'));
+const resumeAt = createApp.indexOf("appSyncSig()===lastHandoffSig");
+const blockAt = createApp.indexOf('n.type==="model3d" || n.type==="mupload"');
+const handoffAt = createApp.indexOf("serializeGraph()");
 ok(resumeAt > 0 && blockAt > resumeAt, "same-graph Create-app resume returns before the 3D block");
-ok(blockAt > 0 && nudgeAt > blockAt, "the 3D block returns before dismissAppNudge (does not burn the one-shot)");
-ok(IDX.includes("does not burn the one-shot nudge or open the builder"),
-  "Create-app 3D block comment still names the nudge / builder contract");
+ok(blockAt > 0 && handoffAt > blockAt && /showCreateAppBlock\(\);\s*return;/.test(createApp.slice(blockAt, handoffAt)),
+  "the 3D block shows its warning and returns before the builder handoff");
 
 const PLAY_RUNTIME = PLAY.replace(/<!-- NJS-ENGINE:BEGIN[\s\S]*?NJS-ENGINE:END -->/, "");
 ok(!/const NJS_TYPES = \{[^}]*model3d/.test(PLAY_RUNTIME) && !/const NJS_TYPES = \{[^}]*mupload/.test(PLAY_RUNTIME),
