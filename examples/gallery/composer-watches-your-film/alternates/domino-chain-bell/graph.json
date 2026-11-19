@@ -1,0 +1,360 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -260,
+      "w": 1100,
+      "sizes": {
+        "text": 122
+      },
+      "fields": {
+        "color": "yellow",
+        "text": "The composer watches your film. A silent 10 s clip is cut into 10 frames (one per second). Elorian Glimpse, a video-reasoning model, looks at them in order and writes a timed instrumental music brief: tempo, instruments, and the second where the music should hush or swell. ElevenLabs Music composes exactly 10 s from that brief, and Soundtrack lays it on the picture. A second Music node gets only the shot's text (no frames) as the blind comparison."
+      }
+    },
+    {
+      "id": "shot",
+      "type": "text",
+      "x": 40,
+      "y": 40,
+      "w": 340,
+      "name": "Shot",
+      "fields": {
+        "text": "Bright daytime on a sunny wooden kitchen table. A long curving line of colourful wooden dominoes stands still for a moment, then the first domino is tipped and they topple one after another in a fast chain reaction around the curve, and the very last domino knocks over a small silver bell, which rings and rolls. No people, no hands visible. Static camera, slight high angle, one continuous shot."
+      }
+    },
+    {
+      "id": "film",
+      "type": "tvideo",
+      "x": 420,
+      "y": 40,
+      "w": 320,
+      "name": "Silent film · H3 Max Turbo",
+      "fields": {
+        "model": "minimax/h3-max-turbo",
+        "prompt": "",
+        "duration": "10",
+        "resolution": "480p",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      }
+    },
+    {
+      "id": "frames",
+      "type": "vframes",
+      "x": 780,
+      "y": 40,
+      "w": 240,
+      "name": "10 frames, one per second",
+      "fields": {
+        "frames": "10",
+        "gap": "1",
+        "dir": "start"
+      }
+    },
+    {
+      "id": "ask",
+      "type": "text",
+      "x": 780,
+      "y": 320,
+      "w": 300,
+      "name": "Ask",
+      "fields": {
+        "text": "Score this 10-second clip."
+      }
+    },
+    {
+      "id": "composer",
+      "type": "llm",
+      "x": 1060,
+      "y": 40,
+      "w": 380,
+      "name": "Composer · Elorian Glimpse",
+      "fields": {
+        "model": "elorian/glimpse",
+        "reasoningEffort": "default",
+        "maxTokens": "16000",
+        "temperature": "0.4",
+        "system": "You are a film composer spotting a silent clip. The images are 10 frames from one 10-second clip, in order: image 1 is at 0 s, image 2 at 1 s, and so on to image 10 at 9 s. Watch what changes from frame to frame and when. Then write ONE prompt for an AI music generator that scores exactly this clip: an instrumental cue, exactly 10 seconds long, no vocals. Name the tempo, key or mood, and 2-4 instruments. Then give the timeline in seconds tied to what happens on screen, for example '0-3 s: ...; at 4 s, when ..., ...; 7-10 s: ...', including the exact second where the music should hush and the exact second where it should swell or hit. End the cue cleanly at 10 s. Output only the music prompt, one paragraph, under 90 words, no title, no preamble. Be quick: do not deliberate at length or second-guess; describe the most obvious changes and answer."
+      }
+    },
+    {
+      "id": "score",
+      "type": "music",
+      "x": 1480,
+      "y": 40,
+      "w": 300,
+      "name": "Fitted score · ElevenLabs Music",
+      "fields": {
+        "model": "elevenlabs/music",
+        "prompt": "",
+        "duration": "10",
+        "instrumental": true,
+        "response_format": "mp3"
+      }
+    },
+    {
+      "id": "final",
+      "type": "soundtrack",
+      "x": 1820,
+      "y": 40,
+      "w": 260,
+      "name": "Film + fitted score",
+      "fields": {
+        "loop": false
+      }
+    },
+    {
+      "id": "blind-text",
+      "type": "text",
+      "x": 1060,
+      "y": 420,
+      "w": 380,
+      "name": "Blind brief (no frames)",
+      "fields": {
+        "text": "An instrumental film score cue, exactly 10 seconds long, no vocals, for this scene: on a sunny kitchen table a curving line of colourful dominoes topples in a fast chain reaction and the last one knocks over a small silver bell."
+      }
+    },
+    {
+      "id": "blind",
+      "type": "music",
+      "x": 1480,
+      "y": 420,
+      "w": 300,
+      "name": "Blind score · ElevenLabs Music",
+      "fields": {
+        "model": "elevenlabs/music",
+        "prompt": "",
+        "duration": "10",
+        "instrumental": true,
+        "response_format": "mp3"
+      }
+    },
+    {
+      "id": "final-blind",
+      "type": "soundtrack",
+      "x": 1820,
+      "y": 420,
+      "w": 260,
+      "name": "Film + blind score",
+      "fields": {
+        "loop": false
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "shot",
+        "port": "text"
+      },
+      "to": {
+        "node": "film",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "film",
+        "port": "video"
+      },
+      "to": {
+        "node": "frames",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "ask",
+        "port": "text"
+      },
+      "to": {
+        "node": "composer",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "f1",
+      "from": {
+        "node": "frames",
+        "port": "frame1"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img1"
+      }
+    },
+    {
+      "id": "f2",
+      "from": {
+        "node": "frames",
+        "port": "frame2"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img2"
+      }
+    },
+    {
+      "id": "f3",
+      "from": {
+        "node": "frames",
+        "port": "frame3"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img3"
+      }
+    },
+    {
+      "id": "f4",
+      "from": {
+        "node": "frames",
+        "port": "frame4"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img4"
+      }
+    },
+    {
+      "id": "f5",
+      "from": {
+        "node": "frames",
+        "port": "frame5"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img5"
+      }
+    },
+    {
+      "id": "f6",
+      "from": {
+        "node": "frames",
+        "port": "frame6"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img6"
+      }
+    },
+    {
+      "id": "f7",
+      "from": {
+        "node": "frames",
+        "port": "frame7"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img7"
+      }
+    },
+    {
+      "id": "f8",
+      "from": {
+        "node": "frames",
+        "port": "frame8"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img8"
+      }
+    },
+    {
+      "id": "f9",
+      "from": {
+        "node": "frames",
+        "port": "frame9"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img9"
+      }
+    },
+    {
+      "id": "f10",
+      "from": {
+        "node": "frames",
+        "port": "frame10"
+      },
+      "to": {
+        "node": "composer",
+        "port": "img10"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "composer",
+        "port": "text"
+      },
+      "to": {
+        "node": "score",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "film",
+        "port": "video"
+      },
+      "to": {
+        "node": "final",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "score",
+        "port": "audio"
+      },
+      "to": {
+        "node": "final",
+        "port": "audio"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "blind-text",
+        "port": "text"
+      },
+      "to": {
+        "node": "blind",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "film",
+        "port": "video"
+      },
+      "to": {
+        "node": "final-blind",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "blind",
+        "port": "audio"
+      },
+      "to": {
+        "node": "final-blind",
+        "port": "audio"
+      }
+    }
+  ]
+}

@@ -4,9 +4,10 @@
  *
  * WHY THIS EXISTS
  * ---------------
- * A signed-out visitor can Run the starter graph and see real canned results (DEMO_LLM_TEXT +
- * demo-sample.jpg). index.html also covers ONE extension of that graph: an 📽️ Image→Video node
- * hung off the image output. That node serves demo-sample.mp4.
+ * A signed-out visitor can Run the starter graph and see real canned results (DEMO_VISION_TEXT,
+ * DEMO_LLM_TEXT, demo-sample.jpg, demo-narration.mp3). The starter's own 📽️ Image→Video node
+ * serves demo-sample.mp4; index.html also covers ONE extension of a starter without a video
+ * node: an 📽️ Image→Video node hung off the image output serves the same clip.
  *
  * The clip has to be an HONEST sample. It is a real image→video generation from the SHIPPED
  * demo-sample.jpg, not a pan-and-scan of the still. This script is how it was made, so the asset
@@ -14,6 +15,11 @@
  *
  * THIS SCRIPT SPENDS REAL MONEY. It is hand-run only. No hook, no CI job calls it.
  * At the defaults below the generation costs about 0.12 USD.
+ *
+ * NOTE: the committed clip below was NOT made by this script — it is the video leg of the
+ * 2026-11-07 live starter run whose other outputs are the shipped still and narration
+ * (one run, one story). It was re-encoded with this script's exact FFMPEG_ARGS. Use this
+ * script to regenerate an equivalent clip standalone from the shipped still.
  *
  * USAGE
  *   NANOGPT_API_KEY=... node scripts/gen-demo-clip.mjs            # dry run: prints the plan + price
@@ -29,9 +35,13 @@
  *   model       bytedance-seedance-v1-pro-fast (SeeDance V1 Pro Fast)
  *   source      demo-sample.jpg (the shipped still, unmodified — frame 0 of the clip IS that still)
  *   settings    720p, 5s, 16:9
- *   cost        0.12 USD, metered by NanoGPT on 2026-07-28 (runId vid_ms5jr1es67cfaa050a06)
+ *   cost        0.12 USD, metered by NanoGPT on 2026-11-07 as the video leg of a full live
+ *               run of the shipped starter graph (chain total 0.1362 USD)
  *   encode      H.264 High, no audio track, faststart (see FFMPEG_ARGS)
- *   result      640x360, 24 fps, 5.04 s, 223 KB (2828 KB before the encode)
+ *   result      640x360, 24 fps, 5.17 s, 148 KB (1849 KB before the encode)
+ *
+ * Previous sample (travel postcard starter, replaced 2026-11-07): same model/settings,
+ * 0.12 USD metered 2026-07-28 (runId vid_ms5jr1es67cfaa050a06), 640x360, 5.04 s, 223 KB.
  *
  * OUTPUT SIZE
  *   Signed-out visitors fetch this file, so keep it well under 2 MB. The ffmpeg step below

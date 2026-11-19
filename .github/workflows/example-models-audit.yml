@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.22.1"
       # No npm install: the repo has no dependencies and the script uses only Node built-ins.
       - name: Audit homepage and gallery model ids against the public catalog
         run: node scripts/check-example-models.mjs

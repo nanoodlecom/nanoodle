@@ -13,9 +13,11 @@ import { fileURLToPath } from "node:url";
 import {
   cardsFromHtml,
   classifyCard,
+  fetchApiUpdates,
   groupPending,
   MEDIA_FLOOR_DATE,
   selectPending,
+  shouldStopFetching,
   toChangelogText,
 } from "./lib/nanogpt-updates.mjs";
 
@@ -41,6 +43,23 @@ function lineFor(card, seen = []) {
 
 console.log("sync-nanogpt-model-updates (fixture)");
 
+// The bounded seen history is a pagination checkpoint. Once a retained ID is
+// reached, older pages containing pruned September IDs must not be fetched.
+{
+  const latest = { id: "latest", date: "2026-11-10" };
+  const checkpoint = { id: "retained", date: "2026-11-05" };
+  const pruned = { id: "pruned-september", date: "2026-09-02" };
+  const offsets = [];
+  const seen = ["id:retained"];
+  const cards = await fetchApiUpdates(async url => {
+    const offset = Number(new URL(url).searchParams.get("offset"));
+    offsets.push(offset);
+    return { ok: true, json: async () => ({ updates: offset ? [pruned] : [latest, checkpoint], hasMore: true }) };
+  }, { limit: 2, shouldStop: all => shouldStopFetching(all, seen) });
+  check("retained checkpoint stops before pruned history", offsets.length === 1 && offsets[0] === 0);
+  check("pruned history cannot enter this pending batch", !cards.some(card => card.id === pruned.id));
+}
+
 // (a) a video /media card becomes "New video model"
 {
   const line = lineFor(byId["1023"]);
@@ -49,6 +68,17 @@ console.log("sync-nanogpt-model-updates (fixture)");
     typeof line === "string" && line.startsWith("New video model: MiniMax H3 Max"),
     line
   );
+}
+
+// (a2) 2026-10 link formats: /chat?model= (GPT-6.1 Terra) and /studio/image?model=
+// (Qwen Image 3 Uncensored) are launches too, not skips.
+{
+  const terra = lineFor({ id: "t-1378", date: "2026-10-26", title: "GPT-6.1 Terra",
+    text: "[GPT-6.1 Terra](https://nano-gpt.com/chat?model=openai%2Fgpt-6.1-terra) is now available." });
+  check("/chat?model= card → New LLM model", typeof terra === "string" && terra.startsWith("New LLM model: GPT-6.1 Terra"), terra);
+  const qwen = lineFor({ id: "t-1365", date: "2026-10-25", title: "Qwen Image 3 Uncensored and Qwen Edit Uncensored",
+    text: "[Qwen Image 3 Uncensored](https://nano-gpt.com/studio/image?model=qwen-image-3-uncensored) and [Qwen Edit Uncensored](https://nano-gpt.com/studio/image?model=qwen-edit-uncensored) are now available." });
+  check("/studio/image?model= card → New image models", typeof qwen === "string" && qwen.startsWith("New image models: Qwen Image 3 Uncensored & Qwen Edit Uncensored"), qwen);
 }
 
 // (b) Claw/Hermes-style "now use GLM 5.3" becomes "Updated" not "New LLM models"
@@ -184,13 +214,24 @@ console.log("sync-nanogpt-model-updates (fixture)");
   check("first expansion still adds Ling retired", ids.includes("1013"), ids.join(","));
 }
 
-// After expansion, walk stops at the first seen API id (newer cards above still count)
+// After expansion, already-seen API ids are skipped (not a hard stop) so a gap
+// between seen neighbors can still backfill. Seen cards are never re-added.
 {
   const seen = ["id:1016"];
   const pending = selectPending(fixture.updates, seen);
   const ids = pending.map(p => p.id);
-  check("walk-until-seen-id adds cards above 1016", ids.includes("1023"), ids.join(","));
-  check("walk-until-seen-id stops at 1016 (no Wan)", !ids.includes("1007") && !ids.includes("1016"), ids.join(","));
+  check("seen-id skip still adds cards above 1016", ids.includes("1023"), ids.join(","));
+  check("seen-id skip does not re-add 1016", !ids.includes("1016"), ids.join(","));
+  check("seen-id skip backfills older unseen Wan below 1016", ids.includes("1007"), ids.join(","));
+}
+
+// Gap backfill: missing middle id between two seen neighbors is pending
+{
+  const seen = ["id:1023", "id:1013"];
+  const pending = selectPending(fixture.updates, seen);
+  const ids = pending.map(p => p.id);
+  check("gap backfill adds unseen 1016 between seen neighbors", ids.includes("1016"), ids.join(","));
+  check("gap backfill skips seen 1023 and 1013", !ids.includes("1023") && !ids.includes("1013"), ids.join(","));
 }
 
 // Title edit of a seen API id must not double-post
@@ -268,6 +309,116 @@ console.log("sync-nanogpt-model-updates (fixture)");
     groups[0] && /Recraft V4 Style & Recraft V4 Style Pro/.test(groups[0].text),
     groups[0] && groups[0].text
   );
+}
+
+// 1379: a NanoGPT provider added for existing models is not "New LLM models".
+{
+  const card = { id: "1379", date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices",
+    text: "[RunAnywhere (Wally)](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) and [Kimi K3](https://nano-gpt.com/conversation?model=moonshotai%2Fkimi-k3)." };
+  const info = classifyCard(card);
+  check("provider card → intent provider", info.intent === "provider", info.intent);
+  // Real feed shape: the models were launched by OLDER cards (newest-first list).
+  const launchGlm = { id: "1300", date: "2026-10-01", category: "models", title: "GLM 5.3",
+    text: "[GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) is new." };
+  const launchKimi = { id: "1301", date: "2026-10-02", category: "models", title: "Kimi K3",
+    text: "[Kimi K3](https://nano-gpt.com/conversation?model=moonshotai%2Fkimi-k3) is new." };
+  const groups = groupPending(selectPending([card, launchKimi, launchGlm], ["id:1301", "id:1300", "2026-10-02|moonshotai/kimi-k3", "2026-10-01|z-ai/glm-5.3"]));
+  const line = groups[0] && groups[0].text;
+  check("provider card → NanoGPT provider update line", typeof line === "string" && line.startsWith("NanoGPT provider update: ") && !/New LLM model/.test(line) && /part of NanoGPT/.test(line), line);
+
+  // Same card alone, with no history: its models are unknown, so it is not provider-only.
+  const lone = groupPending(selectPending([card], []));
+  check("provider card with unknown models via selectPending → not a provider line", lone[0] && !/^NanoGPT provider update/.test(lone[0].text), lone[0] && lone[0].text);
+}
+// (a) A launch claim inside the provider sentence itself is still a launch.
+{
+  const inside = { id: "9010", date: "2026-10-27", category: "news", title: "RunAnywhere: More Model Choices",
+    text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for the newly launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9)." };
+  check("launch wording inside the provider sentence → intent new", classifyCard({ ...inside, knownSlugs: ["zeta/zeta-9"] }).intent === "new", classifyCard({ ...inside, knownSlugs: ["zeta/zeta-9"] }).intent);
+}
+
+// Mixed case: provider info AND a newly launched model must stay "new".
+{
+  const mixed = { id: "9001", date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices",
+    text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3). We also launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), a new model." };
+  check("mixed provider + new model → intent new", classifyCard(mixed).intent === "new", classifyCard(mixed).intent);
+  const newTitle = { ...mixed, id: "9002", title: "New: Zeta 9 via RunAnywhere", text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9)." };
+  check("provider card with launch title → intent new", classifyCard(newTitle).intent === "new", classifyCard(newTitle).intent);
+  const unseen = { ...newTitle, id: "9003", title: "RunAnywhere: More Model Choices", knownSlugs: ["z-ai/glm-5.3"] };
+  check("provider card linking an unseen model → intent new", classifyCard(unseen).intent === "new", classifyCard(unseen).intent);
+  const known = { ...unseen, id: "9004", knownSlugs: ["zeta/zeta-9"] };
+  check("provider card linking only known models → provider", classifyCard(known).intent === "provider", classifyCard(known).intent);
+}
+
+// Through the real sync entry point (--dry-run, fixtures via env; no network,
+// no writes): the production path must feed known models into the classifier.
+{
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: wf } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "nanogpt-sync-"));
+  const SYNC = join(dirname(fileURLToPath(import.meta.url)), "sync-nanogpt-model-updates.mjs");
+  const ts = (d) => Math.floor(Date.parse(d + "T00:00:00Z") / 1000);
+  const catalog = { data: [
+    { id: "z-ai/glm-5.3", created: ts("2026-08-14") },
+    { id: "minimax/MiniMax-M3:thinking", created: ts("2026-06-01") },
+    { id: "zeta/zeta-9", created: ts("2026-10-27") },   // created the same day: a launch
+  ] };
+  const providerText = (extra) => "[RunAnywhere (Wally)](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for "
+    + (extra || "") + "[GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) and [MiniMax M3 Thinking](https://nano-gpt.com/conversation?model=minimax%2FMiniMax-M3%3Athinking).";
+  const runSync = (name, cards, cat) => {
+    const cf = join(dir, name + ".cards.json"), sf = join(dir, name + ".seen.json"), kf = join(dir, name + ".catalog.json");
+    wf(cf, JSON.stringify(cards)); wf(sf, JSON.stringify({ seen: ["id:1000", "2026-09-01|old/model"] }));
+    wf(kf, cat === undefined ? JSON.stringify(catalog) : cat);
+    return execFileSync(process.execPath, [SYNC, "--dry-run", "--no-translate"], { encoding: "utf8",
+      env: { ...process.env, NANOGPT_UPDATES_FIXTURE: cf, NANOGPT_SEEN_FILE: sf, NANOGPT_CATALOG_FIXTURE: kf, NOODLE_SYNC_AUTO_PUSH: "" } });
+  };
+  const base = { date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices" };
+  const dry = (out) => (out.match(/\[dry-run\] 2026-10-27 — (.*)/) || [])[1] || "";
+  let out = runSync("provider", [{ ...base, id: "1379", text: providerText() }]);
+  check("sync entry: 1379-shaped card with catalog-known models → NanoGPT provider update", /^NanoGPT provider update: /.test(dry(out)), dry(out) || out);
+  out = runSync("inside", [{ ...base, id: "1380", text: providerText("the newly launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), ") }]);
+  check("sync entry: launch wording inside the provider sentence → not provider", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+  out = runSync("unseen", [{ ...base, id: "1381", text: providerText("[Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), ") }]);
+  check("sync entry: provider card linking a model the catalog dates to the card's day → not provider", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+  out = runSync("nocatalog", [{ ...base, id: "1382", text: providerText() }], "not json");
+  check("sync entry: catalog unavailable → errs toward new models", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+}
+
+// Current upstream wording must not turn changes to existing models into launches.
+{
+  const model = "[Existing Model](https://nano-gpt.com/conversation?model=existing)";
+  for (const title of ["Fable Latest Now Uses Claude Fable 5.2", "Artemis 31B v1.2 Included in Subscription", "Animated GIFs With GPT Image 2.6 in Studio", "OrcaCyber Models Get Their Own IDs"]) {
+    const line = lineFor({ id: title, date: "2026-11-10", title, text: `${model} now supports this feature.` });
+    check(`${title} is an update, not a launch`, line?.startsWith("Updated:"), line);
+  }
+  check("removed quantization UI label is not a model retirement", classifyCard({
+    id: "1448", date: "2026-11-07", title: "Quantization Removed From Auto",
+    text: "The Auto row in provider lists no longer shows a quantization label."
+  }).skip === true);
+}
+
+// The scheduled freshness mode fails closed and never writes, even with auto-push set.
+{
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "nanogpt-freshness-"));
+  const paths = ["updates.json", "changelog.html", "feed.xml", "scripts/nanogpt-model-updates-seen.json"];
+  const before = paths.map(p => readFileSync(join(root, p), "utf8"));
+  try {
+    const cards = join(dir, "cards.json"), seen = join(dir, "seen.json"), catalog = join(dir, "catalog.json");
+    writeFileSync(catalog, JSON.stringify({ data: [] }));
+    const card = { id: "freshness-test", date: "2026-11-10", title: "New test model", text: "[Test](https://nano-gpt.com/conversation?model=test) is now available." };
+    const run = (items, keys) => {
+      writeFileSync(cards, JSON.stringify(items)); writeFileSync(seen, JSON.stringify({ seen: keys }));
+      return spawnSync(process.execPath, [join(root, "scripts/sync-nanogpt-model-updates.mjs"), "--check", "--no-translate"], { encoding: "utf8", env: { ...process.env, NANOGPT_UPDATES_FIXTURE: cards, NANOGPT_SEEN_FILE: seen, NANOGPT_CATALOG_FIXTURE: catalog, NOODLE_SYNC_AUTO_PUSH: "1" } });
+    };
+    check("freshness check fails for pending cards", run([card], []).status === 1);
+    check("freshness check succeeds when caught up", run([card], ["id:freshness-test"]).status === 0);
+    check("freshness check fails for empty upstream", run([], []).status === 1);
+    check("freshness check never changes feed artifacts", paths.every((p, i) => readFileSync(join(root, p), "utf8") === before[i]));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 if (fail) {

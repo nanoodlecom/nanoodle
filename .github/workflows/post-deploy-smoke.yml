@@ -1,0 +1,62 @@
+name: Post-deploy smoke (live)
+
+# nanoodle.com deploys from main via Cloudflare Workers Builds (wrangler.jsonc: build runs
+# scripts/stamp-sw.mjs, which stamps sw.js with CACHE = "nanoodle-<sha7>"). That deploy is not a
+# GitHub Actions workflow, so there is no workflow_run to hang off: instead this job starts on the
+# same push to main and its first step WAITS until live /sw.js AND the editor HTML (<meta name="nanoodle-build">) carry the pushed commit's sha7,
+# i.e. until the deploy for this exact commit has finished. Then a fresh headless Chromium runs
+# scripts/smoke-live.mjs against https://nanoodle.com.
+#
+# No paid or generation calls and no API keys: provider hosts are aborted in the browser except
+# the free, keyless model-catalog GETs; nothing is ever run. No secrets are read.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to wait for in live sw.js (blank = don't wait, just smoke what's live)"
+        required: false
+        default: ""
+      url:
+        description: "Base URL"
+        required: false
+        default: "https://nanoodle.com"
+
+permissions:
+  contents: read
+
+# Push runs and manual runs never share a group: a newer main push supersedes an older push's
+# deploy wait, while each manual dispatch gets its own group and is never cancelled.
+concurrency:
+  group: post-deploy-smoke-${{ github.event_name == 'push' && 'push' || format('dispatch-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      # Development tooling lives outside the static site and never ships to a visitor.
+      - name: Install browser test tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/nanoodle-browser" --no-save --package-lock=false playwright@1.62.1
+          node "$RUNNER_TEMP/nanoodle-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Wait for deploy, then smoke live editor
+        env:
+          NANOODLE_PLAYWRIGHT: ${{ runner.temp }}/nanoodle-browser/node_modules/playwright/index.mjs
+          NANOODLE_SMOKE_ARTIFACTS: ${{ runner.temp }}/nanoodle-live-smoke
+          NANOODLE_SMOKE_URL: ${{ inputs.url || 'https://nanoodle.com' }}
+          NANOODLE_SMOKE_SHA: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
+          NANOODLE_SMOKE_WAIT_S: "900"
+        run: node scripts/smoke-live.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: post-deploy-smoke
+          path: ${{ runner.temp }}/nanoodle-live-smoke
+          if-no-files-found: ignore

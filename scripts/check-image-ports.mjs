@@ -68,7 +68,7 @@ const bundle =
   reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
   sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" + imgAspLine + "\n" +
   ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks",
-   "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "imageAspectSpec", "dimDefs", "livePrice"]
+   "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "imageAspectSpec", "dimDefs", "imageOutputIsGif", "livePrice"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
   grab(/const dimNum = [^\n]*;/, "dimNum") + "\n" +
   (() => {

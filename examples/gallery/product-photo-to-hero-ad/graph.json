@@ -1,0 +1,250 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -200,
+      "w": 980,
+      "fields": {
+        "text": "Product photo to a hero ad, in three steps. 1) Edit drops your product into a scene and is told to keep the product identical. 2) Inpaint repaints only the brushed area (white in the mask), here to remove a second saucer that the placement step invented under the carafe, while the rest of the picture stays. 3) Seedance gives the retouched still one slow commercial orbit, and Video → frames keeps the last frame as a hero still. The packshot is generated so the example runs on its own; swap the first Image node for a 📷 Image input with your own product photo, then re-brush the mask on your scene. Inspired by @Genflickmovies' \"one product photo into a hero ad in three nodes\" (https://x.com/Genflickmovies/status/2112318819133702620).",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-pack",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "name": "Product photo · prompt",
+      "fields": {
+        "text": "Studio product packshot of a handmade ceramic pour-over coffee dripper: a cone-shaped dripper with a matte sage-green glaze, fine dark iron speckles, thin ribbed lines inside the rim, one small rounded thumb tab on the side, sitting on a matching round sage-green saucer. Centered on a plain white seamless background, soft even softbox light, a faint contact shadow, sharp focus, true-to-life color. No text, no logos, no labels, no people, no hands."
+      }
+    },
+    {
+      "id": "pack",
+      "type": "image",
+      "x": 400,
+      "y": 40,
+      "w": 280,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Product packshot · Muse",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-place",
+      "type": "text",
+      "x": 40,
+      "y": 420,
+      "w": 320,
+      "name": "Placement · instruction",
+      "fields": {
+        "text": "Place this exact coffee dripper into a lifestyle scene for a hero ad. Keep the product identical: the same cone shape, the same matte sage-green glaze and dark speckles, the same thumb tab and the same saucer, at the same proportions. Stand it slightly right of center on a pale travertine kitchen counter, with a clear glass carafe under it half full of coffee, a folded oatmeal linen towel and a small plain kraft paper bag of whole beans behind it on the left, soft warm morning window light from the left with long gentle shadows, a softly blurred cream-colored kitchen behind. Photographic, calm, premium. No text, no logos, no labels, no people, no hands."
+      }
+    },
+    {
+      "id": "scene",
+      "type": "edit",
+      "x": 400,
+      "y": 420,
+      "w": 280,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Placed in scene · Muse Edit",
+      "fields": {
+        "model": "meta/muse-image/edit",
+        "size": "16:9",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "mask",
+      "type": "upload",
+      "x": 740,
+      "y": 420,
+      "w": 260,
+      "name": "Mask · white = repaint",
+      "fields": {
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAEgCAAAAADnV5SNAAABfUlEQVR42u3dwY3CQBBEUcr55zwksIeVOGD834ug1VUarxHMvl4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMCNzAr+diJ7U4D/h/7IHSrAB8k/YZUTfXuhk317q5N9e7WTfnu7E357w5N+e8kTf3vNk3570xN/e9cTf3vbE39735f80/M8vQDHROVHwLnnWHMCpPO/11yX/NuTXfJvz/b0twCqBTimcwLQLcAxnxMABUABUAB6BZj5nACUCzDTOQEoF8CX8esngO/i1x8BM9fvvy596Ii//UfgTBR/C5h50o+Amz0G/DIoXQG/DUxXwK+Dyx3wmUS6Aj6ULHfAHUHhErglrNwB9wR2W+Cm0G4L3BWcrYHbwqs98P8CgmWwNwAAAAAAAAAAAAAAAOCL3p2OK0quF20jAAAAAElFTkSuQmCC"
+      }
+    },
+    {
+      "id": "p-fix",
+      "type": "text",
+      "x": 740,
+      "y": 60,
+      "w": 320,
+      "name": "Fix · what goes in the mask",
+      "fields": {
+        "text": "The clear glass carafe's rounded glass bottom resting directly on the pale travertine counter, with a soft natural contact shadow and warm morning light on the stone. No saucer, no plate, no coaster under the carafe."
+      }
+    },
+    {
+      "id": "fix",
+      "type": "inpaint",
+      "x": 1100,
+      "y": 420,
+      "w": 300,
+      "name": "Targeted fix · Inpaint (Nano Banana Edit)",
+      "fields": {
+        "model": "nano-banana-edit",
+        "size": "auto",
+        "prompt": "",
+        "image": "",
+        "mask": ""
+      }
+    },
+    {
+      "id": "p-move",
+      "type": "text",
+      "x": 1100,
+      "y": 60,
+      "w": 320,
+      "name": "Hero move · look + motion",
+      "fields": {
+        "text": "Look: a calm premium product commercial, warm morning window light, shallow depth of field, photographic, the same travertine counter and cream kitchen throughout. Motion: one slow, smooth orbit. The camera glides in a gentle 30-degree arc around the ceramic coffee dripper from left to right at counter height, easing slightly closer, and settles on a centered hero frame of the dripper on the glass carafe. A single drop of coffee falls from the dripper into the carafe and a thin wisp of steam rises. Nothing else moves. The dripper keeps its exact cone shape, matte sage-green glaze, dark speckles and thumb tab. No people, no hands, no text."
+      }
+    },
+    {
+      "id": "clip",
+      "type": "ivideo",
+      "x": 1460,
+      "y": 420,
+      "w": 300,
+      "name": "Hero orbit · Seedance 1.5 Pro",
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      }
+    },
+    {
+      "id": "hero",
+      "type": "vframes",
+      "x": 1820,
+      "y": 420,
+      "w": 240,
+      "name": "Hero frame · last frame",
+      "fields": {
+        "dir": "end",
+        "frames": 1
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-pack",
+        "port": "text"
+      },
+      "to": {
+        "node": "pack",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "pack",
+        "port": "image"
+      },
+      "to": {
+        "node": "scene",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "p-place",
+        "port": "text"
+      },
+      "to": {
+        "node": "scene",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "scene",
+        "port": "image"
+      },
+      "to": {
+        "node": "fix",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "mask",
+        "port": "image"
+      },
+      "to": {
+        "node": "fix",
+        "port": "mask"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "p-fix",
+        "port": "text"
+      },
+      "to": {
+        "node": "fix",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "fix",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "p-move",
+        "port": "text"
+      },
+      "to": {
+        "node": "clip",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "clip",
+        "port": "video"
+      },
+      "to": {
+        "node": "hero",
+        "port": "video"
+      }
+    }
+  ]
+}

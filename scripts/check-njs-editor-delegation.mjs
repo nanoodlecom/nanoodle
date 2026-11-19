@@ -71,10 +71,12 @@ assert.ok(ENGINE && ENGINE.RUNNERS && ENGINE.NanoClient, "bundle exposes RUNNERS
 
 const IMG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 const PNG_B64 = IMG.slice(IMG.indexOf(",") + 1);
+const GIF_MODELS = ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'];
 // RAW catalog (the library's payload gates read supported_parameters)
 const RAW_CAT = {
   "/api/v1/models?detailed=true": [{ id: "x" }],
-  "/api/v1/image-models": [{ id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } }],
+  "/api/v1/image-models": [{ id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } },
+    ...GIF_MODELS.map(id => ({ id, supported_parameters: { resolutions: ['1k', '2k', '4k'] } }))],
   "/api/v1/video-models": [],
   "/api/v1/audio-models": [],
 };
@@ -112,6 +114,16 @@ const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
   extractFn("njsCtx"), extractFn("njsRunFor"),
   extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
+  // genImage resolves provider content URLs before returning them. data:/https no-ops here;
+  // the helpers must be in the sandbox or a b64 image response throws before the body compare.
+  extractFn("isContentApiPath"), extractFn("contentApiBase"), extractFn("contentDataUrlWouldExceed"),
+  extractFn("scrubContentSecrets"), extractFn("contentAuthHeaders"), extractFn("drainContentBody"),
+  extractFn("contentResponseMime"), extractFn("sniffContentMime"), extractFn("contentBytesToDataUrl"),
+  extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
+  extractFn("isOpaqueContentRedirect"), extractFn("contentBearerHeaders"),
+  extractFn("readCappedContentBody"), extractFn("contentFetchForEngine"),
+  extractFn("opaqueContentError"), extractFn("deliverResolvedMedia"),
+  extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
@@ -119,7 +131,8 @@ const REAL = [
   extractFn("chatModelCan"), extractFn("modelSupportsImages"), extractFn("modelSupportsAudio"), extractFn("modelSupportsVideo"), extractFn("videoInputPart"), extractFn("audioInputPart"),
   extractConst("IMAGE_ASPECT"), extractFn("aspectFromParams"), extractFn("imageAspectSpec"),
   extractFn("imageAspectExtra"),
-  extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
+  extractFn("imageKnobSpec"), extractFn("imageKnobExtra"),
+  extractFn("imageModelOpts"), extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("normalizeLoraUrl"), extractFn("loraFamily"), extractFn("loraKind"),
   extractFn("imageTakesLora"), extractFn("modelTakesLora"), extractFn("loraCap"),
   extractFn("nodeLoras"), extractFn("loraBodyFor"), extractFn("loraParams"),
@@ -148,7 +161,8 @@ const REAL = [
 
 function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], directive = null }) {
   const ctx = {
-    console, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    console, URL, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    Uint8Array, TextEncoder, TextDecoder, btoa, atob,
     // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome)
     Blob,
     FileReader: class {
@@ -176,12 +190,13 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     PENDING_VIDEO: new Map(), PENDING_AUDIO: new Map(),
     maskToSource: (m) => m,
     imgSpec: () => ({ re: /^image\d*$/, cap: 9 }),
-    normChat: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x, norm3d: (x) => x,
+    normChat: (x) => x, normDecision: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x, norm3d: (x) => x,
     SIZES: [["1024x1024", "square"]],
     EST: { chatImageUsd: 0.14 },
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
-    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
+    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }, { id: "moss-image", maxOut: 4, sizePrices: {}, knobs: { negative: true, steps: { min: 1, max: 100, def: 50 }, guidance: { min: 0, max: 10, def: 3 }, expand: { def: true } } },
+      ...GIF_MODELS.map(id => ({ id, maxOut: 1, sizePrices: {}, resolutions: ['1k', '2k', '4k'] }))], video: [], audio: [] },
     // loraParams comes from the extracted index.html helpers above (Anima/H3/
     // qwen21 numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
     needsCustomCivitai: () => false, airModelTakesNegative: () => false,
@@ -202,6 +217,22 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
 /* ---- scenarios: run built-in vs delegated, literal-compare --------------- */
 
 const SCENARIOS = [
+  ...GIF_MODELS.map(model => [model + ' compatible GIF body', 'image', {
+    model, prompt: 'one loop', size: '960x960', variations: '1',
+    modelOpts: { output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' },
+  }, {}, null, { must: { model, size: '960x960', n: 1, output_format: 'gif', frame_count: 7, frame_duration_ms: 100, background: 'opaque' } }]),
+  ["vector convert protects request fields", "edit", { model: "ideogram/vector", prompt: "", modelOpts: {
+    vector_operation: "convert", mode: "default", model: "wrong", prompt: "wrong", n: 99,
+    imageDataUrl: "wrong", response_format: "url", api_key: "wrong", endpoint: "https://wrong.example"
+  } }, { image: IMG }, null, {
+    must: { model: "ideogram/vector", n: 1, imageDataUrl: IMG, vector_operation: "convert", mode: "default", response_format: "b64_json" },
+    forbid: ["prompt", "api_key", "endpoint"],
+  }],
+  ["image forwards safe model options", "image", { model: "ideogram/vector", prompt: "an icon", modelOpts: {
+    vector_operation: "generate", mode: "default", prompt: "wrong", n: 99
+  } }, {}, null, {
+    must: { model: "ideogram/vector", prompt: "an icon", n: 1, vector_operation: "generate", mode: "default" }, forbid: [],
+  }],
   // [name, type, fields, inp, directive] — directive simulates a non-English UI (withLocale must fire on BOTH paths)
   ["llm chat", "llm", { model: "x", system: "You are terse.", prompt: "Hello" }, {}, null],
   ["llm chat localized", "llm", { model: "x", system: "You are terse.", prompt: "Hola" }, {}, "Respond in Spanish."],
@@ -256,11 +287,36 @@ const SCENARIOS = [
     },
     forbid: ["lora_url", "lora_strength", "lora_url_3"],
   }],
+  // catalog knobs (MOSS Image): the shim stamps imageKnobExtra so both engines post them
+  ["moss t2i posts negative/steps/guidance/expansion", "image", { model: "moss-image", prompt: "a menu board", variations: "1", size: "1024x1024",
+    negativePrompt: "watermark", steps: "30", guidance: "4.5", promptExpansion: false }, {}, null, {
+    must: { negative_prompt: "watermark", num_inference_steps: 30, guidance_scale: 4.5, enable_prompt_expansion: false },
+    forbid: [],
+  }],
+  ["x t2i never gets leftover moss knobs", "image", { model: "x", prompt: "a fox", variations: "1", negativePrompt: "watermark", steps: "30" }, {}, null, {
+    must: {},
+    forbid: ["negative_prompt", "num_inference_steps"],
+  }],
   ["plain qwen21 t2i sends no LoRA", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image", prompt: "a fox", variations: "1", loras: [
     { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
   ] }, {}, null, {
     must: {},
     forbid: ["lora_url", "lora_url_1", "lora_strength"],
+  }],
+  // FLUX.3 Klein t2i (catalog lora_url_1..3, 2026-10-27). The generated engine
+  // still rejects both ids (nanoodle-js imageTakesLora, #732), and delegation is
+  // the default — the shim must still put the numbered slots on the paid body.
+  ["flux3 klein t2i lora reaches delegated request", "image", { model: "blackforestlabs/flux-3/klein/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
+  }],
+  ["flux3 klein base t2i lora reaches delegated request", "image", { model: "blackforestlabs/flux-3/klein/base/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
   }],
 ];
 const norm = (c) => JSON.stringify(c);
@@ -484,6 +540,90 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
     assert.equal(kept, expectKept, `${label}: pending entry ${expectKept ? "must survive" : "must be deleted"} (got kept=${kept})`);
   }
   console.log("✓ pending jobs survive Stop/timeout and are deleted only on genuine failure");
+}
+
+// Browser fetch with redirect:manual is opaque. The editor shim must not POST the
+// user key to nanoodle.com. A manual content read drops x-api-key. When Location
+// is hidden, the page resolver throws and the finished job stays pending.
+{
+  const on = makeCtx({ flagOn: false });
+  const seen = [];
+  on.fetch = async (url, init = {}) => {
+    seen.push({ url: String(url), redirect: init.redirect, headers: init.headers || {} });
+    return {
+      ok: false, status: 0, type: "opaqueredirect",
+      headers: { get: () => null },
+      text: async () => "",
+      arrayBuffer: async () => new ArrayBuffer(0),
+      body: { cancel: async () => {} },
+    };
+  };
+  const contentUrl = "https://nano-gpt.com/api/generate-video/content?runId=grok1";
+  const r = await on.contentFetchForEngine(contentUrl, {
+    redirect: "manual",
+    headers: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+  });
+  assert.equal(r.status, 0, "an opaque content fetch stays opaque");
+  assert.equal(r.type, "opaqueredirect");
+  assert.equal(seen.length, 1, "the wrapper performs one fetch");
+  assert.equal(seen[0].redirect, "manual", "the content GET stays redirect:manual");
+  assert.equal(seen[0].headers.Authorization, "Bearer test-api-key", "the content GET keeps Authorization");
+  assert.equal(seen[0].headers["x-api-key"], undefined, "the content GET drops x-api-key");
+  assert.equal(seen.some((s) => {
+    try {
+      const host = new URL(s.url).hostname;
+      const h = s.headers || {};
+      return (host === "nanoodle.com" || host.endsWith(".nanoodle.com")) && (h.Authorization || h.authorization || h["x-api-key"]);
+    } catch { return false; }
+  }), false, "no request carrying a user key goes to a nanoodle.com origin");
+  await assert.rejects(
+    () => on.resolveProviderMediaUrl(contentUrl, {
+      baseUrl: "https://nano-gpt.com",
+      apiKey: "test-api-key",
+      authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+      fetch: on.fetch,
+    }),
+    (err) => /hid the provider file link/.test(err && err.message)
+      && !/finished job is saved/.test(err && err.message)
+      && !/new paid request/.test(err && err.message)
+      && !String(err && err.message).includes("test-api-key"),
+    "the shared handler does not promise the job was saved",
+  );
+  const contentGets = seen.filter((s) => String(s.url).includes("/api/generate-video/content"));
+  assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
+  let submits = 0;
+  const ctx = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      video() {
+        submits++;
+        return Promise.resolve("/api/generate-video/content?runId=grok1");
+      }
+    },
+  }, { id: "n1" });
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  assert.equal(submits, 1, "a second run does not submit the video again");
+  assert.equal(on.PENDING_VIDEO.has("n1"), true, "the finished job stays pending");
+  assert.equal(on.PENDING_VIDEO.get("n1").resultUrl, "/api/generate-video/content?runId=grok1");
+  let imagePosts = 0;
+  const img = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      image() {
+        imagePosts++;
+        return this.resolveContentUrl("/api/images/content?runId=img1");
+      }
+    },
+  }, { id: "img" });
+  await assert.rejects(
+    () => img.image({}),
+    (err) => /new paid request/.test(err && err.message) && !/finished job is saved/.test(err && err.message),
+    "an opaque image says a second run is a new paid request",
+  );
+  await assert.rejects(() => img.image({}), /new paid request/);
+  assert.equal(imagePosts, 2, "an image retry submits again");
+  console.log("✓ editor refuses an opaque redirect without sending the key to nanoodle.com");
 }
 
 if (failed) { console.log(`\n${failed}/${SCENARIOS.length} editor delegation scenarios failed`); process.exit(1); }

@@ -1,27 +1,37 @@
 #!/usr/bin/env node
-// Generate the public changelog artifacts from updates.json:
+// Generate the public changelog artifacts:
 //
 //   changelog.html — static, self-contained page (zero scripts, zero third-party,
-//                    inline CSS matching the site's visual language) listing every
-//                    📣 update newest-first, grouped by date.
-//   feed.xml       — Atom feed of the same entries, so people can follow nanoodle
-//                    without accounts or analytics (RSS is the only subscription
-//                    channel consistent with the zero-analytics promise).
+//                    inline CSS matching the site's visual language). Dated 📣
+//                    updates come from updates.json, newest-first, grouped by date.
+//                    A Field notes column from articles.json (Nano Maxi's daily
+//                    Subnano posts) sits beside those sections — it does not
+//                    precede them — plus a Guides link set from sitemap.xml's
+//                    /guide/examples/* pages (each title is that page's h1).
+//   feed.xml       — Atom feed of the updates.json entries only, so people can
+//                    follow nanoodle without accounts or analytics (RSS is the only
+//                    subscription channel consistent with the zero-analytics promise).
 //
-// updates.json is the single source of truth (fed by the "Update:" commit-line
-// convention + the daily model-updates cron). Entry shape: { date: "YYYY-MM-DD",
-// text: "…", i18n: {es,fr,de,pt,ja}, media?: {src,poster,w,h} }. This page renders the English text; the
-// localized strings stay in-app (the 📣 Updates panel).
+// updates.json is the source of truth for shipped changes (fed by the "Update:"
+// commit-line convention + the daily model-updates cron). Entry shape:
+// { date: "YYYY-MM-DD", text: "…", i18n: {es,fr,de,pt,ja}, media?: {src,poster,w,h} }.
+// This page renders the English text; the localized strings stay in-app
+// (the 📣 Updates panel).
 //
-// Deterministic by design: output depends ONLY on updates.json (no Date.now()),
-// so re-running the generator on an unchanged input is a byte-identical no-op —
-// CI/pre-commit can diff freely. After editing updates.json the pre-commit
-// hook regenerates and stages these files; CI --checks them unconditionally.
+// articles.json shape: { key, date, url, title, ability, thumb, blurb }.
+// thumb is a same-origin path under articles-media/. The changelog's CSP is
+// img-src 'self', so a remote poster URL would not paint.
+//
+// Deterministic by design: output depends only on updates.json, articles.json,
+// sitemap.xml, and the h1 of each linked guide page (no Date.now()). Re-running
+// on unchanged inputs is a byte-identical no-op — CI/pre-commit can diff freely.
+// After editing any of those inputs the pre-commit hook regenerates and stages
+// changelog.html + feed.xml; CI --checks them unconditionally.
 //
 //   node scripts/gen-changelog.mjs            # write changelog.html + feed.xml
 //   node scripts/gen-changelog.mjs --check    # compare committed files, write nothing
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,13 +79,28 @@ const escXml = escHtml;
 
 // Bare https:// URLs in an entry render as real links on the HTML page (each
 // fragment still escaped; trailing punctuation stays text). Mirrors the in-app
-// 📣 modal's linkifier. The Atom feed keeps plain escaped text.
-const linkifyHtml = (s) =>
-  s.split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/)
-    .map((part) => /^https:\/\//.test(part)
-      ? `<a href="${escHtml(part)}">${escHtml(part.replace(/^https:\/\//, ""))}</a>`
-      : escHtml(part))
-    .join("");
+// 📣 modal's linkifier. Atom keeps plain text unless a labeled workflow is present.
+function safeUrl(value){
+  if(typeof value!=="string" || /[\u0000-\u0020\u007f]/.test(value)) return null;
+  try{ const u = new URL(value); return u.protocol==="https:" && u.hostname && !u.username && !u.password ? u.href : null; }catch{ return null; }
+}
+const linkifyHtml = (s) => s.split(/(https?:\/\/[^\s<>"']+)/).map(part=>{
+  let clean = part, previous;
+  do{
+    previous = clean;
+    clean = clean.replace(/[.,;:!?»」。]+$/, "").replace(/\)+$/, match=> {
+      const opens = (clean.match(/\(/g)||[]).length, closes = (clean.match(/\)/g)||[]).length;
+      return match.slice(0, Math.max(0, match.length - Math.max(0, closes-opens)));
+    });
+  }while(clean!==previous);
+  const href = safeUrl(clean);
+  return href ? `<a href="${escHtml(href)}">${escHtml(clean.replace(/^https:\/\//, ""))}</a>${escHtml(part.slice(clean.length))}` : escHtml(part);
+}).join("");
+
+function workflowHtml(e){
+  const destination = safeUrl(e && e.workflow);
+  return destination ? `<a class="workflow-link" href="${escHtml(destination)}">Open workflow</a>` : "";
+}
 
 // An entry's optional usage clip (media:{src,poster,w,h}, files under updates-media/,
 // validated by check-updates.mjs + check-updates-media.mjs). The page has zero
@@ -87,18 +112,126 @@ function clipHtml(e) {
   if (m === undefined) return "";
   if (!m || !MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src) || !MEDIA_RE.test(m.poster || "") ||
       !(Number.isInteger(m.w) && m.w > 0 && Number.isInteger(m.h) && m.h > 0)) {
-    console.error(`✗ gen-changelog: bad media on ${e.date} "${e.text.slice(0, 60)}" — run node scripts/check-updates.mjs`);
+    console.error(`✗ gen-changelog: bad media on ${e.date} "${(e.text || e.title || "").slice(0, 60)}" — run node scripts/check-updates.mjs`);
     process.exit(1);
   }
   return `<a class="clip" href="/${m.src}" title="Play the usage clip">` +
-    `<img src="/${m.poster}" width="${m.w}" height="${m.h}" loading="lazy" decoding="async" alt="Usage clip: ${escHtml(e.text)}" /></a>`;
+    `<img src="/${m.poster}" width="${m.w}" height="${m.h}" loading="lazy" decoding="async" alt="Usage clip: ${escHtml(e.text || e.title)}" /></a>`;
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function humanDate(iso) {
   const [y, m, d] = iso.split("-").map(Number);
   return `${d} ${MONTHS[m - 1]} ${y}`;
+}
+function cardDate(iso, newestYear) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const mon = `${d} ${MONTHS_SHORT[m - 1]}`;
+  return String(y) === String(newestYear) ? mon : `${mon} ${y}`;
+}
+
+// ---------------------------------------------------------------------------
+// Field notes (articles.json) + example guides (sitemap → guide h1).
+// Same-origin thumbs only: /changelog's CSP is img-src 'self'.
+// ---------------------------------------------------------------------------
+const ART_RE = /^articles-media\/[a-z0-9][a-z0-9._-]*\.(webp|png|jpg)$/;
+function die(msg) { console.error("✗ gen-changelog: " + msg); process.exit(1); }
+
+function loadArticles() {
+  let articles;
+  try { articles = JSON.parse(readFileSync(path.join(ROOT, "articles.json"), "utf8")); }
+  catch (e) { die("articles.json is missing or invalid JSON — " + e.message); }
+  if (!Array.isArray(articles) || !articles.length) die("articles.json is empty or not an array");
+  const seen = new Set();
+  articles.forEach((a, i) => {
+    const where = `articles.json[${i}]`;
+    if (!a || typeof a !== "object" || Array.isArray(a)) die(`${where} must be an object`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date || "")) die(`${where} needs a YYYY-MM-DD date`);
+    for (const k of ["key", "url", "title", "ability", "thumb", "blurb"]) {
+      if (typeof a[k] !== "string" || !a[k].trim()) die(`${where} needs a non-empty ${k}`);
+      if (/[\r\n]/.test(a[k])) die(`${where} ${k} must be a single line`);
+    }
+    if (!safeUrl(a.url) || !/^https:\/\/subnano\.ai\/@nano_maxi(?:\/|$)/.test(a.url)) die(`${where} url must be an https://subnano.ai/@nano_maxi link`);
+    if (!ART_RE.test(a.thumb) || !existsSync(path.join(ROOT, a.thumb))) die(`${where} thumb must be an existing articles-media image (${a.thumb})`);
+    if (seen.has(a.key)) die(`duplicate article key ${a.key}`);
+    seen.add(a.key);
+  });
+  const dir = path.join(ROOT, "articles-media");
+  if (existsSync(dir)) {
+    const referenced = new Set(articles.map((a) => a.thumb));
+    for (const f of readdirSync(dir)) {
+      if (!referenced.has(`articles-media/${f}`)) die(`articles-media/${f} is not referenced by articles.json`);
+    }
+  }
+  return articles
+    .map((a, i) => ({ ...a, i }))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.i - b.i));
+}
+
+function decodeBasic(s) {
+  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+}
+
+function loadGuides() {
+  let xml;
+  try { xml = readFileSync(path.join(ROOT, "sitemap.xml"), "utf8"); }
+  catch (e) { die("cannot read sitemap.xml — " + e.message); }
+  const guides = [];
+  const seen = new Set();
+  for (const m of xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)) {
+    let pathname;
+    try { pathname = new URL(m[1]).pathname; } catch { continue; }
+    const slugM = pathname.match(/^\/guide\/examples\/([a-z0-9-]+)\/?$/);
+    if (!slugM) continue;
+    const slug = slugM[1];
+    if (seen.has(slug)) die(`duplicate guide in sitemap: ${slug}`);
+    seen.add(slug);
+    const file = path.join(ROOT, "guide", "examples", `${slug}.html`);
+    if (!existsSync(file)) die(`sitemap lists /guide/examples/${slug} but guide/examples/${slug}.html is missing`);
+    const page = readFileSync(file, "utf8");
+    const h1 = page.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+    const title = decodeBasic((h1 ? h1[1] : "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    if (!title) die(`no h1 title in guide/examples/${slug}.html`);
+    guides.push({ slug, title, href: `/guide/examples/${slug}` });
+  }
+  if (!guides.length) die("sitemap has no /guide/examples/* pages");
+  return guides;
+}
+
+const articles = loadArticles();
+const guides = loadGuides();
+const newestArticleYear = articles[0].date.slice(0, 4);
+
+function fieldNotesHtml() {
+  const cards = articles.map((a) => `        <a class="fn-card" href="${escHtml(a.url)}" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/${escHtml(a.thumb)}" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">${escHtml(a.ability)}</span><time datetime="${escHtml(a.date)}">${escHtml(cardDate(a.date, newestArticleYear))}</time></span>
+            <h3>${escHtml(a.title)}</h3>
+            <p>${escHtml(a.blurb)}</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>`).join("\n");
+  const links = guides.map((g) => `          <li><a href="${escHtml(g.href)}">${escHtml(g.title)}</a></li>`).join("\n");
+  const n = articles.length;
+  return `    <aside class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
+      <h2 id="fieldnotes-title">Field notes</h2>
+      <p class="fn-intro">Nano Maxi, an AI agent, runs one nanoodle flow a day and writes up what came out, misses included.</p>
+      <div class="fn-grid">
+${cards}
+      </div>
+      <p class="fn-cta"><a class="cta" href="https://subnano.ai/@nano_maxi" target="_blank" rel="noopener">Read all of Nano Maxi's notes →</a><span class="fn-count">${n} article${n === 1 ? "" : "s"}</span></p>
+      <nav class="guides" aria-label="Guides">
+        <h3>Guides <span>nanoodle.com</span></h3>
+        <ul>
+${links}
+        </ul>
+        <a class="guides-all" href="/guide/examples/">All example guides →</a>
+      </nav>
+    </aside>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,14 +253,14 @@ const sections = byDate
     ({ date, items }) => `    <section>
       <h2 id="d-${date}"><a href="#d-${date}">${humanDate(date)}</a></h2>
       <ul>
-${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${clipHtml(e)}</li>`).join("\n")}
+${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${workflowHtml(e)}${clipHtml(e)}</li>`).join("\n")}
       </ul>
     </section>`
   )
   .join("\n");
 
 const html = `<!doctype html>
-<!-- GENERATED FILE — do not edit by hand. Source: updates.json via scripts/gen-changelog.mjs -->
+<!-- GENERATED FILE — do not edit by hand. Source: updates.json + articles.json + sitemap.xml via scripts/gen-changelog.mjs -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -174,7 +307,7 @@ const html = `<!doctype html>
         min-height:100vh; display:flex; flex-direction:column; }
   a{color:var(--accent); text-decoration:none}
   a:hover{text-decoration:underline}
-  .wrap{ max-width:760px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; width:100%; }
+  .wrap{ max-width:1120px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; width:100%; }
 
   header{ display:flex; align-items:center; gap:.5rem; }
   .logo{ font-weight:800; letter-spacing:-.02em; font-size:1.25rem; }
@@ -187,19 +320,66 @@ const html = `<!doctype html>
   main{ flex:1; padding:2.4rem 0; }
   h1{ font-size:clamp(1.8rem, 5vw, 2.6rem); line-height:1.08; letter-spacing:-.03em; margin:0 0 .4rem; font-weight:850; }
   h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; }
-  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2.2rem; }
+  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; max-width:720px; }
+  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2.2rem; max-width:720px; }
   .feedrow a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
          padding:.32rem .7rem; border-radius:2rem; }
   .feedrow a:hover{ border-color:#3a425a; text-decoration:none }
 
+  /* Changelog column keeps the original 720px measure. Field notes sit in the
+     other column, starting on the same row, so no day is pushed down. */
+  .news{ display:grid; grid-template-columns:minmax(0,720px) minmax(240px,320px); column-gap:2rem; align-items:start; justify-content:space-between; }
+  .log{ min-width:0; }
+  .fieldnotes{ position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow:auto; scrollbar-width:thin;
+               padding-bottom:.4rem; }
   section{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; }
   section:first-of-type{ border-top:none; padding-top:0; }
+  .fieldnotes h2{ font-size:1rem; margin:0 0 .45rem; }
+  .fn-intro{ color:var(--dim); font-size:.8rem; line-height:1.45; margin:0 0 .75rem; }
+  .fn-grid{ display:flex; flex-direction:column; gap:.55rem; }
+  a.fn-card{ display:flex; gap:.55rem; align-items:flex-start; min-width:0; background:var(--panel); border:1px solid var(--line);
+             border-radius:.75rem; overflow:hidden; color:inherit; text-decoration:none; padding:.45rem; }
+  a.fn-card:hover{ border-color:#3a425a; text-decoration:none; }
+  a.fn-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .fn-shot{ display:block; width:72px; height:54px; flex:none; border-radius:.4rem; overflow:hidden; background:#0e1218; }
+  .fn-shot img{ display:block; width:100%; height:100%; object-fit:cover; }
+  .fn-body{ display:flex; flex-direction:column; flex:1; min-width:0; }
+  .fn-meta{ display:flex; justify-content:space-between; align-items:center; gap:.35rem; }
+  .fn-chip{ min-width:0; font:500 .62rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cyan);
+            background:#132028; border:1px solid #1e3c48; border-radius:.35rem; padding:.04rem .32rem;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fn-meta time{ flex:none; font-size:.68rem; color:var(--dim); }
+  .fn-card h3{ font-size:.78rem; line-height:1.3; letter-spacing:-.015em; margin:.28rem 0 .2rem; font-weight:750; color:var(--ink); }
+  .fn-card p{ margin:0; color:var(--dim); font-size:.72rem; line-height:1.35;
+              display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fn-read{ margin-top:.35rem; color:var(--accent); font-size:.72rem; font-weight:700; }
+  a.fn-card:hover .fn-read{ text-decoration:underline; }
+  .fn-cta{ display:flex; flex-direction:column; align-items:flex-start; gap:.4rem; margin:.85rem 0 0; }
+  a.cta{ display:inline-block; background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); color:#081018;
+         font-weight:750; font-size:.78rem; padding:.42rem .7rem; border-radius:.6rem; text-decoration:none; }
+  a.cta:hover{ text-decoration:none; filter:brightness(1.06); }
+  .fn-count{ color:var(--dim); font-size:.75rem; }
+  .guides{ margin-top:1rem; padding-top:.75rem; border-top:1px solid var(--line); }
+  .guides h3{ margin:0 0 .4rem; font-size:.85rem; letter-spacing:-.01em; font-weight:750; }
+  .guides h3 span{ color:var(--dim); font-weight:550; font-size:.72rem; margin-left:.3rem; }
+  .guides ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.22rem; }
+  .guides li{ margin:0; min-width:0; }
+  .guides li a{ color:var(--dim); font-size:.75rem; }
+  .guides li a:hover{ color:var(--accent); }
+  a.guides-all{ display:inline-block; margin-top:.55rem; font-size:.75rem; font-weight:700; }
+  @media (max-width:900px){
+    .wrap{ max-width:760px; }
+    .sub, .feedrow{ max-width:none; }
+    .news{ display:block; }
+    .fieldnotes{ position:static; max-height:none; overflow:visible; margin-top:1.75rem; padding-top:1.1rem; border-top:1px solid var(--line); }
+  }
   h2{ font-size:1.15rem; letter-spacing:-.01em; margin:0 0 .7rem; font-weight:800; scroll-margin-top:1rem; }
   h2 a{ color:var(--ink); }
   h2 a:hover{ color:var(--accent); text-decoration:none }
   ul{ margin:0 0 1rem; padding-left:1.2rem; }
   li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
+  .log li{ overflow-wrap:anywhere }
+  .workflow-link{ display:block; max-width:100%; margin-top:.3rem; font-size:.85rem }
   li:target{ color:var(--ink); }
   a.clip{ display:block; position:relative; width:min(100%,320px); margin:.5rem 0 .2rem; border:1px solid var(--line);
           border-radius:.55rem; overflow:hidden; line-height:0; background:#000; }
@@ -214,12 +394,13 @@ const html = `<!doctype html>
           display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
   footer .spacer{flex:1}
 </style>
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/public-pages.css" />
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
     <div class="spacer"></div>
     <a class="ghost" href="/">Open editor →</a>
   </header>
@@ -232,7 +413,12 @@ const html = `<!doctype html>
       <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Source on GitHub</a>
     </nav>
 
+    <div class="news">
+      <div class="log">
 ${sections}
+      </div>
+${fieldNotesHtml()}
+    </div>
   </main>
 
   <footer>
@@ -268,7 +454,7 @@ const feedEntries = sorted
     <title type="text">${escXml(e.text)}</title>
     <link rel="alternate" type="text/html" href="${SITE}/changelog#u-${e.slug}"/>
     <updated>${rfc3339(e.date)}</updated>
-    <content type="text">${escXml(e.text)}</content>
+    <content type="${safeUrl(e.workflow) ? "html" : "text"}">${safeUrl(e.workflow) ? escXml(escHtml(e.text) + " " + workflowHtml(e)) : escXml(e.text)}</content>
   </entry>`
   )
   .join("\n");
@@ -357,10 +543,10 @@ if (CHECK) {
   const htmlOk = haveHtml === html;
   const feedOk = haveFeed === feed;
   if (htmlOk && feedOk) {
-    console.log(`✓ gen-changelog: changelog.html + feed.xml match updates.json (updated ${newestDate})`);
+    console.log(`✓ gen-changelog: changelog.html + feed.xml match updates.json + articles.json (updated ${newestDate}, ${articles.length} field notes, ${guides.length} guides)`);
     process.exit(0);
   }
-  console.error("✗ gen-changelog: changelog.html / feed.xml are stale vs updates.json.");
+  console.error("✗ gen-changelog: changelog.html / feed.xml are stale vs updates.json + articles.json + the guide sitemap.");
   console.error("  Regenerate with:  node scripts/gen-changelog.mjs");
   if (!htmlOk) console.error(firstDiff(haveHtml, html, "changelog.html"));
   if (!feedOk) console.error(firstDiff(haveFeed, feed, "feed.xml"));
@@ -369,4 +555,4 @@ if (CHECK) {
 
 writeFileSync(HTML_PATH, html);
 writeFileSync(FEED_PATH, feed);
-console.log(`✓ gen-changelog: wrote changelog.html (${byDate.length} days) + feed.xml (${sorted.length} entries, well-formed, updated ${newestDate})`);
+console.log(`✓ gen-changelog: wrote changelog.html (${byDate.length} days, ${articles.length} field notes, ${guides.length} guides) + feed.xml (${sorted.length} entries, well-formed, updated ${newestDate})`);

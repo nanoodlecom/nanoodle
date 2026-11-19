@@ -1,0 +1,234 @@
+[
+  {
+    "id": "speridlabs/idol",
+    "object": "model",
+    "created": 1793404800,
+    "owned_by": "speridlabs",
+    "name": "Sperid Labs Idol",
+    "description": "Idol by Sperid Labs turns one image of a single object into a 3D Gaussian splat. Download the PLY splat or inspect a colored GLB point-cloud preview; neither output is a textured polygon mesh. Choose synthetic images or real photographs, 32,768\u20131,048,576 Gaussians, 1\u201350 sampling steps, guidance and an optional seed. Each generation costs $0.10, including all supported settings.",
+    "architecture": {
+      "modality": "image->3d",
+      "input_modalities": [
+        "image"
+      ],
+      "output_modalities": [
+        "3d"
+      ]
+    },
+    "capabilities": {
+      "model_3d_generation": true,
+      "text_to_3d": false,
+      "image_to_3d": true,
+      "gaussian_splat": true,
+      "point_cloud_preview": true,
+      "polygon_mesh": false
+    },
+    "output_formats": {
+      "model_mesh": "gaussian-splat-ply",
+      "model_glb": "point-cloud-glb"
+    },
+    "output_count": 1,
+    "pricing": {
+      "per_run": 0.1,
+      "per_run_by_variant": {
+        "default": 0.1
+      },
+      "default_variant": "default",
+      "currency": "USD"
+    },
+    "supported_parameters": {
+      "parameters": {
+        "image_type": {
+          "type": "select",
+          "label": "Image type",
+          "default": "synthetic",
+          "options": [
+            {
+              "value": "synthetic",
+              "label": "Synthetic (tight crop)"
+            },
+            {
+              "value": "real",
+              "label": "Photograph (looser crop)"
+            }
+          ]
+        },
+        "num_gaussians": {
+          "type": "number",
+          "label": "Gaussians",
+          "description": "Rounded down to a multiple of 32.",
+          "min": 32768,
+          "max": 1048576,
+          "step": 32,
+          "default": 262144
+        },
+        "num_inference_steps": {
+          "type": "number",
+          "label": "Sampling steps",
+          "min": 1,
+          "max": 50,
+          "step": 1,
+          "default": 50
+        },
+        "guidance_scale": {
+          "type": "number",
+          "label": "Guidance",
+          "min": 0,
+          "max": 10,
+          "step": 0.1,
+          "default": 3
+        },
+        "seed": {
+          "type": "number",
+          "label": "Seed",
+          "description": "Leave blank for a random seed.",
+          "step": 1
+        },
+        "enable_safety_checker": {
+          "type": "switch",
+          "label": "Safety checker",
+          "default": true
+        },
+        "image_url": {
+          "type": "string",
+          "required": true,
+          "description": "One image of a single object. Public image URL or supported image data URL."
+        }
+      },
+      "defaults": {
+        "image_type": "synthetic",
+        "num_gaussians": 262144,
+        "num_inference_steps": 50,
+        "guidance_scale": 3,
+        "enable_safety_checker": true
+      }
+    },
+    "tags": [
+      "Image to 3D",
+      "Gaussian splat",
+      "Point cloud"
+    ],
+    "category": "3D"
+  },
+  {
+    "id": "wavespeed-ai/trellis-2/image-to-3d",
+    "object": "model",
+    "created": 1789257600,
+    "owned_by": "microsoft",
+    "name": "TRELLIS.2",
+    "description": "Turn one object image into a textured GLB with UVs and embedded PBR materials. Choose geometry and texture detail, control the target face count, and optionally preserve an existing transparent background.",
+    "architecture": {
+      "modality": "image->3d",
+      "input_modalities": [
+        "image"
+      ],
+      "output_modalities": [
+        "3d"
+      ]
+    },
+    "capabilities": {
+      "model_3d_generation": true,
+      "text_to_3d": false,
+      "image_to_3d": true
+    },
+    "pricing": {
+      "per_run": 0.2,
+      "per_run_by_variant": {
+        "512": 0.1,
+        "1024": 0.2,
+        "1536": 0.4,
+        "512+4k-texture": 0.15,
+        "1024+4k-texture": 0.25,
+        "1536+4k-texture": 0.45
+      },
+      "default_variant": "1024",
+      "currency": "USD"
+    },
+    "supported_parameters": {
+      "parameters": {
+        "resolution": {
+          "label": "Geometry resolution",
+          "description": "Higher resolution captures more geometric detail but takes longer to generate.",
+          "type": "select",
+          "options": [
+            {
+              "value": "512",
+              "label": "512"
+            },
+            {
+              "value": "1024",
+              "label": "1024"
+            },
+            {
+              "value": "1536",
+              "label": "1536"
+            }
+          ],
+          "default": "1024"
+        },
+        "texture_size": {
+          "label": "Texture size",
+          "description": "Resolution of the embedded PBR textures. 4096 adds $0.05 to the generation price.",
+          "type": "select",
+          "options": [
+            {
+              "value": "1024",
+              "label": "1024 px"
+            },
+            {
+              "value": "2048",
+              "label": "2048 px"
+            },
+            {
+              "value": "4096",
+              "label": "4096 px (+$0.05)"
+            }
+          ],
+          "default": 2048
+        },
+        "target_face_count": {
+          "label": "Target face count",
+          "description": "Approximate mesh face count after simplification (10,000 to 1,000,000).",
+          "type": "number",
+          "min": 10000,
+          "max": 1000000,
+          "step": 10000,
+          "default": 200000
+        },
+        "remove_background": {
+          "label": "Remove background",
+          "description": "Remove the image background before generation. Disable this to use existing image alpha.",
+          "type": "switch",
+          "default": true
+        },
+        "seed": {
+          "label": "Seed",
+          "description": "Use -1 for a random result, or a fixed integer to reproduce a generation.",
+          "type": "number",
+          "min": -1,
+          "max": 2147483647,
+          "step": 1,
+          "default": -1
+        }
+      },
+      "defaults": {
+        "resolution": "1024",
+        "texture_size": 2048,
+        "target_face_count": 200000,
+        "remove_background": true,
+        "seed": -1
+      }
+    },
+    "label": "NEW",
+    "tags": [
+      "3d",
+      "trellis",
+      "microsoft",
+      "image-to-3d",
+      "glb",
+      "pbr",
+      "textured"
+    ],
+    "category": "3D"
+  }
+]

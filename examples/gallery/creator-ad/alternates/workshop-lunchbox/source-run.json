@@ -1,0 +1,218 @@
+{
+  "slug": "creator-ad",
+  "case": "workshop-lunchbox",
+  "recordedAt": "2026-10-30T19:07:44.091Z",
+  "elapsedMs": 490523,
+  "graphSha256": "48b68f2dd19a9f234986e23722bf45723ec8908bff244b6f61f4de0aa289c2fc",
+  "executedGraphSha256": "f4e6e2cb98e5b24e42655279bcce99896b2e6073c574adecb7dae738b23d0775",
+  "executedGraphNote": "Run in two stages with nanoodle-js (stills, script and voice, then LongCat from those saved files); the executed graph has the same nodes, fields and wires as graph.json here.",
+  "costUsd": 0.52914279,
+  "costExact": true,
+  "costNote": "NanoGPT balance change across both stages; per node: Muse ×3 $0.033, GLM $0.0002, MiniMax Speech ≈$0.0145, LongCat $0.4814.",
+  "errors": [],
+  "captureErrors": [],
+  "runner": "nanoodle-js",
+  "mediaNote": "Displayed stills are size-reduced re-encodes of the run outputs; the originals are linked per output.",
+  "nodes": [
+    {
+      "id": "c-intent",
+      "name": null,
+      "type": "comment",
+      "status": "skipped",
+      "outputs": []
+    },
+    {
+      "id": "p-product",
+      "name": "Product · stand-in",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "p-product-text.txt",
+          "bytes": 186,
+          "sha256": "9a7714a207499c36915ee0a3514feff7d5230bb1b14b6c66532a6bfffd973c0a"
+        }
+      ]
+    },
+    {
+      "id": "product",
+      "name": "Product shot",
+      "type": "image",
+      "model": "meta/muse-image/text-to-image",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "product-image.webp",
+          "bytes": 23032,
+          "sha256": "2cbc2b67baaa411d518fa0c6968813717274129630e085002f4ec8129cdef680",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-creator-ad/product-image.webp"
+        }
+      ]
+    },
+    {
+      "id": "p-creator",
+      "name": "Creator · look",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "p-creator-text.txt",
+          "bytes": 226,
+          "sha256": "a1d263e35f65046217cf2673ea1a4aecf26065ee907417885da0f779b1e9ebdf"
+        }
+      ]
+    },
+    {
+      "id": "creator",
+      "name": "Creator",
+      "type": "image",
+      "model": "meta/muse-image/text-to-image",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "creator-image.webp",
+          "bytes": 76302,
+          "sha256": "b7bbd0f0320c7ad1f8b15537205ed4c3baf0d2af8b59519442b9cae0acc7a5f1",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-creator-ad/creator-image.webp"
+        }
+      ]
+    },
+    {
+      "id": "p-mix",
+      "name": "Hold the product · instruction",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "p-mix-text.txt",
+          "bytes": 649,
+          "sha256": "6f6b6a5f313a28d383a4c4c80b5428dde4d60126c4f92b894c401af0a66f0084"
+        }
+      ]
+    },
+    {
+      "id": "mix",
+      "name": "Selfie frame · Muse Edit",
+      "type": "edit",
+      "model": "meta/muse-image/edit",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "mix-image.webp",
+          "bytes": 78016,
+          "sha256": "f9db66fb0d9cce2ca4ae8aa06cbcfa6ddff01ae6135e29a36349cb5368ed4358",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-creator-ad/mix-image.webp"
+        }
+      ]
+    },
+    {
+      "id": "p-brief",
+      "name": "Product brief",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "p-brief-text.txt",
+          "bytes": 186,
+          "sha256": "c98bb07baaf1983d1c10e2febdb98b9440f21850e9bf4aaed1ae2596e6503b22"
+        }
+      ]
+    },
+    {
+      "id": "script",
+      "name": "Write the script",
+      "type": "llm",
+      "model": "z-ai/glm-5.3-flash",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "script-text.txt",
+          "bytes": 145,
+          "sha256": "3f06458bedbf0065e1e423ea7bb625b18f6cafe8049d13a72817194f31ecb035"
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "name": "Voice",
+      "type": "tts",
+      "model": "Minimax-Speech-2.8-HD",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "audio",
+          "kind": "audio",
+          "file": "voice-audio.mp3",
+          "bytes": 182004,
+          "sha256": "07a4af5d975534c91fe565f6048ce284354e63d769c3b9d2ea33cff5f233e01a",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-creator-ad/voice-audio.mp3"
+        }
+      ],
+      "fieldOverrides": {
+        "voice": {
+          "sha256": "742e88a009d5b1f547ce6a26f07291a2cad29a0b89c9c7a281fb310ad8329ac2",
+          "bytes": 11
+        }
+      }
+    },
+    {
+      "id": "p-delivery",
+      "name": "Delivery",
+      "type": "text",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "p-delivery-text.txt",
+          "bytes": 358,
+          "sha256": "a116676963636a8d2e6ed43d0701d7a4a5d9494a1289042339f891ee24d8d607"
+        }
+      ]
+    },
+    {
+      "id": "ad",
+      "name": "Creator ad · LongCat Avatar 1.5",
+      "type": "lipsync",
+      "model": "longcat-avatar-1.5",
+      "status": "done",
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "ad-video.mp4",
+          "bytes": 1255284,
+          "sha256": "1bd6ba560b67c5f3ae57cf548aa35b2558693006268074d38731c1bcf35f95ca",
+          "originalUrl": "https://media.nanoodle.com/subnano/2026-10-30-alt-creator-ad/ad-video.mp4"
+        }
+      ]
+    }
+  ]
+}

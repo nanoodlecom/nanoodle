@@ -776,6 +776,9 @@ vm.runInContext([
 }
 
 catalog.image = [
+  ...['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'].map(id => ({
+    id, supported_parameters: { resolutions: ['1k', '2k', '4k'] },
+  })),
   {
     id: "qwen-image-3",
     supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"] },
@@ -1084,6 +1087,36 @@ async function spyImage(fields) {
   if (String(sent && sent.size) !== "2k") fail("play send: catalog-missing image clobbered stored 2k (got " + (sent && sent.size) + ")");
   else ok("play send: catalog-missing image still posts stored 2k (no false clamp)");
 }
+
+// Custom 960-square frames are valid for GPT Image 2.6 and fit both seven-frame
+// GIF sheets. They must survive a cached preset-only catalog, load and SEND.
+for (const model of ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst']) {
+  editor.catalogs.image = [{ id: model, resolutions: ['1k', '2k', '4k'] }];
+  const fields = { model, size: '960x960', modelOpts: { output_format: 'gif', frame_count: 7 } };
+  const defs = editor.dimDefs('image', model);
+  editor.applyDimFields(fields, defs);
+  if (fields.size !== '960x960') fail(model + ': editor clamped compatible GIF size to ' + fields.size);
+  else ok(model + ': editor load and built-in/njs send keep 960x960');
+  if (defs[0].def !== '1k') fail(model + ': custom option changed existing default');
+  else ok(model + ': existing preset/default remains 1k');
+  const raw = catalog.image.find(m => m.id === model);
+  const pack = play.dimOptionsFromItem('image', raw);
+  if (!pack.size.some(o => o[0] === '960x960')) fail(model + ': player settings omit compatible custom size');
+  else ok(model + ': player settings list 960x960');
+  const node = { type: 'image', fields: { ...fields, size: '960x960' } };
+  if (play.snapImageSize(node, raw) !== '960x960') fail(model + ': player njs send snaps compatible GIF size');
+  else ok(model + ': player njs send keeps compatible custom size');
+  const sent = await spyImage({ ...fields, size: '960x960' });
+  if (sent?.model !== model || sent?.size !== '960x960') fail(model + ': built-in send changed GIF model/size: ' + JSON.stringify(sent));
+  else ok(model + ': real player runner sends chosen model and 960x960');
+  editor.applyDimFields(fields, defs);
+  if (defs[0].options.filter(o => o[0] === '960x960').length !== 1) fail(model + ': duplicate custom picker option');
+}
+editor.catalogs.image = [BANANA];
+const unrelatedFields = { model: BANANA.id, size: '960x960' };
+editor.applyDimFields(unrelatedFields, editor.dimDefs('image', BANANA.id));
+if (unrelatedFields.size !== '1k') fail('custom GIF option weakened unrelated model clamping');
+else ok('unrelated models still clamp unsupported custom sizes');
 
 if (failed) { console.error("\ncheck-model-knob-clamp: " + failed + " failure(s)"); process.exit(1); }
 console.log("\ncheck-model-knob-clamp: OK");

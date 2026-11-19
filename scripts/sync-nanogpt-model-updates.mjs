@@ -19,6 +19,8 @@
 //   retired/deprecated/removed  → "Retired: …"
 //   now use / default / upgraded / returns → "Updated: …" (not "New LLM models")
 //   price/pricing/cheaper/discount → "Pricing: …"
+//   a /provider/ link or "provider selector" in the body → "NanoGPT provider update: …"
+//     (a new NanoGPT inference provider for existing models, never "New … models")
 //   else → "New LLM/image/video/audio model(s): …" matching the link kind
 //
 // Source of truth is GET https://nano-gpt.com/api/updates (public JSON, paginated
@@ -32,10 +34,12 @@
 // double-add (an id: key also survives a title edit). Existing chat date|slug
 // keys are kept. The first run that understands media/retired/pricing only
 // ingests those cards with date >= 2026-08-01 (the chat path stays as-is,
-// already walked); after that we walk newest-first until a seen API id.
+// already walked); after that we walk newest-first, skipping already-seen API
+// ids so a missing card between seen neighbors can still backfill.
 //
 // Usage (safe to run repeatedly / on a cron):
 //   node scripts/sync-nanogpt-model-updates.mjs                 # writes+commits if anything new; no-op otherwise
+//   node scripts/sync-nanogpt-model-updates.mjs --check         # read-only; fail if announcements are missing
 //   node scripts/sync-nanogpt-model-updates.mjs --dry-run       # never writes/commits, just reports
 //   node scripts/sync-nanogpt-model-updates.mjs --no-translate  # skip the i18n backfill (no API spend)
 //   node scripts/sync-nanogpt-model-updates.mjs --no-commit     # write updates.json + changelog artifacts but don't touch git
@@ -55,16 +59,40 @@ import {
   fetchApiUpdates,
   groupPending,
   selectPending,
+  catalogCreatedMap,
   shouldStopFetching,
 } from "./lib/nanogpt-updates.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SEEN_FILE = join(root, "scripts", "nanogpt-model-updates-seen.json");
+// Test hooks (used by scripts/check-sync-nanogpt-model-updates.mjs with --dry-run):
+// NANOGPT_SEEN_FILE swaps the seen file, NANOGPT_UPDATES_FIXTURE replaces the
+// network fetch with a JSON array of cards. Neither is set in production.
+const SEEN_FILE = process.env.NANOGPT_SEEN_FILE || join(root, "scripts", "nanogpt-model-updates-seen.json");
+const FIXTURE_FILE = process.env.NANOGPT_UPDATES_FIXTURE || "";
+const CATALOG_FIXTURE = process.env.NANOGPT_CATALOG_FIXTURE || "";
+const CATALOG_URL = "https://nano-gpt.com/api/v1/models";
+
+// Known models for the provider-only check: NanoGPT's public catalog with
+// each model's `created` date. No key is sent. On failure we fall back to the
+// feed + seen file only, which errs toward "new models" (never hides a launch).
+async function loadCatalogCreated() {
+  try {
+    const json = CATALOG_FIXTURE ? JSON.parse(readFileSync(CATALOG_FIXTURE, "utf8"))
+      : await (await fetch(CATALOG_URL, { signal: AbortSignal.timeout(20000) })).json();
+    const map = catalogCreatedMap(json);
+    log(`catalog: ${map.size} model(s) with created dates`);
+    return map;
+  } catch (e) {
+    log(`catalog unavailable (${e.message}) — provider check uses feed + seen only`);
+    return null;
+  }
+}
 const UPDATES_URL = "https://nano-gpt.com/updates";
 const API_URL = "https://nano-gpt.com/api/updates";
 
 const argv = process.argv.slice(2);
-const dryRun = argv.includes("--dry-run");
+const checkOnly = argv.includes("--check");
+const dryRun = checkOnly || argv.includes("--dry-run");
 const noTranslate = argv.includes("--no-translate");
 const noCommit = argv.includes("--no-commit");
 const doPush = argv.includes("--push") || process.env.NOODLE_SYNC_AUTO_PUSH === "1";
@@ -105,6 +133,11 @@ function renderUpdatesPage() {
 }
 
 async function loadCards(seen) {
+  if (FIXTURE_FILE) {
+    const cards = JSON.parse(readFileSync(FIXTURE_FILE, "utf8"));
+    log(`loaded ${cards.length} card(s) from fixture`);
+    return { source: "fixture", cards };
+  }
   try {
     const cards = await fetchApiUpdates(fetch, {
       url: API_URL,
@@ -154,11 +187,12 @@ async function main() {
   const { source, cards } = await loadCards(seen);
   log(`found ${cards.length} announcement(s) via ${source}`);
   if (!cards.length) {
+    if (checkOnly) throw new Error("Freshness audit incomplete: upstream returned no announcement cards.");
     log("nothing to do — either NanoGPT posted none recently, or both the JSON API and the page markup failed.");
     process.exit(0);
   }
 
-  const pending = selectPending(cards, seen);
+  const pending = selectPending(cards, seen, { catalogCreated: await loadCatalogCreated() });
   if (!pending.length) {
     log("no new model / retirement / pricing cards since the last check. Nothing to do.");
     process.exit(0);
@@ -169,7 +203,8 @@ async function main() {
 
   if (dryRun) {
     for (const g of groups) log(`  [dry-run] ${g.date} — ${g.text}`);
-    process.exit(0);
+    if (checkOnly) log("Freshness audit failed: run the sync and publish the missing announcements.");
+    process.exit(checkOnly ? 1 : 0);
   }
 
   // Oldest-of-the-batch first so newest ends up on top; --day-end keeps mirrored

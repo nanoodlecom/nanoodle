@@ -36,6 +36,13 @@ function toy(name, ok, detail) {
 
 const known = new Set(Object.keys(portTables.portCatalog));
 
+// The LLM→Join preference toys below run on a synthetic prior, not the live corpus: the
+// gallery's real LLM consumers shift as examples land (one-prompt-looping-gif wires one brief
+// into two Image prompts, so Join 9 / Image 7 no longer clears the lead and the live corpus
+// rightly stays quiet). These are the counts the toys were written against.
+const llmJoinLead = { ...portTables, topTargets: { ...portTables.topTargets,
+  "llm|text": { "image|prompt": 5, "join|b": 7, "music|prompt": 1, "tts|prompt": 1, "join|a": 2, "ivideo|prompt": 1, "llm|prompt": 1, "music|lyrics": 2 } } };
+
 function graph(nodes, links, selectedId, selectedIds) {
   return { nodes, links: links || [], selectedId, selectedIds };
 }
@@ -46,7 +53,7 @@ function graph(nodes, links, selectedId, selectedIds) {
     [],
     "l"
   );
-  const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
+  const hits = rankSelectedOutputConsumers(llmJoinLead, g, { nodeTypes: known });
   toy("llm-output-prefers-join", hits[0] && hits[0].type === "join" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
 }
 
@@ -90,7 +97,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const g = graph([{ id: "l", type: "llm" }], [], "l");
-  const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
+  const hits = rankSelectedOutputConsumers(llmJoinLead, g, { nodeTypes: known });
   const prior = [
     { type: "text", source: "frequency", reason: "often added next" },
     { type: "image", source: "frequency", reason: "often added next" },

@@ -55,8 +55,9 @@
 //   H3. The editor's __appsaved__ handler binds + persists the id (button flips to
 //       "✨ Update <name>") without breaking the unchanged-graph resume fast-path.
 //   H4. __editflow__ pushes an undo snapshot — the replaced canvas stays one Ctrl+Z away.
-//   H5. The standalone #ga= boot parks the STORED graph in undo (the canvas is still empty
-//       at that point in boot, so a plain pushUndo would snapshot nothing).
+//   H5. A #ga= boot with an existing noodle_graph opens the handoff in a NEW workspace.
+//       The previous graph is copied byte-for-byte onto that tab's noodle_ws_* key.
+//       Undo is not the recovery path — the other tab is.
 //   H6. A handoff clicked while the FIRST load is still booting is PARKED (a postMessage
 //       then would be lost, or clobbered by the in-flight boot's stale hash graph) and
 //       flushed on __appready__ under the editor's CURRENT binding.
@@ -204,6 +205,22 @@ function makeStorage(backing) {
   };
 }
 
+// These handoff cases model a healthy browser with an empty overflow database;
+// their small fixtures remain in legacy localStorage. API absence is a recovery
+// failure now, covered separately by check-workspaces and the real browser suite.
+function emptyWorkspaceDatabase() {
+  return {open() {
+    const request={};
+    queueMicrotask(()=>{
+      request.result={close(){},transaction(){return {objectStore(){return {get(){
+        const read={result:undefined};queueMicrotask(()=>read.onsuccess?.());return read;
+      }}}};}};
+      request.onsuccess?.();
+    });
+    return request;
+  }};
+}
+
 function makeLocation(href, nav) {
   const u = new URL(href);
   return {
@@ -243,6 +260,7 @@ function loadPage(code, kind, { href, store, session, parentIsSelf = true }) {
     console,
     TextEncoder, TextDecoder, URL, URLSearchParams, btoa, atob, crypto,
     Blob, Response, CompressionStream, DecompressionStream, structuredClone, queueMicrotask, Date,
+    indexedDB:emptyWorkspaceDatabase(),
     setTimeout: (fn) => { const id = timerId++; timers.push({ id, fn }); return id; },
     clearTimeout: (id) => { const i = timers.findIndex((t) => t.id === id); if (i >= 0) timers.splice(i, 1); },
     setInterval: () => 0, clearInterval: () => {},
@@ -725,18 +743,22 @@ async function run() {
       `undoBefore=${undoBefore} undoAfter=${el(ctx, "undo").disabled}`);
   }
 
-  /* H5: the standalone #ga= boot parks the STORED graph in undo — clicking undo brings
-     back the noodle the handoff's save() overwrote (boot runs loadFromHash before load(),
-     so a plain pushUndo would have snapshotted an empty canvas). */
+  /* H5: a #ga= boot with an existing noodle_graph opens the handoff in a NEW workspace.
+     The previous graph bytes move to that workspace's own key, untouched. Undo stays
+     idle — the old workflow is the other tab, not an undo snapshot. */
   {
-    const store = { noodle_graph: JSON.stringify(OLDG) }, session = {};
+    const oldJson = JSON.stringify(OLDG);
+    const store = { noodle_graph: oldJson }, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: NEWG, appId: "app_AAA", title: "My App" })), store, session);
-    const undoLive = el(ctx, "undo").disabled === false;
-    const overwrote = graphMarker(JSON.parse(store.noodle_graph)) === "NEW";   // handoff's save() landed
-    await el(ctx, "undo").onclick(); await drainAsync(); settleTimers(ctx); await drainAsync();
-    record("H5 #ga= boot parks the stored graph — undo restores the overwritten noodle",
-      undoLive && overwrote && graphMarker(JSON.parse(store.noodle_graph)) === "OLD",
-      `undoLive=${undoLive} overwrote=${overwrote} marker=${graphMarker(JSON.parse(store.noodle_graph))}`);
+    const undoIdle = el(ctx, "undo").disabled === true;
+    const overwrote = graphMarker(JSON.parse(store.noodle_graph)) === "NEW";
+    const shelved = Object.entries(store).filter(([k]) => k.startsWith("noodle_ws_")).map(([, v]) => v);
+    let idx = null;
+    try { idx = JSON.parse(store.noodle_workspaces); } catch {}
+    const active = idx && idx.tabs && idx.tabs.find((t) => t.id === idx.active);
+    record("H5 #ga= boot opens a new workspace and keeps the previous graph byte-for-byte",
+      undoIdle && overwrote && shelved.includes(oldJson) && idx && idx.tabs.length === 2 && active && active.app && active.app.id === "app_AAA",
+      `undoIdle=${undoIdle} overwrote=${overwrote} shelved=${shelved.includes(oldJson)} tabs=${idx && idx.tabs && idx.tabs.length} app=${active && active.app && active.app.id}`);
   }
 
   /* H6: a re-handoff clicked while the FIRST load is still booting must be parked (no live

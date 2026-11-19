@@ -1,0 +1,212 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -220,
+      "w": 900,
+      "sizes": {
+        "text": 101
+      },
+      "fields": {
+        "color": "yellow",
+        "text": "Song in, music video out. An LLM writes short lyrics from a one-line song idea, MiniMax Music 2.6 sings them as a 15-second track, FLUX.3 Klein paints the performer, and the Music Video Generator turns the picture plus the song into a performance video driven by the audio itself. Trim keeps the billed audio at 15 s; Soundtrack puts the original full-quality song back on the video."
+      }
+    },
+    {
+      "id": "idea",
+      "type": "text",
+      "x": 40,
+      "y": 40,
+      "w": 320,
+      "name": "Song idea",
+      "fields": {
+        "text": "A slow, gentle acoustic folk lullaby about an old grey owl who keeps a lighthouse on a foggy island and sings the ships safely home at night."
+      }
+    },
+    {
+      "id": "lyrics",
+      "type": "llm",
+      "x": 400,
+      "y": 40,
+      "w": 340,
+      "name": "Lyricist",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "500",
+        "system": "Write lyrics for a 15-second song section from the user's idea. Output exactly this shape and nothing else:\n[Verse]\n(two short lines)\n[Chorus]\n(two short catchy lines)\nEach line at most 7 words, simple words that are easy to sing, cheerful and family-friendly. No names of real people or brands.",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "song",
+      "type": "music",
+      "x": 780,
+      "y": 40,
+      "w": 320,
+      "name": "Song · MiniMax Music 2.6",
+      "fields": {
+        "model": "Minimax-Music-2.6",
+        "duration": "15",
+        "response_format": "mp3",
+        "prompt": "Slow, warm acoustic folk lullaby, 72 bpm, fingerpicked acoustic guitar, soft upright bass, light brushed snare, a gentle breathy lead vocal, cosy foggy night feel.",
+        "lyrics": ""
+      }
+    },
+    {
+      "id": "cut15",
+      "type": "trim",
+      "x": 1140,
+      "y": 40,
+      "w": 240,
+      "name": "Trim to 15 s (caps the video bill)",
+      "fields": {
+        "start": "0",
+        "length": "15"
+      }
+    },
+    {
+      "id": "performer",
+      "type": "text",
+      "x": 40,
+      "y": 360,
+      "w": 320,
+      "name": "Performer & stage",
+      "fields": {
+        "text": "A wise old grey owl with big amber eyes and fluffy feathers, wearing a small knitted blue scarf, perched on the iron railing at the top of a white and red lighthouse at night, the lighthouse lamp glowing warmly behind it, soft fog over a calm sea, a small sailing boat far away, painterly storybook illustration style, no people, no text."
+      }
+    },
+    {
+      "id": "still",
+      "type": "image",
+      "x": 780,
+      "y": 360,
+      "w": 320,
+      "name": "Performer · FLUX.3 Klein",
+      "fields": {
+        "model": "blackforestlabs/flux-3/klein/text-to-image",
+        "size": "1536x1536",
+        "variations": "1",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "mv",
+      "type": "lipsync",
+      "x": 1440,
+      "y": 200,
+      "w": 320,
+      "name": "Music video · Music Video Generator",
+      "fields": {
+        "model": "music-video-generator",
+        "resolution": "480p",
+        "aspect": "16:9",
+        "prompt": "Gentle, slow performance music video of the grey owl singing softly on the lighthouse balcony at night, slow drifting camera, sweeping lighthouse beam through the fog, keep the same owl in every shot, no people."
+      }
+    },
+    {
+      "id": "final",
+      "type": "soundtrack",
+      "x": 1820,
+      "y": 200,
+      "w": 260,
+      "name": "Music video · original song",
+      "fields": {
+        "loop": false
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "lyrics",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "lyrics",
+        "port": "text"
+      },
+      "to": {
+        "node": "song",
+        "port": "lyrics"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "song",
+        "port": "audio"
+      },
+      "to": {
+        "node": "cut15",
+        "port": "audio"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "performer",
+        "port": "text"
+      },
+      "to": {
+        "node": "still",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "still",
+        "port": "image"
+      },
+      "to": {
+        "node": "mv",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "cut15",
+        "port": "audio"
+      },
+      "to": {
+        "node": "mv",
+        "port": "audio"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "mv",
+        "port": "video"
+      },
+      "to": {
+        "node": "final",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "song",
+        "port": "audio"
+      },
+      "to": {
+        "node": "final",
+        "port": "audio"
+      }
+    }
+  ]
+}

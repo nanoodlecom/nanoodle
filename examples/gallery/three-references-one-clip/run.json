@@ -1,0 +1,41 @@
+{
+  "label": "2026-10-21 three-references-one-clip felt hedgehog (3× Muse refs → minimax-h3/reference-to-video 540p 5 s)",
+  "startedAt": "2026-10-21T17:46:01.017Z",
+  "finishedAt": "2026-10-21T17:47:42.988Z",
+  "costUsd": 0.468,
+  "costExact": true,
+  "balanceBefore": 26.65765746,
+  "balanceAfter": 26.18957413,
+  "balanceDelta": 0.468083,
+  "nodes": {
+    "hero": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "character.webp"
+      }
+    },
+    "prop": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "prop.webp"
+      }
+    },
+    "place": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "place.webp"
+      }
+    },
+    "clip": {
+      "status": "done",
+      "costUsd": 0.435,
+      "files": {
+        "video": "clip.mp4"
+      }
+    }
+  },
+  "note": "Run in two passes the way you would in the editor: the three Muse stills first (checked), then the same stills went into the clip node's ref1/ref2/ref3. The runner passed the model catalog, so 540p reached H3 (960×544, 5.17 s, with an audio track). H3 Reference-to-Video reported $0.435 against nanoodle-js's catalog-minimum estimate of $0.15 and the editor's 540p table rate of $0.375. A locked-off-camera retake ($0.435, same refs) panned the same way and is not shipped. Images are re-saved as WebP (max 1024 px) and the clip re-encoded (H.264 CRF 24, AAC) for size; same frames. The balance delta includes about $0.0001 of other usage of the shared key."
+}

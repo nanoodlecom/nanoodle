@@ -22,6 +22,9 @@ the inputs and outputs together for next time, then share or export it.
 - **Browser-based editor and app runtime** — no nanoodle model proxy,
   analytics, or tracking; model requests go directly to NanoGPT.
 - **Six UI languages** — EN/ES/FR/DE/PT/JA, auto-detected with a switcher.
+- **Recent Updates** — the unseen badge covers the 12 most recent changes and
+  three newest field notes. Older entries remain in the expandable archive and
+  full changelog; archived history intentionally does not increase the badge.
 
 ## Privacy architecture
 
@@ -117,7 +120,8 @@ Replace the code with your own (or delete the parameter and use bare
 - **`legal.html`** — terms, privacy, FAQ (`/legal`).
 - **`changelog.html`** — release notes (`/changelog`), generated from
   `updates.json` by `scripts/gen-changelog.mjs`, plus an Atom feed
-  (`feed.xml`).
+  (`feed.xml`). Field notes (Nano Maxi's Subnano articles) come from
+  `articles.json`; the guides row is the sitemap's `/guide/examples/*` pages.
 - **`guide/`** — static docs (`/guide/`): the `noodle-graph.json` format,
   running workflows headlessly, self-hosting, share links, the Custom
   endpoint localhost contract, and a how-to for every reviewed gallery
@@ -132,7 +136,7 @@ Replace the code with your own (or delete the parameter and use bare
 A saved graph (`noodle-graph.json`) — or any share link — doesn't need the
 browser: two zero-dependency sibling libraries re-execute it headlessly —
 [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)
-(`npm install nanoodle` 0.8.0, Node ≥ 20) and
+(`npm install nanoodle` 0.8.0, Node 22.23.4+, 24.22.1+, or 26.12.1+) and
 [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)
 (`pip install nanoodle` 0.5.0, stdlib-only). Same graphs, same results;
 useful for scripts, servers, and agent skills. Walkthrough:

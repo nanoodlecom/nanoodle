@@ -51,6 +51,7 @@ function sameSet(actual, expected) {
       "bytedance/seedream-v5.0-flash",
       "ideogram/v4.5",
       "recraft-ai/recraft-v4.1-flash/text-to-image",
+      "moss-image",
     ];
     if (!sameSet(ids, want))
       fail("flux3 arena ids drifted: " + ids.join(", "));
@@ -58,7 +59,7 @@ function sameSet(actual, expected) {
       fail("flux3 arena must stay image-only");
     else if (modelNodes(ex).some((n) => n.fields.size !== "1k" && n.fields.size !== "1024x1024"))
       fail("flux3 arena must stay on the 1k / 1024 poster size");
-    else ok("flux3 arena keeps the four poster ids at 1k");
+    else ok("flux3 arena keeps the five poster ids at 1k / 1024");
   }
 }
 

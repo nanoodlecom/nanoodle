@@ -1,0 +1,34 @@
+{
+  "label": "2026-10-22 add-snow-to-a-clip blue-hour lake dock (Muse 16:9 \u2192 minimax/h3-max-turbo 480p 5 s \u2192 blackforestlabs/flux-3/edit-video)",
+  "startedAt": "2026-10-22T17:46:15.344Z",
+  "finishedAt": "2026-10-22T17:47:44.219Z",
+  "costUsd": 0.442,
+  "costExact": true,
+  "balanceBefore": 23.98371323,
+  "balanceAfter": 23.54171323,
+  "balanceDelta": 0.442,
+  "nodes": {
+    "still": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "lake.webp"
+      }
+    },
+    "plain": {
+      "status": "done",
+      "costUsd": 0.125,
+      "files": {
+        "video": "plain.mp4"
+      }
+    },
+    "fx": {
+      "status": "done",
+      "costUsd": 0.306,
+      "files": {
+        "video": "snow.mp4"
+      }
+    }
+  },
+  "note": "Run in two passes: the Muse still first (checked), then the plain clip and the snow edit in one pass. H3 Max Turbo returned 832\u00d7480, 24 fps, 5.17 s; FLUX.3 Edit Video returned 832\u00d7480 (not the 720p its catalog entry mentions), 24 fps, 125 frames, and kept the source's near-silent audio. FLUX.3 Edit Video reported $0.306 (6 s at $0.051/s) against nanoodle-js's estimate of $0.255 for the edit (whole-run estimate $0.38). Image re-saved as WebP (max 1024 px) and both clips re-encoded (H.264 CRF 24, AAC) for size; same frames. No retakes."
+}

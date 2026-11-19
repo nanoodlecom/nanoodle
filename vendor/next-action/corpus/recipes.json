@@ -1,8 +1,42 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "exampleCount": 16,
+  "exampleCount": 37,
   "recipes": [
+    {
+      "id": "add-snow-to-a-clip",
+      "slug": "add-snow-to-a-clip",
+      "title": "Add snow to a clip",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "ivideo",
+        "text",
+        "vedit"
+      ],
+      "multiset": {
+        "text": 3,
+        "image": 1,
+        "ivideo": 1,
+        "vedit": 1
+      }
+    },
+    {
+      "id": "bilingual-tea-poster",
+      "slug": "bilingual-tea-poster",
+      "title": "Event details to a bilingual poster",
+      "sequence": [
+        "text",
+        "llm",
+        "image"
+      ],
+      "multiset": {
+        "text": 1,
+        "llm": 1,
+        "image": 1
+      }
+    },
     {
       "id": "blockout-to-shot",
       "slug": "blockout-to-shot",
@@ -30,6 +64,27 @@
       }
     },
     {
+      "id": "carve-a-pumpkin",
+      "slug": "carve-a-pumpkin",
+      "title": "Carve a design into a pumpkin",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "edit",
+        "text",
+        "edit",
+        "text",
+        "ivideo"
+      ],
+      "multiset": {
+        "text": 4,
+        "image": 1,
+        "edit": 2,
+        "ivideo": 1
+      }
+    },
+    {
       "id": "character-sprites",
       "slug": "character-sprites",
       "title": "Game character kit",
@@ -49,11 +104,124 @@
       }
     },
     {
-      "id": "flux3-seedream-ideogram-arena",
-      "slug": "flux3-seedream-ideogram-arena",
-      "title": "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1: same poster, side by side",
+      "id": "color-to-manga",
+      "slug": "color-to-manga",
+      "title": "Color art to a printed manga panel",
       "sequence": [
         "text",
+        "image",
+        "text",
+        "edit"
+      ],
+      "multiset": {
+        "text": 2,
+        "image": 1,
+        "edit": 1
+      }
+    },
+    {
+      "id": "composer-watches-your-film",
+      "slug": "composer-watches-your-film",
+      "title": "A composer that watches your film",
+      "sequence": [
+        "text",
+        "tvideo",
+        "vframes",
+        "text",
+        "llm",
+        "music",
+        "soundtrack",
+        "text",
+        "music",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 3,
+        "tvideo": 1,
+        "vframes": 1,
+        "llm": 1,
+        "music": 2,
+        "soundtrack": 2
+      }
+    },
+    {
+      "id": "creator-ad",
+      "slug": "creator-ad",
+      "title": "A creator ad for your product",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "image",
+        "text",
+        "edit",
+        "text",
+        "llm",
+        "tts",
+        "text",
+        "lipsync"
+      ],
+      "multiset": {
+        "text": 5,
+        "image": 2,
+        "edit": 1,
+        "llm": 1,
+        "tts": 1,
+        "lipsync": 1
+      }
+    },
+    {
+      "id": "day-to-night",
+      "slug": "day-to-night",
+      "title": "Day to night between two keyframes",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "edit",
+        "text",
+        "ivideo"
+      ],
+      "multiset": {
+        "text": 3,
+        "image": 1,
+        "edit": 1,
+        "ivideo": 1
+      }
+    },
+    {
+      "id": "edit-with-references",
+      "slug": "edit-with-references",
+      "title": "Edit with references",
+      "sequence": [
+        "upload",
+        "upload",
+        "upload",
+        "upload",
+        "vision",
+        "edit",
+        "text",
+        "vision",
+        "join",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 4,
+        "vision": 2,
+        "edit": 1,
+        "text": 1,
+        "join": 2,
+        "llm": 1
+      }
+    },
+    {
+      "id": "flux3-seedream-ideogram-arena",
+      "slug": "flux3-seedream-ideogram-arena",
+      "title": "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1 vs MOSS Image: same poster, side by side",
+      "sequence": [
+        "text",
+        "image",
         "image",
         "image",
         "image",
@@ -61,7 +229,7 @@
       ],
       "multiset": {
         "text": 1,
-        "image": 4
+        "image": 5
       }
     },
     {
@@ -116,6 +284,24 @@
       }
     },
     {
+      "id": "logo-pile",
+      "slug": "logo-pile",
+      "title": "Logo to a 3D pile, cut out",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "edit",
+        "text",
+        "edit"
+      ],
+      "multiset": {
+        "text": 3,
+        "image": 1,
+        "edit": 2
+      }
+    },
+    {
       "id": "mix-the-references",
       "slug": "mix-the-references",
       "title": "Mix the references",
@@ -156,6 +342,51 @@
       }
     },
     {
+      "id": "one-photo-whole-campaign",
+      "slug": "one-photo-whole-campaign",
+      "title": "One photo, whole campaign",
+      "sequence": [
+        "upload",
+        "vision",
+        "text",
+        "edit",
+        "text",
+        "edit",
+        "text",
+        "edit",
+        "vision",
+        "join",
+        "join",
+        "join",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 2,
+        "text": 3,
+        "edit": 3,
+        "join": 4,
+        "llm": 1
+      }
+    },
+    {
+      "id": "one-prompt-looping-gif",
+      "slug": "one-prompt-looping-gif",
+      "title": "One prompt, one looping GIF",
+      "sequence": [
+        "text",
+        "llm",
+        "image",
+        "image"
+      ],
+      "multiset": {
+        "text": 1,
+        "llm": 1,
+        "image": 2
+      }
+    },
+    {
       "id": "orbit-the-character",
       "slug": "orbit-the-character",
       "title": "Orbit the character",
@@ -176,6 +407,40 @@
       }
     },
     {
+      "id": "photo-to-3d-splat",
+      "slug": "photo-to-3d-splat",
+      "title": "Photo to 3D splat",
+      "sequence": [
+        "upload",
+        "vision",
+        "model3d",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 1,
+        "model3d": 1,
+        "llm": 1
+      }
+    },
+    {
+      "id": "photo-to-game-ready-mesh",
+      "slug": "photo-to-game-ready-mesh",
+      "title": "Photo to game-ready mesh",
+      "sequence": [
+        "upload",
+        "vision",
+        "model3d",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 1,
+        "model3d": 1,
+        "llm": 1
+      }
+    },
+    {
       "id": "photo-to-video",
       "slug": "photo-to-video",
       "title": "From scene to short clip",
@@ -189,6 +454,50 @@
         "text": 2,
         "image": 1,
         "ivideo": 1
+      }
+    },
+    {
+      "id": "product-photo-to-hero-ad",
+      "slug": "product-photo-to-hero-ad",
+      "title": "Product photo to a hero ad",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "edit",
+        "upload",
+        "text",
+        "inpaint",
+        "text",
+        "ivideo",
+        "vframes"
+      ],
+      "multiset": {
+        "text": 4,
+        "image": 1,
+        "edit": 1,
+        "upload": 1,
+        "inpaint": 1,
+        "ivideo": 1,
+        "vframes": 1
+      }
+    },
+    {
+      "id": "radio-play",
+      "slug": "radio-play",
+      "title": "Radio play: two voices, one Speech node",
+      "sequence": [
+        "text",
+        "llm",
+        "text",
+        "join",
+        "tts"
+      ],
+      "multiset": {
+        "text": 2,
+        "llm": 1,
+        "join": 1,
+        "tts": 1
       }
     },
     {
@@ -213,6 +522,22 @@
       }
     },
     {
+      "id": "seamless-loop",
+      "slug": "seamless-loop",
+      "title": "One still, a seamless loop",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "ivideo"
+      ],
+      "multiset": {
+        "text": 2,
+        "image": 1,
+        "ivideo": 1
+      }
+    },
+    {
       "id": "sing",
       "slug": "sing",
       "title": "Sing: trip-hop about the singularity",
@@ -232,6 +557,45 @@
         "join": 3,
         "llm": 3,
         "music": 1
+      }
+    },
+    {
+      "id": "sketch-to-svg",
+      "slug": "sketch-to-svg",
+      "title": "Prompt to an editable SVG sticker",
+      "sequence": [
+        "text",
+        "image",
+        "edit"
+      ],
+      "multiset": {
+        "text": 1,
+        "image": 1,
+        "edit": 1
+      }
+    },
+    {
+      "id": "song-to-music-video",
+      "slug": "song-to-music-video",
+      "title": "Song in, music video out",
+      "sequence": [
+        "text",
+        "llm",
+        "music",
+        "trim",
+        "text",
+        "image",
+        "lipsync",
+        "soundtrack"
+      ],
+      "multiset": {
+        "text": 2,
+        "llm": 1,
+        "music": 1,
+        "trim": 1,
+        "image": 1,
+        "lipsync": 1,
+        "soundtrack": 1
       }
     },
     {
@@ -282,6 +646,51 @@
       }
     },
     {
+      "id": "subject-anywhere",
+      "slug": "subject-anywhere",
+      "title": "Subject anywhere",
+      "sequence": [
+        "upload",
+        "text",
+        "text",
+        "vision",
+        "edit",
+        "join",
+        "edit",
+        "vision",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "text": 2,
+        "vision": 2,
+        "edit": 2,
+        "join": 2,
+        "llm": 1
+      }
+    },
+    {
+      "id": "swap-the-character",
+      "slug": "swap-the-character",
+      "title": "Swap the character, keep the performance",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "ivideo",
+        "text",
+        "image",
+        "vedit"
+      ],
+      "multiset": {
+        "text": 3,
+        "image": 2,
+        "ivideo": 1,
+        "vedit": 1
+      }
+    },
+    {
       "id": "talking-avatar",
       "slug": "talking-avatar",
       "title": "A presenter for your script",
@@ -298,6 +707,26 @@
         "image": 1,
         "tts": 1,
         "lipsync": 1
+      }
+    },
+    {
+      "id": "three-references-one-clip",
+      "slug": "three-references-one-clip",
+      "title": "Three references, one clip",
+      "sequence": [
+        "text",
+        "image",
+        "text",
+        "image",
+        "text",
+        "image",
+        "text",
+        "tvideo"
+      ],
+      "multiset": {
+        "text": 4,
+        "image": 3,
+        "tvideo": 1
       }
     },
     {

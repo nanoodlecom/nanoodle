@@ -78,7 +78,6 @@ function usageFrom(response) {
  * @param {string} model
  * @param {object} [opts]
  * @param {number} [opts.temperature]
- * @param {number} [opts.maxTokens]
  * @param {string} [opts.apiKey]
  * @param {string} [opts.baseUrl]
  * @param {number} [opts.budgetTokens]
@@ -91,7 +90,6 @@ function usageFrom(response) {
 export async function callLlmForDiff(systemPrompt, userPrompt, filesContent, model, opts = {}) {
   const {
     temperature = 1.0,
-    maxTokens = null,
     apiKey,
     baseUrl,
     budgetTokens = null,
@@ -130,7 +128,6 @@ export async function callLlmForDiff(systemPrompt, userPrompt, filesContent, mod
     baseUrl: resolveBaseUrl(baseUrl),
     model,
     messages,
-    maxTokens,
     temperature,
     budgetTokens,
     onToken,
@@ -155,7 +152,6 @@ export async function callLlmForDiff(systemPrompt, userPrompt, filesContent, mod
  * @param {object} [opts]
  * @param {string} [opts.model]
  * @param {number} [opts.temperature]
- * @param {number} [opts.maxTokens]
  * @param {string} [opts.apiKey]
  * @param {string} [opts.baseUrl]
  * @param {string} [opts.prepend]    text prepended to the system prompt
@@ -185,9 +181,7 @@ export async function generateDiff(environment, goal, opts = {}) {
     model,
     {
       temperature: opts.temperature ?? 1.0,
-      // No default cap: let the model emit its full diff (avoids silent truncation
-      // that produces an unparseable diff). Callers may still pass an explicit maxTokens.
-      maxTokens: opts.maxTokens ?? null,
+      // Output budgets are provider-managed.
       apiKey: opts.apiKey,
       baseUrl: opts.baseUrl,
       budgetTokens: opts.budgetTokens ?? null,
@@ -216,7 +210,6 @@ export async function generateDiff(environment, goal, opts = {}) {
  * @param {string} [opts.apiKey]
  * @param {string} [opts.baseUrl]
  * @param {string} [opts.extraPrompt] appended to the user prompt
- * @param {number} [opts.maxTokens]
  * @param {(text: string) => void} [opts.onToken] stream callback, called once
  *   per token of the rewritten file as it arrives. Note the streamed text is
  *   the raw model output — `<think>` blocks are only stripped from the final
@@ -229,7 +222,6 @@ export async function callLlmForApply(filePath, originalContent, fileDiff, model
     apiKey,
     baseUrl,
     extraPrompt = null,
-    maxTokens = null,
     onToken = null,
     callLlm = defaultCallLlm,
   } = opts;
@@ -259,7 +251,6 @@ ${fileDiff}
     baseUrl: resolveBaseUrl(baseUrl),
     model,
     messages,
-    maxTokens,
     temperature: 0.0,
     onToken,
   });
@@ -300,7 +291,6 @@ export async function callLlmForApplyWithThink(filePath, originalContent, fileDi
  * @param {string} [opts.model]
  * @param {string} [opts.apiKey]
  * @param {string} [opts.baseUrl]
- * @param {number} [opts.maxTokens]
  * @param {boolean} [opts.forceLlm] skip the deterministic fast path
  * @param {(text: string, path: string) => void} [opts.onToken] stream
  *   callback for LLM-resolved files. Files are processed concurrently, so
@@ -318,7 +308,6 @@ export async function smartapply(diffText, files, opts = {}) {
   const applyOpts = {
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
-    maxTokens: opts.maxTokens,
     callLlmForApply: opts.callLlmForApply,
   };
 

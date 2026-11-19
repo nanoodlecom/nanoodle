@@ -1,5 +1,5 @@
-/* data-hash=54fbb846faef8351 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-084980c97d96 (19 modules) */
+/* data-hash=fcffbbc99a05ef1a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-023296a08393 (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -33,6 +33,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
+{ const __m = __req("branches.mjs"); __x.planBranches = __m.planBranches; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
 { const __m = __req("local-media.mjs"); __x.resizePlan = __m.resizePlan; __x.maskToSource = __m.maskToSource; __x.resizeCropImage = __m.resizeCropImage; __x.encodeWavMono = __m.encodeWavMono; }
 { const __m = __req("x402.mjs"); __x.parseNanoInvoice = __m.parseNanoInvoice; }
@@ -41,13 +42,15 @@ __def("browser.mjs", function (__x, __req) {
 });
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
-const { NODE_TYPES, displayName, isInputPort, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { endpointOutPort } = __req("endpoint.mjs");
 const { deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
 const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
 const { learnPromptCap, withFittedPrompt } = __req("prompt-caps.mjs");
 const { decodeShareUrl, isShareRef } = __req("share.mjs");
+const { isBranchDecider, planBranches } = __req("branches.mjs");
 
 /** Env / process access — safe when `process` is missing (browsers, some workers). */
 function envApiKey() {
@@ -69,6 +72,68 @@ function warnGraph(msg) {
 }
 
 const MEDIA_KINDS = new Set(["image", "audio", "video", "inpaint"]);
+/** Ports whose value is media a later node will fetch or inline. */
+const HANDED_MEDIA_PORT = /^(?:video|audio|image|mask|endframe|model)$|^(?:img|image|vid|clip|ref|frame)\d+$/;
+const MEDIA_OUT_TYPES = new Set(["image", "audio", "video", "model3d"]);
+
+function mediaOutputKeys(node, out) {
+  const keys = [];
+  const add = (k) => { if (k && !keys.includes(k)) keys.push(k); };
+  if (!out || typeof out !== "object") return keys;
+  if (node.type === "endpoint") {
+    const p = endpointOutPort(node);
+    if (p && MEDIA_OUT_TYPES.has(p.type)) add(p.name);
+  } else if (node.type === "vframes") {
+    for (const k of Object.keys(out)) if (/^frame\d+$/.test(k)) add(k);
+  } else {
+    const spec = NODE_TYPES[node.type];
+    for (const p of (spec && spec.outputs) || []) {
+      if (MEDIA_OUT_TYPES.has(p.type)) add(p.name);
+    }
+  }
+  if (Array.isArray(out.images)) add("images");
+  return keys;
+}
+
+/**
+ * Resolve provider-relative content URLs on a node's media outputs before they
+ * are stored or wired onward. One fetch per distinct URL (image + images[]).
+ */
+async function publishNodeMedia(client, node, out, signal) {
+  if (!out || typeof out !== "object" || Array.isArray(out)) return out;
+  const keys = mediaOutputKeys(node, out);
+  if (!keys.length) return out;
+  const cache = new Map();
+  const resolve = async (value) => {
+    if (typeof value === "string") {
+      if (!value) return value;
+      if (cache.has(value)) return cache.get(value);
+      const resolved = await client.resolveContentUrl(value, { signal });
+      cache.set(value, resolved);
+      return resolved;
+    }
+    if (Array.isArray(value)) {
+      let changed = false;
+      const next = [];
+      for (const item of value) {
+        const r = await resolve(item);
+        if (r !== item) changed = true;
+        next.push(r);
+      }
+      return changed ? next : value;
+    }
+    return value;
+  };
+  let copy = null;
+  for (const k of keys) {
+    const resolved = await resolve(out[k]);
+    if (resolved !== out[k]) {
+      if (!copy) copy = { ...out };
+      copy[k] = resolved;
+    }
+  }
+  return copy || out;
+}
 
 function abortReason(signal) {
   const r = signal && signal.reason;
@@ -78,6 +143,18 @@ function abortReason(signal) {
 
 function throwIfAborted(signal) {
   if (signal && signal.aborted) throw abortReason(signal);
+}
+
+/** Bound an async stage even when injected I/O ignores AbortSignal. Always observe late rejection. */
+function withSignal(work, signal) {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve().then(() => {
+      throwIfAborted(signal);
+      return work();
+    }).then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 /** The outcome of Workflow.run(). Media values are MediaRef; text values plain strings. */
@@ -91,7 +168,9 @@ class RunResult {
     /** { [friendlyKey | nodeId]: value } — sink node primary outputs (a sink skipped by a closed gate has none) */
     this.outputs = outputs;
     /**
-     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms }.
+     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms, runId }.
+     * runId: the provider's async video/3D/audio job ID, or null when none was returned.
+     * Retained on failure/timeout too, so an accepted job can be traced without resubmitting.
      * "gated": a ⚖️ Decide yes/no gate that answered no — it ran and billed, `out` holds its answer
      * ({ text: "no", decision }), and it carries `gate: { yes, message }`. Not an error.
      * "skipped" + `gatedBy: <decide node id>`: downstream of a closed gate — never ran, never billed.
@@ -237,6 +316,13 @@ class Workflow {
     const settingAssignments = [];
     for (const [key, value] of Object.entries(settings)) {
       const entry = resolveSettingKey(graph, this.settings, key);
+      const target = graph.nodes.find((x) => x.id === entry.nodeId);
+      if (lockedNode(target)) {
+        throw new NanoodleError(
+          `setting "${key}" targets locked node ${entry.nodeId} (${displayName(target)}) — ` +
+          `a locked node always runs with its stored fields, so settings can't override ${entry.nodeId}.${entry.field}`,
+          { code: "locked" });
+      }
       settingAssignments.push({ entry, value });
     }
 
@@ -250,6 +336,7 @@ class Workflow {
     }
 
     const order = topoSort(graph); // throws naming cyclic nodes
+    const branches = planBranches(graph, order.map(n => n.id));
 
     // Local-only graphs never POST media — skip the ~4 MB inline cap on inputs.
     // Mixed/network graphs keep the cap so we fail before spending on an oversize body.
@@ -308,22 +395,33 @@ class Workflow {
     }
 
     const emit = (evt) => { if (onProgress) { try { onProgress(evt); } catch { /* listener errors never kill the run */ } } };
-    const nodesRec = {};
+    const nodesRec = Object.fromEntries(graph.nodes.map(n => [n.id, null]));
     const errors = [];
     const cost = { total: 0, exact: true, balance: null };
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     const promises = new Map();
     const mediaFetch = this.client.fetch;
 
-    const ctxFor = (node, rec) => {
+    // Once a node is finalized (done / skipped / error) or the run has settled, late
+    // callbacks from a runner that ignored its abort signal must not mutate anything.
+    let runSettled = false;
+    const frozen = (rec) => runSettled || rec.final === true;
+    const ctxFor = (node, rec, nodeSignal = ac.signal) => {
       const onCost = (c) => {
-        if (!c) return;
+        if (!c || frozen(rec)) return;
         if (c.usd != null) { rec.costUsd = (rec.costUsd || 0) + c.usd; cost.total += c.usd; }
         else cost.exact = false;
         if (c.balance != null) cost.balance = c.balance;
       };
-      const onPoll = (info) => emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
-      const io = { onCost, onPoll, signal: ac.signal };
+      const onPoll = (info) => frozen(rec) ? undefined : emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
+      const onRunId = (job) => {
+        if (frozen(rec)) return;
+        const runId = job && typeof job === "object" ? (job.runId || job.id) : job;
+        if (runId == null) return;
+        rec.runId = runId;
+        emit({ type: "node-run-id", nodeId: node.id, name: displayName(node), runId });
+      };
+      const io = { onCost, onPoll, onRunId, signal: nodeSignal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
         decide: (body) => this.client.decide(body, io),
@@ -334,9 +432,9 @@ class Workflow {
         fetchMedia: (url) => this.client.fetchMediaDataUrl(url, io),
         // local media (resize/combine/…) — same fetch + signal as network I/O
         fetch: mediaFetch,
-        signal: ac.signal,
+        signal: nodeSignal,
         catalog: this.catalog,
-        progress: (msg) => emit({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
+        progress: (msg) => frozen(rec) ? undefined : emit({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
       };
     };
 
@@ -351,22 +449,43 @@ class Workflow {
     };
     const execNode = async (n) => {
       const rec = nodesRec[n.id];
+      let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
-        const inbound = graph.links.filter((l) => l.to.node === n.id);
+        let inbound = graph.links.filter((l) => l.to.node === n.id);
+        if (branches) {
+          await Promise.allSettled(inbound.map(l => promises.get(l.from.node)));
+          inbound = branches.activeLinks(n.id, id => nodesRec[id]?.status === "done" ? nodesRec[id].out : null);
+          if (inbound === null) {
+            rec.status = "skipped";
+            rec.skipReason = "branch";
+            emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "branch" });
+            return {};
+          }
+        }
         const inp = {};
         let fields = effFields.get(n.id);
-        let upstreamFail = null, gatedBy = null;
+        let upstreamFail = null, gatedBy = null, skippedIn = 0;
         for (const l of inbound) {
           let srcOut;
-          try { srcOut = await promises.get(l.from.node); }
+          try {
+            srcOut = await promises.get(l.from.node);
+            if (nodesRec[l.from.node] && nodesRec[l.from.node].skippedOnError) { skippedIn++; continue; }
+          }
           catch {
             const g = gateOf(l.from.node);
             if (g) { if (!gatedBy) gatedBy = g; } else if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node));
             continue;
           }
           const v = srcOut[l.from.port];
-          if (isInputPort(n, l.to.port)) inp[l.to.port] = v;
+          if (isInputPort(n, l.to.port)) {
+            // Node boundary: a relative content URL from the upstream provider is
+            // resolved (authed redirect → absolute file URL, or inlined bytes)
+            // before this node builds videoUrl / videoDataUrl / audio / image.
+            inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
+              ? await withSignal(() => this.client.resolveContentUrl(v, { signal: ac.signal }), ac.signal)
+              : v;
+          }
           // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
           // endpointResolveTarget can join it onto the typed host. Overwriting
           // fields.url with "/post" rejects the joined URL.
@@ -379,6 +498,12 @@ class Workflow {
         }
         // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
+        // onError:"skip" upstreams leave their ports undefined (ignored above). A node whose
+        // EVERY wire comes from a skipped node has nothing left to work with — fail clearly.
+        if (inbound.length && skippedIn === inbound.length) {
+          throw new NanoodleError("all inputs were skipped after failing: " +
+            [...new Set(inbound.map((l) => displayName(byId.get(l.from.node))))].join(", "));
+        }
         if (gatedBy) {
           rec.status = "skipped";
           rec.gatedBy = gatedBy;
@@ -392,8 +517,10 @@ class Workflow {
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
         // and report it below. The graph's own prompts are never rewritten to avoid this.
+        if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
+        rec.started = true;
         emit({ type: "node-start", nodeId: n.id, name: displayName(n) });
         // A fitted prompt changed what this run pays for — never silent, even headless.
         if (fit.trimmed) {
@@ -401,15 +528,37 @@ class Workflow {
           warnGraph(`node ${n.id}: prompt trimmed ${fit.trimmed.from} → ${fit.trimmed.to} characters — ` +
             `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
         }
-        const t0 = Date.now();
-        const out = await RUNNERS[n.type]({ ...n, fields }, inp, ctxFor(n, rec));
         throwIfAborted(ac.signal);
+        const t0 = Date.now();
+        // The node deadline covers the runner AND publication of provider media.
+        // Race every active stage with cancellation so an injected fetch cannot hold the run open.
+        const timeoutMs = Number(fields.timeoutMs);
+        let nodeSignal = ac.signal;
+        if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+          const nac = new AbortController();
+          const onRunAbort = () => nac.abort(ac.signal.reason);
+          ac.signal.addEventListener("abort", onRunAbort, { once: true });
+          unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
+          nodeSignal = nac.signal;
+          nodeTimer = setTimeout(() => nac.abort(new NanoodleError(
+            `node timed out after ${timeoutMs}ms`, { code: "timeout" })), timeoutMs);
+        }
+        const nodeForRun = { ...n, fields };
+        const out = await withSignal(async () => {
+          const rawOut = await RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
+          throwIfAborted(nodeSignal);
+          return publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
+        }, nodeSignal);
+        throwIfAborted(nodeSignal);
+        throwIfAborted(ac.signal);
+        rec.final = true;
         rec.status = "done";
         rec.out = out;
         rec.ms = Date.now() - t0;
         emit({ type: "node-done", nodeId: n.id, name: displayName(n), ms: rec.ms, costUsd: rec.costUsd });
         return out;
       } catch (e) {
+        rec.final = true;
         if (e instanceof GateSkip) throw e;
         // ⚖️ Decide gate answered no: a settled, billed decision — not an error. Downstream skips.
         if (e && e.gate === true && !ac.signal.aborted) {
@@ -426,36 +575,58 @@ class Workflow {
         if (learnPromptCap(this._promptCaps, n, e.message)) {
           e.message = e.message + " — noted: nanoodle keeps this model's prompt inside that limit from now on, so running again should succeed";
         }
-        rec.status = "error";
         rec.error = e.message;
-        errors.push({ nodeId: n.id, name: displayName(n), message: e.message });
+        errors.push({ nodeId: n.id, name: displayName(n), message: e.message, ...(e && e.code ? { code: e.code } : {}) });
+        // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
+        // dependents see undefined ports. A run-level abort/timeout is never skipped.
+        const onError = (effFields.get(n.id) || {}).onError;
+        if (onError === "skip" && !isBranchDecider(n) && !ac.signal.aborted) {
+          rec.status = "skipped";
+          rec.skippedOnError = true;
+          rec.out = {};
+          emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "error", error: e.message });
+          return {};
+        }
+        rec.status = "error";
         emit({ type: "node-error", nodeId: n.id, name: displayName(n), error: e.message });
         throw e;
+      } finally {
+        if (nodeTimer) clearTimeout(nodeTimer);
+        if (unlinkNode) unlinkNode();
       }
     };
 
     try {
       for (const n of order) {
-        if (NODE_TYPES[n.type].note) { nodesRec[n.id] = { status: "skipped", out: null, error: null, costUsd: null, ms: null }; continue; }
-        nodesRec[n.id] = { status: "pending", out: null, error: null, costUsd: null, ms: null };
+        if (NODE_TYPES[n.type].note) { nodesRec[n.id] = { status: "skipped", out: null, error: null, costUsd: null, ms: null, runId: null }; continue; }
+        nodesRec[n.id] = { status: "pending", out: null, error: null, costUsd: null, ms: null, runId: null };
         promises.set(n.id, execNode(n)); // siblings run concurrently; a node starts when ITS deps finish
       }
       await Promise.allSettled([...promises.values()]);
     } finally {
+      runSettled = true;
       if (timer) clearTimeout(timer);
       if (signal) signal.removeEventListener("abort", onOuterAbort);
     }
 
+    // A network node that started but was skipped, timed out or aborted without ever reporting
+    // a price may still have been billed: the total can't be exact.
+    for (const n of order) {
+      const rec = nodesRec[n.id];
+      const t = NODE_TYPES[n.type];
+      if (!rec || !rec.started || rec.status === "done" || rec.costUsd != null || (t && t.local)) continue;
+      cost.exact = false;
+    }
     // ---- result ----
-    const outputsMap = {};
+    const outputEntries = [];
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
       if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
       const primary = o.ports[0];
       const value = this._wrapValue(rec.out[primary.name], primary.type);
-      outputsMap[o.key] = value;
-      outputsMap[o.nodeId] = value;
+      outputEntries.push([o.key, value], [o.nodeId, value]);
     }
+    const outputsMap = Object.fromEntries(outputEntries);
     const result = new RunResult({
       outputs: outputsMap,
       nodes: nodesRec,
@@ -501,6 +672,12 @@ class Workflow {
         detail += ` (root cause — ${roots.map((e) => `"${e.name}": ${e.message}`).join("; ")})`;
       }
       throw new RunError("run failed — " + detail, result);
+    }
+    // onError:"skip" never makes a run succeed with nothing: if every output skipped, fail.
+    const skippedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].skippedOnError);
+    if (this.outputs.length && skippedSinks.length === this.outputs.length) {
+      throw new RunError("run failed — every output was skipped after failing: " +
+        skippedSinks.map((o) => `"${o.key}": ${nodesRec[o.nodeId].error}`).join("; "), result);
     }
     return result;
   }
@@ -620,27 +797,49 @@ function b64ImageMime(b64) {
   if (b64.startsWith("iVBOR")) return "image/png";
   if (b64.startsWith("R0lG")) return "image/gif";
   if (b64.startsWith("UklG")) return "image/webp";
+  // SVG may start with a BOM, XML declaration, or comments. Inspect a bounded
+  // prefix as text only; no XML parsing or execution.
+  try {
+    const head = atob(b64.slice(0, 8192));
+    if (/^(?:\xef\xbb\xbf)?\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|\/?>)/i.test(head)) return "image/svg+xml";
+  } catch { /* malformed/unknown base64 keeps the raster fallback */ }
   return "image/png";
 }
 
 const EXT_MIME = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
-  ".webp": "image/webp", ".bmp": "image/bmp",
+  ".webp": "image/webp", ".bmp": "image/bmp", ".svg": "image/svg+xml",
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
   ".aac": "audio/aac", ".flac": "audio/flac", ".m4a": "audio/mp4",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
-  ".glb": "model/gltf-binary",
+  ".glb": "model/gltf-binary", ".ply": "model/ply",
   ".txt": "text/plain", ".json": "application/json",
 };
 
 const MIME_EXT = {
-  "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
+  "image/svg+xml": "svg", "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/aac": "aac",
   "audio/flac": "flac", "audio/mp4": "m4a",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
-  "model/gltf-binary": "glb",
+  "model/gltf-binary": "glb", "model/ply": "ply", "application/ply": "ply", "application/x-ply": "ply",
   "text/plain": "txt", "application/json": "json",
 };
+
+/**
+ * A URL safe to put in an error or log line: origin + path only.
+ * Presigned query strings (and any other search/fragment) are dropped, so a
+ * signature or a key that rode along in the query cannot leak via an error.
+ */
+function redactUrl(url) {
+  const s = String(url || "");
+  try {
+    const u = new URL(s);
+    return u.origin + u.pathname;
+  } catch {
+    const cut = s.search(/[?#]/);
+    return (cut >= 0 ? s.slice(0, cut) : s).slice(0, 120);
+  }
+}
 
 /** Best-effort file extension for a MIME type (used by the CLI --out saver). */
 function extForMime(mime) {
@@ -670,6 +869,7 @@ function sniffMime(bytes) {
   if (b.length >= 12 && ascii(4, "ftyp")) return "video/mp4";
   if (b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "video/webm";
   if (b.length >= 4 && ascii(0, "glTF")) return "model/gltf-binary";
+  if (/^ply\r?\nformat (?:ascii|binary_little_endian|binary_big_endian) 1\.0\r?\n/.test(new TextDecoder().decode(b.subarray(0, 64)))) return "model/ply";
   return "application/octet-stream";
 }
 
@@ -690,6 +890,47 @@ function dataUrlBytes(url) {
     ? base64ToBytes(body)
     : new TextEncoder().encode(decodeURIComponent(body));
   return { bytes, mime };
+}
+
+/**
+ * Internal hosted-media GET. Retry connection/body interruptions from scratch,
+ * never generation POSTs. Keep errors redacted even when fetch includes a signed
+ * URL in its exception. HTTP rejections and deliberate cancellation are final.
+ */
+async function downloadMedia(url, { fetch: fetchFn = globalThis.fetch, signal, what = "media" } = {}) {
+  const checkAbort = () => {
+    if (signal && signal.aborted) throw signal.reason || new NanoodleError("download aborted", { code: "aborted" });
+  };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    checkAbort();
+    try {
+      if (typeof fetchFn !== "function") throw new NanoodleError("can't download media: no fetch available");
+      const r = await fetchFn(url, { signal }); // CDN: no credentials or API auth headers
+      if (!r.ok) throw new NanoodleError(`couldn't download ${what} (${r.status}): ${redactUrl(url)}`, { status: r.status });
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      checkAbort();
+      return { bytes, response: r };
+    } catch (e) {
+      checkAbort();
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      if (e instanceof NanoodleError) throw e;
+      if (attempt === 3) throw new NanoodleError(`couldn't download ${what}: ${redactUrl(url)}`, { code: "download", attempts: attempt });
+    }
+    // Short, bounded backoff; cancellation also interrupts the retry delay.
+    await new Promise((resolve, reject) => {
+      const done = () => { if (signal) signal.removeEventListener("abort", cancel); resolve(); };
+      const timer = setTimeout(done, 100 * attempt);
+      const cancel = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", cancel);
+        reject(signal.reason || new NanoodleError("download aborted", { code: "aborted" }));
+      };
+      if (signal) {
+        signal.addEventListener("abort", cancel, { once: true });
+        if (signal.aborted) cancel();
+      }
+    });
+  }
 }
 
 /**
@@ -720,20 +961,30 @@ class MediaRef {
 
   /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
   async bytes() {
-    if (this.url.startsWith("data:")) return dataUrlBytes(this.url).bytes;
-    const r = await this._fetch(this.url);
-    if (!r.ok) throw new NanoodleError("couldn't download media (" + r.status + "): " + this.url);
-    if (!this._mime) {
-      const ct = r.headers && r.headers.get && r.headers.get("content-type");
-      if (ct) this._mime = ct.split(";")[0].trim();
+    let bytes;
+    if (this.url.startsWith("data:")) bytes = dataUrlBytes(this.url).bytes;
+    else {
+      const downloaded = await downloadMedia(this.url, { fetch: this._fetch });
+      bytes = downloaded.bytes;
+      if (!this._mime) {
+        const r = downloaded.response;
+        const ct = r.headers && r.headers.get && r.headers.get("content-type");
+        if (ct) this._mime = ct.split(";")[0].trim();
+      }
     }
-    return new Uint8Array(await r.arrayBuffer());
+    // CDNs commonly serve model assets as generic binary. Sniff their actual
+    // format before the CLI or save() chooses a filename extension.
+    if (!this._mime || /^(?:application|binary)\/octet-stream$/i.test(this._mime)) this._mime = sniffMime(bytes);
+    return bytes;
   }
 
-  /** Write the media bytes to `path` (Node only); resolves to the path. */
+  /** Write bytes (Node only); append a media extension if absent, and return the saved path. */
   async save(path) {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile(path, await this.bytes());
+    const { extname } = await import("node:path");
+    const bytes = await this.bytes();
+    if (typeof path === "string" && !extname(path)) path += "." + extForMime(this.mime);
+    await writeFile(path, bytes);
     return path;
   }
 }
@@ -798,11 +1049,12 @@ function coerceMediaInput(value, what, opts = {}) {
   return url;
 }
 
-__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
+__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.redactUrl = redactUrl; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.downloadMedia = downloadMedia; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
 });
 __def("client.mjs", function (__x, __req) {
+const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
-const { b64ImageMime, bytesToDataUrl, dataUrlBytes, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { b64ImageMime, bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.mjs");
 
 const AUDIO_MIME = { mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", wav: "audio/wav", pcm: "audio/wav" };
@@ -883,15 +1135,17 @@ function sleep(ms, signal) {
  * pollIntervals / timeouts are per-media-kind knobs (ms).
  */
 /**
- * GLB URL from a 3D status poll. A completed payload is 3D only when
+ * Model URL from a 3D status poll. A completed payload is 3D only when
  * output.kind is "3d" or output.format is "glb" — a bare video url is not a model.
- * Prefers model_url, then model.url, video.url, then videoUrls[0].
+ * Idol's model_url is only a point-cloud preview: its real Gaussian splat is
+ * model_mesh.url. Other models retain model_url, model.url, video.url, videoUrls[0].
  */
-function model3dStatusUrl(s) {
+function model3dStatusUrl(s, model) {
   const out = (s && s.data && s.data.output) || (s && s.output) || {};
   const kind = String(out.kind || "").toLowerCase();
   const format = String(out.format || "").toLowerCase();
   if (kind !== "3d" && format !== "glb") return "";
+  if (model === "speridlabs/idol") return (out.model_mesh && out.model_mesh.url) || "";
   const list = Array.isArray(out.videoUrls) ? out.videoUrls : [];
   const first = list.length ? list[0] : null;
   const fromList = typeof first === "string" ? first : (first && first.url) || "";
@@ -930,10 +1184,12 @@ class NanoClient {
    * at most once; a second 402 after settling is an error, never a second send.
    */
   async _paidFetch(url, init, signal) {
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r = await this.fetch(url, init);
     if (r.status !== 402 || !this.payment || this.apiKey) return r;
     const settled = await this._settle402(r, signal);
     if (settled.response) return settled.response; // complete replayed the stored request
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r2 = await this.fetch(url, { ...init, headers: { ...init.headers, "x-x402-payment-id": settled.paymentId } });
     if (r2.status === 402) {
       throw new NanoodleError(
@@ -953,17 +1209,49 @@ class NanoClient {
         "payment required, but the 402 response offered no usable Nano option" +
         (body ? " — " + JSON.stringify(body).slice(0, 200) : ""), { code: "x402", status: 402 });
     }
+    if (signal && signal.aborted) throw abortError(signal.reason);
+    if (invoice.expiresAt && invoice.expiresAt <= Date.now()) {
+      throw new NanoodleError("payment window expired before payment (" + invoice.paymentId + ", to " + invoice.payTo + ") — request a fresh invoice", { code: "x402-expired", paymentId: invoice.paymentId });
+    }
     await this.payment(invoice); // ← the callback does the actual XNO send
     // The complete endpoint doubles as the poll: 402 = not seen on-chain yet.
     const deadline = invoice.expiresAt || Date.now() + 15 * 60 * 1000;
     while (true) {
+      if (signal && signal.aborted) throw abortError(signal.reason);
       const cr = await this.fetch(invoice.completeUrl, {
         method: "POST", headers: { "Content-Type": "application/json", "x-x402": "true" }, body: "{}", signal,
       });
       if (cr.ok) {
         const ct = ((cr.headers && cr.headers.get && cr.headers.get("content-type")) || "");
+        const mime = ct.split(";")[0].trim().toLowerCase();
+        // A binary 2xx IS the replayed result: TTS (/api/v1/audio/speech) replays raw audio bytes,
+        // typed audio/* or a generic application/octet-stream. It's the only paid call that answers
+        // binary — images, video, chat and decisions all answer JSON — so image/* and video/* are
+        // not accepted here. The payment is now completed and can't be reused, so dropping this
+        // body and re-POSTing only gets a 402.
+        if (mime.startsWith("audio/") || mime === "application/octet-stream") {
+          return { paymentId: invoice.paymentId, statusUrl: invoice.statusUrl, response: cr };
+        }
+        // Any other non-JSON 2xx (a text/plain settlement ack, a text/html error page) is neither
+        // the result nor a settle receipt we can act on. The complete call may already have
+        // consumed the payment, so re-POSTing could get a second 402 and paying again would
+        // double-charge: fail with the payment id instead. No second payment, no re-POST.
+        if (mime && !mime.includes("json")) {
+          const snippet = String(await cr.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 160);
+          throw new NanoodleError(
+            "payment " + invoice.paymentId + " was sent, but the complete call answered HTTP " + cr.status +
+            " with " + mime + " instead of a result" + (snippet ? " (" + snippet + ")" : "") +
+            " — check " + (invoice.statusUrl || "the payment status") + " before paying again",
+            { code: "x402", status: cr.status, paymentId: invoice.paymentId });
+        }
         let cj = null;
-        if (ct.includes("json")) { try { cj = await cr.json(); } catch { /* treat as settle-only */ } }
+        if (mime.includes("json")) { try { cj = await cr.json(); } catch { /* fail closed below */ } }
+        if (!cj || typeof cj !== "object") {
+          throw new NanoodleError(
+            "payment " + invoice.paymentId + " was sent, but completion returned no readable JSON receipt — check " +
+            (invoice.statusUrl || "the payment status") + " before paying again",
+            { code: "x402", paymentId: invoice.paymentId });
+        }
         if (looksLikeResult(cj)) {
           // wrap so call sites keep their Response contract (ok/json/text/headers)
           const response = { ok: true, status: 200, headers: cr.headers, json: async () => cj, text: async () => JSON.stringify(cj) };
@@ -996,6 +1284,35 @@ class NanoClient {
     }, signal);
   }
 
+  async _pollJson(path, signal, remainingMs) {
+    const ac = new AbortController();
+    const onAbort = () => ac.abort(abortError(signal.reason));
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    }
+    const timer = Number.isFinite(remainingMs) ? setTimeout(() => ac.abort(
+      new NanoodleError("poll deadline reached", { code: "poll-timeout" })), Math.max(0, remainingMs)) : null;
+    let rejectAbort;
+    const aborted = new Promise((_, reject) => {
+      rejectAbort = () => reject(ac.signal.reason);
+      ac.signal.addEventListener("abort", rejectAbort, { once: true });
+      if (ac.signal.aborted) rejectAbort();
+    });
+    const work = Promise.resolve().then(async () => {
+      if (ac.signal.aborted) throw ac.signal.reason;
+      const r = await this._get(path, ac.signal);
+      if (!r.ok) throw httpError(r.status, await r.text());
+      return r.json();
+    });
+    try { return await Promise.race([work, aborted]); }
+    finally {
+      if (timer) clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+      ac.signal.removeEventListener("abort", rejectAbort);
+    }
+  }
+
   async _get(path, signal) {
     return this.fetch(this.baseUrl + path, { headers: this._auth(), signal });
   }
@@ -1003,10 +1320,12 @@ class NanoClient {
   /** POST /api/v1/chat/completions (non-streaming). Returns the assistant text. */
   async chat(messages, model, opts = {}, { onCost, signal } = {}) {
     const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
+    // Carbon has no sampling-temperature control; omit it rather than restoring a default.
+    if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.response_format) body.response_format = opts.response_format;
-    if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
+    // Let the provider use its default rather than forwarding reasoning_effort.
+    if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -1042,7 +1361,7 @@ class NanoClient {
     if (prompt) body.prompt = prompt; // omit when blank — upscalers run with no instruction
     if (imageDataUrl) body.imageDataUrl = imageDataUrl; // string OR array (edit multi-reference)
     if (maskDataUrl) body.maskDataUrl = maskDataUrl; // white = repaint
-    if (extra) Object.assign(body, extra);
+    Object.assign(body, imageModelOpts(extra));
     const r = await this._postJson("/v1/images/generations", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -1098,39 +1417,50 @@ class NanoClient {
       if (onRunId) onRunId(runId);
     }
 
-    const t0 = Date.now();
-    const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
-    const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
-    // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
-    while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
-      await sleep(pollEvery, signal);
-      let s;
-      try {
-        s = await (await this._get("/api/video/status?requestId=" + encodeURIComponent(runId), signal)).json();
-      } catch (e) {
-        if (signal && signal.aborted) throw abortError(signal.reason);
-        continue; // transient poll failure — keep polling until complete or optional cap
-      }
-      const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
-      if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
-      if (st === "COMPLETED" || st === "SUCCEEDED") {
-        if (is3d) {
-          const url = model3dStatusUrl(s);
-          if (!url) throw new NanoodleError("completed but no model url");
+    try {
+      const t0 = Date.now();
+      const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
+      const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
+      // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
+      while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
+        await sleep(Number.isFinite(videoCap) ? Math.min(pollEvery, Math.max(0, videoCap - (Date.now() - t0))) : pollEvery, signal);
+        if (Number.isFinite(videoCap) && Date.now() - t0 >= videoCap) break;
+        let s;
+        try {
+          s = await this._pollJson("/api/video/status?requestId=" + encodeURIComponent(runId), signal, videoCap - (Date.now() - t0));
+        } catch (e) {
+          if (signal && signal.aborted) throw abortError(signal.reason);
+          if (e.code === "poll-timeout") break;
+          if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
+          continue; // transient poll failure — keep polling until complete or optional cap
+        }
+        const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
+        if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
+        if (st === "COMPLETED" || st === "SUCCEEDED") {
+          if (is3d) {
+            const url = model3dStatusUrl(s, model);
+            if (!url) throw new NanoodleError("completed but no model url");
+            return url;
+          }
+          const out = (s.data && s.data.output) || s.output || {};
+          const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
+          if (!url) throw new NanoodleError("completed but no video url");
           return url;
         }
-        const out = (s.data && s.data.output) || s.output || {};
-        const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
-        if (!url) throw new NanoodleError("completed but no video url");
-        return url;
+        if (["FAILED", "ERROR", "CANCELED", "CANCELLED", "CONTENT_POLICY_VIOLATION"].includes(st)) {
+          const why = (s.data && s.data.error) || st;
+          throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
+        }
       }
-      if (["FAILED", "ERROR", "CANCELED"].includes(st)) {
-        const why = (s.data && s.data.error) || st;
-        throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
-      }
+      const label = is3d ? "3D" : "video";
+      throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
+    } catch (e) {
+      if (signal && signal.aborted) throw e;
+      throw new NanoodleError(e && e.message ? e.message : String(e), {
+        ...(e && e.code ? { code: e.code } : {}),
+        ...(e && e.status ? { status: e.status } : {}), runId, cause: e,
+      });
     }
-    const label = is3d ? "3D" : "video";
-    throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
   }
 
   /**
@@ -1186,12 +1516,15 @@ class NanoClient {
     if (j.isApiRequest != null) qs.set("isApiRequest", String(j.isApiRequest));
     const t0 = Date.now();
     while (Date.now() - t0 < this.timeouts.audio) {
-      await sleep(this.pollIntervals.audio, signal);
+      await sleep(Math.min(this.pollIntervals.audio, Math.max(0, this.timeouts.audio - (Date.now() - t0))), signal);
+      if (Date.now() - t0 >= this.timeouts.audio) break;
       let s;
       try {
-        s = await (await this._get("/api/tts/status?" + qs, signal)).json();
+        s = await this._pollJson("/api/tts/status?" + qs, signal, this.timeouts.audio - (Date.now() - t0));
       } catch (e) {
         if (signal && signal.aborted) throw abortError(signal.reason);
+        if (e.code === "poll-timeout") break;
+        if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
         continue;
       }
       const st = String(s.status || "").toLowerCase();
@@ -1201,7 +1534,7 @@ class NanoClient {
         if (!url) throw new NanoodleError("completed but no audio url");
         return url;
       }
-      if (["error", "failed", "content_policy_violation"].includes(st)) {
+      if (["error", "failed", "canceled", "cancelled", "content_policy_violation"].includes(st)) {
         throw new NanoodleError("audio failed: " + (s.error || s.message || st));
       }
     }
@@ -1214,9 +1547,9 @@ class NanoClient {
     if (/^data:/i.test(audioUrl)) {
       ({ bytes, mime } = dataUrlBytes(audioUrl));
     } else {
-      const r = await this.fetch(audioUrl, { signal }); // media CDN — no auth headers
-      if (!r.ok) throw new NanoodleError("couldn't download the audio to transcribe (" + r.status + ")");
-      bytes = new Uint8Array(await r.arrayBuffer());
+      const downloaded = await downloadMedia(audioUrl, { fetch: this.fetch, signal, what: "the audio to transcribe" });
+      const r = downloaded.response;
+      bytes = downloaded.bytes;
       mime = ((r.headers && r.headers.get && r.headers.get("content-type")) || "audio/mpeg").split(";")[0];
     }
     if (bytes.length > 3.5 * 1024 * 1024) {
@@ -1244,12 +1577,31 @@ class NanoClient {
    * Used when a chat audio part needs base64 bytes but the upstream node produced an https URL.
    */
   async fetchMediaDataUrl(url, { signal } = {}) {
-    const r = await this.fetch(url, { signal });
-    if (!r.ok) throw new NanoodleError("couldn't download media to inline (" + r.status + "): " + url);
-    const bytes = new Uint8Array(await r.arrayBuffer());
+    const { bytes, response: r } = await downloadMedia(url, { fetch: this.fetch, signal, what: "media to inline" });
     const ct = (((r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0] || "").trim().toLowerCase();
     const mime = ct && ct !== "application/octet-stream" && ct !== "binary/octet-stream" ? ct : undefined;
     return bytesToDataUrl(bytes, mime); // sniffs magic bytes when the CDN's content-type is generic
+  }
+
+  /**
+   * Resolve a provider media URL before it is handed to another node or returned
+   * as a node output. Relative content paths (Grok Imagine's
+   * `/api/generate-video/content?...`) and same-origin `/api` or `/v1` URLs are
+   * joined onto `baseUrl` and fetched with the API key, redirects manual so the
+   * key is never forwarded to the file host. A redirect Location becomes the
+   * absolute file URL (presigned queries stay on that URL — the next provider
+   * needs them — and are never put in errors). A direct 200 is inlined as a
+   * data URL only when it fits MEDIA_INLINE_MAX; an over-cap clip must come
+   * back as a redirect URL rather than failing the inline budget.
+   */
+  async resolveContentUrl(url, { signal } = {}) {
+    return resolveProviderMediaUrl(url, {
+      baseUrl: this.baseUrl,
+      fetch: this.fetch,
+      authHeaders: this._auth(),
+      apiKey: this.apiKey,
+      signal,
+    });
   }
 
   /** Optional helper: POST /api/check-balance → { usd_balance }. */
@@ -1260,7 +1612,146 @@ class NanoClient {
   }
 }
 
-__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient;
+/** Paths that still need the API key (a content endpoint), not a public file. */
+function isContentApiPath(pathname) {
+  return pathname === "/api" || pathname.startsWith("/api/")
+    || pathname === "/v1" || pathname.startsWith("/v1/");
+}
+
+function apiBase(baseUrl) {
+  const base = String(baseUrl || "https://nano-gpt.com").replace(/\/+$/, "");
+  const origin = new URL(base + "/").origin;
+  return { base, origin };
+}
+
+/** Estimated data-URL length for `byteLength` raw bytes. Matches the inline cap's string check. */
+function dataUrlWouldExceed(byteLength, mime) {
+  const header = ("data:" + (mime || "application/octet-stream") + ";base64,").length;
+  return header + Math.ceil(Math.max(0, byteLength) / 3) * 4 > MEDIA_INLINE_MAX;
+}
+
+/** Drop the API key, bearer tokens, and query strings from text that may be shown. */
+function scrubSecrets(text, apiKey) {
+  let s = String(text || "");
+  if (apiKey && String(apiKey).length >= 4) s = s.split(String(apiKey)).join("[redacted]");
+  s = s.replace(/bearer\s+\S+/gi, "Bearer [redacted]");
+  s = s.replace(/[?#][^\s)"']*/g, "");
+  s = s.replace(/(?:X-Amz-[A-Za-z-]*|Signature|sig|token|api_key|apikey)\s*[:=]\s*\S+/gi, (m) => m.split(/[:=]/)[0] + "=[redacted]");
+  return s.replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function authHeadersFor(url, origin, authHeaders) {
+  try {
+    if (new URL(url).origin !== origin) return {};
+  } catch {
+    return {};
+  }
+  return authHeaders ? { ...authHeaders } : {};
+}
+
+async function drainBody(r) {
+  try {
+    if (r && r.body && typeof r.body.cancel === "function") await r.body.cancel();
+    else if (r && typeof r.arrayBuffer === "function") await r.arrayBuffer();
+  } catch { /* already consumed, or the peer hung up */ }
+}
+
+function responseMime(r) {
+  const ct = ((r && r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0].trim().toLowerCase();
+  if (!ct || ct === "application/octet-stream" || ct === "binary/octet-stream") return "";
+  return ct;
+}
+
+/**
+ * Resolve one provider media URL.
+ * - data:, blob:, and ordinary http(s) URLs pass through (no fetch, no key).
+ * - A path-absolute URL is joined onto the NanoGPT base. Non-API paths become
+ *   that absolute URL and are not fetched (the next node can GET them).
+ * - `/api` and `/v1` URLs (relative, or already on the API origin) are fetched
+ *   with the key and `redirect: "manual"`. An off-origin or non-API Location is
+ *   the fetchable file URL and is returned without downloading it — so a clip
+ *   over the ~4.4 MB inline cap still chains. A 200 body is inlined only when
+ *   the data URL fits MEDIA_INLINE_MAX.
+ * Errors never include the API key or a presigned query string.
+ */
+async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHeaders, apiKey, signal } = {}) {
+  if (typeof url !== "string") return url;
+  const s = url.trim();
+  if (!s || /^(data:|blob:)/i.test(s)) return s;
+  const { base, origin } = apiBase(baseUrl);
+  let start;
+  try {
+    if (/^https?:/i.test(s)) {
+      const abs = new URL(s);
+      if (abs.origin !== origin || !isContentApiPath(abs.pathname)) return s;
+      start = abs;
+    } else if (s.startsWith("/") && !s.startsWith("//")) {
+      start = new URL(s, base + "/");
+      if (!isContentApiPath(start.pathname)) return start.href;
+    } else {
+      return s;
+    }
+  } catch {
+    return s;
+  }
+
+  const doFetch = fetchImpl || globalThis.fetch;
+  if (!doFetch) throw new NanoodleError("couldn't fetch provider media: no fetch available");
+  let current = start.href;
+  for (let hop = 0; hop < 5; hop++) {
+    let r;
+    try {
+      r = await doFetch(current, {
+        method: "GET",
+        headers: authHeadersFor(current, origin, authHeaders),
+        redirect: "manual",
+        signal,
+      });
+    } catch (e) {
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      if (signal && signal.aborted) throw e;
+      const detail = scrubSecrets(e && e.message, apiKey);
+      throw new NanoodleError("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+    }
+    const status = r.status;
+    const loc = r.headers && r.headers.get && r.headers.get("location");
+    if (loc && (status === 0 || (status >= 300 && status < 400))) {
+      await drainBody(r);
+      let next;
+      try { next = new URL(loc, current); }
+      catch { throw new NanoodleError("provider media redirect had no usable location"); }
+      // File host or a non-API path: hand back the absolute URL. Do not fetch it
+      // (that would pull a multi-megabyte clip and might attach the key).
+      if (next.origin !== origin || !isContentApiPath(next.pathname)) return next.href;
+      current = next.href;
+      continue;
+    }
+    if (status >= 300 && status < 400) {
+      await drainBody(r);
+      throw new NanoodleError("provider media redirect had no location");
+    }
+    if (!r.ok) {
+      const raw = String(await r.text().catch(() => "")).slice(0, 500);
+      const snippet = scrubSecrets(raw, apiKey);
+      throw new NanoodleError("couldn't fetch provider media (HTTP " + status + ")" + (snippet ? ": " + snippet : ""));
+    }
+    const mimeHeader = responseMime(r);
+    const declared = Number(r.headers && r.headers.get && r.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared >= 0 && dataUrlWouldExceed(declared, mimeHeader)) {
+      await drainBody(r);
+      throw new NanoodleError("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    const mime = mimeHeader || sniffMime(bytes);
+    if (dataUrlWouldExceed(bytes.length, mime)) {
+      throw new NanoodleError("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    return bytesToDataUrl(bytes, mime);
+  }
+  throw new NanoodleError("provider media redirect did not resolve to a fetchable file");
+}
+
+__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient; __x.resolveProviderMediaUrl = resolveProviderMediaUrl;
 });
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -1355,6 +1846,12 @@ function optionalNode(node) {
   return v === true || v === "true";
 }
 
+/** Author-locked node: fields.locked keeps every field at its stored value (no inputs derived). */
+function lockedNode(node) {
+  const v = node && node.fields && node.fields.locked;
+  return v === true || v === "true";
+}
+
 /** Is a wire landing on `port` of `node` a data input (vs a field override)? */
 function isInputPort(node, port) {
   const t = NODE_TYPES[node.type];
@@ -1409,10 +1906,15 @@ function materialize(data) {
   }
   const warnings = [];
   const nodes = [];
+  const seenIds = new Set();
   for (const raw of data.nodes) {
     if (!raw || raw.id == null || !raw.type) continue;
-    const type = raw.type === "audio" ? "tts" : raw.type;
+    const id = String(raw.id);
+    if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
+    seenIds.add(id);
+    const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    if (raw.type === "decide-branch") n.fields.branch = true;
     if (!NODE_TYPES[type]) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
@@ -1465,9 +1967,10 @@ function topoSort(graph) {
   return order;
 }
 
-__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
+__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
+const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
 const { catItem, chatModelCan, pricingAdvertisesRefs } = __req("catalog.mjs");
 const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
@@ -1595,7 +2098,6 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -1631,6 +2133,7 @@ function normalizeLoraUrl(raw) {
 function loraFamily(model) {
   const m = String(model || "");
   if (/spicy/i.test(m)) return null;
+  if (/p-h3-image/i.test(m)) return "ph3"; // wavespeed p-h3-image: lora_url_1..3 (ids lack "lora")
   if (/p-image/i.test(m)) return "pimage";
   if (/klein/i.test(m)) return "flux2klein";
   if (/flux-2/i.test(m)) return "flux2dev";
@@ -1648,10 +2151,13 @@ function loraKind(type) { return (type === "image" || type === "edit" || type ==
 function imageTakesLora(id) {
   id = String(id || "");
   if (/inpaint/i.test(id)) return false;
-  // flux-2-klein-* only (lora-capable per catalog); FLUX.3 Klein (blackforestlabs/flux-3/klein/…)
-  // takes no lora_url — twin of the app's imageTakesLora (nanoodle #732)
+  // twin of the app's imageTakesLora (nanoodle #732, #764): flux-2-klein-* is lora-capable;
+  // FLUX.3 Klein text-to-image (base + distilled) gained lora_url_1..3 in the catalog on
+  // 2026-10-27, but FLUX.3 Klein edit-image still takes no lora_url
   if (/flux-2-klein/i.test(id)) return true;
+  if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
+  if (/p-h3-image/i.test(id)) return true; // Pruna P-H3 Image (2026-11-05): lora_url_1..3
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
 
@@ -1665,7 +2171,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": case "ph3": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -1681,7 +2187,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21" || fam === "ph3") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -1735,7 +2241,7 @@ function airModelTakesNegative(model) {
 
 /** Per-call image extras: LoRA params + fixed seed (when numeric) + custom-civitai AIR. */
 function imgExtra(n) {
-  const e = loraParams(n);
+  const e = { ...imageModelOpts(n.fields.modelOpts), ...loraParams(n) };
   const s = n.fields.seed;
   if (s != null && String(s).trim() !== "" && !isNaN(Number(s))) e.seed = Number(s);
   if (n.fields.model === "custom-civitai") {
@@ -1800,6 +2306,7 @@ function refMaxFor(model, pricing) {
   const id = String(model || "");
   if (/seedance/i.test(id)) return 9;
   if (/minimax-h3/i.test(id)) return 9; // upstream cap; the first 5 are included, 6-9 bill extra_reference_image each
+  if (/gemini-omni-flash\/v1\.2/i.test(id)) return 6;
   if (/luma|ray/i.test(id)) return 4;
   const inc = pricing && +pricing.included_reference_images;
   if (inc > 0) return inc; // no family entry: the included count is the only number the catalog gives us
@@ -1816,8 +2323,12 @@ function modelRefSpec(model, ctx) {
   const m = catItem(ctx && ctx.catalog, "video", model);
   if (!m) return { key: "reference_images", cap: refMaxFor(model) };
   const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
-  const key = keys.find((k) => k in pp) || (pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
-  if (!key) return null; // known model with no ref-image param and no ref pricing
+  const modeOptions = pp.mode && pp.mode.options;
+  const referenceMode = Array.isArray(modeOptions) && modeOptions.some((o) =>
+    o && /^reference\b/i.test(String(o.value != null ? o.value : "")));
+  const key = keys.find((k) => k in pp) ||
+    (referenceMode || pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
+  if (!key) return null; // known model with no ref-image param, reference mode, or ref pricing
   const d = pp[key];
   let cap = null;
   if (d && typeof d === "object") {
@@ -2142,7 +2653,8 @@ const RUNNERS = {
       }
     }
     const prompt = promptOf(n, inp);
-    if (!prompt && !/upscal/i.test(n.fields.model || "")) throw new NanoodleError("no edit instruction");
+    if (!prompt && !/upscal/i.test(n.fields.model || "")
+        && !(n.fields.model === "ideogram/vector" && n.fields.modelOpts?.vector_operation === "convert")) throw new NanoodleError("no edit instruction");
     imgs = await Promise.all(imgs.map((u) => fitImage(u, ctx, "source image")));
     guardRefsSize(imgs);
     const src = imgs.length > 1 ? imgs : imgs[0]; // array → multi-image composite; string → single edit
@@ -2184,7 +2696,12 @@ const RUNNERS = {
     const prompt = promptOf(n, inp);
     const opts = { ...videoSourceOpts(inp.video), ...videoDims(n, ctx), lora: loraParams(n), extra: n.fields.modelOpts || {} };
     applyRefs(opts, collectPorts(inp, REF_PORT_RE), n, ctx); // ref wires (seedance video-edit family) — same key/cap resolution as tvideo
-    return { video: await ctx.video(mdl(n), prompt, opts, null) };
+    // Character image (image+video->video motion-control / replace models, e.g. Wan 2.2 Animate):
+    // the wired still rides as imageDataUrl next to the driver video. Gated on the catalog so a
+    // stale wire left after a swap to a plain v2v model is never sent; catalog miss → send (the
+    // wire was authored deliberately, same permissive-ON stance as ivideo's endframe).
+    const image = inp.image && vEditTakesImage(ctx && ctx.catalog, n.fields.model) ? await fitImage(inp.image, ctx, "character image") : null;
+    return { video: await ctx.video(mdl(n), prompt, opts, image) };
   },
 
   async lipsync(n, inp, ctx) {
@@ -2232,7 +2749,7 @@ const RUNNERS = {
       } catch (e) {
         if (attempt > 0) throw e;
         const msg = (e && e.message) || "";
-        if (/^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
+        if ((e && e.runId != null) || /^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
         const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
         if (cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg)) {
           trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1)); // the model told us its real cap
@@ -2281,7 +2798,7 @@ const RUNNERS = {
     return cleanVoiceRun(model, inp, n.fields, (m, extra) => ctx.audio(m, "", extra));
   },
 
-  // 🧊 3D model: image and/or text → GLB via the video submit/poll API (mediaKind model3d).
+  // 🧊 3D model: image and/or text → model asset via the video submit/poll API.
   async model3d(n, inp, ctx) {
     const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
     const mods = model3dInputMods(ctx && ctx.catalog, model);
@@ -2316,6 +2833,18 @@ const RUNNERS = {
  * HeyGen Avatar V). Catalog miss → true (the long-standing portrait requirement).
  * Mirrors play's built-in lipsync runner: raw `capabilities.image_to_video` or a normalized `i2v`.
  */
+// Video-edit models that take a character/reference still AND a driver video but no text prompt
+// (architecture image+video->video: Wan 2.2 Animate replace/animate, Kling / PixVerse motion
+// control, P-Video Animate). Text+image+video "unified" models are excluded: for them an image
+// usually switches the job to image→video and drops the source clip. Catalog miss → true.
+function vEditTakesImage(catalog, model) {
+  const m = catItem(catalog, "video", model);
+  if (!m) return true;
+  const a = m.architecture || {};
+  const mods = Array.isArray(a.input_modalities) ? a.input_modalities : String(a.modality || "").split("->")[0].split("+");
+  return mods.includes("image") && mods.includes("video") && !mods.includes("text");
+}
+
 function avatarNeedsPortrait(catalog, model) {
   const m = catItem(catalog, "video", model);
   return !m || !!((m.capabilities || {}).image_to_video) || !!m.i2v;
@@ -2341,7 +2870,7 @@ function model3dInputMods(catalog, id) {
   return { image: true, text: true };
 }
 
-__x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS;
+__x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS; __x.vEditTakesImage = vEditTakesImage;
 });
 __def("catalog.mjs", function (__x, __req) {
 /**
@@ -2390,8 +2919,17 @@ __x.catItem = catItem; __x.pricingAdvertisesRefs = pricingAdvertisesRefs; __x.ch
 });
 __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
-const { NODE_TYPES, displayName, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
+
+// Allocate the final key, not just a count of the unsuffixed name: an authored
+// "Out 2" can otherwise collide with the suffix generated for a second "Out".
+function uniqueKey(base, used, reserved = new Set()) {
+  let key = base;
+  for (let suffix = 2; used.has(key.toLowerCase()) || reserved.has(key.toLowerCase()); suffix++) key = base + " " + suffix;
+  used.add(key.toLowerCase());
+  return key;
+}
 
 /* ============================== INPUTS ============================== */
 
@@ -2432,6 +2970,9 @@ function deriveInputs(graph) {
   };
   for (const n of graph.nodes) {
     if (n.unknown) continue;
+    // fields.locked: the node's fields are fixed by the graph — never surfaced as inputs,
+    // so runs use the stored values.
+    if (lockedNode(n)) continue;
     if (n.type === "inpaint") {
       if (!fed(n.id, "prompt")) entries.push(mk(n, "prompt", "What to paint in", "textarea", false));
       // image and/or mask surface whenever not wired (SPEC-io). The app's combined brush widget
@@ -2464,19 +3005,14 @@ function deriveInputs(graph) {
   // REQUIRED input (app PR #138) — or exactly one input at all, so an author-optional
   // renamed node (e.g. an optional "Style reference" upload) keeps its name as the key.
   // Otherwise the generic spec label. Dedupe with " 2", " 3".
-  const used = new Map();
+  const used = new Set();
   for (const e of entries) {
     const nodeEntries = entries.filter((x) => x.nodeId === e.nodeId);
     const required = nodeEntries.filter((x) => !x.optional);
     const custom = (e._node.name || "").trim();
     const names = (required.length === 1 && required[0] === e) ||
                   (required.length === 0 && nodeEntries.length === 1);
-    let key = custom && names ? custom : e.label;
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
-    e.key = key;
+    e.key = uniqueKey(custom && names ? custom : e.label, used);
   }
   for (const e of entries) delete e._node;
   return entries;
@@ -2543,13 +3079,10 @@ function deriveOutputs(graph) {
     if (!t.outputs || !t.outputs.length) return false;
     return !graph.links.some((l) => l.from.node === n.id);
   });
-  const used = new Map();
+  const used = new Set();
   return sinks.map((n) => {
-    let key = displayName(n);
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
+    const aliases = new Set(sinks.filter(other => other.id !== n.id).map(other => other.id.toLowerCase()));
+    const key = uniqueKey(displayName(n), used, aliases);
     const t = NODE_TYPES[n.type];
     let ports = t.outputs.map((p) => ({ ...p }));
     // vframes grows frame1..frameN from max(fields.frames, wired floor) (mirrors browser)
@@ -2576,7 +3109,6 @@ const SETTING_SPECS = {
   llm: [
     { f: "model", label: "Model", kind: "model" },
     { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
-    { f: "maxTokens", label: "Max tokens", kind: "number" },
     { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
     { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
     { f: "showThinking", label: "Show thinking", kind: "boolean" },
@@ -2769,6 +3301,65 @@ function resolveSettingKey(graph, settings, userKey) {
 }
 
 __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+});
+__def("branches.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+function isBranchDecider(node) {
+  return node.type === "decide" && node.fields?.branch === true;
+}
+
+const branchPort = (port) => port === "yes" || port === "no";
+
+/**
+ * Build per-run routing over a topologically ordered set of node IDs.
+ * Explicit Yes/No wires control entry to a branch. Further downstream, any
+ * active routed input opens a join. Ordinary dependencies never open a branch.
+ */
+function planBranches(graph, order) {
+  const deciders = new Map(graph.nodes.filter(n => n.type === "decide").map(n => [n.id, n]));
+  const direct = new Set();
+  for (const link of graph.links) {
+    const source = deciders.get(link.from.node);
+    if (!source || !branchPort(link.from.port)) continue;
+    if (!isBranchDecider(source)) {
+      throw new NanoodleError(`node ${source.id}: enable branching on Decide to wire ${link.from.port}`, { code: "decide-branch" });
+    }
+    direct.add(link);
+  }
+  if (!direct.size) return null;
+
+  const inbound = new Map(order.map(id => [id, []]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+  const selectors = new Map();
+  for (const id of order) {
+    const links = inbound.get(id);
+    const fromDeciders = links.filter(link => direct.has(link));
+    const controls = fromDeciders.length ? fromDeciders : links.filter(link => selectors.has(link.from.node));
+    if (controls.length) selectors.set(id, controls);
+  }
+  const skipped = new Set();
+  return {
+    // Call after this node's upstreams have settled. A failed router is left
+    // to the usual upstream-error handling, which must also prevent execution.
+    activeLinks(id, outFor) {
+      const closed = (link) => {
+        if (skipped.has(link.from.node)) return true;
+        if (!direct.has(link)) return false;
+        const branch = outFor(link.from.node)?.decision?.branch;
+        return branchPort(branch) && branch !== link.from.port;
+      };
+      const controls = selectors.get(id);
+      if (controls?.every(closed)) {
+        skipped.add(id);
+        return null;
+      }
+      return inbound.get(id).filter(link => !closed(link));
+    },
+  };
+}
+
+__x.isBranchDecider = isBranchDecider; __x.planBranches = planBranches;
 });
 __def("share.mjs", function (__x, __req) {
 const { gunzip, gunzipLax } = __req("zlib.mjs");
@@ -3017,7 +3608,7 @@ __def("local-media.mjs", function (__x, __req) {
  */
 const { inflate, deflate } = __req("zlib.mjs");
 const { NanoodleError } = __req("errors.mjs");
-const { bytesToDataUrl, dataUrlBytes, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { MP4CAT } = __req("mp4cat.mjs");
 
 const MAX_FRAMES = 12;
@@ -3116,23 +3707,21 @@ async function withTemp(fn) {
 }
 
 /** data:/https URL (or raw string MediaRef url) → bytes. */
-async function urlBytes(url, fetchFn) {
+async function urlBytes(url, fetchFn, signal) {
   if (url == null) throw new NanoodleError("no media input");
   const u = typeof url === "object" && url.url != null ? url.url : String(url);
   if (/^data:/i.test(u)) return dataUrlBytes(u).bytes;
   if (/^https?:/i.test(u)) {
     const fetchImpl = fetchFn || globalThis.fetch;
     if (!fetchImpl) throw new NanoodleError("can't download media: no fetch available");
-    const r = await fetchImpl(u);
-    if (!r.ok) throw new NanoodleError(`couldn't download media (${r.status}): ${u.slice(0, 120)}`);
-    return new Uint8Array(await r.arrayBuffer());
+    return (await downloadMedia(u, { fetch: fetchImpl, signal })).bytes;
   }
   throw new NanoodleError("media must be a data: or http(s) URL");
 }
 
-async function writeInput(dir, name, url, fetchFn) {
+async function writeInput(dir, name, url, fetchFn, signal) {
   await ensureNodeDeps();
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   // preserve a sensible extension so ffmpeg picks the demuxer
   let ext = ".bin";
   if (/^data:/i.test(String(typeof url === "object" ? url.url : url))) {
@@ -3376,9 +3965,9 @@ async function maskToSource(maskUrl, sourceUrl, { fetch: fetchFn, signal } = {})
   if (!maskUrl) throw new NanoodleError("couldn't read the mask");
   if (!sourceUrl) throw new NanoodleError("couldn't read the source image");
 
-  const srcBytes = await urlBytes(sourceUrl, fetchFn);
+  const srcBytes = await urlBytes(sourceUrl, fetchFn, signal);
   throwIfAborted(signal);
-  const maskBytes = await urlBytes(maskUrl, fetchFn);
+  const maskBytes = await urlBytes(maskUrl, fetchFn, signal);
   throwIfAborted(signal);
 
   const srcMime = sniffMime(srcBytes);
@@ -3447,8 +4036,8 @@ async function maskToSourcePngPure(maskBytes, srcBytes) {
 async function maskToSourceFfmpeg(maskUrl, sourceUrl, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const srcPath = await writeInput(dir, "src", sourceUrl, fetchFn);
-    const maskPath = await writeInput(dir, "mask", maskUrl, fetchFn);
+    const srcPath = await writeInput(dir, "src", sourceUrl, fetchFn, signal);
+    const maskPath = await writeInput(dir, "mask", maskUrl, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", srcPath,
@@ -3665,7 +4254,7 @@ async function resizeCropImage(url, mode, tw, th, { fetch: fetchFn, signal } = {
   if (!w && !h) throw new NanoodleError("set a width or height to resize to");
   const m = mode || "fit";
 
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   throwIfAborted(signal);
   const mime = sniffMime(bytes);
 
@@ -3740,7 +4329,7 @@ async function fitImageInline(url, { budget = INLINE_IMAGE_BUDGET, fetch: fetchF
 async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
@@ -3772,7 +4361,7 @@ async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}
 async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const probe = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
       "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
@@ -3816,7 +4405,7 @@ async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = 
  */
 async function trimAudioToWav(url, start, len, rate = 16000, { fetch: fetchFn, wholeIfBlank = false, signal } = {}) {
   throwIfAborted(signal);
-  const bytes = await urlBytes(url, fetchFn);
+  const bytes = await urlBytes(url, fetchFn, signal);
   throwIfAborted(signal);
   const mime = sniffMime(bytes);
 
@@ -3842,7 +4431,7 @@ async function trimAudioToWav(url, start, len, rate = 16000, { fetch: fetchFn, w
 async function trimAudioToWavFfmpeg(url, start, len, rate = 16000, { fetch: fetchFn, wholeIfBlank = false, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     const outPath = join(dir, "out.wav");
     const s = Math.max(0, Number(start) || 0);
 
@@ -3905,7 +4494,7 @@ async function extractVideoFrames(url, { count = 1, gap = 0.5, dir = "end", fetc
   const fromEnd = (dir || "end") === "end";
 
   return withTemp(async (dir) => {
-    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
     throwIfAborted(signal);
     const pr = await runProc("ffprobe", [
       "-v", "error", "-select_streams", "v:0",
@@ -3974,7 +4563,7 @@ async function concatVideos(urls, dedup = true, { fetch: fetchFn, onProgress, si
     for (let i = 0; i < urls.length; i++) {
       throwIfAborted(signal);
       if (onProgress) onProgress(`loading clip ${i + 1}/${urls.length}…`);
-      bufs.push(await urlBytes(urls[i], fetchFn));
+      bufs.push(await urlBytes(urls[i], fetchFn, signal));
     }
     if (bufs.every((b) => MP4CAT.isMp4(b)) && MP4CAT.mp4ParamsMatch(bufs)) {
       if (onProgress) onProgress("combining…");
@@ -4000,7 +4589,7 @@ async function concatVideosFfmpeg(urls, dedup = true, { fetch: fetchFn, onProgre
     for (let i = 0; i < urls.length; i++) {
       throwIfAborted(signal);
       if (onProgress) onProgress(`loading clip ${i + 1}/${urls.length}…`);
-      paths.push(await writeInput(dir, `c${i}`, urls[i], fetchFn));
+      paths.push(await writeInput(dir, `c${i}`, urls[i], fetchFn, signal));
     }
 
     // When dedup: trim ~1/30s from the start of clips 2..N (approximate seam-frame drop —
@@ -4054,8 +4643,8 @@ async function muxSoundtrack(videoUrl, audioUrl, loop = false, { fetch: fetchFn,
   return withTemp(async (dir) => {
     throwIfAborted(signal);
     if (onProgress) onProgress("adding soundtrack…");
-    const vPath = await writeInput(dir, "v", videoUrl, fetchFn);
-    const aPath = await writeInput(dir, "a", audioUrl, fetchFn);
+    const vPath = await writeInput(dir, "v", videoUrl, fetchFn, signal);
+    const aPath = await writeInput(dir, "a", audioUrl, fetchFn, signal);
     const outPath = join(dir, "out.mp4");
 
     let vdur = null;
@@ -4573,451 +5162,6 @@ function qrTerminal(text) {
 
 __x.qrModules = qrModules; __x.qrTerminal = qrTerminal;
 });
-__def("prompt-caps.mjs", function (__x, __req) {
-/**
- * Prompt length caps — the wired prompt nobody can shorten.
- *
- * Many image and video models reject an over-long prompt at NanoGPT's route, before the provider is
- * called and before anything is charged:
- *
- *     400 {"error":"Your prompt is too long for Qwen Image 3. Please shorten it to 800 characters
- *          or less (current: 831 characters).","code":"prompt_too_long"}
- *
- * Free, but a dead end. In a graph the prompt is generated, not typed — an LLM node writes it and a
- * wire carries it into the image node — so "please shorten it" names something no caller controls
- * directly. For a headless or agent-driven run that's the whole workflow lost to a limit nobody was
- * told about.
- *
- * So: trim it to fit at a sentence boundary (fitPromptText) and REPORT it — a `prompt-trimmed`
- * progress event plus a process warning. A silent trim would be a bug; the report is what makes the
- * trim defensible. A cap we didn't know is learned from the live 400 (promptCapFromError) and kept
- * on the Workflow, so a retry states the limit instead of rediscovering it.
- *
- * What this deliberately does NOT do is edit the graph's own prompts to avoid the trim. An llm
- * node's system prompt goes to the model exactly as its author wrote it — injecting a "keep it
- * under N characters" directive on their behalf would silently change what their workflow produces.
- *
- * The image/video catalogs advertise no prompt limit at all (checked live 2026-07-26), hence the
- * probed table below. Audio's caps ARE catalog metadata (supported_parameters.max_chars) and are
- * read from the opt-in catalog instead — never listed here. Absent id = no cap found, or never
- * probed: unknown stays unconstrained, matching this library's permissive-gate rule everywhere else.
- *
- * Table generated by nanoodle's scripts/probe-prompt-caps.mjs; keep it in step with the copies in
- * nanoodle's index.html / play.html.
- */
-const { catItem } = __req("catalog.mjs");
-
-const PROMPT_CAPS = {
-  generated: "2026-07-26",
-  image: {
-    "step-image-edit-2": 512,
-    "qwen-image-3": 800,
-    "z-image-turbo": 1200,
-    "z-image-turbo-image-to-image": 1200,
-    "z-image-turbo-lora": 1200,
-    "2dn-pony-v2": 3000,
-    "aniflatmix-anime": 3000,
-    "aniflatmix-anime-sfwnsfw": 3000,
-    "animagine-xl-31": 3000,
-    "artiwaifu-diffusion": 3000,
-    "atomix-xl": 3000,
-    "boltning": 3000,
-    "crystal-clear-xl": 3000,
-    "crystal-clear-xlightning": 3000,
-    "cyberrealistic-pony-v9": 3000,
-    "cyberrealistic-xl": 3000,
-    "dreamshaper-v1": 3000,
-    "dreamshaper-xl": 3000,
-    "fluently-xl": 3000,
-    "flux-schnell": 3000,
-    "hassaku-hentai": 3000,
-    "hidream": 3000,
-    "hidream-i1-fast": 3000,
-    "ideogram:4@0": 3000,
-    "infinite-illustrious": 3000,
-    "juggernaut-lightning-flux": 3000,
-    "juggernaut-pro-flux": 3000,
-    "juggernaut-z": 3000,
-    "miusmius-xl": 3000,
-    "nsfw-gen-illustrious": 3000,
-    "persona:376130@2456367": 3000,
-    "pixelwave": 3000,
-    "proteus": 3000,
-    "prunaai:1@1": 3000,
-    "qwen-image": 3000,
-    "realpony-xl": 3000,
-    "rev-animated": 3000,
-    "riverflow-2-fast": 3000,
-    "riverflow-2-max": 3000,
-    "riverflow-2-standard": 3000,
-    "runware:106@1": 3000,
-    "runware:107@1": 3000,
-    "stable-diffusion-xl-turbo": 3000,
-    "stoiqo-new-reality": 3000,
-    "wai-illustrious-sdxl": 3000,
-  },
-  video: {
-    "minimax-hailuo-02": 2000,
-    "lightricks-ltx-2-fast": 3000,
-  },
-};
-
-// node type → which catalog its model comes from. Same split as estimate.mjs's PRICE_KIND, minus
-// the types that take no prompt (transcribe) — chat is present so promptCap can say "no" for it:
-// an LLM's own limit is tokens, and it is never the node being fitted.
-const CAP_KIND = {
-  llm: "chat", vision: "chat",
-  image: "image", edit: "image", inpaint: "image",
-  tvideo: "video", ivideo: "video", vedit: "video", lipsync: "video",
-  music: "audio", remix: "audio", tts: "audio",
-};
-
-/**
- * The prompt character cap for a node, or null when the model has none / we don't know one.
- * `learned` (a Map of "kind:id" → cap) wins over the table: it came from this account hitting this
- * model today, and the table is a snapshot.
- */
-function promptCap(node, { catalog, learned } = {}) {
-  const kind = CAP_KIND[node && node.type];
-  const id = node && node.fields && node.fields.model;
-  if (!kind || !id || kind === "chat") return null;
-  const hit = learned && learned.get(kind + ":" + id);
-  if (hit) return hit;
-  if (kind === "audio") {
-    const m = catItem(catalog, "audio", id);
-    return (m && m.supported_parameters && m.supported_parameters.max_chars) || null;
-  }
-  return (PROMPT_CAPS[kind] && PROMPT_CAPS[kind][id]) || null;
-}
-
-/**
- * Cut to the last sentence end inside the cap, then the last word — never mid-word, and never below
- * 70% of the cap, where honouring a boundary would throw away more than the overflow did.
- */
-function fitPromptText(s, cap) {
-  if (s.length <= cap) return s;
-  const head = s.slice(0, cap), floor = Math.floor(cap * 0.7);
-  const sent = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "), head.lastIndexOf("\n"));
-  if (sent >= floor) return head.slice(0, sent + 1).trim();
-  const word = head.lastIndexOf(" ");
-  return (word >= floor ? head.slice(0, word) : head).trim();
-}
-
-/**
- * Fit the prompt rather than lose the run to a 400 the caller can't act on. Returns
- * { fields, trimmed } — `trimmed` is non-null exactly when the caller owes the user an explanation,
- * and reporting it is not optional.
- */
-function withFittedPrompt(node, fields, opts = {}) {
-  const cap = promptCap({ ...node, fields }, opts);
-  const p = fields && fields.prompt;
-  if (!cap || typeof p !== "string" || p.length <= cap) return { fields, trimmed: null };
-  const prompt = fitPromptText(p, cap);
-  return { fields: { ...fields, prompt }, trimmed: { from: p.length, to: prompt.length, cap } };
-}
-
-/**
- * NanoGPT phrases the rejection three ways (all live-verified 2026-07-26):
- *   {"error":"…Please shorten it to 800 characters or less (current: 831 characters).","code":"prompt_too_long"}
- *   {"error":{"message":"…512 characters or less…","code":"prompt_too_long"}}   ← nested
- *   {"error":"Prompt is too long. Please keep it under 3000 characters."}        ← no code at all
- * so match the sentence, not the envelope. "current: N" is deliberately unmatched — that's the
- * length we SENT, and learning it as the cap would grow the limit with every failure.
- */
-const PROMPT_TOO_LONG_RE = /(?:shorten (?:it )?to|keep it under|at most|maximum of|limit of)\s*([\d,]{2,})\s*characters/i;
-
-const isPromptTooLong = (msg) => /prompt_too_long/i.test(String(msg || "")) || /prompt is too long/i.test(String(msg || ""));
-
-function promptCapFromError(msg) {
-  const m = PROMPT_TOO_LONG_RE.exec(String(msg || ""));
-  const v = m ? +m[1].replace(/,/g, "") : 0;
-  return v > 0 ? v : null;
-}
-
-/** Bank a cap learned from a live rejection. Returns true when it's new information. */
-function learnPromptCap(learned, node, msg) {
-  const cap = promptCapFromError(msg);
-  const kind = CAP_KIND[node && node.type];
-  const id = node && node.fields && node.fields.model;
-  if (!cap || !kind || !id || learned.get(kind + ":" + id) === cap) return false;
-  learned.set(kind + ":" + id, cap);
-  return true;
-}
-
-__x.PROMPT_CAPS = PROMPT_CAPS; __x.promptCap = promptCap; __x.fitPromptText = fitPromptText; __x.withFittedPrompt = withFittedPrompt; __x.isPromptTooLong = isPromptTooLong; __x.promptCapFromError = promptCapFromError; __x.learnPromptCap = learnPromptCap;
-});
-__def("decide.mjs", function (__x, __req) {
-// ⚖️ Decide — typed judgments from NanoGPT decision models (POST /api/v1/decisions).
-// Port of the editor/play twin block (nanoodle index.html / play.html "⚖️ DECIDE"): same
-// question shapes, same image state parts, same in-order + reversed pick debias, same
-// outputs. Only the on-device image shrink differs: browsers use canvas, this library
-// uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
-const { NanoodleError } = __req("errors.mjs");
-
-const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
-const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
-/** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
-const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
-
-function decideMode(f) {
-  const m = f && f.mode;
-  return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
-}
-function decideLines(s) {
-  return String(s == null ? "" : s).split("\n").map((x) => x.trim()).filter(Boolean);
-}
-function decideDefaultQuestion(mode) {
-  if (mode === "pick") return "Which image best matches the brief?";
-  if (mode === "choose") return "Which label fits best?";
-  if (mode === "score") return "How good is it?";
-  return "Is it good enough to use?";
-}
-/** Image limits from a catalog decision_input; known=false (absent / offline) → permissive launch limits; known text-only → null. */
-function decideImageLimits(di, known) {
-  if (!known) return DECIDE_IMG_FALLBACK;
-  if (!di || !di.image_input) return null;
-  const l = di.image_limits || {};
-  return {
-    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
-    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
-    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes,
-  };
-}
-/** The one typed question this node asks. Throws (before any request) on an unanswerable setup. */
-function decideQuestionFor(mode, f, nImgs) {
-  const q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
-  if (mode === "pick") {
-    if (nImgs < 2) throw new NanoodleError("pick needs at least two images — wire 2 or more into the image ports");
-    const c = {};
-    for (let i = 1; i <= nImgs; i++) c["image_" + i] = "image " + i;
-    return { type: "choice", instructions: q, criteria: c };
-  }
-  if (mode === "choose") {
-    const labels = decideLines(f && f.options).filter((x, i, a) => a.indexOf(x) === i);
-    if (labels.length < 2) throw new NanoodleError("add at least two labels to choose from (one per line)");
-    if (labels.length > 255) throw new NanoodleError("too many labels — 255 at most");
-    const cc = {};
-    labels.forEach((x) => { cc[x] = null; });
-    return { type: "choice", instructions: q, criteria: cc };
-  }
-  if (mode === "score") {
-    const lv = decideLines((f && f.levels != null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
-    if (lv.length < 2 || lv.length > 10) throw new NanoodleError("the scale needs 2 to 10 levels, worst first (one per line)");
-    return { type: "score", instructions: q, criteria: lv };
-  }
-  return { type: "noul", instructions: q };
-}
-/** state: plain text, or (with images) text + labelled inline image_url parts. */
-function decideState(text, imgs) {
-  if (!imgs.length) return text;
-  const s = [];
-  if (text) s.push(text);
-  imgs.forEach((u, i) => {
-    if (imgs.length > 1) s.push("image_" + (i + 1) + ":");
-    s.push({ type: "image_url", image_url: { url: u } });
-  });
-  return s;
-}
-/** API answer → node outputs: text, image (pick: the winner; else the first image, passed through), decision detail. */
-function decideOutputs(mode, ans, q, imgs, usage, model) {
-  if (!ans || !ans.type) throw new NanoodleError("the decision model returned no answer");
-  const d = { mode, model, cost: (usage && typeof usage.cost === "number") ? usage.cost : null, rows: [] };
-  const probs = ans.probabilities || {};
-  if (mode === "pick") {
-    const k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
-    d.pick = idx; d.confidence = ans.confidence;
-    d.rows = Object.keys(q.criteria).map((key, i) => ({ label: "image " + (i + 1), p: +probs[key] || 0, win: key === k }));
-    return { text: "image " + idx, image: imgs[idx - 1] || "", decision: d };
-  }
-  if (mode === "choose") {
-    d.confidence = ans.confidence;
-    d.rows = Object.keys(q.criteria).map((key) => ({ label: key, p: +probs[key] || 0, win: key === ans.choice }));
-    return { text: String(ans.choice || ""), image: imgs[0] || "", decision: d };
-  }
-  if (mode === "score") {
-    const sc = (+ans.score || 0) + 1; // 1 = the first (worst) level
-    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
-    let top = 0;
-    q.criteria.forEach((x, i) => { if ((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
-    d.rows = q.criteria.map((x, i) => ({ label: (i + 1) + " · " + x, p: +probs[String(i)] || 0, win: i === top }));
-    return { text: String(Math.round(sc * 100) / 100), image: imgs[0] || "", decision: d };
-  }
-  const py = Math.max(0, Math.min(1, +ans.noul || 0));
-  d.yes = py;
-  d.rows = [{ label: "yes", p: py, win: py >= 0.5 }, { label: "no", p: 1 - py, win: py < 0.5 }];
-  return { text: py >= 0.5 ? "yes" : "no", image: imgs[0] || "", decision: d };
-}
-/**
- * A closed yes/no gate: a deliberate stop, not a failure. The runner throws this (so the browser
- * twin and any direct RUNNERS caller see err.gate), and Workflow.run() settles it as node status
- * "gated" — the decision ran and billed, `out` carries its answer, everything downstream is
- * "skipped" unbilled, and the run itself succeeds.
- */
-function decideGateError(d, out) {
-  return new NanoodleError(
-    "gate closed — the answer was no (yes " + Math.round(d.yes * 100) + "%), so nothing downstream ran",
-    { code: "decide-gate", gate: true, decision: d, out: out || null });
-}
-/** Average pick probabilities across runs that saw the candidates in different orders; costs add up. */
-function decideMergeOrders(js, orders) {
-  const n = orders[0].length, sum = new Array(n).fill(0);
-  let cost = 0, costKnown = true;
-  js.forEach((j, r) => {
-    const a = j && j.answers && j.answers.answer;
-    if (!a || !a.probabilities) throw new NanoodleError("the decision model returned no answer");
-    orders[r].forEach((orig, k) => { sum[orig] += (+a.probabilities["image_" + (k + 1)] || 0) / js.length; });
-    if (j.usage && typeof j.usage.cost === "number") cost += j.usage.cost; else costKnown = false;
-  });
-  let best = 0;
-  const probs = {};
-  sum.forEach((p, i) => { probs["image_" + (i + 1)] = p; if (p > sum[best]) best = i; });
-  return {
-    answers: { answer: { type: "choice", choice: "image_" + (best + 1), confidence: sum[best], probabilities: probs } },
-    usage: { cost: costKnown ? cost : null }, runs: js.length,
-  };
-}
-/**
- * The whole run. send(body) POSTs /api/v1/decisions and returns the JSON; fit(url, maxDim, budget)
- * returns a data: URL that fits (inlining remote URLs as needed).
- */
-async function decideRun(f, model, text, imgs, lim, send, fit) {
-  const mode = decideMode(f);
-  text = String(text == null ? "" : text).trim();
-  imgs = (imgs || []).filter(Boolean);
-  if (imgs.length && !lim) throw new NanoodleError("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
-  if (lim && imgs.length > lim.maxImages) throw new NanoodleError("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
-  const q = decideQuestionFor(mode, f, imgs.length);
-  if (!text && !imgs.length && !String((f && f.question) || "").trim()) throw new NanoodleError("nothing to judge — wire text or an image into Decide");
-  const sent = [];
-  if (imgs.length) {
-    const budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
-    for (const u of imgs) sent.push(await fit(u, lim.maxDimension, budget));
-  }
-  let j;
-  if (mode === "pick") {
-    // decision models lean toward the first image they see: ask in order and reversed, average
-    const fwd = sent.map((x, i) => i), rev = fwd.slice().reverse();
-    const both = await Promise.all([fwd, rev].map((ord) =>
-      send({ model, state: decideState(text, ord.map((i) => sent[i])), questions: { answer: q } })));
-    j = decideMergeOrders(both, [fwd, rev]);
-  } else {
-    j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
-  }
-  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
-  if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
-  return out;
-}
-
-__x.DECIDE_DEFAULT_MODEL = DECIDE_DEFAULT_MODEL; __x.DECIDE_SCALE_DEFAULT = DECIDE_SCALE_DEFAULT; __x.DECIDE_IMG_FALLBACK = DECIDE_IMG_FALLBACK; __x.decideMode = decideMode; __x.decideLines = decideLines; __x.decideDefaultQuestion = decideDefaultQuestion; __x.decideImageLimits = decideImageLimits; __x.decideQuestionFor = decideQuestionFor; __x.decideState = decideState; __x.decideOutputs = decideOutputs; __x.decideGateError = decideGateError; __x.decideMergeOrders = decideMergeOrders; __x.decideRun = decideRun;
-});
-__def("cleanvoice.mjs", function (__x, __req) {
-/**
- * 🎧 Clean voice — strip background noise / music, keep the voice.
- * Twin of the editor/play block (nanoodle #709). NanoGPT's noise_reduction
- * models (ElevenLabs Audio Isolation, VEED Clean Audio) ride
- * POST /api/v1/audio/speech with { model, audio:<public URL>, duration }
- * and answer 202 + runId (charged up front) → GET /api/tts/status → hosted audio.
- * The source MUST be a public http(s) URL: data: and blob: are refused before
- * any request. duration is only a quote; the server re-measures and bills that.
- */
-const { NanoodleError } = __req("errors.mjs");
-
-const CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation"; // $0.121/min
-const CLEANVOICE_FALLBACK_SECS = 60; // length unknown → quote a minute
-const CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
-
-/** Which file to clean: a wired audio clip, else a wired video, else the pasted link. */
-function cleanVoiceSource(inp, f) {
-  const a = inp && typeof inp.audio === "string" ? inp.audio.trim() : "";
-  const v = inp && typeof inp.video === "string" ? inp.video.trim() : "";
-  const link = String((f && f.url) || "").trim();
-  const url = a || v || link;
-  const video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
-  if (!url) throw new NanoodleError("no audio — wire audio or a video in, or paste a public link to the recording");
-  if (!/^https?:\/\//i.test(url)) {
-    throw new NanoodleError(
-      "Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
-  }
-  return { url, video };
-}
-
-/** Duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS. */
-function cleanVoiceSeconds(secs) {
-  const s = +secs;
-  if (!isFinite(s) || s <= 0) return CLEANVOICE_FALLBACK_SECS;
-  return Math.min(3600, Math.max(0.6, Math.round(s * 100) / 100));
-}
-
-function cleanVoiceExtra(url, secs) {
-  return { audio: url, duration: cleanVoiceSeconds(secs) };
-}
-
-/** Seconds the cost forecast assumes: the wired source node's duration knob, else 30 s. */
-function cleanVoiceEstSeconds(srcFields) {
-  const d = parseFloat(srcFields && srcFields.duration);
-  return (isFinite(d) && d > 0) ? d : 30;
-}
-
-/** NanoGPT's 400s, reworded into the fix. Unrelated errors (and aborts) pass through. */
-function cleanVoiceError(e) {
-  if (e && (e.name === "AbortError" || e.code === "aborted")) return e;
-  const m = String((e && e.message) || e || "");
-  if (/verify the source (audio )?duration/i.test(m)) {
-    return new NanoodleError("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
-  }
-  if (/unable to download/i.test(m)) {
-    return new NanoodleError("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
-  }
-  if (/public http\(?s?\)? source/i.test(m)) {
-    return new NanoodleError("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
-  }
-  return e;
-}
-
-/**
- * The source's length from media metadata. Browsers can read it without CORS;
- * Node has no media element, so this resolves null and the quote falls back to
- * CLEANVOICE_FALLBACK_SECS (the server re-measures before billing).
- */
-function cleanVoiceMediaSeconds(url, isVideo) {
-  return new Promise((res) => {
-    const doc = globalThis.document;
-    if (!doc || typeof doc.createElement !== "function") { res(null); return; }
-    let el = null;
-    let done = false;
-    const fin = (v) => {
-      if (done) return;
-      done = true;
-      try { el.removeAttribute("src"); el.load(); } catch { /* element may already be gone */ }
-      res(v);
-    };
-    try { el = doc.createElement(isVideo ? "video" : "audio"); }
-    catch { res(null); return; }
-    el.preload = "metadata";
-    el.muted = true;
-    el.onloadedmetadata = () => {
-      const d = el.duration;
-      fin(isFinite(d) && d > 0 ? d : null);
-    };
-    el.onerror = () => fin(null);
-    setTimeout(() => fin(null), 10000);
-    el.src = url;
-  });
-}
-
-/** send(model, extra) → audio URL (the runtime's audio submit + poll). */
-async function cleanVoiceRun(model, inp, f, send) {
-  const src = cleanVoiceSource(inp, f);
-  const secs = await cleanVoiceMediaSeconds(src.url, src.video);
-  try {
-    return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) };
-  } catch (e) {
-    throw cleanVoiceError(e);
-  }
-}
-
-__x.CLEANVOICE_DEFAULT_MODEL = CLEANVOICE_DEFAULT_MODEL; __x.CLEANVOICE_FALLBACK_SECS = CLEANVOICE_FALLBACK_SECS; __x.cleanVoiceSource = cleanVoiceSource; __x.cleanVoiceSeconds = cleanVoiceSeconds; __x.cleanVoiceExtra = cleanVoiceExtra; __x.cleanVoiceEstSeconds = cleanVoiceEstSeconds; __x.cleanVoiceError = cleanVoiceError; __x.cleanVoiceMediaSeconds = cleanVoiceMediaSeconds; __x.cleanVoiceRun = cleanVoiceRun;
-});
 __def("endpoint.mjs", function (__x, __req) {
 /**
  * 🔌 Custom endpoint — POST a NanoGPT-shaped body to a URL the graph names.
@@ -5428,6 +5572,477 @@ async function runEndpoint(n, inp, io = {}) {
 
 __x.ENDPOINT_DEF_URL = ENDPOINT_DEF_URL; __x.ENDPOINT_MODES = ENDPOINT_MODES; __x.endpointMode = endpointMode; __x.endpointOutPort = endpointOutPort; __x.endpointUrlOk = endpointUrlOk; __x.endpointResolveTarget = endpointResolveTarget; __x.endpointRequestBody = endpointRequestBody; __x.runEndpoint = runEndpoint;
 });
+__def("prompt-caps.mjs", function (__x, __req) {
+/**
+ * Prompt length caps — the wired prompt nobody can shorten.
+ *
+ * Many image and video models reject an over-long prompt at NanoGPT's route, before the provider is
+ * called and before anything is charged:
+ *
+ *     400 {"error":"Your prompt is too long for Qwen Image 3. Please shorten it to 800 characters
+ *          or less (current: 831 characters).","code":"prompt_too_long"}
+ *
+ * Free, but a dead end. In a graph the prompt is generated, not typed — an LLM node writes it and a
+ * wire carries it into the image node — so "please shorten it" names something no caller controls
+ * directly. For a headless or agent-driven run that's the whole workflow lost to a limit nobody was
+ * told about.
+ *
+ * So: trim it to fit at a sentence boundary (fitPromptText) and REPORT it — a `prompt-trimmed`
+ * progress event plus a process warning. A silent trim would be a bug; the report is what makes the
+ * trim defensible. A cap we didn't know is learned from the live 400 (promptCapFromError) and kept
+ * on the Workflow, so a retry states the limit instead of rediscovering it.
+ *
+ * What this deliberately does NOT do is edit the graph's own prompts to avoid the trim. An llm
+ * node's system prompt goes to the model exactly as its author wrote it — injecting a "keep it
+ * under N characters" directive on their behalf would silently change what their workflow produces.
+ *
+ * The image/video catalogs advertise no prompt limit at all (checked live 2026-07-26), hence the
+ * probed table below. Audio's caps ARE catalog metadata (supported_parameters.max_chars) and are
+ * read from the opt-in catalog instead — never listed here. Absent id = no cap found, or never
+ * probed: unknown stays unconstrained, matching this library's permissive-gate rule everywhere else.
+ *
+ * Table generated by nanoodle's scripts/probe-prompt-caps.mjs; keep it in step with the copies in
+ * nanoodle's index.html / play.html.
+ */
+const { catItem } = __req("catalog.mjs");
+
+const PROMPT_CAPS = {
+  generated: "2026-07-26",
+  image: {
+    "step-image-edit-2": 512,
+    "qwen-image-3": 800,
+    "z-image-turbo": 1200,
+    "z-image-turbo-image-to-image": 1200,
+    "z-image-turbo-lora": 1200,
+    "2dn-pony-v2": 3000,
+    "aniflatmix-anime": 3000,
+    "aniflatmix-anime-sfwnsfw": 3000,
+    "animagine-xl-31": 3000,
+    "artiwaifu-diffusion": 3000,
+    "atomix-xl": 3000,
+    "boltning": 3000,
+    "crystal-clear-xl": 3000,
+    "crystal-clear-xlightning": 3000,
+    "cyberrealistic-pony-v9": 3000,
+    "cyberrealistic-xl": 3000,
+    "dreamshaper-v1": 3000,
+    "dreamshaper-xl": 3000,
+    "fluently-xl": 3000,
+    "flux-schnell": 3000,
+    "hassaku-hentai": 3000,
+    "hidream": 3000,
+    "hidream-i1-fast": 3000,
+    "ideogram:4@0": 3000,
+    "infinite-illustrious": 3000,
+    "juggernaut-lightning-flux": 3000,
+    "juggernaut-pro-flux": 3000,
+    "juggernaut-z": 3000,
+    "miusmius-xl": 3000,
+    "nsfw-gen-illustrious": 3000,
+    "persona:376130@2456367": 3000,
+    "pixelwave": 3000,
+    "proteus": 3000,
+    "prunaai:1@1": 3000,
+    "qwen-image": 3000,
+    "realpony-xl": 3000,
+    "rev-animated": 3000,
+    "riverflow-2-fast": 3000,
+    "riverflow-2-max": 3000,
+    "riverflow-2-standard": 3000,
+    "runware:106@1": 3000,
+    "runware:107@1": 3000,
+    "stable-diffusion-xl-turbo": 3000,
+    "stoiqo-new-reality": 3000,
+    "wai-illustrious-sdxl": 3000,
+  },
+  video: {
+    "minimax-hailuo-02": 2000,
+    "lightricks-ltx-2-fast": 3000,
+  },
+};
+
+// node type → which catalog its model comes from. Same split as estimate.mjs's PRICE_KIND, minus
+// the types that take no prompt (transcribe) — chat is present so promptCap can say "no" for it:
+// an LLM's own limit is tokens, and it is never the node being fitted.
+const CAP_KIND = {
+  llm: "chat", vision: "chat",
+  image: "image", edit: "image", inpaint: "image",
+  tvideo: "video", ivideo: "video", vedit: "video", lipsync: "video",
+  music: "audio", remix: "audio", tts: "audio",
+};
+
+/**
+ * The prompt character cap for a node, or null when the model has none / we don't know one.
+ * `learned` (a Map of "kind:id" → cap) wins over the table: it came from this account hitting this
+ * model today, and the table is a snapshot.
+ */
+function promptCap(node, { catalog, learned } = {}) {
+  const kind = CAP_KIND[node && node.type];
+  const id = node && node.fields && node.fields.model;
+  if (!kind || !id || kind === "chat") return null;
+  const hit = learned && learned.get(kind + ":" + id);
+  if (hit) return hit;
+  if (kind === "audio") {
+    const m = catItem(catalog, "audio", id);
+    return (m && m.supported_parameters && m.supported_parameters.max_chars) || null;
+  }
+  return (PROMPT_CAPS[kind] && PROMPT_CAPS[kind][id]) || null;
+}
+
+/**
+ * Cut to the last sentence end inside the cap, then the last word — never mid-word, and never below
+ * 70% of the cap, where honouring a boundary would throw away more than the overflow did.
+ */
+function fitPromptText(s, cap) {
+  if (s.length <= cap) return s;
+  const head = s.slice(0, cap), floor = Math.floor(cap * 0.7);
+  const sent = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "), head.lastIndexOf("\n"));
+  if (sent >= floor) return head.slice(0, sent + 1).trim();
+  const word = head.lastIndexOf(" ");
+  return (word >= floor ? head.slice(0, word) : head).trim();
+}
+
+/**
+ * Fit the prompt rather than lose the run to a 400 the caller can't act on. Returns
+ * { fields, trimmed } — `trimmed` is non-null exactly when the caller owes the user an explanation,
+ * and reporting it is not optional.
+ */
+function withFittedPrompt(node, fields, opts = {}) {
+  const cap = promptCap({ ...node, fields }, opts);
+  const p = fields && fields.prompt;
+  if (!cap || typeof p !== "string" || p.length <= cap) return { fields, trimmed: null };
+  const prompt = fitPromptText(p, cap);
+  return { fields: { ...fields, prompt }, trimmed: { from: p.length, to: prompt.length, cap } };
+}
+
+/**
+ * NanoGPT phrases the rejection three ways (all live-verified 2026-07-26):
+ *   {"error":"…Please shorten it to 800 characters or less (current: 831 characters).","code":"prompt_too_long"}
+ *   {"error":{"message":"…512 characters or less…","code":"prompt_too_long"}}   ← nested
+ *   {"error":"Prompt is too long. Please keep it under 3000 characters."}        ← no code at all
+ * so match the sentence, not the envelope. "current: N" is deliberately unmatched — that's the
+ * length we SENT, and learning it as the cap would grow the limit with every failure.
+ */
+const PROMPT_TOO_LONG_RE = /(?:shorten (?:it )?to|keep it under|at most|maximum of|limit of)\s*([\d,]{2,})\s*characters/i;
+
+const isPromptTooLong = (msg) => /prompt_too_long/i.test(String(msg || "")) || /prompt is too long/i.test(String(msg || ""));
+
+function promptCapFromError(msg) {
+  const m = PROMPT_TOO_LONG_RE.exec(String(msg || ""));
+  const v = m ? +m[1].replace(/,/g, "") : 0;
+  return v > 0 ? v : null;
+}
+
+/** Bank a cap learned from a live rejection. Returns true when it's new information. */
+function learnPromptCap(learned, node, msg) {
+  const cap = promptCapFromError(msg);
+  const kind = CAP_KIND[node && node.type];
+  const id = node && node.fields && node.fields.model;
+  if (!cap || !kind || !id || learned.get(kind + ":" + id) === cap) return false;
+  learned.set(kind + ":" + id, cap);
+  return true;
+}
+
+__x.PROMPT_CAPS = PROMPT_CAPS; __x.promptCap = promptCap; __x.fitPromptText = fitPromptText; __x.withFittedPrompt = withFittedPrompt; __x.isPromptTooLong = isPromptTooLong; __x.promptCapFromError = promptCapFromError; __x.learnPromptCap = learnPromptCap;
+});
+__def("image-options.mjs", function (__x, __req) {
+// Model knobs may tune generation, but cannot replace node-owned request fields
+// or smuggle routing/authentication settings into an image request.
+function imageModelOpts(opts) {
+  const out = {};
+  if (!opts || typeof opts !== "object" || Array.isArray(opts)) return out;
+  for (const [key, value] of Object.entries(opts)) {
+    if (/^(?:model|prompt|size|n|responseformat|image|images|imageurl|imagedataurl|mask|maskurl|maskdataurl|key|apikey|xapikey|token|accesstoken|authorization|auth|headers|url|endpoint|baseurl|method|body|credentials|proxy|runid|requestid|isapirequest|paymentsource|paymentid|tojson|proto|prototype|constructor)$/i.test(key.replace(/[_-]/g, ""))) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+__x.imageModelOpts = imageModelOpts;
+});
+__def("decide.mjs", function (__x, __req) {
+// ⚖️ Decide — typed judgments from NanoGPT decision models (POST /api/v1/decisions).
+// Port of the editor/play twin block (nanoodle index.html / play.html "⚖️ DECIDE"): same
+// question shapes, same image state parts, same in-order + reversed pick debias, same
+// outputs. Only the on-device image shrink differs: browsers use canvas, this library
+// uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
+const { NanoodleError } = __req("errors.mjs");
+
+const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
+const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
+/** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
+const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
+
+function decideMode(f) {
+  if (f?.branch === true) return "yesno";
+  const m = f && f.mode;
+  return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
+}
+function decideLines(s) {
+  return String(s == null ? "" : s).split("\n").map((x) => x.trim()).filter(Boolean);
+}
+function decideDefaultQuestion(mode) {
+  if (mode === "pick") return "Which image best matches the brief?";
+  if (mode === "choose") return "Which label fits best?";
+  if (mode === "score") return "How good is it?";
+  return "Is it good enough to use?";
+}
+/** Image limits from a catalog decision_input; known=false (absent / offline) → permissive launch limits; known text-only → null. */
+function decideImageLimits(di, known) {
+  if (!known) return DECIDE_IMG_FALLBACK;
+  if (!di || !di.image_input) return null;
+  const l = di.image_limits || {};
+  return {
+    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
+    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
+    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes,
+  };
+}
+/** The one typed question this node asks. Throws (before any request) on an unanswerable setup. */
+function decideQuestionFor(mode, f, nImgs) {
+  const q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
+  if (mode === "pick") {
+    if (nImgs < 2) throw new NanoodleError("pick needs at least two images — wire 2 or more into the image ports");
+    const c = {};
+    for (let i = 1; i <= nImgs; i++) c["image_" + i] = "image " + i;
+    return { type: "choice", instructions: q, criteria: c };
+  }
+  if (mode === "choose") {
+    const labels = decideLines(f && f.options).filter((x, i, a) => a.indexOf(x) === i);
+    if (labels.length < 2) throw new NanoodleError("add at least two labels to choose from (one per line)");
+    if (labels.length > 255) throw new NanoodleError("too many labels — 255 at most");
+    const cc = {};
+    labels.forEach((x) => { cc[x] = null; });
+    return { type: "choice", instructions: q, criteria: cc };
+  }
+  if (mode === "score") {
+    const lv = decideLines((f && f.levels != null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
+    if (lv.length < 2 || lv.length > 10) throw new NanoodleError("the scale needs 2 to 10 levels, worst first (one per line)");
+    return { type: "score", instructions: q, criteria: lv };
+  }
+  return { type: "noul", instructions: q };
+}
+/** state: plain text, or (with images) text + labelled inline image_url parts. */
+function decideState(text, imgs) {
+  if (!imgs.length) return text;
+  const s = [];
+  if (text) s.push(text);
+  imgs.forEach((u, i) => {
+    if (imgs.length > 1) s.push("image_" + (i + 1) + ":");
+    s.push({ type: "image_url", image_url: { url: u } });
+  });
+  return s;
+}
+/** API answer → node outputs: text, image (pick: the winner; else the first image, passed through), decision detail. */
+function decideOutputs(mode, ans, q, imgs, usage, model) {
+  if (!ans || !ans.type) throw new NanoodleError("the decision model returned no answer");
+  const d = { mode, model, cost: (usage && typeof usage.cost === "number") ? usage.cost : null, rows: [] };
+  const probs = ans.probabilities || {};
+  if (mode === "pick") {
+    const k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
+    d.pick = idx; d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key, i) => ({ label: "image " + (i + 1), p: +probs[key] || 0, win: key === k }));
+    return { text: "image " + idx, image: imgs[idx - 1] || "", decision: d };
+  }
+  if (mode === "choose") {
+    d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key) => ({ label: key, p: +probs[key] || 0, win: key === ans.choice }));
+    return { text: String(ans.choice || ""), image: imgs[0] || "", decision: d };
+  }
+  if (mode === "score") {
+    const sc = (+ans.score || 0) + 1; // 1 = the first (worst) level
+    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
+    let top = 0;
+    q.criteria.forEach((x, i) => { if ((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
+    d.rows = q.criteria.map((x, i) => ({ label: (i + 1) + " · " + x, p: +probs[String(i)] || 0, win: i === top }));
+    return { text: String(Math.round(sc * 100) / 100), image: imgs[0] || "", decision: d };
+  }
+  const py = Math.max(0, Math.min(1, +ans.noul || 0));
+  d.yes = py;
+  d.rows = [{ label: "yes", p: py, win: py >= 0.5 }, { label: "no", p: 1 - py, win: py < 0.5 }];
+  return { text: py >= 0.5 ? "yes" : "no", image: imgs[0] || "", decision: d };
+}
+/**
+ * A closed yes/no gate: a deliberate stop, not a failure. The runner throws this (so the browser
+ * twin and any direct RUNNERS caller see err.gate), and Workflow.run() settles it as node status
+ * "gated" — the decision ran and billed, `out` carries its answer, everything downstream is
+ * "skipped" unbilled, and the run itself succeeds.
+ */
+function decideGateError(d, out) {
+  return new NanoodleError(
+    "gate closed — the answer was no (yes " + Math.round(d.yes * 100) + "%), so nothing downstream ran",
+    { code: "decide-gate", gate: true, decision: d, out: out || null });
+}
+/** Average pick probabilities across runs that saw the candidates in different orders; costs add up. */
+function decideMergeOrders(js, orders) {
+  const n = orders[0].length, sum = new Array(n).fill(0);
+  let cost = 0, costKnown = true;
+  js.forEach((j, r) => {
+    const a = j && j.answers && j.answers.answer;
+    if (!a || !a.probabilities) throw new NanoodleError("the decision model returned no answer");
+    orders[r].forEach((orig, k) => { sum[orig] += (+a.probabilities["image_" + (k + 1)] || 0) / js.length; });
+    if (j.usage && typeof j.usage.cost === "number") cost += j.usage.cost; else costKnown = false;
+  });
+  let best = 0;
+  const probs = {};
+  sum.forEach((p, i) => { probs["image_" + (i + 1)] = p; if (p > sum[best]) best = i; });
+  return {
+    answers: { answer: { type: "choice", choice: "image_" + (best + 1), confidence: sum[best], probabilities: probs } },
+    usage: { cost: costKnown ? cost : null }, runs: js.length,
+  };
+}
+/**
+ * The whole run. send(body) POSTs /api/v1/decisions and returns the JSON; fit(url, maxDim, budget)
+ * returns a data: URL that fits (inlining remote URLs as needed).
+ */
+async function decideRun(f, model, text, imgs, lim, send, fit) {
+  const mode = decideMode(f);
+  text = String(text == null ? "" : text).trim();
+  imgs = (imgs || []).filter(Boolean);
+  if (imgs.length && !lim) throw new NanoodleError("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
+  if (lim && imgs.length > lim.maxImages) throw new NanoodleError("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
+  const q = decideQuestionFor(mode, f, imgs.length);
+  if (!text && !imgs.length && !String((f && f.question) || "").trim()) throw new NanoodleError("nothing to judge — wire text or an image into Decide");
+  const sent = [];
+  if (imgs.length) {
+    const budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
+    for (const u of imgs) sent.push(await fit(u, lim.maxDimension, budget));
+  }
+  let j;
+  if (mode === "pick") {
+    // decision models lean toward the first image they see: ask in order and reversed, average
+    const fwd = sent.map((x, i) => i), rev = fwd.slice().reverse();
+    const both = await Promise.all([fwd, rev].map((ord) =>
+      send({ model, state: decideState(text, ord.map((i) => sent[i])), questions: { answer: q } })));
+    j = decideMergeOrders(both, [fwd, rev]);
+  } else {
+    j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
+  }
+  const answer = j?.answers?.answer;
+  const branching = f?.branch === true;
+  if (branching && (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1)) {
+    throw new NanoodleError("Decide needs a valid yes/no answer to select a branch", { code: "decide-branch" });
+  }
+  const out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if (branching) {
+    out.decision.branch = out.text;
+    out[out.text] = text || out.text;
+    return out;
+  }
+  if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
+  return out;
+}
+
+__x.DECIDE_DEFAULT_MODEL = DECIDE_DEFAULT_MODEL; __x.DECIDE_SCALE_DEFAULT = DECIDE_SCALE_DEFAULT; __x.DECIDE_IMG_FALLBACK = DECIDE_IMG_FALLBACK; __x.decideMode = decideMode; __x.decideLines = decideLines; __x.decideDefaultQuestion = decideDefaultQuestion; __x.decideImageLimits = decideImageLimits; __x.decideQuestionFor = decideQuestionFor; __x.decideState = decideState; __x.decideOutputs = decideOutputs; __x.decideGateError = decideGateError; __x.decideMergeOrders = decideMergeOrders; __x.decideRun = decideRun;
+});
+__def("cleanvoice.mjs", function (__x, __req) {
+/**
+ * 🎧 Clean voice — strip background noise / music, keep the voice.
+ * Twin of the editor/play block (nanoodle #709). NanoGPT's noise_reduction
+ * models (ElevenLabs Audio Isolation, VEED Clean Audio) ride
+ * POST /api/v1/audio/speech with { model, audio:<public URL>, duration }
+ * and answer 202 + runId (charged up front) → GET /api/tts/status → hosted audio.
+ * The source MUST be a public http(s) URL: data: and blob: are refused before
+ * any request. duration is only a quote; the server re-measures and bills that.
+ */
+const { NanoodleError } = __req("errors.mjs");
+
+const CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation"; // $0.121/min
+const CLEANVOICE_FALLBACK_SECS = 60; // length unknown → quote a minute
+const CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
+
+/** Which file to clean: a wired audio clip, else a wired video, else the pasted link. */
+function cleanVoiceSource(inp, f) {
+  const a = inp && typeof inp.audio === "string" ? inp.audio.trim() : "";
+  const v = inp && typeof inp.video === "string" ? inp.video.trim() : "";
+  const link = String((f && f.url) || "").trim();
+  const url = a || v || link;
+  const video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
+  if (!url) throw new NanoodleError("no audio — wire audio or a video in, or paste a public link to the recording");
+  if (!/^https?:\/\//i.test(url)) {
+    throw new NanoodleError(
+      "Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
+  }
+  return { url, video };
+}
+
+/** Duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS. */
+function cleanVoiceSeconds(secs) {
+  const s = +secs;
+  if (!isFinite(s) || s <= 0) return CLEANVOICE_FALLBACK_SECS;
+  return Math.min(3600, Math.max(0.6, Math.round(s * 100) / 100));
+}
+
+function cleanVoiceExtra(url, secs) {
+  return { audio: url, duration: cleanVoiceSeconds(secs) };
+}
+
+/** Seconds the cost forecast assumes: the wired source node's duration knob, else 30 s. */
+function cleanVoiceEstSeconds(srcFields) {
+  const d = parseFloat(srcFields && srcFields.duration);
+  return (isFinite(d) && d > 0) ? d : 30;
+}
+
+/** NanoGPT's 400s, reworded into the fix. Unrelated errors (and aborts) pass through. */
+function cleanVoiceError(e) {
+  if (e && (e.name === "AbortError" || e.code === "aborted")) return e;
+  const m = String((e && e.message) || e || "");
+  if (/verify the source (audio )?duration/i.test(m)) {
+    return new NanoodleError("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
+  }
+  if (/unable to download/i.test(m)) {
+    return new NanoodleError("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
+  }
+  if (/public http\(?s?\)? source/i.test(m)) {
+    return new NanoodleError("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
+  }
+  return e;
+}
+
+/**
+ * The source's length from media metadata. Browsers can read it without CORS;
+ * Node has no media element, so this resolves null and the quote falls back to
+ * CLEANVOICE_FALLBACK_SECS (the server re-measures before billing).
+ */
+function cleanVoiceMediaSeconds(url, isVideo) {
+  return new Promise((res) => {
+    const doc = globalThis.document;
+    if (!doc || typeof doc.createElement !== "function") { res(null); return; }
+    let el = null;
+    let done = false;
+    const fin = (v) => {
+      if (done) return;
+      done = true;
+      try { el.removeAttribute("src"); el.load(); } catch { /* element may already be gone */ }
+      res(v);
+    };
+    try { el = doc.createElement(isVideo ? "video" : "audio"); }
+    catch { res(null); return; }
+    el.preload = "metadata";
+    el.muted = true;
+    el.onloadedmetadata = () => {
+      const d = el.duration;
+      fin(isFinite(d) && d > 0 ? d : null);
+    };
+    el.onerror = () => fin(null);
+    setTimeout(() => fin(null), 10000);
+    el.src = url;
+  });
+}
+
+/** send(model, extra) → audio URL (the runtime's audio submit + poll). */
+async function cleanVoiceRun(model, inp, f, send) {
+  const src = cleanVoiceSource(inp, f);
+  const secs = await cleanVoiceMediaSeconds(src.url, src.video);
+  try {
+    return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) };
+  } catch (e) {
+    throw cleanVoiceError(e);
+  }
+}
+
+__x.CLEANVOICE_DEFAULT_MODEL = CLEANVOICE_DEFAULT_MODEL; __x.CLEANVOICE_FALLBACK_SECS = CLEANVOICE_FALLBACK_SECS; __x.cleanVoiceSource = cleanVoiceSource; __x.cleanVoiceSeconds = cleanVoiceSeconds; __x.cleanVoiceExtra = cleanVoiceExtra; __x.cleanVoiceEstSeconds = cleanVoiceEstSeconds; __x.cleanVoiceError = cleanVoiceError; __x.cleanVoiceMediaSeconds = cleanVoiceMediaSeconds; __x.cleanVoiceRun = cleanVoiceRun;
+});
 __def("zlib.mjs", function (__x, __req) {
 /**
  * Env-adaptive zlib: node:zlib in Node (dynamic import, cached), Compression/
@@ -5821,5 +6436,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-084980c97d96";
+  window.NanoodleEngine.version = "src-023296a08393";
 })();
