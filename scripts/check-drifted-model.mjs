@@ -8,6 +8,9 @@
 //   unknown model id + LOADED catalog  → throws (no send)
 //   known model id                     → passes
 //   empty/unavailable catalog          → permissive (typed-in id + offline runs never false-block)
+//   primed-but-unrevalidated catalog   → permissive (a localStorage prime predating a model's
+//                                          launch must not false-block it; "loaded" in the editor
+//                                          means refreshCatalog set catalogFetchedAt this session)
 //
 // Offline node:vm, no network, no API spend. Mirrors check-stale-input-charge's extraction technique.
 import { readFileSync } from "node:fs";
@@ -49,6 +52,7 @@ const line = (src, needle) => {
     t: (s) => s,
     NODE_TYPES: { llm: { modelKind: "chat" } },
     catalogs: {},
+    catalogFetchedAt: {},
     console,
   };
   vm.createContext(ctx);
@@ -59,8 +63,9 @@ const line = (src, needle) => {
   const node = (model) => ({ type: "llm", fields: { model } });
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
 
-  // catalog LOADED with only the live id
+  // catalog LOADED (revalidated this session) with only the live id
   ctx.catalogs.chat = [{ id: "good-model" }];
+  ctx.catalogFetchedAt.chat = Date.now();
   if (throws(() => ctx.mdl(node("good-model")))) fail("editor: live model id was blocked");
   else ok("editor: live model id passes preflight");
 
@@ -74,8 +79,16 @@ const line = (src, needle) => {
   if (throws(() => ctx.mdl(node("dead-model-v1")))) fail("editor: empty catalog false-blocked a typed-in id (offline regression)");
   else ok("editor: empty catalog stays permissive (no false block)");
 
+  // catalog PRIMED from cache but never revalidated this session → must stay permissive:
+  // the prime can predate the model's launch day, so its absence proves nothing yet
+  ctx.catalogs.chat = [{ id: "good-model" }];
+  ctx.catalogFetchedAt.chat = 0;
+  if (throws(() => ctx.mdl(node("dead-model-v1")))) fail("editor: stale prime false-blocked an unlaunched-at-prime-time id");
+  else ok("editor: primed-but-unrevalidated catalog stays permissive (no stale-prime false block)");
+
   // empty model still reports the original 'pick a model first'
   ctx.catalogs.chat = [{ id: "good-model" }];
+  ctx.catalogFetchedAt.chat = Date.now();
   let msg = "";
   try { ctx.mdl(node("")); } catch (e) { msg = e.message; }
   if (!/pick a model/.test(msg)) fail("editor: empty model no longer prompts to pick one");
@@ -99,6 +112,8 @@ const line = (src, needle) => {
   ctx.NODE_TYPES.ivideo = { modelKind: "video" };
   ctx.catalogs.image = [{ id: "live-image" }];
   ctx.catalogs.video = [{ id: "live-video" }];
+  ctx.catalogFetchedAt.image = Date.now();
+  ctx.catalogFetchedAt.video = Date.now();
   vm.runInContext(block(IDX, "const DEMO_CTX = {").replace("const DEMO_CTX", "var DEMO_CTX"), ctx);
   let paidSends = 0;
   const paid = { demo: true, genChat: async () => { paidSends++; }, genImage: async () => { paidSends++; }, genVideo: async () => { paidSends++; } };
