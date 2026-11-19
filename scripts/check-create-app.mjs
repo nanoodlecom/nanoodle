@@ -17,8 +17,8 @@
 //
 // INVARIANTS ENFORCED
 //   Editor (index.html):
-//    1. A workflow loaded via #ga=<id> binds to that app. Share shows "Update <name>"
-//       and "Save as a new app". The update action re-emits #ga=<same id>.
+//    1. A workflow loaded via #ga=<id> binds to that app. The workspace shows
+//       "Update app", Share names the target, and the update action re-emits #ga=<same id>.
 //    2. That binding SURVIVES a plain reload (persisted outside noodle_graph), so the
 //       next Create app still updates — never duplicates. [the lost-on-reload bug]
 //    3. A fresh #g= workflow has NO binding: button says "Create app", "Save as a new app" is
@@ -410,12 +410,12 @@ async function run() {
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
-    const out = await emittedHandoff(ctx);
+    const out = await emittedHandoff(ctx, () => el(ctx, "wsmakeapp").onclick());
     let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
     record("E1 #ga= binds + Create app updates same app",
-      txt(ctx, "makeapp") === "Update My App" && el(ctx, "newapp").hidden === false &&
+      txt(ctx, "wsmakeapp") === "Update app" && txt(ctx, "makeapp") === "Update My App" && el(ctx, "newapp").hidden === false &&
       out.kind === "ga" && out.spec.appId === "app_AAA" && (persisted && persisted.id === "app_AAA"),
-      `btn=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
+      `workspace=${txt(ctx, "wsmakeapp")} share=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
   }
 
   /* E2: binding SURVIVES a plain reload (no hash) → still updates, never duplicates [lost-on-reload bug] */
@@ -713,13 +713,14 @@ async function run() {
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
     await emittedHandoff(ctx);                                  // first open → builder live, sig recorded
     const src = el(ctx, "appmodalframe").contentWindow;
+    store.noodle_apps = JSON.stringify([{ id: "app_NEW1", graph: ctx.serializeGraph() }]);
     for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__appsaved__", appId: "app_NEW1", title: "Neon Ramen" } });
     await drainAsync();
     let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
     const second = await emittedHandoff(ctx);                   // unchanged graph → must resume, not re-hand-off
     record("H3 __appsaved__ binds the editor (button flips, persists) and keeps the resume path",
-      txt(ctx, "makeapp") === "Update Neon Ramen" && persisted && persisted.id === "app_NEW1" && second.kind === "none",
-      `btn=${txt(ctx, "makeapp")} persisted=${persisted && persisted.id} second=${second.kind}`);
+      txt(ctx, "wsmakeapp") === "Open app" && txt(ctx, "makeapp") === "Open Neon Ramen" && persisted && persisted.id === "app_NEW1" && second.kind === "none",
+      `workspace=${txt(ctx, "wsmakeapp")} share=${txt(ctx, "makeapp")} persisted=${persisted && persisted.id} second=${second.kind}`);
   }
 
   /* H4: __editflow__ must leave the replaced canvas ONE undo away (it used to destroy an

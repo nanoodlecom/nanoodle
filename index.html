@@ -1198,8 +1198,11 @@
   #workspaces{ position:fixed; top:52px; left:0; right:0; height:var(--ws-h); z-index:29;
     display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
     background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
-  #share{ flex:none; align-self:center; margin-left:auto; min-height:27px; padding:0 .65rem;
-          color:var(--dim); font-size:.78rem; white-space:nowrap }
+  #share, #wsmakeapp{ flex:none; align-self:center; min-height:27px; padding:0 .65rem;
+                     color:var(--dim); font-size:.78rem; white-space:nowrap }
+  #wsmakeapp{ margin-left:auto; max-width:11rem; overflow:hidden; text-overflow:ellipsis;
+              background:transparent; border-color:transparent }
+  #wsmakeapp:hover{ color:var(--ink); background:var(--panel2); border-color:transparent }
   #share:hover, #share[aria-expanded="true"]{ color:var(--ink); border-color:var(--nano-color-control-line,#67728a) }
   #share .compact{ display:none }
   /* The active tab paints 1px over this bar's border (.wstab.on::after). That
@@ -1279,7 +1282,9 @@
   @media (max-width:720px){
     :root{ --ws-h:52px }
     #workspaces{ align-items:center; padding-left:max(.5rem, env(safe-area-inset-left)); padding-right:max(.5rem, env(safe-area-inset-right)); }
-    #share{ margin-left:.25rem; min-height:44px; font-size:.88rem }
+    #share, #wsmakeapp{ min-height:44px; font-size:.88rem }
+    #share{ margin-left:.25rem }
+    #wsmakeapp{ max-width:45%; padding-inline:.45rem }
     #share .lbl{ display:none }
     #share .compact{ display:inline }
     #wstabs{ display:none }
@@ -1397,6 +1402,7 @@
     </div>
   </div>
   <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
+  <button id="wsmakeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
   <button id="share" type="button" aria-label="Share workflow" title="Share workflow" aria-haspopup="dialog" aria-controls="sharemenu" aria-expanded="false"><span class="lbl">Share workflow</span><span class="compact">Share</span></button>
 </div>
 <div id="wspersistence" hidden role="status"><span id="wspersistence-text"></span><button id="wspersistence-save" type="button" hidden>Save this workflow</button><button id="wspersistence-retry" type="button" hidden>Retry saving</button></div>
@@ -1759,6 +1765,8 @@ const I18N = {
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "Update app":"Actualizar app",
+    "Open app":"Abrir app",
     "Update {app}":"Actualizar {app}",
     "Update “{app}” with this workflow":"Actualizar “{app}” con este flujo",
     "Open {app}":"Abrir {app}",
@@ -2544,6 +2552,8 @@ const I18N = {
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "Update app":"Actualiser l’app",
+    "Open app":"Ouvrir l’app",
     "Update {app}":"Mettre à jour {app}",
     "Update “{app}” with this workflow":"Mettre à jour « {app} » avec ce workflow",
     "Open {app}":"Ouvrir {app}",
@@ -3323,6 +3333,8 @@ const I18N = {
     "Full changelog":"Vollständiges Änderungsprotokoll",
     "📷 Webcam":"📷 Webcam",
     "Inpaint":"Inpaint",
+    "Update app":"App aktualisieren",
+    "Open app":"App öffnen",
     "Update {app}":"{app} aktualisieren",
     "Update “{app}” with this workflow":"„{app}“ mit diesem Workflow aktualisieren",
     "Open {app}":"{app} öffnen",
@@ -4094,6 +4106,8 @@ const I18N = {
     "📷 Webcam":"📷 Webcam",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "Update app":"Atualizar app",
+    "Open app":"Abrir app",
     "Update {app}":"Atualizar {app}",
     "Update “{app}” with this workflow":"Atualizar “{app}” com este fluxo",
     "Open {app}":"Abrir {app}",
@@ -4868,6 +4882,8 @@ const I18N = {
     "Undo the last edit":"直前の編集を元に戻す",
     "What’s new":"新着情報",
     "Workflow canvas":"ワークフローキャンバス",
+    "Update app":"アプリを更新",
+    "Open app":"アプリを開く",
     "Update {app}":"{app} を更新",
     "Update “{app}” with this workflow":"このワークフローで「{app}」を更新",
     "Open {app}":"{app} を開く",
@@ -18416,28 +18432,32 @@ function boundAppUpToDate(){
     return appSyncSig(app.graph) === appSyncSig();
   }catch(_){ return false; }
 }
-// Just the primary app-action button's label + tooltip — the slice of updateTitle() that must
-// stay live as the graph is edited (save() calls this on every change). When bound and already
-// up to date it says "Open <app>"; a divergent canvas keeps "Update".
+// Keep both app actions in sync. Use a short label on the workspace strip.
 function refreshAppButton(){
-  const mk = $("makeapp");
-  if(!mk) return;
+  const workspaceAction = $("wsmakeapp");
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
   // Name the destination so users can tell which app the action will update.
   const short = appTitle ? (appTitle.length > 20 ? appTitle.slice(0,19)+"…" : appTitle) : "app";
-  let label, title;
+  let workspaceLabel, shareLabel, title;
   if(!pendingAppId){
-    label = t("Create app");
+    workspaceLabel = shareLabel = t("Create app");
     title = t("Turn this workflow into a shareable app");
   } else if(boundAppUpToDate()){
-    label = t("Open {app}").replace("{app}", ()=>short);
+    workspaceLabel = t("Open app");
+    shareLabel = t("Open {app}").replace("{app}", ()=>short);
     title = t("Open “{app}” — it already has this workflow").replace("{app}", ()=>appTitle || t("your app"));
   } else {
-    label = t("Update {app}").replace("{app}", ()=>short);
+    workspaceLabel = t("Update app");
+    shareLabel = t("Update {app}").replace("{app}", ()=>short);
     title = t("Update “{app}” with this workflow").replace("{app}", ()=>appTitle || t("your app"));
   }
-  mk.title = title;
-  if(mk.textContent !== label) mk.textContent = label;
+  const workspaceLabelChanged = workspaceAction && workspaceAction.textContent !== workspaceLabel;
+  for(const [button, label] of [[workspaceAction, workspaceLabel], [$("makeapp"), shareLabel]]){
+    if(!button) continue;
+    if(button.title !== title) button.title = title;
+    if(button.textContent !== label) button.textContent = label;
+  }
+  if(workspaceLabelChanged) scrollActiveTabIntoView();
 }
 function updateTitle(){
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
@@ -20902,6 +20922,7 @@ async function openCreateApp(){
   openAppModal(hash);
 }
 $("makeapp").onclick = ()=>{ closeShareMenu(); return openCreateApp(); };
+$("wsmakeapp").onclick = openCreateApp;
 // "Save as a new app" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
 $("newapp").onclick = ()=>{
@@ -20966,10 +20987,8 @@ addEventListener("message", e=>{
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
   }
-  // builder committed/renamed the CANVAS-DERIVED app (play.html only posts this for apps
-  // born of our handoff, never for library browsing): bind the canvas to it, so the primary
-  // flips to "✨ Update <name>" the moment the app durably exists and later handoffs update
-  // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
+  // The builder only sends this for apps created from the canvas handoff. Bind the
+  // workspace to the saved app so both actions reopen it and later edits update it.
   else if(e.data.type==="__appsaved__"){
     const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
     try{ setPendingApp(e.data.appId, e.data.title); }
