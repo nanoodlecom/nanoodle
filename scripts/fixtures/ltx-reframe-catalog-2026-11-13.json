@@ -1,0 +1,170 @@
+{
+  "id": "lightricks/ltx-2.5/reframe",
+  "object": "model",
+  "created": 1794355200,
+  "owned_by": "lightricks",
+  "name": "LTX-2.5 Reframe",
+  "description": "Expand an existing video into a new composition by generating the surrounding scene while keeping the whole source visible. Choose 720p or 1080p at 1:1, 4:5, 5:4, 9:16 or 16:9, with optional anchor or rectangle placement. Placement preserves source proportions and allows at most 2\u00d7 enlargement. Accepts MP4 or MOV up to 200 MB, 60 seconds and 1800 frames; each input side must be 64\u20134096 pixels.",
+  "architecture": {
+    "modality": "video->video",
+    "input_modalities": [
+      "video"
+    ],
+    "output_modalities": [
+      "video"
+    ]
+  },
+  "pricing": {
+    "currency": "USD",
+    "unit": "input_video_second",
+    "per_second_by_output_resolution": {
+      "720p": 0.1,
+      "1080p": 0.2
+    },
+    "maximum_seconds": 60,
+    "maximum_frames": 1800,
+    "billing": "Fractional input-video seconds, verified before charging. Final price follows the processing meter; unused funds are refunded before delivery.",
+    "max_input_bytes": 200000000,
+    "source_metadata_required": true
+  },
+  "capabilities": {
+    "video_generation": true,
+    "text_to_video": false,
+    "image_to_video": false,
+    "video_to_video": true,
+    "audio_input": false,
+    "audio_generation": false,
+    "nsfw": false
+  },
+  "subscription": {
+    "included": false
+  },
+  "zero_data_retention": false,
+  "supported_parameters": {
+    "max_prompt_characters": null,
+    "prompt_length": {
+      "status": "not_applicable",
+      "unit": null,
+      "trim_whitespace": null
+    },
+    "parameters": {
+      "resolution": {
+        "type": "select",
+        "label": "Output resolution",
+        "default": "1080p",
+        "options": [
+          {
+            "value": "720p",
+            "label": "720p"
+          },
+          {
+            "value": "1080p",
+            "label": "1080p"
+          }
+        ]
+      },
+      "aspect_ratio": {
+        "type": "select",
+        "label": "Aspect ratio",
+        "default": "16:9",
+        "options": [
+          {
+            "value": "1:1",
+            "label": "1:1"
+          },
+          {
+            "value": "4:5",
+            "label": "4:5"
+          },
+          {
+            "value": "5:4",
+            "label": "5:4"
+          },
+          {
+            "value": "9:16",
+            "label": "9:16"
+          },
+          {
+            "value": "16:9",
+            "label": "16:9"
+          }
+        ]
+      },
+      "anchor": {
+        "type": "select",
+        "label": "Source alignment",
+        "default": "center",
+        "options": [
+          {
+            "value": "center",
+            "label": "center"
+          },
+          {
+            "value": "top",
+            "label": "top"
+          },
+          {
+            "value": "bottom",
+            "label": "bottom"
+          },
+          {
+            "value": "left",
+            "label": "left"
+          },
+          {
+            "value": "right",
+            "label": "right"
+          },
+          {
+            "value": "top_left",
+            "label": "top_left"
+          },
+          {
+            "value": "top_right",
+            "label": "top_right"
+          },
+          {
+            "value": "bottom_left",
+            "label": "bottom_left"
+          },
+          {
+            "value": "bottom_right",
+            "label": "bottom_right"
+          }
+        ]
+      },
+      "placement": {
+        "type": "object",
+        "description": "Anchor object or normalized x/y rectangle with optional width/height. Must fit the target, preserve source proportions and enlarge at most 2\u00d7. A JSON string is also accepted."
+      },
+      "videoUrl": {
+        "type": "string",
+        "required": true,
+        "aliases": [
+          "video",
+          "video_url",
+          "videoDataUrl"
+        ],
+        "description": "Required MP4 or MOV up to 200 MB. Dimensions, codec, frame count and fractional video-track duration are verified from pinned source bytes before billing."
+      },
+      "videoAttachmentId": {
+        "type": "string",
+        "description": "Authorized video attachment instead of a video URL."
+      }
+    },
+    "defaults": {
+      "resolution": "1080p",
+      "aspect_ratio": "16:9",
+      "anchor": "center",
+      "placement": ""
+    }
+  },
+  "icon_url": "/icons/Lightricks.png",
+  "tags": [
+    "lightricks",
+    "video-to-video",
+    "reframe",
+    "editing"
+  ],
+  "category": "New"
+}

@@ -83,7 +83,15 @@ try {
   ok(/if\(kind==="image"\)\{\s*\/\/[\s\S]*?if\(imageOutputIsGif\(fields\)\) return null;/.test(IDX)
     || /if\(imageOutputIsGif\(fields\)\) return null;/.test(IDX.slice(IDX.indexOf("function nodeUnitUsd("), IDX.indexOf("function nodeUnitUsd(") + 800)),
     "nodeUnitUsd returns null for GIF (source pin)");
-  ok(/if\(u==null\)\{ unpriced\+\+; continue; \}/.test(IDX),
+  const costCtx = {
+    graph: { nodes: [{ id: "gif", type: "image" }] },
+    NODE_TYPES: { image: { modelKind: "image" } },
+    nodeUnitUsd: () => null,
+  };
+  vm.createContext(costCtx);
+  vm.runInContext(extractFn(IDX, "workflowCost") + "\nthis.workflowCost=workflowCost;", costCtx);
+  const unknownCost = costCtx.workflowCost();
+  ok(unknownCost.unpriced === 1 && unknownCost.priced === 0 && unknownCost.usd === 0,
     "workflowCost treats null nodeUnitUsd as unpriced");
 
   const bundle = [
