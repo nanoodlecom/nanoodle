@@ -54,6 +54,14 @@ const HOWTO = {
     inspect: "Compare the original, the cut-out and the placed composite, then read the <em>Preservation verdict</em>. PRESERVED means every spec line was re-read exactly; DRIFTED quotes the lines that differ. In the saved run the headline label was letter-perfect and the checker still flagged the microprint line — that strictness is the feature, not a failure of the demo.",
     costHow: "Five model calls: the saved run reported $0.0906 in total (spec $0.0048, RMBG-3.0 cut-out $0.018, Nano Banana placement $0.039, blind re-read $0.0288, GLM checker $0.00). Prices and results vary.",
   },
+  "mesh-diet": {
+    headline: "Mesh diet",
+    job: "One photo \u2192 a 30,000-triangle mesh, retopologized down to the face budget your engine actually allows.",
+    purpose: "Idol Max Turbo rebuilds the photo as a textured mesh of exactly 30,000 triangles; Hyper3D Low Poly then retopologizes it to a target face count you set (4,000 in the saved run, inside its 200\u201310,000 range), carrying the UVs and PBR textures over. A Gemini surveyor first writes down the silhouette features that must survive the cut, and a GLM guide closes with the budget table \u2014 Roblox caps a mesh at 20,000 triangles, mobile props run 300\u20133,000, WebGL props 1,000\u201310,000 \u2014 and the honest edges.",
+    edit: "Swap <em>Object photo</em> for your own photo of one object, and set the face budget on <em>Mesh diet \u2014 Hyper3D Low Poly</em>: lower for crowds and mobile, higher for a hero prop. Already have a heavy GLB? Wire it straight into that node's model input and delete the rebuild \u2014 retopology is the point. Keep <code>transfer_texture</code> on so the PBR maps carry over.",
+    inspect: "Parse the output GLB and count: automatic retopology lands NEAR its target, not on it \u2014 the probe measured 3,876 against the 4,000 target and the saved run 3,929. Compare the before/after still: wings, coiled tail, antlered head and plinth survive; the whiskers and teeth merge. And check the file size before you celebrate \u2014 the diet is in triangles, not megabytes: the saved diet GLB is 11.8 MB against the heavy mesh's 10.0 MB, because the transferred textures are as large as the source's.",
+    costHow: "Four model calls: the saved run reported $0.4034 in total (Hyper3D Low Poly a flat $0.20, Idol Max Turbo $0.20 \u2014 its PBR variant bills $0.20, not the $0.10 base \u2014 Gemini survey $0.0034, GLM guide $0.00). Prices and results vary.",
+  },
   "photo-to-game-ready-mesh": {
     headline: "Photo to game-ready mesh",
     job: "One photo of one object → a textured triangle mesh that drops into engines, Blender and slicers.",
@@ -361,7 +369,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
