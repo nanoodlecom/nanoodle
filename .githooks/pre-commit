@@ -79,7 +79,7 @@ touches_combine=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.htm
 touches_pacing=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-import-pacing\.mjs)$' || true)
 # index.html carries graph persistence + share-payload packing (serialize/apply round-trip, legacy migrations,
 # autosave-wipe protection, >64KB #g=/#j= pack) — drift silently loses work.
-touches_graphpersist=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-graph-persistence\.mjs)$' || true)
+touches_graphpersist=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-graph-persistence\.mjs|scripts/check-workspace-save-refresh\.mjs)$' || true)
 # index.html signs the graph in three places (serializeGraph persists, appHandoffSig gates app-handoff/resume,
 # contentSig gates copilot versioning) — a persisted node prop missing from the two sigs is silently dropped (PR #114).
 touches_graphsigs=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-graph-sigs\.mjs)$' || true)
@@ -417,6 +417,7 @@ fi
 #     fallback). Offline: lifts the real functions out of index.html and runs them in a node:vm sandbox.
 if [ -n "$touches_graphpersist" ]; then
   node "$root/scripts/check-graph-persistence.mjs"
+  node "$root/scripts/check-workspace-save-refresh.mjs"
 fi
 
 # 21) GRAPH SIGNATURES: serializeGraph (persist), appHandoffSig (app-handoff/resume) and contentSig

@@ -1,3 +1,5 @@
+> Historical audit. As of 2026-11-12 the output-token-limit feature has been removed from Nanoodle UI and requests. Legacy graph fields are preserved as inert data; provider limits still apply.
+
 <!-- Generated 2026-06-29 from a live nano-gpt catalog snapshot (chat 601 / image 202 / video 135 / audio 78) cross-referenced against NODE_TYPES in index.html. Produced via a 4-analyst + synthesis workflow; every code-line and model-count claim spot-verified against source and the live catalog. -->
 
 # Model Capability Coverage Audit

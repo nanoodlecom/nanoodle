@@ -1,5 +1,5 @@
-/* data-hash=4063440239665d10 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-67ac0179a601 (20 modules) */
+/* data-hash=fcffbbc99a05ef1a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-023296a08393 (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -33,6 +33,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
+{ const __m = __req("branches.mjs"); __x.planBranches = __m.planBranches; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
 { const __m = __req("local-media.mjs"); __x.resizePlan = __m.resizePlan; __x.maskToSource = __m.maskToSource; __x.resizeCropImage = __m.resizeCropImage; __x.encodeWavMono = __m.encodeWavMono; }
 { const __m = __req("x402.mjs"); __x.parseNanoInvoice = __m.parseNanoInvoice; }
@@ -49,6 +50,7 @@ const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
 const { learnPromptCap, withFittedPrompt } = __req("prompt-caps.mjs");
 const { decodeShareUrl, isShareRef } = __req("share.mjs");
+const { isBranchDecider, planBranches } = __req("branches.mjs");
 
 /** Env / process access — safe when `process` is missing (browsers, some workers). */
 function envApiKey() {
@@ -141,6 +143,18 @@ function abortReason(signal) {
 
 function throwIfAborted(signal) {
   if (signal && signal.aborted) throw abortReason(signal);
+}
+
+/** Bound an async stage even when injected I/O ignores AbortSignal. Always observe late rejection. */
+function withSignal(work, signal) {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve().then(() => {
+      throwIfAborted(signal);
+      return work();
+    }).then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 /** The outcome of Workflow.run(). Media values are MediaRef; text values plain strings. */
@@ -322,6 +336,7 @@ class Workflow {
     }
 
     const order = topoSort(graph); // throws naming cyclic nodes
+    const branches = planBranches(graph, order.map(n => n.id));
 
     // Local-only graphs never POST media — skip the ~4 MB inline cap on inputs.
     // Mixed/network graphs keep the cap so we fail before spending on an oversize body.
@@ -380,7 +395,7 @@ class Workflow {
     }
 
     const emit = (evt) => { if (onProgress) { try { onProgress(evt); } catch { /* listener errors never kill the run */ } } };
-    const nodesRec = {};
+    const nodesRec = Object.fromEntries(graph.nodes.map(n => [n.id, null]));
     const errors = [];
     const cost = { total: 0, exact: true, balance: null };
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
@@ -437,7 +452,17 @@ class Workflow {
       let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
-        const inbound = graph.links.filter((l) => l.to.node === n.id);
+        let inbound = graph.links.filter((l) => l.to.node === n.id);
+        if (branches) {
+          await Promise.allSettled(inbound.map(l => promises.get(l.from.node)));
+          inbound = branches.activeLinks(n.id, id => nodesRec[id]?.status === "done" ? nodesRec[id].out : null);
+          if (inbound === null) {
+            rec.status = "skipped";
+            rec.skipReason = "branch";
+            emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "branch" });
+            return {};
+          }
+        }
         const inp = {};
         let fields = effFields.get(n.id);
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
@@ -458,7 +483,7 @@ class Workflow {
             // resolved (authed redirect → absolute file URL, or inlined bytes)
             // before this node builds videoUrl / videoDataUrl / audio / image.
             inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
-              ? await this.client.resolveContentUrl(v, { signal: ac.signal })
+              ? await withSignal(() => this.client.resolveContentUrl(v, { signal: ac.signal }), ac.signal)
               : v;
           }
           // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
@@ -492,6 +517,7 @@ class Workflow {
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
         // and report it below. The graph's own prompts are never rewritten to avoid this.
+        if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
         rec.started = true;
@@ -502,34 +528,28 @@ class Workflow {
           warnGraph(`node ${n.id}: prompt trimmed ${fit.trimmed.from} → ${fit.trimmed.to} characters — ` +
             `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
         }
+        throwIfAborted(ac.signal);
         const t0 = Date.now();
-        // Per-node timeout (fields.timeoutMs): a child controller linked to the run signal.
-        // The race guarantees the deadline even if a runner never observes its signal.
+        // The node deadline covers the runner AND publication of provider media.
+        // Race every active stage with cancellation so an injected fetch cannot hold the run open.
         const timeoutMs = Number(fields.timeoutMs);
-        let nodeSignal = ac.signal, deadline = null;
+        let nodeSignal = ac.signal;
         if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
           const nac = new AbortController();
           const onRunAbort = () => nac.abort(ac.signal.reason);
           ac.signal.addEventListener("abort", onRunAbort, { once: true });
           unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
           nodeSignal = nac.signal;
-          deadline = new Promise((_, reject) => {
-            nodeTimer = setTimeout(() => {
-              const err = new NanoodleError(`node timed out after ${timeoutMs}ms`, { code: "timeout" });
-              nac.abort(err);
-              reject(err);
-            }, timeoutMs);
-          });
-          deadline.catch(() => {});
+          nodeTimer = setTimeout(() => nac.abort(new NanoodleError(
+            `node timed out after ${timeoutMs}ms`, { code: "timeout" })), timeoutMs);
         }
         const nodeForRun = { ...n, fields };
-        const work = RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
-        const rawOut = deadline ? await Promise.race([work, deadline]) : await work;
-        if (deadline) throwIfAborted(nodeSignal);
-        throwIfAborted(ac.signal);
-        // Final outputs of this node are absolute usable URLs, not the relative
-        // content path the provider returned. Downstream reads this same object.
-        const out = await publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
+        const out = await withSignal(async () => {
+          const rawOut = await RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
+          throwIfAborted(nodeSignal);
+          return publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
+        }, nodeSignal);
+        throwIfAborted(nodeSignal);
         throwIfAborted(ac.signal);
         rec.final = true;
         rec.status = "done";
@@ -560,7 +580,7 @@ class Workflow {
         // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
         // dependents see undefined ports. A run-level abort/timeout is never skipped.
         const onError = (effFields.get(n.id) || {}).onError;
-        if (onError === "skip" && !ac.signal.aborted) {
+        if (onError === "skip" && !isBranchDecider(n) && !ac.signal.aborted) {
           rec.status = "skipped";
           rec.skippedOnError = true;
           rec.out = {};
@@ -598,15 +618,15 @@ class Workflow {
       cost.exact = false;
     }
     // ---- result ----
-    const outputsMap = {};
+    const outputEntries = [];
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
       if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
       const primary = o.ports[0];
       const value = this._wrapValue(rec.out[primary.name], primary.type);
-      outputsMap[o.key] = value;
-      outputsMap[o.nodeId] = value;
+      outputEntries.push([o.key, value], [o.nodeId, value]);
     }
+    const outputsMap = Object.fromEntries(outputEntries);
     const result = new RunResult({
       outputs: outputsMap,
       nodes: nodesRec,
@@ -1164,10 +1184,12 @@ class NanoClient {
    * at most once; a second 402 after settling is an error, never a second send.
    */
   async _paidFetch(url, init, signal) {
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r = await this.fetch(url, init);
     if (r.status !== 402 || !this.payment || this.apiKey) return r;
     const settled = await this._settle402(r, signal);
     if (settled.response) return settled.response; // complete replayed the stored request
+    if (signal && signal.aborted) throw abortError(signal.reason);
     const r2 = await this.fetch(url, { ...init, headers: { ...init.headers, "x-x402-payment-id": settled.paymentId } });
     if (r2.status === 402) {
       throw new NanoodleError(
@@ -1187,10 +1209,15 @@ class NanoClient {
         "payment required, but the 402 response offered no usable Nano option" +
         (body ? " — " + JSON.stringify(body).slice(0, 200) : ""), { code: "x402", status: 402 });
     }
+    if (signal && signal.aborted) throw abortError(signal.reason);
+    if (invoice.expiresAt && invoice.expiresAt <= Date.now()) {
+      throw new NanoodleError("payment window expired before payment (" + invoice.paymentId + ", to " + invoice.payTo + ") — request a fresh invoice", { code: "x402-expired", paymentId: invoice.paymentId });
+    }
     await this.payment(invoice); // ← the callback does the actual XNO send
     // The complete endpoint doubles as the poll: 402 = not seen on-chain yet.
     const deadline = invoice.expiresAt || Date.now() + 15 * 60 * 1000;
     while (true) {
+      if (signal && signal.aborted) throw abortError(signal.reason);
       const cr = await this.fetch(invoice.completeUrl, {
         method: "POST", headers: { "Content-Type": "application/json", "x-x402": "true" }, body: "{}", signal,
       });
@@ -1218,7 +1245,13 @@ class NanoClient {
             { code: "x402", status: cr.status, paymentId: invoice.paymentId });
         }
         let cj = null;
-        if (ct.includes("json")) { try { cj = await cr.json(); } catch { /* treat as settle-only */ } }
+        if (mime.includes("json")) { try { cj = await cr.json(); } catch { /* fail closed below */ } }
+        if (!cj || typeof cj !== "object") {
+          throw new NanoodleError(
+            "payment " + invoice.paymentId + " was sent, but completion returned no readable JSON receipt — check " +
+            (invoice.statusUrl || "the payment status") + " before paying again",
+            { code: "x402", paymentId: invoice.paymentId });
+        }
         if (looksLikeResult(cj)) {
           // wrap so call sites keep their Response contract (ok/json/text/headers)
           const response = { ok: true, status: 200, headers: cr.headers, json: async () => cj, text: async () => JSON.stringify(cj) };
@@ -1251,6 +1284,35 @@ class NanoClient {
     }, signal);
   }
 
+  async _pollJson(path, signal, remainingMs) {
+    const ac = new AbortController();
+    const onAbort = () => ac.abort(abortError(signal.reason));
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    }
+    const timer = Number.isFinite(remainingMs) ? setTimeout(() => ac.abort(
+      new NanoodleError("poll deadline reached", { code: "poll-timeout" })), Math.max(0, remainingMs)) : null;
+    let rejectAbort;
+    const aborted = new Promise((_, reject) => {
+      rejectAbort = () => reject(ac.signal.reason);
+      ac.signal.addEventListener("abort", rejectAbort, { once: true });
+      if (ac.signal.aborted) rejectAbort();
+    });
+    const work = Promise.resolve().then(async () => {
+      if (ac.signal.aborted) throw ac.signal.reason;
+      const r = await this._get(path, ac.signal);
+      if (!r.ok) throw httpError(r.status, await r.text());
+      return r.json();
+    });
+    try { return await Promise.race([work, aborted]); }
+    finally {
+      if (timer) clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+      ac.signal.removeEventListener("abort", rejectAbort);
+    }
+  }
+
   async _get(path, signal) {
     return this.fetch(this.baseUrl + path, { headers: this._auth(), signal });
   }
@@ -1258,10 +1320,12 @@ class NanoClient {
   /** POST /api/v1/chat/completions (non-streaming). Returns the assistant text. */
   async chat(messages, model, opts = {}, { onCost, signal } = {}) {
     const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    if (opts.max_tokens) body.max_tokens = +opts.max_tokens;
+    // Carbon has no sampling-temperature control; omit it rather than restoring a default.
+    if (model !== "google/gemini-4-carbon") body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
     if (opts.response_format) body.response_format = opts.response_format;
-    if (opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
+    // Let the provider use its default rather than forwarding reasoning_effort.
+    if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -1353,39 +1417,50 @@ class NanoClient {
       if (onRunId) onRunId(runId);
     }
 
-    const t0 = Date.now();
-    const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
-    const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
-    // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
-    while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
-      await sleep(pollEvery, signal);
-      let s;
-      try {
-        s = await (await this._get("/api/video/status?requestId=" + encodeURIComponent(runId), signal)).json();
-      } catch (e) {
-        if (signal && signal.aborted) throw abortError(signal.reason);
-        continue; // transient poll failure — keep polling until complete or optional cap
-      }
-      const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
-      if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
-      if (st === "COMPLETED" || st === "SUCCEEDED") {
-        if (is3d) {
-          const url = model3dStatusUrl(s, model);
-          if (!url) throw new NanoodleError("completed but no model url");
+    try {
+      const t0 = Date.now();
+      const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
+      const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
+      // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
+      while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
+        await sleep(Number.isFinite(videoCap) ? Math.min(pollEvery, Math.max(0, videoCap - (Date.now() - t0))) : pollEvery, signal);
+        if (Number.isFinite(videoCap) && Date.now() - t0 >= videoCap) break;
+        let s;
+        try {
+          s = await this._pollJson("/api/video/status?requestId=" + encodeURIComponent(runId), signal, videoCap - (Date.now() - t0));
+        } catch (e) {
+          if (signal && signal.aborted) throw abortError(signal.reason);
+          if (e.code === "poll-timeout") break;
+          if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
+          continue; // transient poll failure — keep polling until complete or optional cap
+        }
+        const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
+        if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
+        if (st === "COMPLETED" || st === "SUCCEEDED") {
+          if (is3d) {
+            const url = model3dStatusUrl(s, model);
+            if (!url) throw new NanoodleError("completed but no model url");
+            return url;
+          }
+          const out = (s.data && s.data.output) || s.output || {};
+          const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
+          if (!url) throw new NanoodleError("completed but no video url");
           return url;
         }
-        const out = (s.data && s.data.output) || s.output || {};
-        const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
-        if (!url) throw new NanoodleError("completed but no video url");
-        return url;
+        if (["FAILED", "ERROR", "CANCELED", "CANCELLED", "CONTENT_POLICY_VIOLATION"].includes(st)) {
+          const why = (s.data && s.data.error) || st;
+          throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
+        }
       }
-      if (["FAILED", "ERROR", "CANCELED"].includes(st)) {
-        const why = (s.data && s.data.error) || st;
-        throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
-      }
+      const label = is3d ? "3D" : "video";
+      throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
+    } catch (e) {
+      if (signal && signal.aborted) throw e;
+      throw new NanoodleError(e && e.message ? e.message : String(e), {
+        ...(e && e.code ? { code: e.code } : {}),
+        ...(e && e.status ? { status: e.status } : {}), runId, cause: e,
+      });
     }
-    const label = is3d ? "3D" : "video";
-    throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
   }
 
   /**
@@ -1441,12 +1516,15 @@ class NanoClient {
     if (j.isApiRequest != null) qs.set("isApiRequest", String(j.isApiRequest));
     const t0 = Date.now();
     while (Date.now() - t0 < this.timeouts.audio) {
-      await sleep(this.pollIntervals.audio, signal);
+      await sleep(Math.min(this.pollIntervals.audio, Math.max(0, this.timeouts.audio - (Date.now() - t0))), signal);
+      if (Date.now() - t0 >= this.timeouts.audio) break;
       let s;
       try {
-        s = await (await this._get("/api/tts/status?" + qs, signal)).json();
+        s = await this._pollJson("/api/tts/status?" + qs, signal, this.timeouts.audio - (Date.now() - t0));
       } catch (e) {
         if (signal && signal.aborted) throw abortError(signal.reason);
+        if (e.code === "poll-timeout") break;
+        if (e.status >= 400 && e.status < 500 && ![408, 429].includes(e.status)) throw e;
         continue;
       }
       const st = String(s.status || "").toLowerCase();
@@ -1456,7 +1534,7 @@ class NanoClient {
         if (!url) throw new NanoodleError("completed but no audio url");
         return url;
       }
-      if (["error", "failed", "content_policy_violation"].includes(st)) {
+      if (["error", "failed", "canceled", "cancelled", "content_policy_violation"].includes(st)) {
         throw new NanoodleError("audio failed: " + (s.error || s.message || st));
       }
     }
@@ -1828,10 +1906,15 @@ function materialize(data) {
   }
   const warnings = [];
   const nodes = [];
+  const seenIds = new Set();
   for (const raw of data.nodes) {
     if (!raw || raw.id == null || !raw.type) continue;
-    const type = raw.type === "audio" ? "tts" : raw.type;
+    const id = String(raw.id);
+    if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
+    seenIds.add(id);
+    const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
     const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    if (raw.type === "decide-branch") n.fields.branch = true;
     if (!NODE_TYPES[type]) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
@@ -2015,7 +2098,6 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
-  if (f.maxTokens) o.max_tokens = +f.maxTokens;
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -2051,6 +2133,7 @@ function normalizeLoraUrl(raw) {
 function loraFamily(model) {
   const m = String(model || "");
   if (/spicy/i.test(m)) return null;
+  if (/p-h3-image/i.test(m)) return "ph3"; // wavespeed p-h3-image: lora_url_1..3 (ids lack "lora")
   if (/p-image/i.test(m)) return "pimage";
   if (/klein/i.test(m)) return "flux2klein";
   if (/flux-2/i.test(m)) return "flux2dev";
@@ -2074,6 +2157,7 @@ function imageTakesLora(id) {
   if (/flux-2-klein/i.test(id)) return true;
   if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
+  if (/p-h3-image/i.test(id)) return true; // Pruna P-H3 Image (2026-11-05): lora_url_1..3
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
 
@@ -2087,7 +2171,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": case "ph3": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -2103,7 +2187,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21" || fam === "ph3") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -2222,6 +2306,7 @@ function refMaxFor(model, pricing) {
   const id = String(model || "");
   if (/seedance/i.test(id)) return 9;
   if (/minimax-h3/i.test(id)) return 9; // upstream cap; the first 5 are included, 6-9 bill extra_reference_image each
+  if (/gemini-omni-flash\/v1\.2/i.test(id)) return 6;
   if (/luma|ray/i.test(id)) return 4;
   const inc = pricing && +pricing.included_reference_images;
   if (inc > 0) return inc; // no family entry: the included count is the only number the catalog gives us
@@ -2238,8 +2323,12 @@ function modelRefSpec(model, ctx) {
   const m = catItem(ctx && ctx.catalog, "video", model);
   if (!m) return { key: "reference_images", cap: refMaxFor(model) };
   const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
-  const key = keys.find((k) => k in pp) || (pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
-  if (!key) return null; // known model with no ref-image param and no ref pricing
+  const modeOptions = pp.mode && pp.mode.options;
+  const referenceMode = Array.isArray(modeOptions) && modeOptions.some((o) =>
+    o && /^reference\b/i.test(String(o.value != null ? o.value : "")));
+  const key = keys.find((k) => k in pp) ||
+    (referenceMode || pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
+  if (!key) return null; // known model with no ref-image param, reference mode, or ref pricing
   const d = pp[key];
   let cap = null;
   if (d && typeof d === "object") {
@@ -2660,7 +2749,7 @@ const RUNNERS = {
       } catch (e) {
         if (attempt > 0) throw e;
         const msg = (e && e.message) || "";
-        if (/^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
+        if ((e && e.runId != null) || /^video failed:/i.test(msg)) throw e; // post-submit poll failure: already charged — no second job
         const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
         if (cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg)) {
           trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1)); // the model told us its real cap
@@ -2833,6 +2922,15 @@ const { NanoodleError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 
+// Allocate the final key, not just a count of the unsuffixed name: an authored
+// "Out 2" can otherwise collide with the suffix generated for a second "Out".
+function uniqueKey(base, used, reserved = new Set()) {
+  let key = base;
+  for (let suffix = 2; used.has(key.toLowerCase()) || reserved.has(key.toLowerCase()); suffix++) key = base + " " + suffix;
+  used.add(key.toLowerCase());
+  return key;
+}
+
 /* ============================== INPUTS ============================== */
 
 /** Which node types contribute user inputs, and with what fields (mirrors play.html INPUT_SPECS). */
@@ -2907,19 +3005,14 @@ function deriveInputs(graph) {
   // REQUIRED input (app PR #138) — or exactly one input at all, so an author-optional
   // renamed node (e.g. an optional "Style reference" upload) keeps its name as the key.
   // Otherwise the generic spec label. Dedupe with " 2", " 3".
-  const used = new Map();
+  const used = new Set();
   for (const e of entries) {
     const nodeEntries = entries.filter((x) => x.nodeId === e.nodeId);
     const required = nodeEntries.filter((x) => !x.optional);
     const custom = (e._node.name || "").trim();
     const names = (required.length === 1 && required[0] === e) ||
                   (required.length === 0 && nodeEntries.length === 1);
-    let key = custom && names ? custom : e.label;
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
-    e.key = key;
+    e.key = uniqueKey(custom && names ? custom : e.label, used);
   }
   for (const e of entries) delete e._node;
   return entries;
@@ -2986,13 +3079,10 @@ function deriveOutputs(graph) {
     if (!t.outputs || !t.outputs.length) return false;
     return !graph.links.some((l) => l.from.node === n.id);
   });
-  const used = new Map();
+  const used = new Set();
   return sinks.map((n) => {
-    let key = displayName(n);
-    const lower = key.toLowerCase();
-    const count = (used.get(lower) || 0) + 1;
-    used.set(lower, count);
-    if (count > 1) key = key + " " + count;
+    const aliases = new Set(sinks.filter(other => other.id !== n.id).map(other => other.id.toLowerCase()));
+    const key = uniqueKey(displayName(n), used, aliases);
     const t = NODE_TYPES[n.type];
     let ports = t.outputs.map((p) => ({ ...p }));
     // vframes grows frame1..frameN from max(fields.frames, wired floor) (mirrors browser)
@@ -3019,7 +3109,6 @@ const SETTING_SPECS = {
   llm: [
     { f: "model", label: "Model", kind: "model" },
     { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
-    { f: "maxTokens", label: "Max tokens", kind: "number" },
     { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
     { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
     { f: "showThinking", label: "Show thinking", kind: "boolean" },
@@ -3212,6 +3301,65 @@ function resolveSettingKey(graph, settings, userKey) {
 }
 
 __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+});
+__def("branches.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+function isBranchDecider(node) {
+  return node.type === "decide" && node.fields?.branch === true;
+}
+
+const branchPort = (port) => port === "yes" || port === "no";
+
+/**
+ * Build per-run routing over a topologically ordered set of node IDs.
+ * Explicit Yes/No wires control entry to a branch. Further downstream, any
+ * active routed input opens a join. Ordinary dependencies never open a branch.
+ */
+function planBranches(graph, order) {
+  const deciders = new Map(graph.nodes.filter(n => n.type === "decide").map(n => [n.id, n]));
+  const direct = new Set();
+  for (const link of graph.links) {
+    const source = deciders.get(link.from.node);
+    if (!source || !branchPort(link.from.port)) continue;
+    if (!isBranchDecider(source)) {
+      throw new NanoodleError(`node ${source.id}: enable branching on Decide to wire ${link.from.port}`, { code: "decide-branch" });
+    }
+    direct.add(link);
+  }
+  if (!direct.size) return null;
+
+  const inbound = new Map(order.map(id => [id, []]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+  const selectors = new Map();
+  for (const id of order) {
+    const links = inbound.get(id);
+    const fromDeciders = links.filter(link => direct.has(link));
+    const controls = fromDeciders.length ? fromDeciders : links.filter(link => selectors.has(link.from.node));
+    if (controls.length) selectors.set(id, controls);
+  }
+  const skipped = new Set();
+  return {
+    // Call after this node's upstreams have settled. A failed router is left
+    // to the usual upstream-error handling, which must also prevent execution.
+    activeLinks(id, outFor) {
+      const closed = (link) => {
+        if (skipped.has(link.from.node)) return true;
+        if (!direct.has(link)) return false;
+        const branch = outFor(link.from.node)?.decision?.branch;
+        return branchPort(branch) && branch !== link.from.port;
+      };
+      const controls = selectors.get(id);
+      if (controls?.every(closed)) {
+        skipped.add(id);
+        return null;
+      }
+      return inbound.get(id).filter(link => !closed(link));
+    },
+  };
+}
+
+__x.isBranchDecider = isBranchDecider; __x.planBranches = planBranches;
 });
 __def("share.mjs", function (__x, __req) {
 const { gunzip, gunzipLax } = __req("zlib.mjs");
@@ -5626,6 +5774,7 @@ const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
 
 function decideMode(f) {
+  if (f?.branch === true) return "yesno";
   const m = f && f.mode;
   return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
 }
@@ -5769,7 +5918,17 @@ async function decideRun(f, model, text, imgs, lim, send, fit) {
   } else {
     j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
   }
-  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  const answer = j?.answers?.answer;
+  const branching = f?.branch === true;
+  if (branching && (answer?.type !== "noul" || !Number.isFinite(answer.noul) || answer.noul < 0 || answer.noul > 1)) {
+    throw new NanoodleError("Decide needs a valid yes/no answer to select a branch", { code: "decide-branch" });
+  }
+  const out = decideOutputs(mode, answer, q, imgs, j && j.usage, model);
+  if (branching) {
+    out.decision.branch = out.text;
+    out[out.text] = text || out.text;
+    return out;
+  }
   if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
   return out;
 }
@@ -6277,5 +6436,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-67ac0179a601";
+  window.NanoodleEngine.version = "src-023296a08393";
 })();

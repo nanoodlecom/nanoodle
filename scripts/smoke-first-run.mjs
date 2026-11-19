@@ -14,7 +14,7 @@ const modulePath = process.env.NANOODLE_PLAYWRIGHT;
 const { chromium } = await import(modulePath ? pathToFileURL(resolve(modulePath)).href : "playwright");
 const mime = { ".html":"text/html", ".js":"text/javascript", ".mjs":"text/javascript",
   ".json":"application/json", ".css":"text/css", ".jpg":"image/jpeg", ".png":"image/png",
-  ".svg":"image/svg+xml", ".mp4":"video/mp4", ".woff2":"font/woff2", ".ico":"image/x-icon" };
+  ".svg":"image/svg+xml", ".mp4":"video/mp4", ".mp3":"audio/mpeg", ".woff2":"font/woff2", ".ico":"image/x-icon" };
 const server = createServer(async (req, res) => {
   try {
     let pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
@@ -47,12 +47,29 @@ song.nodes.push({id:"upload-test",type:"upload",x:20,y:700,fields:{image:uploade
 const graphContent = value => { const {nid, lid, ...content} = value; return content; };
 const chatId = starter.nodes.find(n => n.type === "llm").fields.model;
 const imageId = starter.nodes.find(n => n.type === "image").fields.model;
+const visionId = starter.nodes.find(n => n.type === "vision").fields.model;
+const videoId = starter.nodes.find(n => n.type === "ivideo").fields.model;
+const audioId = starter.nodes.find(n => n.type === "tts").fields.model;
 const catalog = {
-  "/api/v1/models": { data:[{ id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} }] },
+  "/api/v1/models": { data:[
+    { id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} },
+    { id:visionId, name:"Starter vision", capabilities:{vision:true}, pricing:{prompt:0.1,completion:0.1} },
+  ] },
+  "/api/v1/decision-models": { data:[{
+    id:"perplexity/pplx-decider-v1.2", name:"Synthetic decision model",
+    architecture:{output_modalities:["decisions"]},
+    decision_input:{available:true,image_input:true,image_limits:{maxImages:4}},
+    pricing:{prompt:0.02,completion:0},
+  }] },
   "/api/v1/image-models": { data:[{ id:imageId, name:"Starter image", architecture:{modality:"text->image"},
     pricing:{per_image:{"1k":0.04,"3:2":0.01}}, supported_parameters:{resolutions:["1k","3:2"]} }] },
-  "/api/v1/video-models": { data:[] },
-  "/api/v1/audio-models": { data:[] },
+  "/api/v1/video-models": { data:[{ id:videoId, name:"Starter video", capabilities:{text_to_video:true, image_to_video:true},
+    supported_parameters:{ parameters:{
+      resolution:{ options:[{value:"480p"},{value:"720p"},{value:"1080p"}] },
+      duration:{ options:[{value:"5"}] },
+      aspect_ratio:{ options:[{value:"16:9"}] } } } }] },
+  "/api/v1/audio-models": { data:[{ id:audioId, name:"Starter speech", capabilities:{text_to_speech:true},
+    supported_parameters:{voices:["nova"]} }] },
   "/api/v1/3d-models": { data:[] },
 };
 const headerText = await readFile(resolve(root, "_headers"), "utf8");
@@ -140,8 +157,15 @@ try {
       await page.locator("#run").click();
       const imageNodeId = starter.nodes.find(n => n.type === "image").id;
       await page.locator(`.node[data-id="${imageNodeId}"][data-status="done"] .result img`).waitFor();
+      // The relay's later beats land after the painting (the film, then the narrated
+      // finale) — wait for every generator node before counting badges, so the count
+      // doesn't race the demo's staged pacing.
+      for (const type of ["vision", "llm", "ivideo", "tts"]) {
+        const nid = starter.nodes.find(n => n.type === type).id;
+        await page.locator(`.node[data-id="${nid}"][data-status="done"]`).waitFor();
+      }
       assert.equal(await page.locator('.node[data-status="error"]').count(), 0, "sample has no failed nodes");
-      assert.equal(await page.locator(".demobadge").count(), 2, "both outputs are labeled as samples");
+      assert.equal(await page.locator(".demobadge").count(), 5, "all five generated outputs are labeled as samples");
       assert.ok(await page.locator(`.node[data-id="${imageNodeId}"] .result img`).evaluate(img => img.complete && img.naturalWidth > 0),
         "sample image actually decodes");
       await page.locator("#demox").click();
@@ -423,6 +447,71 @@ try {
         releaseStarter();
         await tabContext.close();
       }
+    }
+    // Refresh in the input event's own task, before the 250ms save can run.
+    // A second backend holds edits in IDB and rejects writes on the departing
+    // page; the next page must replay its session journal exactly once.
+    for(const backend of ["local","indexedDB"]){
+      const refreshContext=await newContext(),refreshPage=await refreshContext.newPage();
+      refreshPage.setDefaultTimeout(15000);
+      refreshPage.on("dialog",d=>(d.type()==="beforeunload"?d.accept():d.dismiss()));
+      await refreshPage.goto(origin+"/__workspace-test-seed");
+      await refreshPage.evaluate(async({backend,uploadedPNG})=>{
+        const make=text=>JSON.stringify({v:1,nodes:[{id:"n1",type:"text",x:30,y:40,fields:{text}},
+          {id:"n2",type:"upload",x:350,y:40,fields:{image:uploadedPNG}}],links:[],nid:3,lid:1});
+        const values={noodle_graph:make("BEFORE REFRESH"),noodle_ws_w2:make("OTHER REFRESH WORKSPACE"),
+          noodle_workspaces:JSON.stringify({v:1,active:"w1",seq:2,tabs:[{id:"w1",name:"Refresh test"},{id:"w2",name:"Other workspace"}]})};
+        for(const [key,value] of Object.entries(values))localStorage.setItem(key,value);
+        localStorage.setItem("noodle_hint_dismissed","1");localStorage.setItem("noodle_connect_hint_dismissed","1");
+        if(backend==="indexedDB"){
+          const db=await new Promise((resolve,reject)=>{const r=indexedDB.open("nanoodle-workspaces",1);
+            r.onupgradeneeded=()=>r.result.createObjectStore("workspaces");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+          await new Promise((resolve,reject)=>{const tx=db.transaction("workspaces","readwrite");
+            tx.objectStore("workspaces").put({v:1,values,generation:"refresh-base"},"state");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+          db.close();
+        }
+      },{backend,uploadedPNG});
+      if(backend==="indexedDB")await refreshPage.addInitScript(()=>{
+        const set=Storage.prototype.setItem;
+        Storage.prototype.setItem=function(key,value){
+          if(this===localStorage && /^noodle_(graph|workspaces|ws_|editor_app|workspace_recovery)/.test(key))
+            throw new DOMException("Synthetic local quota","QuotaExceededError");
+          return set.call(this,key,value);
+        };
+        const put=IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put=function(...args){
+          if(this.name==="workspaces" && window.__denyRefreshSave)throw new DOMException("Synthetic interrupted save","QuotaExceededError");
+          return put.apply(this,args);
+        };
+      });
+      try{
+        await refreshPage.goto(origin,{waitUntil:"networkidle"});
+        for(let attempt=1;attempt<=3;attempt++){
+          const expected=`LATEST ${backend} REFRESH EDIT ${attempt}`;
+          if(backend==="indexedDB"){
+            await refreshPage.evaluate(()=>{window.__denyRefreshSave=true;});
+            await refreshPage.locator('.node[data-id="n1"] textarea').fill("FAILED BACKGROUND SAVE "+attempt);
+            assert.equal((await refreshPage.evaluate(()=>settleWorkspaceStorage())).mode,"session");
+          }
+          await Promise.all([
+            refreshPage.waitForNavigation({waitUntil:"networkidle"}),
+            refreshPage.evaluate(expected=>{
+              const field=document.querySelector('.node[data-id="n1"] textarea');
+              field.value="EARLIER KEYSTROKE";field.dispatchEvent(new Event("input",{bubbles:true}));
+              field.value=expected;field.dispatchEvent(new Event("input",{bubbles:true}));
+              location.reload();
+            },expected),
+          ]);
+          await refreshPage.waitForFunction(expected=>graph.nodes.find(n=>n.id==="n1")?.fields.text===expected,expected);
+          await refreshPage.evaluate(()=>settleWorkspaceStorage());
+          assert.equal(await refreshPage.evaluate(()=>readWorkspaces().tabs.length),2,"repeat refresh preserves tab identities");
+          assert.equal(await refreshPage.evaluate(()=>graph.nodes.find(n=>n.id==="n2").fields.image),uploadedPNG);
+          assert.equal(await refreshPage.evaluate(()=>JSON.parse(workspaceStorage.getItem("noodle_ws_w2")).nodes[0].fields.text),"OTHER REFRESH WORKSPACE");
+          assert.equal(await refreshPage.evaluate(()=>sessionStorage.getItem("noodle_workspace_recovery")),null,"successful replay cleans its journal");
+        }
+        assert.deepEqual(forbidden,[]);assert.deepEqual(errors,[]);
+        console.log(`✓ refresh ${label}/${backend}: repeated input → immediate reload, failed background saves, uploads and other tabs retained`);
+      }finally{await refreshContext.close();}
     }
     // Start with newer IDB-only tabs plus an older local backup, then fail the
     // actual restore request. Neither Retry nor healthy reload may erase either branch.
@@ -744,6 +833,99 @@ try {
         if(process.env.NANOODLE_SMOKE_ARTIFACTS){const dir=resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);await mkdir(dir,{recursive:true});await closePage.screenshot({path:resolve(dir,`close-undo-failure-${label}.png`),fullPage:true}).catch(()=>{});}
         throw error;
       }finally{await closeContext.close();}
+    }
+    {
+      const renameContext = await newContext();
+      const renamePage = await renameContext.newPage();
+      renamePage.setDefaultTimeout(15000);
+      await renamePage.addInitScript(() => {
+        if(localStorage.getItem("context-rename-seeded")) return;
+        const empty = JSON.stringify({v:1,nodes:[],links:[],nid:1,lid:1});
+        localStorage.setItem("noodle_graph", empty);
+        localStorage.setItem("noodle_ws_w2", empty);
+        localStorage.setItem("noodle_workspaces", JSON.stringify({v:1,seq:2,active:"w1",tabs:[
+          {id:"w1",name:"Active",app:null},{id:"w2",name:"Other",app:null}]}));
+        localStorage.setItem("context-rename-seeded", "1");
+        localStorage.setItem("noodle_hint_dismissed", "1");
+        localStorage.setItem("noodle_connect_hint_dismissed", "1");
+      });
+      const tab = id => renamePage.locator(`#wstabs .wstab[data-id="${id}"]`);
+      const input = () => renamePage.locator("#wstabs input.wsrename");
+      const active = () => renamePage.evaluate(() => readWorkspaces().active);
+      const name = id => renamePage.evaluate(id => readWorkspaces().tabs.find(t=>t.id===id)?.name, id);
+      try {
+        await renamePage.goto(origin + "/?product=off&na=0", {waitUntil:"networkidle"});
+        await renamePage.waitForFunction(() => !wsRestorePending && readWorkspaces()?.tabs.length===2);
+        if(mobile) {
+          await renamePage.locator("#wsdrop").press("F2");
+          const mobileInput = renamePage.locator("#wsdropmenu input.wsrename");
+          await mobileInput.fill("Mobile label");
+          await mobileInput.press("Enter");
+          assert.equal(await name("w1"), "Mobile label");
+          await renamePage.keyboard.press("Escape");
+          await renamePage.reload({waitUntil:"networkidle"});
+          assert.equal(await name("w1"), "Mobile label", "mobile rename persists");
+          // The strip is hidden on phones. At tablet width, exercise the
+          // existing touch-hold rename and its follow-on click suppression.
+          await renamePage.setViewportSize({width:880,height:900});
+          const box = await tab("w2").locator(".wslabel").boundingBox();
+          assert.ok(box);
+          const client = await renameContext.newCDPSession(renamePage);
+          try {
+            await client.send("Input.dispatchTouchEvent", {type:"touchStart",touchPoints:[{x:box.x+8,y:box.y+8}]});
+            await input().waitFor();
+            await client.send("Input.dispatchTouchEvent", {type:"touchEnd",touchPoints:[]});
+          } finally { await client.detach(); }
+          assert.equal(await active(), "w1", "touch-hold does not switch an inactive tab");
+          assert.equal(await input().count(), 1, "native touch contextmenu never duplicates the editor");
+          await input().fill("Touch label");
+          await input().press("Enter");
+          assert.equal(await name("w2"), "Touch label");
+        } else {
+          await tab("w2").locator(".wslabel").click({button:"right"});
+          assert.equal(await input().inputValue(), "Other");
+          assert.equal(await active(), "w1", "right-click does not select an inactive tab");
+          await input().fill("Right-click label");
+          await input().press("Enter");
+          assert.equal(await name("w2"), "Right-click label");
+          await tab("w1").locator(".wslabel").click({button:"right"});
+          await input().fill("Blur label");
+          await renamePage.locator("#wsadd").click();
+          assert.equal(await name("w1"), "Blur label", "blur commits the label");
+          await renamePage.keyboard.press("Escape");
+          await tab("w2").locator(".wslabel").click({button:"right"});
+          await input().click({button:"right"});
+          assert.equal(await input().count(), 1, "repeated right-click keeps one editor");
+          const nativeMenu = await input().evaluate(el => {
+            const e = new MouseEvent("contextmenu", {bubbles:true,cancelable:true});
+            el.dispatchEvent(e); return !e.defaultPrevented;
+          });
+          assert.equal(nativeMenu, true, "the rename input keeps its native edit menu");
+          await input().fill("Canceled label");
+          await input().press("Escape");
+          assert.equal(await name("w2"), "Right-click label", "Escape cancels");
+          await tab("w2").click();
+          assert.equal(await active(), "w2", "ordinary click still switches tabs");
+          await tab("w2").press("F2");
+          await input().fill("F2 label");
+          await input().press("Enter");
+          await tab("w2").locator(".wslabel").dblclick();
+          await input().fill("Double-click label");
+          await input().press("Enter");
+          await tab("w1").locator(".wsx").click({button:"right"});
+          assert.equal(await input().count(), 0, "right-click on close does not rename");
+          assert.equal(await tab("w1").count(), 1, "right-click on close does not delete");
+          await renamePage.reload({waitUntil:"networkidle"});
+          assert.equal(await name("w1"), "Blur label");
+          assert.equal(await name("w2"), "Double-click label");
+          assert.equal(await active(), "w2", "rename and selection survive reload");
+          await tab("w1").locator(".wsx").click();
+          assert.equal(await tab("w1").count(), 0, "ordinary close still works");
+        }
+        assert.deepEqual(errors, [], "rename produces no browser exceptions");
+        assert.deepEqual(forbidden, [], "rename makes no paid or unexpected requests");
+        console.log(`✓ workspace rename ${label}: right-click/native edit menu, Enter/blur/Escape, repeat, inactive selection, F2/double-click/touch, close and reload`);
+      } finally { await renameContext.close(); }
     }
   }
   const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));

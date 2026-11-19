@@ -34,10 +34,12 @@
 // double-add (an id: key also survives a title edit). Existing chat date|slug
 // keys are kept. The first run that understands media/retired/pricing only
 // ingests those cards with date >= 2026-08-01 (the chat path stays as-is,
-// already walked); after that we walk newest-first until a seen API id.
+// already walked); after that we walk newest-first, skipping already-seen API
+// ids so a missing card between seen neighbors can still backfill.
 //
 // Usage (safe to run repeatedly / on a cron):
 //   node scripts/sync-nanogpt-model-updates.mjs                 # writes+commits if anything new; no-op otherwise
+//   node scripts/sync-nanogpt-model-updates.mjs --check         # read-only; fail if announcements are missing
 //   node scripts/sync-nanogpt-model-updates.mjs --dry-run       # never writes/commits, just reports
 //   node scripts/sync-nanogpt-model-updates.mjs --no-translate  # skip the i18n backfill (no API spend)
 //   node scripts/sync-nanogpt-model-updates.mjs --no-commit     # write updates.json + changelog artifacts but don't touch git
@@ -89,7 +91,8 @@ const UPDATES_URL = "https://nano-gpt.com/updates";
 const API_URL = "https://nano-gpt.com/api/updates";
 
 const argv = process.argv.slice(2);
-const dryRun = argv.includes("--dry-run");
+const checkOnly = argv.includes("--check");
+const dryRun = checkOnly || argv.includes("--dry-run");
 const noTranslate = argv.includes("--no-translate");
 const noCommit = argv.includes("--no-commit");
 const doPush = argv.includes("--push") || process.env.NOODLE_SYNC_AUTO_PUSH === "1";
@@ -184,6 +187,7 @@ async function main() {
   const { source, cards } = await loadCards(seen);
   log(`found ${cards.length} announcement(s) via ${source}`);
   if (!cards.length) {
+    if (checkOnly) throw new Error("Freshness audit incomplete: upstream returned no announcement cards.");
     log("nothing to do — either NanoGPT posted none recently, or both the JSON API and the page markup failed.");
     process.exit(0);
   }
@@ -199,7 +203,8 @@ async function main() {
 
   if (dryRun) {
     for (const g of groups) log(`  [dry-run] ${g.date} — ${g.text}`);
-    process.exit(0);
+    if (checkOnly) log("Freshness audit failed: run the sync and publish the missing announcements.");
+    process.exit(checkOnly ? 1 : 0);
   }
 
   // Oldest-of-the-batch first so newest ends up on top; --day-end keeps mirrored
