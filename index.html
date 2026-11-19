@@ -266,7 +266,7 @@
   .field-note-pill{ align-self:flex-start; font-size:.62rem; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
                     color:var(--cyan); background:#132028; border:1px solid #1e3c48; border-radius:2rem; padding:.04rem .42rem; }
   .field-note-title{ font-weight:650; font-size:.84rem; line-height:1.3; letter-spacing:-.011em; }
-  .field-note-blurb{ font-size:.75rem; line-height:1.35; color:var(--dim); }
+  .field-note-blurb{ font-size:.75rem; line-height:1.5; color:var(--dim); }
   @media (max-width:540px){
     a.field-note-link{ gap:.5rem; padding:.4rem; }
     a.field-note-link img{ width:64px; height:48px; }
@@ -697,7 +697,7 @@
   }
 
   /* ---------- node ---------- */
-  .node{ position:absolute; min-width:210px; max-width:340px; background:var(--panel); border:1px solid var(--line);
+  .node{ position:absolute; min-width:210px; max-width:408px; background:var(--panel); border:1px solid var(--line);
          border-radius:.7rem; box-shadow:0 10px 30px #0006; z-index:10; user-select:none; }
   .node.sel{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 36px #0008 }
   /* card-corner resize grip — drag to set card width + the primary prompt's height (writes n.w / n.sizes) */
@@ -871,7 +871,7 @@
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
                   background:var(--panel2); border:1px solid var(--line);
-                  border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
+                  border-radius:.45rem; padding:.4rem .5rem; line-height:1.45 }
   .body select{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .4rem }
   .body input{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .5rem }
   .body input[type=checkbox]{ width:auto }
@@ -11122,20 +11122,87 @@ function addFieldPorts(n){
 // (card width is restored in buildNodeEl from n.w). Height also grows two other ways: the node's
 // corner grip → startNodeResize (the visible primary box), and each textarea's own native resize
 // handle (resize:vertical) — the observer below captures the latter so ANY field's stretch persists.
+// Node prompt textareas used to sit at a fixed ~2 lines no matter how much
+// text they held — a 500px system prompt read through a 51px box and a
+// scrollbar. Grow them to their content instead, the way the comment node
+// has always fitted its editor ("never a collapsed, scrolling box").
+// Growth is capped so a huge prompt can't swallow the canvas, it only ever
+// grows (shrinking stays the user's call), and an auto-grown height is
+// content-derived: never persisted into n.sizes, and it yields the moment
+// the user drags the resize handle themselves (dataset.userSized).
+const TA_FIT_CAP = 336;
+const grownNodeEls = new Set();   // node elements a textarea grew during this build — settleGrownNodes reads it
+function fitTextarea(ta){
+  if(!ta || ta.classList.contains("cmttext") || ta.dataset.userSized) return;
+  if(ta.hidden || ta.clientHeight < 1) return;          // collapsed or wired-hidden — nothing to fit
+  const border = ta.offsetHeight - ta.clientHeight;     // style height is border-box; scrollHeight is not
+  const want = Math.min(TA_FIT_CAP, ta.scrollHeight + border);
+  if(want > ta.offsetHeight + 2){
+    if(ta.dataset.htObserved) ta.dataset.autofit = "1";   // the height observer below must not persist this
+    ta.style.height = want + "px";
+    const el = ta.closest(".node"); if(el) grownNodeEls.add(el);
+  }
+}
+// A graph saved with compact boxes can open with a grown node covering the
+// one below it. After a load, push any node a GROWN node overlaps straight
+// down until it clears — only down, only as far as needed, chains included.
+// Layouts the user stacked deliberately (no growth involved) are untouched.
+function settleGrownNodes(){
+  if(!grownNodeEls.size) return;
+  const GAP = 28;
+  const ns = graph.nodes.filter(n=> n.el);
+  const pushed = new Set();
+  let movedAny = false;
+  for(let pass = 0; pass < 12; pass++){
+    let moved = false;
+    const sorted = [...ns].sort((a,b)=> (a.y - b.y) || (a.x - b.x));
+    for(let i = 0; i < sorted.length; i++){
+      const a = sorted[i];
+      if(!grownNodeEls.has(a.el) && !pushed.has(a)) continue;   // only growth (or its chain) pushes
+      const aR = a.x + a.el.offsetWidth, aB = a.y + a.el.offsetHeight;
+      for(let j = i + 1; j < sorted.length; j++){
+        const b = sorted[j];
+        const xOverlap = Math.min(aR, b.x + b.el.offsetWidth) - Math.max(a.x, b.x);
+        if(xOverlap > 8 && b.y >= a.y - 4 && b.y < aB + GAP - 10){
+          b.y = aB + GAP; b.el.style.top = b.y + "px";
+          pushed.add(b); moved = true; movedAny = true;
+        }
+      }
+    }
+    if(!moved) break;
+  }
+  grownNodeEls.clear();
+  if(movedAny) redraw();
+}
+// Typing grows the box with the text; opening a collapsed advanced section
+// fits what was hidden inside it. Both delegate once, at document level.
+document.addEventListener("input", (e)=>{
+  const ta = e.target;
+  if(ta && ta.tagName === "TEXTAREA" && ta.closest(".node .body")) fitTextarea(ta);
+});
+document.addEventListener("toggle", (e)=>{
+  const d = e.target;
+  if(d && d.tagName === "DETAILS" && d.open) d.querySelectorAll("textarea").forEach(fitTextarea);
+}, true);
+
 function prepTextareas(n){
   if(!n.el) return;
   n.el.querySelectorAll("textarea[data-f],textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(n.sizes && n.sizes[field] && !ta.style.height) ta.style.height = n.sizes[field]+"px";
+    fitTextarea(ta);
     if(ta.dataset.htObserved) return;      // one observer per element (survives param rebuilds)
     ta.dataset.htObserved = "1";
     let lastH = ta.offsetHeight;
     new ResizeObserver(()=>{
       const h = ta.offsetHeight;
-      if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
+      if(h===lastH){ delete ta.dataset.autofit; return; }   // width-only reflow (card resize) — don't touch height
       if(ta.hidden || h < 1) return;       // a wired field collapses to display:none — don't store 0 over a real height
       if(ta.classList.contains("cmttext")) return;   // a note's editor height is content-derived (mountComment) — never persist it
-      lastH = h; (n.sizes ||= {})[field] = h; save();
+      lastH = h;
+      if(ta.dataset.autofit){ delete ta.dataset.autofit; return; }   // auto-grown height — content-derived, never persist it
+      ta.dataset.userSized = "1";           // any other height change is the user's own sizing — fitTextarea yields to it
+      (n.sizes ||= {})[field] = h; save();
     }).observe(ta);
   });
 }
@@ -17821,6 +17888,7 @@ function applyGraphData(d, opts){
   try{ if(typeof restoreModel3dOuts==="function") restoreModel3dOuts(); }catch(_){}
   // repaint carried-over results into their (freshly built) node bodies — buildNodeEl starts blank
   graph.nodes.forEach(n=>{ if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); } });
+  settleGrownNodes();   // textareas grew some nodes during this build — unstack whatever they now cover
 }
 
 const RESUME_KEY = "noodle_resume";  // sessionStorage: the graph, stashed across an OAuth full-page redirect
