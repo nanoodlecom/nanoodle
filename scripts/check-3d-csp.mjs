@@ -27,7 +27,8 @@ function drawTimeoutMsFromEnv(raw) {
   return DRAW_TIMEOUT_DEFAULT_MS;
 }
 const drawTimeoutMs = drawTimeoutMsFromEnv(process.env.CHECK_3D_CSP_DRAW_TIMEOUT_MS);
-const chrome = ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
+const chrome = process.env.NANOODLE_CHROMIUM ||
+  ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
   .find((p) => existsSync(p));
 if (!chrome) {
   console.log("⊘ check-3d-csp: no Chrome (covered by scripts/smoke-first-run.mjs)");
@@ -130,10 +131,15 @@ const loaded = nextEvent("Page.loadEventFired", 30000);
 await send("Page.reload", { ignoreCache: true });
 await loaded; // null on timeout; the readiness poll below is the real gate
 
-// Ready = the reloaded document (no old-doc marker), fully parsed and its scripts run
-// (readyState complete), with the editor and the app's drop routing defined.
-const READY = `(() => document.readyState === "complete" && !window.__cspOldDoc &&
-  !!document.querySelector("#editor") && typeof droppedFileKind === "function" && typeof addNode === "function")()`;
+// Synthetic drops reach an inert editor too. Wait for storage restoration and the
+// initial canvas before dispatching: either can replace a graph dropped during boot.
+const READY = `(() => {
+  const editor = document.querySelector("#editor");
+  return document.readyState === "complete" && !window.__cspOldDoc && !!editor && !editor.inert &&
+    typeof wsRestorePending !== "undefined" && !wsRestorePending &&
+    typeof initialCanvasUnclaimed === "function" && !initialCanvasUnclaimed() &&
+    typeof droppedFileKind === "function" && typeof addNode === "function";
+})()`;
 async function waitReady() {
   for (let i = 0; i < 120; i++) {
     const r = await send("Runtime.evaluate", { expression: READY, returnByValue: true });
@@ -142,7 +148,7 @@ async function waitReady() {
   }
   return false;
 }
-if (!(await waitReady())) fail("reloaded page never became ready (new document, load complete, drop handling defined)");
+if (!(await waitReady())) fail("reloaded page never became ready (document loaded, workspaces restored, canvas initialized)");
 
 const glb = readFileSync(join(ROOT, "examples/product-shot/sample.glb")).toString("base64");
 // The drop re-checks readiness in the same evaluation, so it can't land in a document
