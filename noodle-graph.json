@@ -12,11 +12,11 @@
    "id": "n1",
    "type": "comment",
    "x": 40,
-   "y": -170,
-   "w": 340,
+   "y": -110,
+   "w": 430,
    "name": "Sketch \u2192 story",
    "fields": {
-    "text": "A child's crayon sketch goes down the line and comes back as a tiny film. Vision reads the drawing, a second model reimagines it as a storybook scene, a third paints it, a fourth sets it moving, and a voice tells the story. Press \u25b6 Run \u2014 the sample is prerecorded and free. Then drop in a drawing of your own and sign in to run it for real.",
+    "text": "A child's crayon sketch goes down the line and comes back as a tiny film \u2014 read, reimagined, painted, set moving, told aloud. Press \u25b6 Run: the sample is free. Then drop in a drawing of your own and sign in to run it for real.",
     "color": "#2a1f14"
    }
   },
@@ -24,7 +24,7 @@
    "id": "n2",
    "type": "upload",
    "x": 40,
-   "y": 210,
+   "y": 150,
    "w": 280,
    "name": "The sketch",
    "fields": {
@@ -35,19 +35,22 @@
    "id": "n3",
    "type": "vision",
    "x": 370,
-   "y": 210,
+   "y": 150,
    "w": 290,
    "name": "Vision reads it",
    "fields": {
     "model": "google/gemini-3.8-flash",
     "q": "Describe this child's crayon drawing in rich, warm detail \u2014 every subject in it, the colours, the mood, and the little story it seems to tell. Flowing prose, two or three sentences. Describe only what is actually drawn."
+   },
+   "sizes": {
+    "q": 54
    }
   },
   {
    "id": "n4",
    "type": "llm",
    "x": 700,
-   "y": 190,
+   "y": 150,
    "w": 320,
    "name": "Reimagined",
    "fields": {
@@ -55,13 +58,16 @@
     "system": "You receive a description of a rough child's sketch. Reimagine the scene as a lush, finished storybook illustration and write the brief for the painter. Output ONE paragraph of flowing present-tense prose, 55-70 words, that works word-for-word both as a detailed image prompt and as narration read aloud. Keep every subject in the description, in the same scene. Rich light, colour and texture. No preamble, no lists, no mention of prompts, sketches or drawings \u2014 just the paragraph.",
     "maxTokens": "1024",
     "reasoningEffort": "low"
+   },
+   "sizes": {
+    "system": 54
    }
   },
   {
    "id": "n5",
    "type": "image",
    "x": 1050,
-   "y": 210,
+   "y": 150,
    "w": 290,
    "name": "Painted",
    "fields": {
@@ -74,7 +80,7 @@
    "id": "n6",
    "type": "ivideo",
    "x": 1380,
-   "y": 210,
+   "y": 150,
    "w": 290,
    "name": "It moves",
    "fields": {
@@ -83,13 +89,16 @@
     "resolution": "720p",
     "aspect": "16:9",
     "duration": "5"
+   },
+   "sizes": {
+    "prompt": 54
    }
   },
   {
    "id": "n7",
    "type": "tts",
    "x": 1710,
-   "y": 210,
+   "y": 150,
    "w": 290,
    "name": "Told aloud",
    "fields": {

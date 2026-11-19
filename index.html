@@ -626,6 +626,14 @@
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
   #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
   #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
+  /* The resting frame (initial-moment Cycle 2): while the first-visit banner is up, the
+     starter rests as a story, not a settings wall — ⚙ advanced sections and field
+     microcopy stay hidden (the starter's own prompt boxes are authored short in
+     noodle-graph.json). The banner's lifecycle IS the state's lifecycle: first Run
+     (or the ×) dismisses it and the full editor is simply there. Pure CSS — no
+     graph data, no fields, no demo signature. */
+  body:has(#canvashint:not([hidden])) .node .adv{ display:none }
+  body:has(#canvashint:not([hidden])) .node .fhint{ display:none }
   /* Phone widths: the right-anchored control bar and the left-hand corner pills share the bottom
      band. On narrow screens a full ↺↻⊡ + pill row could meet the pills mid-screen, so lift the whole
      bar above their row — it clears the corner pills and the Terms/Privacy link. */
@@ -21029,7 +21037,7 @@ function seed(){
     const ttl = (n.el && n.type === "comment") ? n.el.querySelector("header .ttl") : null;   // a note's header IS its name (buildNodeEl) — the post-build rename must reach it
     if(ttl) ttl.textContent = name;
   };
-  const note = addNode("comment", 40, -170, { text:"A child's crayon sketch goes down the line and comes back as a tiny film. Vision reads the drawing, a second model reimagines it as a storybook scene, a third paints it, a fourth sets it moving, and a voice tells the story. Press ▶ Run — the sample is prerecorded and free. Then drop in a drawing of your own and sign in to run it for real.", color:"#2a1f14" });
+  const note = addNode("comment", 40, -170, { text:"A child's crayon sketch goes down the line and comes back as a tiny film — read, reimagined, painted, set moving, told aloud. Press ▶ Run: the sample is free. Then drop in a drawing of your own and sign in to run it for real.", color:"#2a1f14" });
   nameNode(note, "Sketch → story");
   const sketch = addNode("upload", 40, 210, { image:"demo-seed.jpg" });
   nameNode(sketch, "The sketch");
