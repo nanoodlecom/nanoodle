@@ -99,11 +99,11 @@ for (const [name, src, end] of ENGINES) {
 // extra arg; these pins require it.
 {
   const pins = [
-    ["editor livePrice", IDX, "videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults })"],
-    ["editor nodeUnitUsd", IDX, "videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults })"],
+    ["editor livePrice", IDX, "videoUnitUsd(pricing, quoteFields, refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults })"],
+    ["editor nodeUnitUsd", IDX, "videoUnitUsd(pricing, quoteFields, refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults })"],
     ["editor pickerRowPrice", IDX, "videoUnitUsd(applyVideoQuotePricing(m.id, m.pricing), {}, false, false, picker.filter, { params:m.params, defaults:m.defaults })"],
     ["editor normVideo", IDX, "videoUnitUsd(p, {}, false, false, undefined, { params:pp, defaults:sp.defaults||{} })"],
-    ["play nodeUnitUsdPlay", PLAY, "videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} })"],
+    ["play nodeUnitUsdPlay", PLAY, "videoUnitUsd(pricing, quoteFields, refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} })"],
   ];
   let pinBad = 0;
   for (const [label, src, needle] of pins) {
