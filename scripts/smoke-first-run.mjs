@@ -159,9 +159,12 @@ try {
         await page.setViewportSize({ ...viewport, width:320 });
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         assert.ok(await page.locator("#top").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "the compact toolbar fits at 320px");
+        assert.ok(await page.locator("#workspaces").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "Create app and Share fit in the workspace strip at 320px");
         await page.setViewportSize(viewport);
       }
-      assert.equal(await page.locator("#makeapp").isVisible(), false, "Create app stays in Share workflow");
+      const workspaceApp = page.locator("#workspaces").getByRole("button", {name:"Create app", exact:true});
+      assert.equal(await workspaceApp.isVisible(), true, "Create app is available directly from the workspace");
+      assert.equal(await page.locator("#makeapp").isVisible(), false, "the second entry is inside Share workflow");
       const mcp = page.getByRole("button", {name:"Connect to MCP"});
       await mcp.press("Enter");
       const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted");
@@ -201,7 +204,8 @@ try {
       await sharePanel.getByRole("button", {name:"Copy", exact:true}).click();
       await page.waitForFunction(() => window.workflowLinksCopied.length === 1);
       assert.deepEqual(await page.evaluate(() => window.workflowLinksCopied), [workflowLink]);
-      await sharePanel.getByRole("button", {name:"Create app", exact:true}).click();
+      await sharePanel.getByRole("button", {name:"Close", exact:true}).click();
+      await workspaceApp.click();
       // The iframe element exists before play.html wires its controls and loads
       // the handoff. Use the editor's validated __appready__ handshake instead.
       await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
@@ -223,6 +227,12 @@ try {
       ]);
       assert.match(download.suggestedFilename(), /\.html$/);
       assert.equal(await download.failure(), null);
+      await page.locator("#appmodalclose").click();
+      await shareWorkflow.click();
+      const shareApp = sharePanel.locator("#makeapp");
+      assert.equal(await shareApp.getAttribute("title"), await page.locator("#wsmakeapp").getAttribute("title"), "both app actions target the same saved app");
+      await shareApp.click();
+      await builder.locator("#appframe").waitFor();
       await page.locator("#appmodalclose").click();
       await shareWorkflow.click();
       await sharePanel.getByRole("button", {name:"My apps", exact:true}).click();
