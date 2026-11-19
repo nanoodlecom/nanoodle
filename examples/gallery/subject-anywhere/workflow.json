@@ -1,0 +1,249 @@
+{
+ "v": 1,
+ "nodes": [
+  {
+   "id": "c1",
+   "type": "comment",
+   "x": -40,
+   "y": -400,
+   "w": 620,
+   "name": "Subject anywhere - cut out, placed, and the label checked",
+   "fields": {
+    "text": "Subject anywhere - your product, in any scene, with the label checked. Upload a product photo and name a new scene. A Gemini reader first writes a PRESERVATION SPEC of the subject: what it is, its colours and silhouette, and every printed word on it, transcribed exactly. BRIA RMBG-3.0 (new on NanoGPT 2026-11-17, built to keep product text, logos and fine hair intact) cuts the subject out on transparency. A Nano Banana edit then builds the new scene around the untouched cut-out - the subject is placed, never repainted. Finally a second blind Gemini reader transcribes the placed subject and a GLM checker holds the two reads against each other: if the label drifted by a single letter, the verdict says so. The deliverables are the transparent cut-out, the placed composite, and the preservation verdict. See recipes/subject-anywhere.md.",
+    "color": "yellow"
+   }
+  },
+  {
+   "id": "src",
+   "type": "upload",
+   "x": -40,
+   "y": 0,
+   "w": 320,
+   "name": "Product photo",
+   "fields": {
+    "image": ""
+   }
+  },
+  {
+   "id": "scene",
+   "type": "text",
+   "x": -40,
+   "y": 320,
+   "w": 320,
+   "name": "New scene",
+   "fields": {
+    "text": "A sunlit alpine cafe terrace at golden hour: the product standing on a weathered wooden table, a small cup beside it, high mountain meadows and peaks behind, warm evening light."
+   }
+  },
+  {
+   "id": "brief",
+   "type": "text",
+   "x": -40,
+   "y": 600,
+   "w": 320,
+   "name": "Placement brief",
+   "fields": {
+    "text": "Place the cut-out subject from the input image into the scene described after the line break. The input subject arrives on a transparent background: build the scene around it and set it down naturally, with light, shadow and perspective that match the scene. Do not redraw, restyle, resize or alter the subject itself in any way - its shape, colours and every printed word on it must stay exactly as they are. Photorealistic advertising photograph.\nSCENE:"
+   }
+  },
+  {
+   "id": "spec",
+   "type": "vision",
+   "x": 400,
+   "y": -40,
+   "w": 340,
+   "name": "Preservation spec - Gemini reads the original",
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are the spec reader in a product-relocation pipeline. Look at this photo and write the PRESERVATION SPEC for its main subject - the record a later checker will hold a relocated version of this subject against. Output exactly this shape and nothing else:\nSUBJECT: <what the subject is, one line>\nLABEL TEXT: <every word printed on the subject, transcribed exactly, one printed line per output line, in reading order - or NONE if the subject carries no text>\nCOLOURS: <the subject's main colours, comma-separated>\nSHAPE: <the subject's silhouette and proportions, one line>"
+   }
+  },
+  {
+   "id": "cut",
+   "type": "edit",
+   "x": 400,
+   "y": 320,
+   "w": 340,
+   "name": "Cut out - RMBG-3.0 removes the background",
+   "fields": {
+    "model": "bria/rmbg-3",
+    "prompt": "Remove the background completely. Return only the subject on a fully transparent background, edges clean, fine detail and every printed word preserved exactly."
+   }
+  },
+  {
+   "id": "joinplace",
+   "type": "join",
+   "x": 820,
+   "y": 600,
+   "w": 300,
+   "name": "Brief + scene",
+   "fields": {
+    "sep": "\n"
+   }
+  },
+  {
+   "id": "place",
+   "type": "edit",
+   "x": 820,
+   "y": 320,
+   "w": 340,
+   "name": "Place - Nano Banana builds the scene around the cut-out",
+   "fields": {
+    "model": "nano-banana-edit",
+    "size": "auto"
+   }
+  },
+  {
+   "id": "reread",
+   "type": "vision",
+   "x": 1240,
+   "y": -40,
+   "w": 340,
+   "name": "Re-read - Gemini transcribes the placed subject, blind",
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are the re-reader in a product-relocation pipeline. This picture shows a subject that was cut out of another photo and placed into a new scene. Read the placed subject and output exactly this shape and nothing else:\nLABEL TEXT SEEN: <every word printed on the subject, transcribed exactly, one printed line per output line, in reading order - or NONE>\nSUBJECT SEEN: <what the subject is, one line>\nCOLOURS SEEN: <main colours, comma-separated>\nCONDITION: <anything about the subject that looks redrawn, warped, misspelled or altered - or CLEAN>"
+   }
+  },
+  {
+   "id": "jcheck",
+   "type": "join",
+   "x": 1240,
+   "y": 320,
+   "w": 300,
+   "name": "Spec + re-read",
+   "fields": {
+    "sep": "\n\nRE-READ (a blind reader transcribed the placed composite; it never saw the original photo):\n"
+   }
+  },
+  {
+   "id": "checker",
+   "type": "llm",
+   "x": 1620,
+   "y": 320,
+   "w": 340,
+   "name": "Preservation verdict - GLM compares spec and re-read",
+   "sizes": {
+    "system": 120
+   },
+   "fields": {
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "maxTokens": "400",
+    "system": "You are the preservation checker in a product-relocation pipeline. The input gives a PRESERVATION SPEC read from the original product photo, then a RE-READ transcribed blind from the placed composite. Compare them and output exactly this shape:\nLABEL: PRESERVED if every spec label line appears in the re-read exactly, otherwise DRIFTED - quote the spec line and the seen line that differ\nSUBJECT: INTACT if the re-read subject, colours and condition match the spec, otherwise CHANGED - say what changed\nVERDICT: CLEAN PLACEMENT if both hold, otherwise NEEDS WORK - one line saying why"
+   }
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "spec",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "cut",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "brief",
+    "port": "text"
+   },
+   "to": {
+    "node": "joinplace",
+    "port": "a"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "scene",
+    "port": "text"
+   },
+   "to": {
+    "node": "joinplace",
+    "port": "b"
+   }
+  },
+  {
+   "id": "l5",
+   "from": {
+    "node": "joinplace",
+    "port": "text"
+   },
+   "to": {
+    "node": "place",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l6",
+   "from": {
+    "node": "cut",
+    "port": "image"
+   },
+   "to": {
+    "node": "place",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l7",
+   "from": {
+    "node": "place",
+    "port": "image"
+   },
+   "to": {
+    "node": "reread",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l8",
+   "from": {
+    "node": "spec",
+    "port": "text"
+   },
+   "to": {
+    "node": "jcheck",
+    "port": "a"
+   }
+  },
+  {
+   "id": "l9",
+   "from": {
+    "node": "reread",
+    "port": "text"
+   },
+   "to": {
+    "node": "jcheck",
+    "port": "b"
+   }
+  },
+  {
+   "id": "l10",
+   "from": {
+    "node": "jcheck",
+    "port": "text"
+   },
+   "to": {
+    "node": "checker",
+    "port": "prompt"
+   }
+  }
+ ]
+}

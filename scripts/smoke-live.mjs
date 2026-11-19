@@ -189,7 +189,10 @@ try {
   });
 
   await step("📣 Updates shows real update cards", async () => {
-    await page.locator("#updates").click();
+    const updates = page.locator("#updates");
+    // The responsive toolbar moves the same button into More actions when it runs out of room.
+    if (!(await updates.isVisible())) await page.locator("#morebtn").click();
+    await updates.click();
     await page.locator("#updatesmodal").waitFor({ state: "visible" });
     // Loading… and empty states render as #updatesempty with no .update-date or .update-items li,
     // so they can never satisfy this: it needs a dated heading AND a non-empty update item.
