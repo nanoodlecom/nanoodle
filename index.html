@@ -7913,7 +7913,7 @@ function refreshLlmOpts(n){
 function llmOpts(n){
   const f = n.fields, o = {};
   if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
-
+  if(f.maxTokens && Number.isFinite(+f.maxTokens)) o.max_tokens = Math.trunc(+f.maxTokens);
   if(f.format==="JSON") o.response_format = { type:"json_object" };
   if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
   if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
@@ -8807,7 +8807,9 @@ function nodeUnitUsd(n){
     const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
     const u = chatUnitUsd(it, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
-    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200);
+    const outTok = f.maxTokens && Number.isFinite(+f.maxTokens) ? Math.trunc(+f.maxTokens) : EST.llmOutTokens;
+    return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
     const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
     return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
@@ -14565,7 +14567,7 @@ const CTX = {
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
     if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-  
+    if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
