@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "exampleCount": 32,
+  "exampleCount": 37,
   "recipes": [
     {
       "id": "add-snow-to-a-clip",
@@ -190,6 +190,32 @@
       }
     },
     {
+      "id": "edit-with-references",
+      "slug": "edit-with-references",
+      "title": "Edit with references",
+      "sequence": [
+        "upload",
+        "upload",
+        "upload",
+        "upload",
+        "vision",
+        "edit",
+        "text",
+        "vision",
+        "join",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 4,
+        "vision": 2,
+        "edit": 1,
+        "text": 1,
+        "join": 2,
+        "llm": 1
+      }
+    },
+    {
       "id": "flux3-seedream-ideogram-arena",
       "slug": "flux3-seedream-ideogram-arena",
       "title": "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1 vs MOSS Image: same poster, side by side",
@@ -316,6 +342,35 @@
       }
     },
     {
+      "id": "one-photo-whole-campaign",
+      "slug": "one-photo-whole-campaign",
+      "title": "One photo, whole campaign",
+      "sequence": [
+        "upload",
+        "vision",
+        "text",
+        "edit",
+        "text",
+        "edit",
+        "text",
+        "edit",
+        "vision",
+        "join",
+        "join",
+        "join",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 2,
+        "text": 3,
+        "edit": 3,
+        "join": 4,
+        "llm": 1
+      }
+    },
+    {
       "id": "one-prompt-looping-gif",
       "slug": "one-prompt-looping-gif",
       "title": "One prompt, one looping GIF",
@@ -349,6 +404,40 @@
         "llm": 1,
         "image": 1,
         "ivideo": 1
+      }
+    },
+    {
+      "id": "photo-to-3d-splat",
+      "slug": "photo-to-3d-splat",
+      "title": "Photo to 3D splat",
+      "sequence": [
+        "upload",
+        "vision",
+        "model3d",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 1,
+        "model3d": 1,
+        "llm": 1
+      }
+    },
+    {
+      "id": "photo-to-game-ready-mesh",
+      "slug": "photo-to-game-ready-mesh",
+      "title": "Photo to game-ready mesh",
+      "sequence": [
+        "upload",
+        "vision",
+        "model3d",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "vision": 1,
+        "model3d": 1,
+        "llm": 1
       }
     },
     {
@@ -554,6 +643,31 @@
         "edit": 2,
         "llm": 2,
         "resize": 3
+      }
+    },
+    {
+      "id": "subject-anywhere",
+      "slug": "subject-anywhere",
+      "title": "Subject anywhere",
+      "sequence": [
+        "upload",
+        "text",
+        "text",
+        "vision",
+        "edit",
+        "join",
+        "edit",
+        "vision",
+        "join",
+        "llm"
+      ],
+      "multiset": {
+        "upload": 1,
+        "text": 2,
+        "vision": 2,
+        "edit": 2,
+        "join": 2,
+        "llm": 1
       }
     },
     {

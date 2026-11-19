@@ -40,7 +40,10 @@ const catalogs = {
     image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
     image('blackforestlabs/flux-3/klein/text-to-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096']),
     image('qwen-image-2.1/edit', ['1k', '1.5k', '2k', 'auto'], true),
+    image('minimax-h3-image', ['1k', '2k'], true),
+    image('bytedance/seedream-v5.5/edit', ['1k', '1.5k', '2k'], true),
     image('bria/remove-background-guided', ['auto'], true),
+    image('bria/rmbg-3', ['auto'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
@@ -115,6 +118,10 @@ const catalogs = {
     { id: 'wavespeed-ai/hunyuan-3d-v3.1-rapid', architecture: { input_modalities: ['text', 'image'] } },
     { id: 'wavespeed-ai/trellis-2/image-to-3d', architecture: { input_modalities: ['image'] },
       supported_parameters: { parameters: { resolution: opts(['512', '1024', '1536']), texture_size: opts(['1024', '2048', '4096']), target_face_count: { type: 'number', min: 10000, max: 1000000 } } } },
+    { id: 'speridlabs/idol/max/turbo', architecture: { input_modalities: ['image'] },
+      supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), enable_pbr: { type: 'switch' }, rig: { type: 'switch' } } } },
+    { id: 'speridlabs/idol', architecture: { input_modalities: ['image'] },
+      supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), num_gaussians: { type: 'number', min: 32768, max: 1048576 }, num_inference_steps: { type: 'number', min: 1, max: 50 }, guidance_scale: { type: 'number', min: 0, max: 10 } } } },
   ],
 };
 
