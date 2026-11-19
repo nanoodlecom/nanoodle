@@ -1,5 +1,5 @@
-/* data-hash=fcffbbc99a05ef1a */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-023296a08393 (21 modules) */
+/* data-hash=98a21d685f31fb05 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-9f814f664f2f (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -730,7 +730,7 @@ __def("errors.mjs", function (__x, __req) {
 class NanoodleError extends Error {
   /**
    * @param {string} message
-   * @param {object} [props] extra fields (e.g. { code: "auth" | "funds" | "http", status })
+   * @param {object} [props] extra fields (e.g. { code: "auth" | "blocked" | "funds" | "http", status })
    */
   constructor(message, props = {}) {
     super(message);
@@ -959,12 +959,13 @@ class MediaRef {
   toString() { return this.url; }
   toJSON() { return this.url; }
 
-  /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
-  async bytes() {
+  /** Read the raw media bytes, optionally cancelling the download with a signal. */
+  async bytes({ signal } = {}) {
+    signal?.throwIfAborted();
     let bytes;
     if (this.url.startsWith("data:")) bytes = dataUrlBytes(this.url).bytes;
     else {
-      const downloaded = await downloadMedia(this.url, { fetch: this._fetch });
+      const downloaded = await downloadMedia(this.url, { fetch: this._fetch, signal });
       bytes = downloaded.bytes;
       if (!this._mime) {
         const r = downloaded.response;
@@ -1064,7 +1065,12 @@ const AUDIO_PROMPT_MODEL_RE = /(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)
 const AUDIO_STYLE_MODEL_RE = /yue2-3b\/(?:text|music)-to-music$/i;
 
 /** Map an HTTP failure to an actionable error (mirrors the app's httpRunError). Never leaks the key. */
-function httpError(status, bodyText) {
+function httpError(status, bodyText, headers) {
+  if (status === 403 && (headers?.get?.("x-vercel-mitigated") === "challenge" ||
+      (/^\s*<(?:!doctype\s+html\b|html\b)/i.test(bodyText) &&
+       /<title>\s*Vercel Security Checkpoint\s*<\/title>/i.test(bodyText)))) {
+    return new NanoodleError("NanoGPT's automated traffic protection challenged this request (HTTP 403).", { code: "blocked", status });
+  }
   if (status === 401 || status === 403) {
     return new NanoodleError(`API key rejected (HTTP ${status}) — check your NanoGPT key / NANOGPT_API_KEY`, { code: "auth", status });
   }
@@ -1259,7 +1265,7 @@ class NanoClient {
         }
         return { paymentId: invoice.paymentId, statusUrl: invoice.statusUrl };
       }
-      if (cr.status !== 402) throw httpError(cr.status, await cr.text());
+      if (cr.status !== 402) throw httpError(cr.status, await cr.text(), cr.headers);
       await cr.text().catch(() => {}); // drain the "not verified yet" body
       if (Date.now() >= deadline) {
         throw new NanoodleError(
@@ -1302,7 +1308,7 @@ class NanoClient {
     const work = Promise.resolve().then(async () => {
       if (ac.signal.aborted) throw ac.signal.reason;
       const r = await this._get(path, ac.signal);
-      if (!r.ok) throw httpError(r.status, await r.text());
+      if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
       return r.json();
     });
     try { return await Promise.race([work, aborted]); }
@@ -1326,8 +1332,13 @@ class NanoClient {
     // Carbon's selected NanoGPT provider rejects explicit thinking controls (HTTP 400).
     // Let the provider use its default rather than forwarding reasoning_effort.
     if (model !== "google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    // max_tokens is the one token budget forwarded, and only when a runner
+    // explicitly opts in via opts (the graph's maxTokens field, D1 ruling).
+    // The legacy spellings (max_completion_tokens, max_output_tokens,
+    // maxTokens) are never read here, so they can never leak into the body.
+    if (opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     const r = await this._postJson("/api/v1/chat/completions", body, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const j = await r.json();
     if (onCost) onCost(costWithHeaders(j, r));
     const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -1348,7 +1359,7 @@ class NanoClient {
    */
   async decide(body, { onCost, signal } = {}) {
     const r = await this._postJson("/api/v1/decisions", body, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const j = await r.json();
     const c = j && j.usage && typeof j.usage.cost === "number" ? j.usage.cost : null;
     if (onCost) onCost(costWithHeaders(c != null ? { ...j, cost: c } : j, r));
@@ -1363,7 +1374,7 @@ class NanoClient {
     if (maskDataUrl) body.maskDataUrl = maskDataUrl; // white = repaint
     Object.assign(body, imageModelOpts(extra));
     const r = await this._postJson("/v1/images/generations", body, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const j = await r.json();
     const urls = (j.data || [])
       .map((d) => (d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url))
@@ -1409,7 +1420,7 @@ class NanoClient {
     let runId = resume || null;
     if (!runId) {
       const r = await this._postJson("/api/generate-video", body, signal);
-      if (!r.ok) throw httpError(r.status, await r.text());
+      if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
       const j = await r.json();
       if (onCost) onCost(costWithHeaders(j, r));
       runId = j.runId || j.id;
@@ -1485,7 +1496,7 @@ class NanoClient {
       delete body.prompt;
     }
     const r = await this._postJson("/api/v1/audio/speech", body, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
     if (ct.includes("application/json")) {
       const j = await r.json();
@@ -1562,7 +1573,7 @@ class NanoClient {
     if (language) fd.append("language", language);
     // no explicit Content-Type — fetch sets the multipart boundary
     const r = await this._paidFetch(this.baseUrl + "/api/v1/audio/transcriptions", { method: "POST", headers: this._auth(), body: fd, signal }, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const j = await r.json();
     if (onCost) onCost(costWithHeaders(j, r));
     const txt = j.transcription != null ? j.transcription
@@ -1586,9 +1597,12 @@ class NanoClient {
   /**
    * Resolve a provider media URL before it is handed to another node or returned
    * as a node output. Relative content paths (Grok Imagine's
-   * `/api/generate-video/content?...`) and same-origin `/api` or `/v1` URLs are
-   * joined onto `baseUrl` and fetched with the API key, redirects manual so the
-   * key is never forwarded to the file host. A redirect Location becomes the
+   * `/api/generate-video/content?...`) and the exact same-origin content paths
+   * in CONTENT_API_PATHS are joined onto `baseUrl` and fetched with the API key,
+   * redirects manual so the key is never forwarded to the file host. Any other
+   * same-origin `/api` or `/v1` URL, including a user-supplied upload URL, is
+   * refused and not fetched — a 200 from those paths must not be inlined with
+   * the caller's credentials. A redirect Location becomes the
    * absolute file URL (presigned queries stay on that URL — the next provider
    * needs them — and are never put in errors). A direct 200 is inlined as a
    * data URL only when it fits MEDIA_INLINE_MAX; an over-cap clip must come
@@ -1607,15 +1621,36 @@ class NanoClient {
   /** Optional helper: POST /api/check-balance → { usd_balance }. */
   async checkBalance(signal) {
     const r = await this._postJson("/api/check-balance", {}, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
+    if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     return r.json();
   }
 }
 
-/** Paths that still need the API key (a content endpoint), not a public file. */
+/**
+ * Exact content paths that return provider media. Credentials are sent only here.
+ * A prefix (`/api/…`, `/v1/…`) is not enough: `/api/v1/models`, an upload URL, or
+ * `/api/generate-video/content/extra` would otherwise be fetched with the key and
+ * a 200 body inlined into the graph output.
+ */
+const CONTENT_API_PATHS = new Set([
+  "/api/generate-video/content",
+  "/api/images/content",
+  "/v1/audio/content",
+]);
+
 function isContentApiPath(pathname) {
+  return CONTENT_API_PATHS.has(pathname);
+}
+
+/** Same-origin API surface. These are not fetched unless the path is allowlisted. */
+function isSameOriginApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/")
     || pathname === "/v1" || pathname.startsWith("/v1/");
+}
+
+function refuseNonContentApi(pathname) {
+  if (!isSameOriginApiPath(pathname) || isContentApiPath(pathname)) return;
+  throw new NanoodleError("that URL is not a provider content file, so it was not fetched");
 }
 
 function apiBase(baseUrl) {
@@ -1683,15 +1718,20 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
   try {
     if (/^https?:/i.test(s)) {
       const abs = new URL(s);
-      if (abs.origin !== origin || !isContentApiPath(abs.pathname)) return s;
+      if (abs.origin !== origin) return s;
+      refuseNonContentApi(abs.pathname);
+      if (!isContentApiPath(abs.pathname)) return s;
       start = abs;
     } else if (s.startsWith("/") && !s.startsWith("//")) {
       start = new URL(s, base + "/");
+      refuseNonContentApi(start.pathname);
       if (!isContentApiPath(start.pathname)) return start.href;
     } else {
       return s;
     }
-  } catch {
+  } catch (e) {
+    // A refused /api or /v1 URL must not be swallowed as "leave it unchanged".
+    if (e && e.name === "NanoodleError") throw e;
     return s;
   }
 
@@ -1722,6 +1762,9 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
       catch { throw new NanoodleError("provider media redirect had no usable location"); }
       // File host or a non-API path: hand back the absolute URL. Do not fetch it
       // (that would pull a multi-megabyte clip and might attach the key).
+      // A same-origin /api or /v1 hop that is not itself a content file is refused
+      // outright — its body must never be inlined with the caller's credentials.
+      if (next.origin === origin) refuseNonContentApi(next.pathname);
       if (next.origin !== origin || !isContentApiPath(next.pathname)) return next.href;
       current = next.href;
       continue;
@@ -1808,7 +1851,7 @@ const NODE_TYPES = {
   decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
   ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
-  model3d: { title: "3D model",        inputs: ["image"], outputs: [{ name: "model", type: "model3d" }], network: true },
+  model3d: { title: "3D model",        inputs: ["image", "model"], outputs: [{ name: "model", type: "model3d" }], network: true },
   vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
   vframes: { title: "Video → frames",  inputs: ["video"], outputs: [{ name: "frame1", type: "image" }], local: true, framesOut: true }, // dynamic frame1..N
   combine: { title: "Combine videos",  inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
@@ -2098,6 +2141,10 @@ function audioInputPart(url) {
 function llmOpts(n) {
   const f = n.fields, o = {};
   if (f.temperature != null && f.temperature !== "") o.temperature = +f.temperature;
+  // maxTokens is opt-in (D1 ruling, 2026-11-18): absent by default, honored
+  // exactly when the node sets it — twin of nanoodle-py _run_llm (truthy +
+  // numeric → int(float(v)); non-numeric degrades gracefully, sends nothing).
+  if (f.maxTokens && Number.isFinite(+f.maxTokens)) o.max_tokens = Math.trunc(+f.maxTokens);
   if (f.format === "JSON") o.response_format = { type: "json_object" };
   if (f.reasoningEffort && f.reasoningEffort !== "default") o.reasoning_effort = f.reasoningEffort;
   if (f.showThinking === true || f.showThinking === "true") o.showThinking = true;
@@ -2799,23 +2846,32 @@ const RUNNERS = {
   },
 
   // 🧊 3D model: image and/or text → model asset via the video submit/poll API.
+  // Mesh-processing models (e.g. Hyper3D Rigging) instead take an existing
+  // model on the `model` wire and receive it as the `model_url` parameter.
   async model3d(n, inp, ctx) {
     const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
     const mods = model3dInputMods(ctx && ctx.catalog, model);
     const prompt = promptOf(n, inp);
     let image = mods.image ? (inp.image || "") : "";
+    const mesh = mods.mesh ? (inp.model || "") : "";
     if (inp.image && !mods.image && ctx && ctx.progress) {
       ctx.progress("This model takes text only — the image wire stays, but this run ignores it.");
+    }
+    if (inp.model && !mods.mesh && ctx && ctx.progress) {
+      ctx.progress("This model generates from scratch — the model wire stays, but this run ignores it.");
     }
     if (prompt && !mods.text && ctx && ctx.progress) {
       ctx.progress("This model takes an image only — the prompt stays, but this run ignores it.");
     }
-    if (mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
-    if (mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
-    if (mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
+    if (mods.mesh && !mesh) throw new NanoodleError("Connect a model first.");
+    if (!mods.mesh && mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
+    if (!mods.mesh && mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
+    if (!mods.mesh && mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
     if (image) image = await fitImage(image, ctx, "source image");
+    const extra = { ...(n.fields.modelOpts || {}) };
+    if (mesh) extra.model_url = mesh; // the wire wins over a static modelOpts copy
     const url = await ctx.video(model, mods.text ? prompt : "", {
-      extra: n.fields.modelOpts || {},
+      extra,
       mediaKind: "model3d",
     }, image || null);
     return { model: url };
@@ -2862,12 +2918,12 @@ function model3dInputMods(catalog, id) {
     || (it.architecture && Array.isArray(it.architecture.input_modalities) && it.architecture.input_modalities)
   );
   if (raw && raw.length) {
-    const mods = raw.filter((x) => x === "image" || x === "text");
-    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text") };
+    const mods = raw.filter((x) => x === "image" || x === "text" || x === "3d");
+    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text"), mesh: mods.includes("3d") };
   }
-  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false };
-  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true };
-  return { image: true, text: true };
+  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false, mesh: false };
+  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true, mesh: false };
+  return { image: true, text: true, mesh: false };
 }
 
 __x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS; __x.vEditTakesImage = vEditTakesImage;
@@ -3109,6 +3165,7 @@ const SETTING_SPECS = {
   llm: [
     { f: "model", label: "Model", kind: "model" },
     { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
+    { f: "maxTokens", label: "Max tokens", kind: "number" },
     { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
     { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
     { f: "showThinking", label: "Show thinking", kind: "boolean" },
@@ -4766,9 +4823,16 @@ function parseNanoInvoice(body, baseUrl) {
 
 const RESULT_KEYS = ["choices", "data", "output", "runId", "url", "audioUrl", "transcription", "text"];
 
-/** Does a complete-endpoint body already carry the replayed API result? */
+/**
+ * Does a complete-endpoint body already carry the replayed API result?
+ * A paid decision comes back as { answers, usage }. That is success. Treating
+ * it as a bare receipt makes the client resend the original request, and the
+ * API answers 402 because the payment was already consumed.
+ */
 function looksLikeResult(j) {
-  return !!j && typeof j === "object" && RESULT_KEYS.some((k) => j[k] != null);
+  if (!j || typeof j !== "object") return false;
+  if (RESULT_KEYS.some((k) => j[k] != null)) return true;
+  return j.answers != null && j.usage != null && typeof j.usage === "object";
 }
 
 __x.assertPaymentOption = assertPaymentOption; __x.parseNanoInvoice = parseNanoInvoice; __x.looksLikeResult = looksLikeResult;
@@ -6436,5 +6500,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-023296a08393";
+  window.NanoodleEngine.version = "src-9f814f664f2f";
 })();

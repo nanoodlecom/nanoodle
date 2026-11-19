@@ -1046,6 +1046,11 @@
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
   .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
+  /* picker sections (Recently used / Suggested / All models) — quiet headers so the
+     inline shortlists read as part of the one list, not three separate widgets */
+  #mpicklist .mpicksec{ padding:.55rem .55rem .15rem; font-size:.66rem; font-weight:700; letter-spacing:.08em;
+                       text-transform:uppercase; color:var(--dim); pointer-events:none }
+  #mpicklist .mpicksec:first-child{ padding-top:.1rem }
 
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -1836,6 +1841,9 @@ const I18N = {
     "Recent":"Recientes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "Recently used":"Usados recientemente",
+    "All models":"Todos los modelos",
+    "recent":"reciente",
     "often wired":"a menudo cableado",
     "common first node":"nodo inicial habitual",
     "often added next":"se suele añadir después",
@@ -2616,6 +2624,9 @@ const I18N = {
     "Recent":"Récent",
     "Suggested":"Suggérés",
     "suggested":"suggéré",
+    "Recently used":"Utilisés récemment",
+    "All models":"Tous les modèles",
+    "recent":"récent",
     "often wired":"souvent câblé",
     "common first node":"premier nœud courant",
     "often added next":"souvent ajouté ensuite",
@@ -3390,6 +3401,9 @@ const I18N = {
     "Recent":"Zuletzt verwendet",
     "Suggested":"Vorgeschlagen",
     "suggested":"vorgeschlagen",
+    "Recently used":"Zuletzt verwendet",
+    "All models":"Alle Modelle",
+    "recent":"zuletzt",
     "often wired":"oft verdrahtet",
     "common first node":"üblicher erster Node",
     "often added next":"oft als Nächstes hinzugefügt",
@@ -4156,6 +4170,9 @@ const I18N = {
     "Recent":"Recentes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "Recently used":"Usados recentemente",
+    "All models":"Todos os modelos",
+    "recent":"recente",
     "often wired":"a menudo cableado",
     "common first node":"nó inicial comum",
     "often added next":"costuma ser adicionado em seguida",
@@ -4926,6 +4943,9 @@ const I18N = {
     "Recent":"最近",
     "Suggested":"候補",
     "suggested":"候補",
+    "Recently used":"最近使用したモデル",
+    "All models":"すべてのモデル",
+    "recent":"最近",
     "often wired":"よく接続",
     "common first node":"よく最初に置くノード",
     "often added next":"次によく追加",
@@ -7739,7 +7759,13 @@ function refreshModelOpts(n){
   const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
   const defs = videoOptDefs(n.fields.model, n.type);
   if(!defs.length){ box.innerHTML=""; return; }
-  const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
+  // Read-only until a knob is actually set (the listeners below materialize on
+  // first edit). Writing an empty {} into fields here would mutate the graph on
+  // mere render: save() persists the blob, and the signed-out demo's exact-match
+  // signature (appHandoffSig over fields) can then never match the shipped
+  // starter — a pristine first run gets misread as an edited one ("your edits
+  // aren't reflected yet" shown to a visitor who edited nothing).
+  const cur = n.fields.modelOpts || {};
   for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
   for(const d of defs){               // quality / mode / similar selects: same clamp as duration/size
     if(d.type!=="select") continue;
@@ -7786,13 +7812,16 @@ function refreshModelOpts(n){
   box.querySelectorAll("[data-of]").forEach(el=>{
     const key = el.dataset.of;
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
-      if(el.type==="checkbox") cur[key] = el.checked;
-      else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
+      // First real edit materializes fields.modelOpts; clearing a knob on a node
+      // that never stored options must not leave an empty object behind either.
+      const store = ()=> n.fields.modelOpts || (n.fields.modelOpts = {});
+      if(el.type==="checkbox") store()[key] = el.checked;
+      else if(el.value===""){ if(n.fields.modelOpts) delete n.fields.modelOpts[key]; }   // omit empty → the model's own default applies (send-only-when-nonempty)
       else if(el.type==="number"){
         const num=Number(el.value), dd=defs.find(x=>x.key===key);
-        cur[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
+        store()[key] = isNaN(num) ? el.value : ((dd && dd.int) ? Math.round(num) : num);   // integer params never get 1.5
       }
-      else cur[key] = el.value;                                    // select / text / textarea
+      else store()[key] = el.value;                                // select / text / textarea
       // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
       updateNodePrice(n); refreshRunEstimate();
       save();
@@ -7893,7 +7922,7 @@ function refreshLlmOpts(n){
 function llmOpts(n){
   const f = n.fields, o = {};
   if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
-
+  if(f.maxTokens && Number.isFinite(+f.maxTokens)) o.max_tokens = Math.trunc(+f.maxTokens);
   if(f.format==="JSON") o.response_format = { type:"json_object" };
   if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
   if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
@@ -8787,7 +8816,9 @@ function nodeUnitUsd(n){
     const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
     const u = chatUnitUsd(it, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
-    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200);
+    const outTok = f.maxTokens && Number.isFinite(+f.maxTokens) ? Math.trunc(+f.maxTokens) : EST.llmOutTokens;
+    return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
     const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
     return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
@@ -8964,6 +8995,28 @@ function pickerRowPrice(m){
   }
   return m.price;
 }
+/* Most-recently-used models, per picker kind, newest first. Stored as one small
+   localStorage object ({ chat:[ids…], image:[ids…] }); capped so it stays a
+   shortlist, never a second catalog. Recorded centrally in renderPicker's row
+   click so every pick path (node button, double-click, Describe-changes) counts. */
+const MODEL_RECENT_KEY = "nn_model_recent";
+const MODEL_RECENT_CAP = 8;
+function modelRecent(kind){
+  try{
+    const all = JSON.parse(localStorage.getItem(MODEL_RECENT_KEY) || "{}");
+    const l = all && all[kind];
+    return Array.isArray(l) ? l.filter(x=> typeof x === "string" && x) : [];
+  }catch{ return []; }
+}
+function recordModelRecent(kind, id){
+  if(!kind || !id) return;
+  try{
+    const all = JSON.parse(localStorage.getItem(MODEL_RECENT_KEY) || "{}") || {};
+    const prev = Array.isArray(all[kind]) ? all[kind] : [];
+    all[kind] = [id, ...prev.filter(x=> x !== id)].slice(0, MODEL_RECENT_CAP);
+    localStorage.setItem(MODEL_RECENT_KEY, JSON.stringify(all));
+  }catch{}
+}
 function openPicker(kind, opts){
   // Kick a background revalidate if the in-memory catalog is stale so brand-new
   // NanoGPT models show up without requiring a hard reload. Non-blocking.
@@ -9075,6 +9128,18 @@ function scrollPickerToCurrent(list){
   list.scrollTop += s.getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - s.offsetHeight)/2;
   return true;
 }
+function pickerShortlistRows(ids, byId, seen, cap){
+  const rows = [];
+  for(const id of ids){
+    if(rows.length >= cap) break;
+    if(seen.has(id)) continue;
+    const model = byId.get(id);
+    if(!model) continue;
+    seen.add(id);
+    rows.push(model);
+  }
+  return rows;
+}
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
@@ -9121,12 +9186,27 @@ function renderPicker(){
     } else d.textContent = t(hint);
     frag.appendChild(d);
   }
-  const rows = shown.slice(0,400);
-  if(picker.current && !rows.some(m=>m.id===picker.current)){ const cur = shown.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
-  for(const m of rows){
+  // Inline shortlists, only when not searching: Recently used (this browser's own
+  // picks for this kind), then Suggested (the same pin / gallery lift the flat list
+  // used to bury at the top), then everything else under "All models". A search
+  // query keeps the single flat list, exactly as before.
+  const byId = new Map(matches.map(m=> [m.id, m]));
+  let recentRows = [], suggestedRows = [], mainRows = shown;
+  if(!qNorm){
+    const sugIds = galleryTagged ? [...galleryTagged] : (pin ? [pin] : []);
+    const seen = new Set();
+    recentRows = pickerShortlistRows(modelRecent(picker.kind), byId, seen, 5);
+    suggestedRows = pickerShortlistRows(sugIds, byId, seen, 5);
+    if(recentRows.length || suggestedRows.length) mainRows = shown.filter(m=> !seen.has(m.id));
+  }
+  const sectioned = !!(recentRows.length || suggestedRows.length);
+  const rows = mainRows.slice(0,400);
+  const rendered = new Set([...recentRows, ...suggestedRows, ...rows].map(m=> m.id));
+  if(picker.current && !rendered.has(picker.current)){ const cur = shown.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
+  const rowFor = (m, badge)=>{
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
-    const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
+    const sug = badge==="suggested";
     if(sug) b.classList.add("suggested");
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.video_input?'<span class="tag edit">video in</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
@@ -9136,13 +9216,32 @@ function renderPicker(){
     const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
     const label = pickerModelLabel(m);
     if(label !== String(m.id||"")) b.title = String(m.id||"");
-    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
-    b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
-    frag.appendChild(b);
+    const pill = badge==="recent" ? `<span class="sug">recent</span>`
+               : sug ? `<span class="sug" title="${sugTitle}">suggested</span>` : "";
+    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${pill}<span class="price">${esc(pickerRowPrice(m))}</span>`;
+    b.onclick = ()=>{ recordModelRecent(picker.kind, m.id); picker.onPick(m.id); closePicker(); };
+    return b;
+  };
+  const secHead = (key)=>{
+    const d = document.createElement("div");
+    d.className = "mpicksec";
+    d.textContent = t(key);
+    frag.appendChild(d);
+  };
+  let rowCount = 0;
+  if(sectioned){
+    if(recentRows.length){ secHead("Recently used"); for(const m of recentRows){ frag.appendChild(rowFor(m, "recent")); rowCount++; } }
+    if(suggestedRows.length){ secHead("suggested"); for(const m of suggestedRows){ frag.appendChild(rowFor(m, "suggested")); rowCount++; } }
+    if(rows.length) secHead("All models");
+  }
+  for(const m of rows){
+    const sug = !sectioned && (galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin));
+    frag.appendChild(rowFor(m, sug ? "suggested" : null));
+    rowCount++;
   }
   $("mpicklist").replaceChildren(frag);
   translateTree($("mpicklist"));
-  if(picker.toCurrent && rows.length){ picker.toCurrent = false; scrollPickerToCurrent($("mpicklist")); }   // first full render only — typing a filter keeps its own scroll
+  if(picker.toCurrent && rowCount){ picker.toCurrent = false; scrollPickerToCurrent($("mpicklist")); }   // first full render only — typing a filter keeps its own scroll
 }
 
 /* ======================================================================
@@ -12904,26 +13003,26 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
     separateOnAdd(n, { x: Math.round(x), y: Math.round(wy - 24) });
     rememberAdd(typeKey);
     select(n);
-    if(typeof geoOn==="function" && geoOn()){
-      geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node), drop:{ x: Math.round(x), y: Math.round(wy - 24) } });
-      return;
-    }
-    const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
-    let ports = [...n.el.querySelectorAll(sel)];
-    // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
-    // the model so the wire can actually land, then re-read the now-enabled ports
-    if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
-      ensureModelForInput(n, type);
-      ports = [...n.el.querySelectorAll(sel)];
-    }
-    ports = ports.filter(p=> !p.classList.contains("disabled"));
-    // wire the dragged port to the new node's first matching, free socket
-    const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
-    redraw();
-    if(target){
+    const wire = ()=>{
+      const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+      let ports = [...n.el.querySelectorAll(sel)];
+      // A disabled socket may need a compatible model before the wire can land.
+      if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
+        ensureModelForInput(n, type);
+        ports = [...n.el.querySelectorAll(sel)];
+      }
+      ports = ports.filter(p=> !p.classList.contains("disabled"));
+      const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+      if(!target) return false;
       const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
-      connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
-      dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
+      if(!connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port)) return false;
+      dismissConnectHint();
+      return true;
+    };
+    if(typeof geoOn==="function" && geoOn()){
+      geoSettleNew(n, { dir, anchor:byId(originPort.dataset.node), drop:{ x: Math.round(x), y: Math.round(wy - 24) }, wire });
+    }else if(!wire()){
+      redraw();
     }
   }finally{ undoMuted = wasMuted; }
 }
@@ -13013,8 +13112,65 @@ editor.addEventListener("dblclick", e=>{
     try{ tryDblclickDanglingAddWire(portEl); }catch(_){}
     return;
   }
+  // Double-click a node → open its model selector (the same picker the node's
+  // model button opens, with Recently used / Suggested inline). Never hijack
+  // the double-clicks that mean something else: text fields (word select),
+  // buttons, summaries, links, or the model button itself (its own clicks
+  // already opened the picker). Nodes without a model button fall through.
+  // The node under the cursor is the ground truth, not e.target: selecting a
+  // node on the first click can re-render it, which retargets the browser's
+  // dblclick at the canvas — e.target then names no node even though the user
+  // clearly double-clicked one. Fall back to the point when the target missed.
+  const hitEl = (e.target && e.target.closest && e.target.closest(".node")) ? e.target
+    : (typeof e.clientX === "number" ? document.elementFromPoint(e.clientX, e.clientY) : null);
+  const nodeEl = hitEl && hitEl.closest && hitEl.closest(".node");
+  if(nodeEl && editor.contains(nodeEl)){
+    if(hitEl.closest("input, textarea, select, [contenteditable], button, summary, a")) return;
+    if(openNodePickerDbl(nodeEl)){ e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
   if(onBg(e.target)) fitView();
-});   // port dblclick → add+wire (·40); empty canvas → reframe
+});   // port dblclick → add+wire (·40); node dblclick → model picker; empty canvas → reframe
+// Real pointer input on a node never produces that dblclick event: the drag
+// gesture preventDefaults pointerdown on nodes, which suppresses the
+// compatibility click/dblclick entirely (verified: two taps on a node header
+// fire pointerdown/up only). So detect the double-tap here, in the pointer
+// layer: two quick, still pointerups on the same node (not on a port, field,
+// button or link — those keep their own double-click meanings). Both paths
+// share openNodePickerDbl's debounce so they can't double-open.
+let _pickerDblGuard = { id:"", t:0 };
+function openNodePickerDbl(nodeEl){
+  const mp = nodeEl && nodeEl.querySelector(".modelpick");
+  if(!mp || mp.hidden || mp.disabled) return false;
+  const id = nodeEl.dataset.id || "";
+  const now = performance.now();
+  if(_pickerDblGuard.id === id && now - _pickerDblGuard.t < 700) return true;   // the other path just opened it
+  _pickerDblGuard = { id, t: now };
+  mp.click();
+  return true;
+}
+let _nodeTap = null, _nodeTapDown = null;
+editor.addEventListener("pointerdown", e=>{
+  _nodeTapDown = (e.isPrimary !== false && e.target && e.target.closest && e.target.closest(".node"))
+    ? { x: e.clientX, y: e.clientY } : null;
+}, true);
+editor.addEventListener("pointerup", e=>{
+  const down = _nodeTapDown; _nodeTapDown = null;
+  if(e.isPrimary === false || !down) return;
+  if(Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) { _nodeTap = null; return; }   // it was a drag, not a tap
+  const t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest(".port, input, textarea, select, [contenteditable], button, summary, a")){ _nodeTap = null; return; }
+  const nodeEl = t.closest(".node");
+  if(!nodeEl || !editor.contains(nodeEl)){ _nodeTap = null; return; }
+  const now = performance.now();
+  const prev = _nodeTap;
+  _nodeTap = { id: nodeEl.dataset.id || "", t: now, x: e.clientX, y: e.clientY };
+  if(prev && prev.id === _nodeTap.id && now - prev.t < 450 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 24){
+    _nodeTap = null;
+    openNodePickerDbl(nodeEl);
+  }
+});
 // Disclosure toggles (⚙️ advanced, LoRA, model options…) reflow the node, moving every port
 // below them — reroute wires. And a section holding a WIRED field port can't collapse: hiding
 // the socket would leave its wire dangling at a zero-rect anchor. ("toggle" doesn't bubble →
@@ -14420,7 +14576,7 @@ const CTX = {
     // and localizes tokens a downstream node may switch on (e.g. positive/negative → positivo/negativo).
     const body = { model, messages: opts.response_format ? messages : withLocale(messages) };
     if(model!=="google/gemini-4-carbon") body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-  
+    if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
@@ -16452,8 +16608,8 @@ $("refuelcopy").onclick = async ()=>{
 
 /* LAYOUT — free slot on add, tidy on the selection.
    One engine. A new node (Add menu, wire-drop, suggestion) lands in the
-   first free slot beside its source and auto-wires only when exactly one
-   port fits, through connect(). Tidy (context menu / Shift+T) packs the
+   first free slot near its source or drop point. An Add-menu placement
+   auto-wires only when exactly one pair fits. Tidy (context menu / Shift+T) packs the
    multi-selection left-to-right by data flow. ?product=off / ?na=0 leaves
    placement, selection, and menus as they were. No idle rAF. */
 function geoOn(){
@@ -16644,28 +16800,6 @@ function geoReadInputs(n, type){
   return ports;
 }
 function geoWireNew(n, spec){
-  const origin = spec.originPort, dir = spec.dir || "out", type = spec.type;
-  if(origin && type && dir === "out"){
-    let raw = geoReadInputs(n, type);
-    if(raw.length && !raw.some(p => !p.disabled)){
-      ensureModelForInput(n, type);
-      raw = geoReadInputs(n, type);
-    }
-    const fit = geoFitInputs(raw);
-    if(fit.length !== 1) return false;
-    const target = raw.find(p => p.name === fit[0].name && !p.disabled);
-    if(!target) return false;
-    connect(origin.dataset.node, origin.dataset.port, target.el.dataset.node, target.el.dataset.port);
-    dismissConnectHint();
-    return true;
-  }
-  if(origin && type && dir === "in"){
-    const outs = [...n.el.querySelectorAll('.port[data-dir="out"][data-ptype="' + type + '"]')].filter(p => !p.classList.contains("disabled"));
-    if(outs.length !== 1) return false;
-    connect(outs[0].dataset.node, outs[0].dataset.port, origin.dataset.node, origin.dataset.port);
-    dismissConnectHint();
-    return true;
-  }
   const anchor = spec.anchor;
   if(!anchor || !anchor.el || anchor === n) return false;
   const outs = [...anchor.el.querySelectorAll('.port[data-dir="out"]')];
@@ -16745,7 +16879,7 @@ function geoSettleNew(n, spec){
   n.x = slot.x; n.y = slot.y;
   n.el.style.left = slot.x + "px";
   n.el.style.top = slot.y + "px";
-  const wired = geoWireNew(n, spec || {});
+  const wired = spec.wire ? spec.wire() : geoWireNew(n, spec);
   if(!wired) redraw();
   save();
   geoEnter(n);
@@ -18296,6 +18430,7 @@ let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRe
 let wsKnownRecord = null, wsJournalRevision = -1;
 const wsPendingGenerations = new Set();
 let wsInitFlight = null, wsAuthorityEpoch = 0;
+let wsRestoreError = null, wsRecoveryRetryT = null, wsRecoveryRetries = 0;
 let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
 function wsOwnedKey(key){
   return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
@@ -18303,7 +18438,7 @@ function wsOwnedKey(key){
 function workspacePersistence(){
   return { mode:!wsValues ? "local" : wsSavedRevision===wsRevision ? "browser" : "session",
     pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure,
-    restoreFailed:wsRestoreFailed, recoveryBackup:wsRecoveryBackup };
+    restoreFailed:wsRestoreFailed, restoreError:wsRestoreError, recoveryBackup:wsRecoveryBackup };
 }
 function wsRawStorage(kind){
   try{ return kind==="local" ? localStorage : sessionStorage; }catch(_){ return null; }
@@ -18523,7 +18658,9 @@ function wsQueuePersist(){
         if(saveT) flushSave();
         wsWriteRecovery(wsValues);
       }
-      wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
+      // A failed commit cannot diagnose an unread database. Keep the restore
+      // cause until recovery succeeds instead of replacing it with "unavailable".
+      if(!wsRestoreFailed || error && error.name==="WorkspaceConflict") wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
       wsPersistenceNotice(false);
     });
   });
@@ -18565,10 +18702,26 @@ function checkpointWorkspaceEdits(){
   if(wsValues && wsRevision!==wsSavedRevision) wsWriteRecovery(wsValues);
   return saved;
 }
+function wsStorageException(name){
+  const error=new Error(name); error.name=name; return error;
+}
+function wsScheduleRecovery(){
+  // A slow disk or interrupted IDB open must not strand a healthy browser in
+  // visit-only mode forever. Retry once; quota/schema/security errors need the
+  // explicit Retry control. Never trust a late callback from the failed open.
+  if(!wsRestoreFailed || wsRecoveryRetryT!==null || wsRecoveryRetries>=1
+      || !/^(BrowserStorageTimeout|BrowserStorageBlocked|UnknownError|AbortError)$/.test(wsRestoreError||"")) return;
+  wsRecoveryRetryT=setTimeout(function retryWorkspaceRestore(){
+    wsRecoveryRetryT=null; wsRecoveryRetries++;
+    initWorkspaceStorage();
+  },1000);
+}
 function initWorkspaceStorage(){
   if(wsInitFlight) return wsInitFlight;
+  if(wsRecoveryRetryT!==null){ clearTimeout(wsRecoveryRetryT); wsRecoveryRetryT=null; }
   wsInitFlight=restoreWorkspaceStorage().finally(()=>{
     wsInitFlight=null;
+    wsScheduleRecovery();
     try{const retry=$("wspersistence-retry");if(retry)retry.disabled=false;}catch(_){}
   });
   return wsInitFlight;
@@ -18602,9 +18755,17 @@ async function restoreWorkspaceStorage(){
         if(error) reject(error); else resolve(value);
       };
       let timer = null;
-      timer = setTimeout(()=>finish(new Error("BrowserStorageTimeout")), 2500);
-      const request = indexedDB.open("nanoodle-workspaces", 1);
+      // First paint has a short deadline; recovery gets longer to read a slow
+      // disk while the visitor can keep editing the isolated recovery branch.
+      timer = setTimeout(function workspaceRestoreTimeout(){
+        finish(wsStorageException("BrowserStorageTimeout"));
+      }, wsRestoreFailed ? 10000 : 2500);
+      // Read the existing database version, just like the recovery exporter.
+      // Payload v is validated below; a compatible record in a newer database
+      // must not fail with VersionError. Never delete/recreate an unknown schema.
+      const request = indexedDB.open("nanoodle-workspaces");
       request.onupgradeneeded = ()=>request.result.createObjectStore("workspaces");
+      request.onblocked = ()=>finish(wsStorageException("BrowserStorageBlocked"));
       request.onerror = ()=>finish(request.error || new Error("BrowserStorageUnavailable"));
       request.onsuccess = ()=>{
         const db = request.result;
@@ -18620,6 +18781,10 @@ async function restoreWorkspaceStorage(){
         }catch(e){ db.close(); finish(e); }
       };
     });
+    // Retry runs while the canvas is editable. Checkpoint typing that is still
+    // inside save's debounce before selecting/merging the recovery branch.
+    if(wsValues && saveT!==null && !wsRestorePending && flushSave()===null)
+      throw wsStorageException("WorkspaceCheckpointFailed");
     wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
     invalidateWorkspaceCloseHistory(); // a close made during Retry may refer to pre-recovery tab ids
     const restored = Object.create(null);
@@ -18628,9 +18793,9 @@ async function restoreWorkspaceStorage(){
       for(const [key,value] of Object.entries(record.values)) if(wsOwnedKey(key) && typeof value==="string") restored[key]=value;
       const index = JSON.parse(restored[WS_INDEX_KEY]||"null");
       if(!index || index.v!==1 || !Array.isArray(index.tabs) || !index.tabs.some(t=>t && t.id===index.active))
-        throw new Error("InvalidWorkspaceRecord");
+        throw wsStorageException("InvalidWorkspaceRecord");
     }else if(record){
-      throw new Error("InvalidWorkspaceRecord");
+      throw wsStorageException("InvalidWorkspaceRecord");
     }
     const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
     if(visit){
@@ -18658,10 +18823,11 @@ async function restoreWorkspaceStorage(){
       try{ renderWorkspaces(); }catch(_){}
       wsQueuePersist();
     }
-    wsRestoreFailed=false;
+    wsRestoreFailed=false; wsRestoreError=null; wsPersistFailure=null;
   }catch(e){
     if(wsDatabase){ try{ wsDatabase.close(); }catch(_){} wsDatabase=null; }
-    wsPersistFailure=e && e.name || "Error";
+    wsRestoreError=e && e.name || "Error";
+    wsPersistFailure=wsRestoreError;
     wsRestoreFailed=true; wsRecoveryActive=true;
     if(!wsValues){
       wsBeginOverflow("nanoodle-workspaces",e,"restore");
@@ -19798,6 +19964,7 @@ function bindWorkspaceChrome(){
     tabs.addEventListener("keydown", (e)=>{
       if(e.target && e.target.closest && e.target.closest("input, textarea")) return;
       if(workspaceChord(e)) return;   // the window listener takes one step; don't also move on the arrow
+      if(e.key==="Enter" && (e.ctrlKey || e.metaKey)) return;   // the window listener owns Run
       if(e.key==="F2"){
         const b = e.target.closest && e.target.closest(".wstab");
         if(!b) return;
