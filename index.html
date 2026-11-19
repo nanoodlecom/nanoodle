@@ -1714,6 +1714,8 @@ const I18N = {
     "remove":"quitar",
     "to run":"para ejecutar",
     "subtotal + unknown GIF":"subtotal + GIF desconocido",
+    "subtotal + unknown video":"subtotal + vídeo desconocido",
+    "Video duration needed":"Se necesita la duración del vídeo",
     "all branches":"todas las ramas",
     "The estimate includes all branches. You pay for the steps that run.":"La estimación incluye todas las ramas. Solo pagas por los pasos que se ejecutan.",
     "Decision mode":"Modo de decisión",
@@ -2487,6 +2489,8 @@ const I18N = {
     "remove":"retirer",
     "to run":"pour exécuter",
     "subtotal + unknown GIF":"sous-total + GIF inconnu",
+    "subtotal + unknown video":"sous-total + vidéo inconnue",
+    "Video duration needed":"Durée de la vidéo nécessaire",
     "all branches":"toutes les branches",
     "The estimate includes all branches. You pay for the steps that run.":"L’estimation inclut toutes les branches. Vous payez uniquement les étapes exécutées.",
     "Decision mode":"Mode de décision",
@@ -3260,6 +3264,8 @@ const I18N = {
     "remove":"entfernen",
     "to run":"zum Ausführen",
     "subtotal + unknown GIF":"Zwischensumme + unbekannter GIF",
+    "subtotal + unknown video":"Zwischensumme + unbekanntes Video",
+    "Video duration needed":"Videodauer benötigt",
     "all branches":"alle Zweige",
     "The estimate includes all branches. You pay for the steps that run.":"Die Schätzung umfasst alle Zweige. Du zahlst nur für ausgeführte Schritte.",
     "Decision mode":"Entscheidungsmodus",
@@ -4033,6 +4039,8 @@ const I18N = {
     "remove":"remover",
     "to run":"para executar",
     "subtotal + unknown GIF":"subtotal + GIF desconhecido",
+    "subtotal + unknown video":"subtotal + vídeo desconhecido",
+    "Video duration needed":"Duração do vídeo necessária",
     "all branches":"todos os ramos",
     "The estimate includes all branches. You pay for the steps that run.":"A estimativa inclui todos os ramos. Você só paga pelas etapas executadas.",
     "Decision mode":"Modo de decisão",
@@ -4806,6 +4814,8 @@ const I18N = {
     "remove":"削除",
     "to run":"で実行",
     "subtotal + unknown GIF":"小計 + 不明なGIF",
+    "subtotal + unknown video":"小計 + 不明な動画",
+    "Video duration needed":"動画の長さが必要です",
     "all branches":"すべての分岐",
     "The estimate includes all branches. You pay for the steps that run.":"見積もりにはすべての分岐が含まれます。料金は実行されたステップ分のみです。",
     "Decision mode":"判定モード",
@@ -5642,9 +5652,37 @@ const IMG_INPUT_ROLES = { "flux-pro/v1/vto": ["person", "garment"] };
 // seedream-v4.5, qwen-image-3 all verified generating from a bare prompt), so this is an id list by
 // necessity. Same curated-map contract as INPAINT_OK: verified per model, dated, catalog-first.
 const NEEDS_SRC_IDS = new Set(["hidream-e1-1", "wan-2.6-image-edit", "vidu-q2-reference"]);
+// NanoGPT's Topaz edit models (added 2026-11-01: topaz-image-upscale, -transparent-upscale, -denoise-max,
+// -super-focus) publish pricing.per_image:{} and bill per STARTED megapixel block instead
+// (billing "started_megapixel_blocks", one tariffs[] row per algorithm: scale / target / source modes,
+// each {usd_per_started_block, megapixels_per_block}; target sizes 2k/4k/8k carry their area in
+// target_megapixels). Reading only per_image priced them null, so the picker/node chip went blank and the
+// run total skipped them as $0. The real bill needs the SOURCE dimensions, which no estimate has before a
+// run, so this is the CHEAPEST bill for a size: a target size at the fewest blocks its area needs on the
+// cheapest algorithm, any other mode (scale/source) at one block. Never $0, never an overstatement; the
+// caller labels it "from". Falls back to pricing.starting_at. Twin: play.html.
+function blockTariffUsd(pricing, size){
+  const p = pricing || {}, rows = Array.isArray(p.tariffs) ? p.tariffs : [];
+  const num = (x)=> (x!=null && isFinite(+x) && +x>0) ? +x : null;
+  const area = num((p.target_megapixels || {})[size]);
+  let best = null;
+  for(const r of rows){
+    for(const mode of Object.keys(r || {})){
+      const t = r[mode], usd = t && typeof t==="object" ? num(t.usd_per_started_block) : null; if(usd==null) continue;
+      // A 2k/4k/8k pick bills the target tariff — EXCEPT a target that is an exact integer 1–4× of the
+      // source bills the cheaper SCALE tariff where the algorithm has one (catalog target_integer_scale_tariff;
+      // e.g. Standard V2 1024→2K = 1×$0.08, 2048→8K = 3×$0.08 = $0.24, not $0.10/$0.30). A floor must count it.
+      if(area!=null && mode!=="target" && !(mode==="scale" && p.target_integer_scale_tariff)) continue;
+      if(area==null && size && rows.some(x=> x && x[size]) && mode!==size) continue;   // scale/source pick → that mode
+      const blocks = area!=null ? Math.ceil(area / (num(t.megapixels_per_block) || area)) : 1;
+      const v = Math.round(usd * blocks * 1e6) / 1e6;
+      if(best==null || v<best) best = v;
+    }
+  }
+  return best!=null ? best : num(p.starting_at);
+}
 function normImg(m){
-  const per = m.pricing?.per_image||{};
-  const v = per.square ?? per.square_hd ?? Object.values(per)[0];
+  let per = m.pricing?.per_image||{};
   const mod = m.architecture?.modality || "";   // text->image | text+image->image | image->image
   // TODO(nanogpt): NanoGPT mislabels a few edit-only models as text->image with image_to_image:false,
   // so they'd surface as text-to-image generators and fail without a source image (verified live:
@@ -5671,6 +5709,15 @@ function normImg(m){
   // per_image — so the size control is driven from these, not a generic list.
   const resolutions = Array.isArray(m.supported_parameters?.resolutions)
     ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
+  // No per-size price but a block tariff / starting_at (Topaz) → a per-size FLOOR map, flagged priceFrom
+  // so every label reads "from $X/img" and the run total turns "~" (see blockTariffUsd).
+  let priceFrom = false;
+  if(!Object.keys(per).length){
+    const floor = {};
+    for(const r of (resolutions.length ? resolutions : [""])){ const u = blockTariffUsd(m.pricing, r); if(u!=null) floor[r || "default"] = u; }
+    if(Object.keys(floor).length){ per = floor; priceFrom = true; }
+  }
+  const v = priceFrom ? Math.min(...Object.values(per)) : (per.square ?? per.square_hd ?? Object.values(per)[0]);
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: v!=null ? +v : null,                                       // per-image $ → price sorts
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
@@ -5685,9 +5732,11 @@ function normImg(m){
     maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
     fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
+    priceFrom,                                                           // sizePrices are lower bounds (block-billed, source-size dependent) → "from"
+    promptNA: m.supported_parameters?.prompt_length?.status==="not_applicable",   // takes no instruction (eraser/upscaler/cutout) → never a default
     nsfw: !!m.capabilities?.nsfw,
     knobs: imageKnobSpec(m.supported_parameters),                      // negative prompt / steps / guidance / prompt expansion the catalog advertises (MOSS Image)
-    price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
+    price: v!=null ? `${priceFrom?"from ":""}$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
   const p=applyVideoQuotePricing(m.id, m.pricing||{}), c=m.capabilities||{};
@@ -5695,7 +5744,8 @@ function normVideo(m){
   // universal resolver at default res/duration. An untouched audio switch quotes the catalog
   // default (what an omitted key bills), so the picker row matches the node chip.
   const _vu = videoUnitUsd(p, {}, false, false, undefined, { params:pp, defaults:sp.defaults||{} });
-  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
+  const _rate = p.unit==="input_video_second" ? inputVideoSecondRate(p, {}, { params:pp, defaults:sp.defaults||{} }) : null;
+  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : (_rate!=null ? `$${_rate.toFixed(2)}/input s` : "");
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
   const lora = Object.keys(pp).some(k=>/^lora_url/i.test(k));
@@ -6114,8 +6164,15 @@ function defModelFor(type){
     return pref ? pref.id : CLEANVOICE_DEFAULT_MODEL;   // pinned even before the catalog lands, like Decide
   }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
-  const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
+  const list = (catalogs[t.modelKind]||[]).filter(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
+  // Image/Edit: newest model that can actually serve a fresh node — priced per image, takes an instruction,
+  // and isn't an upscaler. Without this the 2026-11-01 Topaz drop (newest, unpriced, upscale-only) became
+  // every new ✂️ Edit node's model with a $0 estimate. Falls back to plain newest if nothing qualifies.
+  const m = (t.modelKind==="image" && list.find(imageDefaultOk)) || list[0];
   return m ? m.id : "";
+}
+function imageDefaultOk(x){
+  return x.sortUsd!=null && !x.priceFrom && !x.promptNA && !/upscal/i.test(x.id||"");
 }
 // A saved/shared graph's fields.model can name a model NanoGPT has since renamed or retired.
 // True only when the catalog for that kind is actually LOADED (non-empty) yet the id is absent —
@@ -8298,19 +8355,26 @@ function livePrice(kind, fields, nodeFilter, n){
     // A fixed_image_count model bills unit × N every single run, so "$0.020/img" is the headline lie
     // on the node chip — show what one Run actually costs, with the ×N that makes it.
     const fixed = it.fixedCount||0;
-    if(fixed>1) return `$${(+v*fixed).toFixed(3)}/run ×${fixed}`;
-    return `$${(+v).toFixed(3)}/img`;
+    const from = it.priceFrom ? "from " : "";   // block-billed (Topaz): a floor until the source size is known
+    if(fixed>1) return `${from}$${(+v*fixed).toFixed(3)}/run ×${fixed}`;
+    return `${from}$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
     // Pass the node's wired ref count (and source-video) so the chip tracks LoRA per-ref
     // surcharges the same way nodeUnitUsd / the Run total do. Without n (picker rows),
     // refs stay off — a list row has no graph wires.
-    const t = n && NODE_TYPES[n.type];
-    const refCount = (n && t && t.refInputs && modelHasImageRole(n,"refs"))
+    const ty = n && NODE_TYPES[n.type];
+    const refCount = (n && ty && ty.refInputs && modelHasImageRole(n,"refs"))
       ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     const videoWired = !!(n && graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
+    const pricing = applyVideoQuotePricing(fields.model, it.pricing);
+    const quoteFields = inputVideoFieldsForNode(pricing, videoPriceFields(it.params, fields), n, graph);
+    const u = videoUnitUsd(pricing, quoteFields, refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
+    if(pricing.unit==="input_video_second"){
+      const rate = inputVideoSecondRate(pricing, fields, { params:it.params, defaults:it.defaults });
+      return (rate!=null ? `$${rate.toFixed(2)}/input s · ` : "") + t("Video duration needed");
+    }
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults, it.params).card;
   if(kind==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
@@ -8402,7 +8466,7 @@ const VIDEO_QUOTE_PER_SECOND = {
 };
 function videoPricingHasDurationRate(p){
   if(!p) return false;
-  return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+  return p.per_second_by_output_resolution!=null || p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
     || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
     || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
     || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
@@ -8506,6 +8570,22 @@ function videoDefaultFields(fields, ctx){
   }
   return f;
 }
+// Source-video billing is distinct from a requested output duration. Never use
+// maximum_seconds (an input limit) or the node's legacy five-second default as money.
+function inputVideoPriceFields(pricing, fields, source, measuredSeconds){
+  if(!pricing || pricing.unit!=="input_video_second") return fields;
+  const measured = _num(measuredSeconds), hint = _num(source && source.fields && source.fields.duration);
+  const seconds = measured>0 ? measured : (hint>0 ? hint : null);
+  return Object.assign({}, fields || {}, { inputVideoSeconds:seconds });
+}
+function inputVideoSecondRate(pricing, fields, ctx){
+  const p = pricing || {}, f = fields || {}, c = ctx || {}, pp = c.params || {};
+  const res = f.resolution || (f.modelOpts || {}).resolution
+    || (pp.resolution && pp.resolution.default) || (c.defaults || {}).resolution || p.default_resolution;
+  const rates = p.per_second_by_output_resolution;
+  const rate = rates && _num(rates[res]);
+  return rate!=null && rate>=0 ? rate : null;
+}
 function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
   const p = pricing || {};
   const f = fields || {};
@@ -8535,6 +8615,11 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
   const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
   const f = fields || {};
   const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+  if(p.unit==="input_video_second"){
+    const seconds = _num(f.inputVideoSeconds), rate = inputVideoSecondRate(p, f, null);
+    const max = _num(p.maximum_seconds);
+    return seconds>0 && (max==null || seconds<=max) && rate!=null ? seconds*rate : null;
+  }
   const dur = pickDur(p, raw, f);
   const rp = (m)=> pickByRes(m, res, defRes);
   let v;
@@ -8809,6 +8894,25 @@ function avatarMeasuredSecs(url){
   cleanVoiceMediaSeconds(url, false).then(function(v){ if(v){ AVATAR_AUDIO_SECS.set(url, v); try{ refreshRunEstimate(); }catch(e){} } });
   return null;
 }
+function inputVideoFieldsForNode(pricing, fields, n, g){
+  if(!pricing || pricing.unit!=="input_video_second") return fields;
+  const link = n && g && (g.links || []).find(l=> l.to.node===n.id && l.to.port==="video");
+  const source = link && (g.nodes || []).find(s=> s.id===link.from.node);
+  const url = source && ((source.fields && source.fields.video) || (source.out && source.out.video));
+  return inputVideoPriceFields(pricing, fields, source, inputVideoMeasuredSecs(url));
+}
+const INPUT_VIDEO_SECS = new Map();
+function inputVideoMeasuredSecs(url){
+  if(!url || typeof url!=="string") return null;
+  if(INPUT_VIDEO_SECS.has(url)) return INPUT_VIDEO_SECS.get(url);
+  INPUT_VIDEO_SECS.set(url, null);
+  cleanVoiceMediaSeconds(url, true).then(function(seconds){
+    if(!(seconds>0)) return;
+    INPUT_VIDEO_SECS.set(url, seconds);
+    graph.nodes.forEach(function(n){ if(NODE_TYPES[n.type]) updateNodePrice(n); }); refreshRunEstimate();
+  });
+  return null;
+}
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const fields = effectiveModelFields(n);
@@ -8841,7 +8945,9 @@ function nodeUnitUsd(n){
       const secs = avatarAudioEstSeconds(src, txt, avatarMeasuredSecs(src && src.out && src.out.audio));
       if(secs!=null){ const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), Object.assign({}, videoPriceFields(it.params, fields), { duration: avatarClampSecs(fields.model, secs, it.pricing) }), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
     }
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
+    const pricing = applyVideoQuotePricing(fields.model, it.pricing);
+    const quoteFields = inputVideoFieldsForNode(pricing, videoPriceFields(it.params, fields), n, graph);
+    const u = videoUnitUsd(pricing, quoteFields, refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="decision"){
     // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
     // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
@@ -8865,12 +8971,12 @@ function nodeUnitUsd(n){
 }
 // total across the whole graph — matches ▶ Run all (every disconnected flow fires)
 function workflowCost(){
-  let usd=0, priced=0, unpriced=0, exact=true;
+  let usd=0, priced=0, unpriced=0, exact=true, videoUnknown=false;
   let estimate=false, range3d=false, off3d=false, lo=0, hi=0;
   for(const n of graph.nodes){
     const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) continue;
     const u = nodeUnitUsd(n);
-    if(u==null){ unpriced++; continue; }
+    if(u==null){ unpriced++; if(t.modelKind==="video" && catItem("video", effectiveModelFields(n).model)?.pricing?.unit==="input_video_second") videoUnknown=true; continue; }
     usd += u; priced++;
     if(t.modelKind==="model3d"){
       const fields = effectiveModelFields(n);
@@ -8884,10 +8990,10 @@ function workflowCost(){
       } else { lo += u; hi += u; }
     } else {
       lo += u; hi += u;
-      if(t.modelKind!=="image"){ estimate = true; exact = false; }
+      if(t.modelKind!=="image" || catItem("image", effectiveModelFields(n).model)?.priceFrom){ estimate = true; exact = false; }
     }
   }
-  return { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi };
+  return { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi, videoUnknown };
 }
 const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
 // True while a signed-out visitor can still free-sample Run (pristine starter, same topology with
@@ -8934,16 +9040,16 @@ function refreshRunEstimate(){
   // the moment it became worth reading. A price that disappears when it gets big reads as a dark
   // pattern however it got there, so we show it and say which run it is for.
   const demo = inDemoRun();
-  const { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi } = workflowCost();
-  if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
+  const { usd, priced, unpriced, exact, estimate, range3d, off3d, lo, hi, videoUnknown } = workflowCost();
+  if(!priced && !videoUnknown){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
   const gifUnknown = graphHasGifImageNodes();   // GIF is token-settled; never paint the LLM/still subtotal as a complete total
   const branching = graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && byId(l.from.node)?.fields?.branch===true);
   const ranged = off3d && hi>lo;
   const figure = ranged ? `$${fmtUsdPlain(lo)}–$${fmtUsdPlain(hi)}` : `${exact?"":"~"}${fmtUsd(usd)}`;
-  const amt = `<span class="rn-run" aria-hidden="true">▶</span><b>${figure}</b>&nbsp;`;
+  const amt = priced ? `<span class="rn-run" aria-hidden="true">▶</span><b>${figure}</b>&nbsp;` : "";
   // When any image node asks for GIF, the dollar figure is only the priced subtotal — label it so.
-  el.innerHTML = gifUnknown
+  el.innerHTML = videoUnknown ? amt + esc(t(priced ? "subtotal + unknown video" : "Video duration needed")) : gifUnknown
     ? amt + `${esc(t("subtotal + unknown GIF"))}`
     : (demo ? amt + `${esc(t("to run for real"))}` : branching ? amt + `${esc(t("all branches"))}` : amt + `${esc(t("to run"))}`);
   el.title = (demo
