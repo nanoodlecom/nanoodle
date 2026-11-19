@@ -1222,7 +1222,12 @@
     max-width:11.5rem; height:calc(var(--ws-h) - 7px); margin:0; padding:0 .55rem 0 .7rem;
     border:1px solid transparent; border-bottom:none; border-radius:.45rem .45rem 0 0;
     background:transparent; color:var(--dim); font-size:.78rem; line-height:1; cursor:pointer; }
-  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  /* Truncate the HEAD, not the tail: workspace names share long prefixes
+     ("Recovered visit: …"), so the distinguishing words are at the end.
+     direction:rtl moves the ellipsis to the left edge; plaintext keeps the
+     name itself reading left-to-right. Full name stays on the tab's title. */
+  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    direction:rtl; text-align:left; }
   .wstab .wsx{ display:inline-flex; align-items:center; justify-content:center; flex:none;
     width:1.15rem; height:1.15rem; margin:0; padding:0; border:none; background:transparent;
     border-radius:.3rem; opacity:0; font-size:.85rem; line-height:1; color:var(--dim); }
