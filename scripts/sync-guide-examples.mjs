@@ -54,6 +54,30 @@ const HOWTO = {
     inspect: "Compare the original, the cut-out and the placed composite, then read the <em>Preservation verdict</em>. PRESERVED means every spec line was re-read exactly; DRIFTED quotes the lines that differ. In the saved run the headline label was letter-perfect and the checker still flagged the microprint line — that strictness is the feature, not a failure of the demo.",
     costHow: "Five model calls: the saved run reported $0.0906 in total (spec $0.0048, RMBG-3.0 cut-out $0.018, Nano Banana placement $0.039, blind re-read $0.0288, GLM checker $0.00). Prices and results vary.",
   },
+  "photo-to-game-ready-mesh": {
+    headline: "Photo to game-ready mesh",
+    job: "One photo of one object → a textured triangle mesh that drops into engines, Blender and slicers.",
+    purpose: "Gemini surveys the photo first: the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol Max Turbo (Sperid Labs) rebuilds the object as a 30,000-triangle GLB with UVs and embedded PBR textures — real surfaces, not points. GLM writes the guide that ships with it: what you got, where it drops in, and which parts were invented rather than measured.",
+    edit: "Swap <em>Object photo</em> for your own photo of one object — whole, in frame, on an uncluttered background works best. Keep <em>Rebuild as a mesh</em> on <code>speridlabs/idol/max/turbo</code> with PBR on; for a character or creature, the model's rigging option adds a skeleton and animation clips at $0.125 (rigid props may not rig, and a failed rig fails the run). Idol Max ($0.20) is the stereo-depth quality variant of the same call.",
+    inspect: "Orbit the saved GLB in the workflow and compare it with the photo: surfaces and textures this time, not points — then read the guide's honest edges before you build on it. Fine detail lives in the 2048px texture maps, not the geometry; 30,000 triangles is a budget. The saved run's GLB parses at 29,992 triangles with UVs and three embedded maps.",
+    costHow: "Three model calls: the saved run reported $0.1029 in total (Idol Max Turbo a flat $0.10 with PBR included, Gemini survey $0.0029, GLM guide $0.00). Prices and results vary.",
+  },
+  "one-photo-whole-campaign": {
+    headline: "One photo, whole campaign",
+    job: "One product photo → a finished sale poster in three chained edits, with a drift report that checks the no-drift claim.",
+    purpose: "Seedream 5.5 edits the photo three times in a chain — a new backdrop, campaign props, the offer text — each round editing the previous round's result. A Gemini reader writes the product anchors first, transcribing every word on the label; a blind Gemini re-read describes the finished poster; a GLM drift report compares the three and prints HELD, DRIFTED and whether the CAMPAIGN is COMPLETE.",
+    edit: "Swap <em>Product photo</em> for your own product shot and rewrite <em>Edit 1 · backdrop</em>, <em>Edit 2 · props</em> and <em>Edit 3 · offer text</em> — one change per edit, and keep the preservation clause (name every word on your label) at the end of each one. Keep the three edit nodes on <code>bytedance/seedream-v5.5/edit</code> at size <code>1k</code> — Seedream takes resolution tokens, not pixel sizes, and the /edit id is the image-to-image route.",
+    inspect: "Read the poster's label against your original photo word by word, then read the <em>Drift report</em>. HELD and DRIFTED are graded from the blind re-read's text, not the pixels — in the saved run the report flagged two wording wobbles between the readers while the label itself held word-for-word, and the headline picked up a decorative quote mark in the pixels that neither reader transcribed. The audit is a tripwire, not a proof.",
+    costHow: "Six model calls: the saved run reported $0.0905 in total (three Seedream 5.5 edits at $0.028 each, Gemini anchors $0.0028, blind re-read $0.0038, GLM drift report $0.00). Prices and results vary.",
+  },
+  "edit-with-references": {
+    headline: "Edit with references",
+    job: "Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third.",
+    purpose: "MiniMax H3-Image takes the main photo plus up to three reference pictures and one instruction that names each picture — Picture 1 is the main photo, Picture 2 the outfit, Picture 3 the accessory, Picture 4 the companion — and fuses them positionally into a single scene. A Gemini survey writes the subject's anchors first; a blind Gemini re-read describes the result; a GLM checker grades whether every piece landed and the subject survived.",
+    edit: "Swap <em>Main photo</em> for your own portrait and <em>Reference 1 · outfit</em>, <em>Reference 2 · accessory</em> and <em>Reference 3 · companion</em> for your own garment, accessory and companion shots — keep the picture numbering, and rewrite <em>Edit instruction (names each picture)</em> to match. Keep <em>Fuse the references</em> on <code>minimax-h3-image</code> at size <code>1k</code> — H3 accepts only 1K or 2K output and rejects pixel sizes. The model takes up to 16 references if you wire more 📷 inputs.",
+    inspect: "Compare the fused scene with the four inputs one at a time: is the garment the one from its reference, is the subject still the same person, did anything uninvited move in? Then read the <em>Edit report</em>. LANDED and MISSING are graded from the blind re-read's text, not the pixels — in the saved run the checker hedged the sunglasses and the open jacket as unclear while both sit plainly in the picture. That conservatism is the audit working as designed.",
+    costHow: "Four model calls: the saved run reported $0.0705 in total (H3-Image edit $0.064 with three references, Gemini anchors $0.0029, blind re-read $0.0036, GLM checker $0.00). Prices and results vary.",
+  },
   "photo-to-3d-splat": {
     headline: "Photo to 3D splat",
     job: "One photo of one object → a 3D Gaussian splat you can orbit.",
@@ -337,7 +361,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
@@ -421,7 +445,7 @@ function chrome({ title, description, path, crumbs, wide, body, next, share }) {
 <div class="wrap${wide ? " wide" : ""}">
 
   <header>
-    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
     <div class="spacer"></div>
     <a class="ghost" href="/">Open editor →</a>
   </header>
@@ -442,6 +466,7 @@ ${next}
     <div class="spacer"></div>
     <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
     <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
     <a href="/">Home</a>
   </footer>
 
@@ -687,7 +712,7 @@ function hubPage() {
 
     <section>
       <p>Each workflow passes what one model made to the next. See the actual results, then open the graph and make it yours. Viewing saved outputs is free.</p>
-      <div class="howto-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))" aria-label="Scenes, sound and stories">
+      <div class="howto-grid featured" aria-label="Scenes, sound and stories">
       ${cards(ORDER.slice(0, 3))}
       </div>
 

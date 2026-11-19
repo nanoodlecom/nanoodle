@@ -1,5 +1,215 @@
 [
  {
+  "slug": "photo-to-game-ready-mesh",
+  "title": "Photo to game-ready mesh",
+  "date": "2026-11-18",
+  "review": "The same golden dragon photo as the splat example, rebuilt as a textured 30,000-triangle mesh \u2014 UVs, PBR maps, and surfaces a slicer, an engine and Blender all accept",
+  "note": "Upload one photo of one object and get back a textured triangle mesh of it. Gemini first surveys the photo \u2014 the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol Max Turbo (Sperid Labs' mesh line, landed on NanoGPT the same day this example shipped) rebuilds the object as a 30,000-triangle GLB with UVs and the textures embedded \u2014 2048px base-colour and normal maps plus metallic-roughness maps, PBR included in the $0.10. GLM then writes the guide: what you got, where it drops in, and the honest edges. In the saved run the golden dragon statue from Photo to 3D Splat \u2014 antiqued bronze with dark patina, wings spread, coiled on a dark grey stone plinth \u2014 came back as real surfaces: the wings, scales and plinth are geometry you can light, edit and print, and the guide names the invented sides (dorsal neck and spine, rear wing surfaces, the base's underside) as inventions. Flaws and limits: fine detail lives in the texture maps, not the geometry \u2014 30,000 triangles is a budget, so whiskers, horns and wing membranes are approximate; the mesh arrives unrigged (the model offers rigging as an option, left off here \u2014 a rigid statue may not rig, and a failed rig fails the generation); one object per run; scale is relative, not measured. The probe GLB parsed at exactly 30,000 triangles; the saved run's parses at 29,992. Unlike the splat, the mesh GLB is Y-up and renders in the stock viewer \u2014 no points path needed. The turntable is a plain flat-shaded render of the saved GLB with its own base-colour texture, not a beauty shot \u2014 orbit the workflow's sampled GLB in the editor for the real thing.",
+  "layout": "sequence",
+  "costUsd": 0.102948325,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "speridlabs/idol/max/turbo",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "4cd2286b1b5d1bd4e1b88d32c1db738977f51390a09e4b29055938f060d9c6ad",
+  "inputs": [
+   {
+    "label": "Object photo",
+    "src": "photo-to-game-ready-mesh/object-photo.webp"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "photo-to-game-ready-mesh/turntable.mp4",
+    "kind": "video",
+    "label": "1. The mesh turning: Idol Max Turbo's textured GLB rendered one full turn, 29,992 triangles \u00b7 reported $0.10",
+    "costUsd": 0.1,
+    "sha256": "6ff99fcd02f0c1b8a678f99fec87b6071d3e38335aea9bca8ff15378d69b5e51"
+   },
+   {
+    "src": "photo-to-game-ready-mesh/survey.txt",
+    "kind": "text",
+    "label": "Object survey \u00b7 Gemini reads the photo \u00b7 reported $0.0029",
+    "costUsd": 0.0029,
+    "sha256": "474a152f326d7efc03e6b6d6f05541965f7c9906eead63f42652fc4e77f613b8",
+    "collapsed": true
+   },
+   {
+    "src": "photo-to-game-ready-mesh/guide.txt",
+    "kind": "text",
+    "label": "Mesh guide \u00b7 GLM writes what you got \u00b7 reported $0.00",
+    "costUsd": 0,
+    "sha256": "1b362647cf7b302b01a2b7a751a52dde9cec6efbeb54f7b7fc38350a613a2fe3",
+    "collapsed": true
+   }
+  ],
+  "preview": "photo-to-game-ready-mesh/preview.webp",
+  "workflow": "photo-to-game-ready-mesh/workflow.json",
+  "workflowSha256": "8fbd2bbb29dff7407a6ddbb7a318d230c929c892108a2b09f444ac8036fc0e22",
+  "workflowNote": "photo-to-game-ready-mesh.NOTE.txt"
+ },
+ {
+  "slug": "one-photo-whole-campaign",
+  "title": "One photo, whole campaign",
+  "date": "2026-11-18",
+  "review": "One candle photo becomes a finished 12.12 sale poster in three chained Seedream 5.5 edits \u2014 backdrop, props, offer text \u2014 and the label reads word-for-word identical at the end; a drift report proves it instead of promising it",
+  "note": "Upload one product photo and write three edits \u2014 a backdrop, a set of props, the offer text \u2014 and Seedream 5.5 (bytedance/seedream-v5.5/edit) makes them one at a time, each round editing the previous round's result. Before the chain starts, a Gemini reader writes the product anchors, transcribing every word on the label; after it, a second Gemini re-reads the finished poster blind; a GLM drift report holds anchors, requested edits and re-read against each other and prints HELD, DRIFTED and CAMPAIGN: COMPLETE or INCOMPLETE. Why this model: Seedream 5.5 is ByteDance's November 2026 editor, sold on multi-round localized editing that leaves the rest of the picture alone \u2014 the exact claim a seller building a 12.12 campaign kit from one product shot is betting on \u2014 and ComfyUI took it as a Partner Node on Nov 11 while NanoGPT has carried it since Nov 6 at $0.028 per 1K edit. In the saved run the candle's label \u2014 EMBER & OAK / No. 12 / CEDAR + SMOKE / HAND POURED \u00b7 8 OZ \u2014 survives all three rounds word-for-word, the cedar discs and eucalyptus land beside it, and the poster text reads exactly as written. Flaws and limits, honestly: the drift report's two DRIFTED notes are about the readers' wording, not the pixels (one read called the lid 'open', the other did not; the re-read called the wall 'soft-focus' though no blur was requested) \u2014 the audit grades from text, so it flags wording wobble as readily as pixel drift. At pixel level the headline picked up a decorative opening quote mark the instruction never asked for; the words themselves are exact. The edit nodes' size is pinned to 1k \u2014 Seedream takes resolution tokens, not pixel sizes \u2014 and the model id is the /edit variant, the image-to-image route. A first full attempt billed $0.0591 before a service restart killed the runner and its outputs with it; the saved run is the re-run, and the probe that proved the endpoint first cost $0.028. The demo candle was painted by the media pipeline because the flow takes any upload \u2014 swap in a real product photo and it runs as saved.",
+  "layout": "sequence",
+  "costUsd": 0.09052,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "bytedance/seedream-v5.5/edit",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "4327853c9405720cfab12a5470b739d25b2ca7c339ca5627119af567cfd4fcab",
+  "inputs": [
+   {
+    "label": "Product photo",
+    "src": "one-photo-whole-campaign/product-photo.webp"
+   },
+   {
+    "label": "Edit 1 \u00b7 backdrop",
+    "text": "Change only the setting: place the candle on a dark rustic wooden table against a deep green wall, soft window light from the left. Keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   {
+    "label": "Edit 2 \u00b7 props",
+    "text": "Add a small stack of two cedar wood discs and a short sprig of dried eucalyptus on the table beside the candle. Change nothing else \u2014 the backdrop stays as it is, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   },
+   {
+    "label": "Edit 3 \u00b7 offer text",
+    "text": "Add elegant cream-coloured poster text in the empty wall space above the candle: '12.12 SALE' in large serif letters, and beneath it 'UP TO 30% OFF' in smaller letters. Change nothing else \u2014 the props stay where they are, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same \u2014 every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED \u00b7 8 OZ."
+   }
+  ],
+  "outputs": [
+   {
+    "src": "one-photo-whole-campaign/poster.webp",
+    "kind": "image",
+    "label": "Finished poster \u00b7 Seedream 5.5 edit 3 \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "300332656631b84d502f6a329b399b448352d81d290688afd8995d8ee623a357"
+   },
+   {
+    "src": "one-photo-whole-campaign/backdrop.webp",
+    "kind": "image",
+    "label": "After edit 1 \u00b7 backdrop swap \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "981d73b7083461e2441347275fac1a2f990b93794774608057e6725ac1744cbc"
+   },
+   {
+    "src": "one-photo-whole-campaign/props.webp",
+    "kind": "image",
+    "label": "After edit 2 \u00b7 props added \u00b7 reported $0.028",
+    "costUsd": 0.028,
+    "sha256": "9b339a9b0e65fe39e426cd109bd74a2a55ac08358d3963b02d5b7de90488a4d1"
+   },
+   {
+    "src": "one-photo-whole-campaign/anchors.txt",
+    "kind": "text",
+    "label": "Product anchors \u00b7 Gemini reads the photo \u00b7 reported $0.0028",
+    "costUsd": 0.0028,
+    "sha256": "698cc0a8eee7e2a9eba168bc94a93254c5b6b4f81bc748a5f8f1a9df6bf923ca",
+    "collapsed": true
+   },
+   {
+    "src": "one-photo-whole-campaign/re-read.txt",
+    "kind": "text",
+    "label": "Blind re-read \u00b7 Gemini describes the poster \u00b7 reported $0.0038",
+    "costUsd": 0.0038,
+    "sha256": "84ac5436757d9680aac7fa4023cc6d0d44f7f60bbda40014c29ee7bd4aa1d4c0",
+    "collapsed": true
+   },
+   {
+    "src": "one-photo-whole-campaign/report.txt",
+    "kind": "text",
+    "label": "Drift report \u00b7 GLM grades the chain \u00b7 reported $0.00",
+    "costUsd": 0.0,
+    "sha256": "e82e1f28d81fb6659722adf9534f71075d66c68369b66a0b7e0c1ded7ffd7c32",
+    "collapsed": true
+   }
+  ],
+  "workflow": "one-photo-whole-campaign/workflow.json",
+  "workflowSha256": "4327853c9405720cfab12a5470b739d25b2ca7c339ca5627119af567cfd4fcab",
+  "workflowNote": "one-photo-whole-campaign.NOTE.txt"
+ },
+ {
+  "slug": "edit-with-references",
+  "title": "Edit with references",
+  "date": "2026-11-18",
+  "review": "The woman keeps her face, hair and pose while a red leather jacket, round gold sunglasses and a Dalmatian puppy walk in from three other photos \u2014 one instruction, one fused scene",
+  "note": "Upload one main photo and up to three reference pictures, then write one instruction that names each picture \u2014 Picture 1 is the main photo, Picture 2 the outfit, Picture 3 the accessory, Picture 4 the companion \u2014 and MiniMax H3-Image fuses them positionally into a single scene. It takes up to sixteen references this way. Before the edit, a Gemini survey writes the subject's anchors (face, hair, outfit, pose, background); after it, a second Gemini re-reads the result blind, never having seen the originals; a GLM checker holds instruction, anchors and re-read against each other and prints LANDED, MISSING and whether the SUBJECT SURVIVED. Why this model: H3-Image held #1 on Hugging Face trending for six straight days in November 2026 (~3.4M downloads) and tops independent open-weights editing boards, but its open weights total ~135 GB and the MiniMax community license excludes the US, EU, UK and Korea \u2014 most of the people downloading it cannot run it locally, so hosted in a browser is the route. In the saved run all four pictures land: the jacket is on her, worn open over the white t-shirt with its belt and zip pockets carried over; the sunglasses are on her face; the puppy sits by her legs with its head tilt intact; face, hair, pose, jeans and the grey wall are unchanged. Flaws and limits, honestly: the checker graded the sunglasses and the open jacket 'unclear in the re-read' \u2014 the blind reader hedged on fine detail that is plainly visible in the picture itself, because the audit grades from text, not pixels; that conservatism is the design, but it means a clean edit can still print MISSING lines. The puppy's gaze lands near the camera rather than straight into it. The edit node's size is pinned to 1k \u2014 H3 accepts only 1K or 2K output and rejects pixel sizes, a pin found by a failed first probe. The four demo photos were painted by the media pipeline because the flow takes any upload \u2014 swap in real photos and it runs as saved.",
+  "layout": "sequence",
+  "costUsd": 0.07053,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "minimax-h3-image",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "b23b94d1cb73db1cf9c98633b1afc7b2b570b6d73d3fceb1b0c93d415f61db6e",
+  "inputs": [
+   {
+    "label": "Main photo",
+    "src": "edit-with-references/main-photo.webp"
+   },
+   {
+    "label": "Reference 1 \u00b7 outfit",
+    "src": "edit-with-references/ref-jacket.webp"
+   },
+   {
+    "label": "Reference 2 \u00b7 accessory",
+    "src": "edit-with-references/ref-sunglasses.webp"
+   },
+   {
+    "label": "Reference 3 \u00b7 companion",
+    "src": "edit-with-references/ref-puppy.webp"
+   },
+   {
+    "label": "Edit instruction (names each picture)",
+    "text": "Picture 1 is the main photo. Keep the person in Picture 1 exactly as they are \u2014 same face, same long dark hair, same pose, same jeans and shoes, same plain grey wall behind them. Dress the person in the red leather jacket from Picture 2, worn open over the white t-shirt. Put the round gold-framed sunglasses from Picture 3 on the person's face. Sit the Dalmatian puppy from Picture 4 on the floor beside the person's legs, looking at the camera. One single photorealistic scene with soft, even light."
+   }
+  ],
+  "outputs": [
+   {
+    "src": "edit-with-references/edited.webp",
+    "kind": "image",
+    "label": "Fused scene \u00b7 MiniMax H3-Image \u00b7 reported $0.064",
+    "costUsd": 0.064,
+    "sha256": "0391a3dfa697685be7b4151c9c648b760d37a8a27419087db8df7fc5866943e4"
+   },
+   {
+    "src": "edit-with-references/anchors.txt",
+    "kind": "text",
+    "label": "Subject anchors \u00b7 Gemini reads the main photo \u00b7 reported $0.0029",
+    "costUsd": 0.0029,
+    "sha256": "0c346954e5b9262c329e4299662d001a69e1236a1aaeb82fa94bbbfb1584645a",
+    "collapsed": true
+   },
+   {
+    "src": "edit-with-references/re-read.txt",
+    "kind": "text",
+    "label": "Blind re-read \u00b7 Gemini describes the result \u00b7 reported $0.0036",
+    "costUsd": 0.0036,
+    "sha256": "2a68231f12437ee87b06f8689c6a87031ed51a07be800fa1cd177a1a247a31be",
+    "collapsed": true
+   },
+   {
+    "src": "edit-with-references/report.txt",
+    "kind": "text",
+    "label": "Edit report \u00b7 GLM grades the fusion \u00b7 reported $0.00",
+    "costUsd": 0.0,
+    "sha256": "b8e5716c857325f0cc5093d14fb02876190a2b0408ed86dbe9d2ea678507f3b4",
+    "collapsed": true
+   }
+  ],
+  "preview": "edit-with-references/preview.webp",
+  "workflow": "edit-with-references/workflow.json",
+  "workflowSha256": "b23b94d1cb73db1cf9c98633b1afc7b2b570b6d73d3fceb1b0c93d415f61db6e",
+  "workflowNote": "edit-with-references.NOTE.txt"
+ },
+ {
   "slug": "photo-to-3d-splat",
   "title": "Photo to 3D splat",
   "date": "2026-11-17",

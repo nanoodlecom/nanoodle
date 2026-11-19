@@ -1,0 +1,46 @@
+{
+  "label": "2026-11-18 one photo, whole campaign (Gemini anchors -> three chained Seedream 5.5 edits -> blind Gemini re-read -> GLM drift report)",
+  "startedAt": "2026-11-18T14:27:00.000Z",
+  "finishedAt": "2026-11-18T14:29:00.000Z",
+  "costUsd": 0.09051795,
+  "costExact": true,
+  "balanceBefore": 40.39694675,
+  "balanceAfter": 40.3101794,
+  "balanceDelta": 0.08676735,
+  "nodes": {
+    "anchors": {
+      "status": "done",
+      "costUsd": 0.00276735
+    },
+    "edit1": {
+      "status": "done",
+      "costUsd": 0.028,
+      "files": {
+        "image": "backdrop.webp"
+      }
+    },
+    "edit2": {
+      "status": "done",
+      "costUsd": 0.028,
+      "files": {
+        "image": "props.webp"
+      }
+    },
+    "edit3": {
+      "status": "done",
+      "costUsd": 0.028,
+      "files": {
+        "image": "poster.webp"
+      }
+    },
+    "reread": {
+      "status": "done",
+      "costUsd": 0.0037506
+    },
+    "checker": {
+      "status": "done",
+      "costUsd": 0
+    }
+  },
+  "note": "A first full attempt billed $0.05911647 (anchors + two edits) before a service restart killed the runner; its outputs died with the process and this saved run is the re-run. Balance delta (0.08676735) trails the summed exact cost (0.09051795) by the final re-read charge, which settled after the balance snapshot - same shape as the edit-with-references run. The drift report graded the label HELD word-for-word and the campaign COMPLETE; its two DRIFTED notes are reader-wording wobble, and the poster's headline carries a decorative opening quote mark visible in the pixels that neither reader transcribed. All kept as printed."
+}

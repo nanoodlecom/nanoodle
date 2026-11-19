@@ -30,30 +30,31 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="canonical" href="https://nanoodle.com/play" />
-<link rel="stylesheet" href="/vendor/righteous/righteous.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/app-shell.css" />
 <meta name="theme-color" content="#0b0d12" />
+<script src="/brand/nanoodle-v1.0.0/fonts/app-fonts.js"></script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
   /* Builder chrome — dark theme tokens mirror index.html, accent #7c8cff. */
   :root{
     color-scheme: dark;
-    --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-    --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
-    --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
-    --ok:#46d27a; --danger:#ff6b6b;
+    --bg:var(--nano-color-canvas,#0d0f17); --panel:var(--nano-color-panel,#161a27); --panel2:var(--nano-color-raised,#1d2236); --line:var(--nano-color-line,#2a3150);
+    --ink:var(--nano-color-ink,#e6e9f5); --dim:var(--nano-color-dim,#aab3c7); --faint:#8792ad; --muted:var(--nano-color-muted,#c0c7d6);
+    --accent:var(--nano-color-accent,#7c8cff); --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
+    --ok:var(--nano-color-success,#46d27a); --danger:var(--nano-color-error,#ff6b6b);
   }
   *{ box-sizing:border-box; }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{ margin:0; height:100%; }
-  body{ background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif, system-ui, sans-serif;
+  body{ background:var(--bg); color:var(--ink); font:15px/1.5 var(--nano-font-body,system-ui,sans-serif);
         display:flex; flex-direction:column; }
-  a{ color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  a{ color:var(--nano-color-accent-ink,#a9b6ff); text-decoration:none; } a:hover{ text-decoration:underline; }
   .dim{ color:var(--dim); } .grow{ flex:1; }
 
   /* ---------- top bar ---------- */
   #bar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
         padding:.55rem .8rem; border-bottom:1px solid var(--line);
-        background:linear-gradient(180deg,#161a27,#11141f);
+        background:var(--panel);
         position:relative; z-index:70; }   /* stays above the first-run overlay (sign-in / Share remain usable) */
   /* ---------- incomplete/damaged share-link banner (shown when an #a= link won't decode) ---------- */
   /* :not([hidden]) so the `hidden` attribute actually hides it — a bare `display:flex`
@@ -77,9 +78,9 @@
   #recwelcome .rw-x{ flex:0 0 auto; background:transparent; border:0; color:inherit; cursor:pointer;
                   font-size:1rem; line-height:1; opacity:.65; padding:.15rem .35rem; border-radius:.3rem; }
   #recwelcome .rw-x:hover{ opacity:1; background:#ffffff14; }
-  .brand{ font-family:"Righteous", ui-sans-serif, system-ui, sans-serif;
+  .brand{ font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif);
           font-weight:400; font-size:1.2rem; letter-spacing:.01em; }
-  .brand .nano{ color:var(--accent); }
+  .brand .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); background-clip:text; color:transparent; }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                color:var(--ink); font-weight:600; opacity:.9; }
   /* the app title doubles as a rename field — click it to edit in place */
@@ -91,7 +92,7 @@
   #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
   #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
-  #bal{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; }
+  #bal{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums; }
   #bal b{ color:var(--ink); }
   #bal .costspend{ color:var(--dim); font-weight:400; }
   #bal .costdelta{ display:inline-block; margin-left:.2rem; color:#ffcf6b; font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none; }
@@ -195,14 +196,9 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink); }
   /* the command wraps in full view (a clipped <input> would hide the highlighted key mid-string);
      the variable part — the masked key or the your-key swap token — is the one highlighted bit */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
-                     background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
-                     line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all; }
   #agentpop .ap-cmd .ap-key{ background:var(--accent-soft); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem; }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
-           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
   /* the showcase nudge is owner-only: a recipient sharing someone else's app has nothing of
@@ -292,7 +288,7 @@
 
   #cust-status{ font-size:.78rem; min-height:1.1em; margin-top:.4rem; }
   #cust-status .ok{ color:var(--ok); } #cust-status .err{ color:var(--danger); }
-  #cust-status .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; }
+  #cust-status .meter{ font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim); opacity:.9; white-space:nowrap; }
   .spin{ display:inline-block; animation:spin 1s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
@@ -343,7 +339,7 @@
   #mpicklist button:hover{ background:var(--panel2); }
   #mpicklist button.sel{ background:var(--accent-soft); font-weight:600; }
   #mpicklist .mname{ min-width:0; word-break:break-all; }
-  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem; }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.74rem; }
 
   #toast{ position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
           background:var(--panel); border:1px solid var(--accent-line); color:var(--ink);
@@ -379,19 +375,21 @@
   /* ---------- narrow widths: keep the builder bar + composer from wrapping into ragged rows ---------- */
   @media (max-width:640px){
     #recwelcome{ font-size:.8rem; padding:.5rem .75rem; align-items:flex-start; }   /* wraps to a few lines — keep ✕ pinned top */
-    #bar{ gap:.35rem; padding:.45rem .6rem; }
+    #bar{ gap:.35rem; padding:.45rem .6rem; flex-wrap:nowrap; }
+    #bar > .grow{ display:none; }
+    #bar > :is(#myapps,#langbtn-b,#barmore){ flex:none; }
     #bar button{ padding:.35rem .55rem; font-size:.78rem; }
     #bar .sep{ display:none; }
     #bar #sharehint{ display:none; }
     #auth-status{ display:none; }        /* the sign-in link / sign-out button carry the state; drop the status text */
     #bal{ display:none; }                /* balance follows the status text into the ⋯ menu */
-    .title-wrap{ max-width:14ch; }
+    .title-wrap{ flex:1 1 auto; min-width:0; max-width:none; }
     .cust-label{ display:none; }
     #goal{ min-width:140px; }
     #modelpick{ max-width:120px; }
     /* --- mobile: creator chrome → overflow ⋯ menu; composer → ✨ handle; Run rises above the fold --- */
     .brand{ display:none; }            /* the title identifies the app; reclaim width for a one-row bar */
-    #barmore{ display:inline-flex; align-items:center; font-size:1.1rem; padding:.2rem .5rem; min-height:44px; }
+    #barmore{ display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem; padding:.2rem .5rem; min-width:44px; min-height:44px; }
     #baractions{ display:none; position:absolute; top:calc(100% + .3rem); right:.5rem; z-index:92;
                  flex-direction:column; align-items:stretch; gap:.4rem; min-width:210px;
                  background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
@@ -15207,6 +15205,7 @@ function defaultFiles(graph){
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(tagline)}" />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="nanoodle-app-brand" content="1.0.0" />
 <style><!-- include: app.css --></style>
 </head>
 <body>
@@ -15242,18 +15241,18 @@ function defaultFiles(graph){
   const appCss =
 `:root{
   color-scheme: dark;
-  --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-  --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
+  --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --line:#262c3a; --control-line:#67728a;
+  --ink:#eef1f7; --dim:#aeb7c8; --faint:#8792ad; --muted:#c3c9d6;
   --accent:${ACCENT}; --accent-soft:${ACCENT}22; --accent-line:${ACCENT}66;
-  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
+  --ok:#3ddc97; --danger:#ff6b6b; --radius:12px; --control-radius:8px;
 }
 *{ box-sizing:border-box; }
 html,body{ margin:0; }
-body{ background:
-    radial-gradient(900px 520px at 50% -10%, #1a2147 0%, transparent 60%), var(--bg);
-  color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; min-height:100vh; }
+body{ background:var(--bg);
+  color:var(--ink); font:16px/1.6 Manrope, system-ui, sans-serif; min-height:100vh; }
 .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
-.app-head h1{ font-size:1.5rem; margin:0 0 .25rem; letter-spacing:.01em; }
+.app-head h1{ font:400 clamp(1.6rem,5vw,2.65rem)/1.12 Righteous, system-ui, sans-serif; margin:0 0 .35rem; letter-spacing:-.02em; overflow-wrap:anywhere; }
+:focus-visible{ outline:2px solid #a9b6ff; outline-offset:3px; }
 .app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
 .app-head .auth input{ font:inherit; padding:.3rem .45rem; border-radius:.4rem; background:var(--panel); border:1px solid var(--line); color:var(--ink); }
 .app-head .auth .link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; }
@@ -15265,8 +15264,8 @@ body{ background:
 .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
 .field label{ display:block; font-size:.8rem; color:var(--muted); font-weight:700; margin-bottom:.3rem; }
 .field input, .field textarea, .field select{
-  width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
-  background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+  width:100%; min-height:44px; font:inherit; padding:.6rem .7rem; border-radius:var(--control-radius);
+  background:var(--panel); border:1px solid var(--control-line); color:var(--ink); }
 .field textarea{ min-height:90px; resize:vertical; }
 .field input::placeholder, .field textarea::placeholder{ color:#b8c0d0; opacity:1; }
 .field input:focus, .field textarea:focus, .field select:focus{
@@ -15288,10 +15287,9 @@ body{ background:
 .app-note-b{ white-space:pre-wrap; line-height:1.45; word-break:break-word; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
-.run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
-  background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
-  box-shadow:0 0 26px ${ACCENT}33; }
-.run:hover{ box-shadow:0 0 36px ${ACCENT}55; }
+.run{ min-height:44px; font:inherit; font-weight:750; padding:.6rem 1.6rem; border-radius:var(--control-radius); cursor:pointer;
+  background:var(--accent); border:1px solid var(--accent); color:#0b0d12; }
+.run:hover{ filter:brightness(1.12); }
 .run:disabled{ opacity:.5; box-shadow:none; cursor:default; }
 /* Stop state — destructive red while a run is in flight */
 .run.stop{ background:linear-gradient(180deg,#ff8a8a,#ef5a5a); border-color:#ff8a8a;
@@ -15337,7 +15335,7 @@ body{ background:
 .prog-node{ font-weight:700; }
 /* Long video poll lines carry job id + status URL — allow wrap so they stay readable. */
 .prog-msg{ color:var(--dim); word-break:break-word; white-space:normal; max-width:100%; }
-.prog-el{ margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem;
+.prog-el{ margin-left:auto; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem;
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .prog-errhint{ margin-top:.35rem; font-size:.8rem; color:var(--danger); white-space:pre-wrap; word-break:break-word; }
@@ -15522,6 +15520,10 @@ function bundle(files){
   // or a version. Only a deliberate choice is baked ("" → nothing); the viewer's own pick still wins.
   const _appLang = bakedAppLang();
   if(_appLang) html = injectInHead(html, '<script>window.NOODLE_APP_LANG=' + JSON.stringify(_appLang) + ';<\/script>');
+  // The fonts ride in the rendered DOM and standalone HTML, outside saved templates and share links.
+  if (typeof NANOODLE_APP_FONTS !== "undefined" && html.includes('name="nanoodle-app-brand" content="1.0.0"')) {
+    html = injectInHead(html, "<style>" + NANOODLE_APP_FONTS + "</style>");
+  }
   return html;
 }
 

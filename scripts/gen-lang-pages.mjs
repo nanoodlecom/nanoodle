@@ -262,10 +262,11 @@ ${jsonLd(code)}
   footer .langs strong{ color:var(--ink) }
   footer .sep{ margin:0 .5rem; opacity:.5 }
 </style>
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/public-pages.css" />
 </head>
 <body>
 <main>
-  <p class="logo"><span class="nano">nanoodle</span><span class="ui">node ui</span></p>
+  <p class="logo"><span class="nano">nanoodle</span></p>
   <h1>${esc(p.h1)}</h1>
   <p class="tagline">${esc(p.tagline)}</p>
   <img class="hero" src="/og-card.png" width="1200" height="630" alt="${esc(p.imgAlt)}" />

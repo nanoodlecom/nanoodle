@@ -30,7 +30,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
-<link rel="stylesheet" href="/vendor/righteous/righteous.css" />
+<link rel="stylesheet" href="/brand/nanoodle-v1.0.0/app-shell.css" />
 <meta name="theme-color" content="#0b0d12" />
 <link rel="canonical" href="https://nanoodle.com/" />
 <link rel="alternate" type="application/atom+xml" title="nanoodle changelog" href="/feed.xml" />
@@ -87,24 +87,23 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
-    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
-    --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97; --model3d-port:#a78bfa;
+    --bg:var(--nano-color-canvas,#0b0d12); --panel:var(--nano-color-panel,#12151d); --panel2:var(--nano-color-raised,#171b25); --ink:var(--nano-color-ink,#eef1f7); --dim:var(--nano-color-dim,#aeb7c8); --muted:var(--nano-color-muted,#c3c9d6);
+    --line:var(--nano-color-line,#262c3a); --accent:var(--nano-color-accent,#7c8cff); --accent2:var(--nano-color-image-port,#ff79c6); --good:var(--nano-color-success,#3ddc97); --bad:var(--nano-color-error,#ff6b6b); --warn:var(--nano-color-warning,#ffcf6b);
+    --text-port:var(--nano-color-text-port,#7c8cff); --image-port:var(--nano-color-image-port,#ff79c6); --video-port:var(--nano-color-video-port,#5ad1e6); --audio-port:var(--nano-color-audio-port,#3ddc97); --model3d-port:var(--nano-color-model3d-port,#a78bfa);
     --ws-h:34px;
   }
   *{box-sizing:border-box}
   .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
-  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{margin:0; height:100%}
   body{ background:var(--bg); color:var(--ink);
-        font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+        font:14px/1.45 var(--nano-font-body,system-ui,sans-serif); overflow:hidden; }
   button,select,textarea,input{font:inherit; color:var(--ink)}
   button,.btn{cursor:pointer; border-radius:.5rem; border:1px solid var(--line); background:var(--panel2); padding:.4rem .7rem;}
   button:hover:not(:disabled){border-color:#3a425a}
   button:disabled{opacity:.45; cursor:default}
-  button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); border:none; color:#0b0d12; font-weight:700;}
-  #run{ min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
+  button.primary{ background:var(--accent); border:none; color:var(--nano-color-on-accent,#0b0d12); font-weight:700;}
+  #run{ min-height:var(--nano-control-height,44px); min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
   #run.running{ background:var(--bad); }          /* same button morphs into a stop affordance (red), same size */
   #run.running:hover:not(:disabled){ background:#ff5252; }
   button.link{background:none;border:none;color:var(--accent);padding:0;font-size:.8rem}
@@ -117,9 +116,10 @@
   /* Flagship conversion next to Run: accent outline so Create app isn't chrome-identical to Save/Load */
   #makeapp{ border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent); }
   #makeapp:hover{ border-color:var(--accent); filter:brightness(1.06) }
-  #top .logo{font-family:"Righteous",ui-sans-serif,system-ui,sans-serif; font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
-  #top .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text;
-        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  #top .logo{display:inline-flex; align-items:center; gap:.35rem; font-family:var(--nano-font-display,"Righteous",system-ui,sans-serif); font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
+  #top .logo img{width:22px; height:22px; flex:none}
+  #top .logo .nano{ background:linear-gradient(90deg,var(--nano-color-wordmark-start,#67e8f9),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; }
   #top .logo .ui{ color:var(--dim); font-weight:700; font-size:.72rem; letter-spacing:.12em; margin-left:.3rem; vertical-align:.08em; text-transform:uppercase; }
   #top .sep{width:1px; height:24px; background:var(--line); margin:0 .2rem}
   #top .spacer{flex:1}
@@ -181,7 +181,7 @@
                    border:none; background:none; color:var(--ink); padding:.45rem .55rem; border-radius:.45rem; font-size:.86rem }
   #langpop button:hover{ background:var(--panel2) }
   #langpop button.sel{ color:var(--accent); font-weight:600 }
-  #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:ui-monospace,monospace; text-transform:uppercase }
+  #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:var(--nano-font-mono,ui-monospace,monospace); text-transform:uppercase }
   /* ---------- signed-out CTA: a split button — "Sign in with NanoGPT" + a ▾ caret hiding the paste-key path ---------- */
   #authmenu{ position:relative; display:flex; align-items:stretch }
   #authmenu #signin{ background:linear-gradient(90deg,#67e8f9,var(--accent)); color:#0b0d12; font-weight:700; border:none;
@@ -283,11 +283,11 @@
   #examplespanel{ margin:auto; width:100%; max-width:920px; max-height:88vh; overflow:auto; background:var(--bg);
                   border:1px solid var(--line); border-radius:.8rem; box-shadow:0 30px 90px #000a; padding:1.2rem 1.3rem 1.3rem; }
   #exampleshead{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap }
-  #exampleshead h2{ font-size:1.1rem; margin:0 }
+  #exampleshead h2{ font:400 1.35rem/1.2 var(--nano-font-display,"Righteous"),sans-serif; margin:0 }
   #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
   #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); gap:.8rem }
-  .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:.65rem }
+  .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:var(--nano-radius-card,12px) }
   .ex-card:focus-within,.ex-card:hover{ border-color:var(--accent) }
   .ex-preview{ display:flex; align-items:center; justify-content:center; height:150px; background:var(--bg); overflow:hidden; text-decoration:none; color:var(--ink); position:relative }
   .ex-card .ex-em{ font-size:3rem }
@@ -297,9 +297,10 @@
   .ex-card .ex-tt{ font-weight:600; font-size:.95rem; display:block; margin:0 }
   .ex-card .ex-ds{ font-size:.8rem; color:var(--dim); line-height:1.45; margin:.35rem 0 .7rem; display:block }
   .ex-actions{ display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:auto }
-  .ex-actions button,.ex-actions a{ font-size:.78rem; padding:.55rem .65rem; border-radius:.4rem }
-  .ex-actions button{ border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
-  .ex-actions button:hover{ border-color:var(--accent) }
+  .ex-actions button,.ex-actions a{ display:inline-flex; align-items:center; min-height:var(--nano-control-height,44px); font-size:.78rem; padding:.4rem .65rem; border-radius:var(--nano-radius-control,8px) }
+  .ex-actions a{ color:var(--nano-color-accent-ink,#a9b6ff) }
+  .ex-actions button{ border:1px solid transparent; background:var(--accent); color:var(--nano-color-on-accent,#0b0d12); font-weight:700; cursor:pointer }
+  .ex-actions button:hover{ filter:brightness(1.10) }
   #examplesintro{ font-size:.83rem; color:var(--dim); line-height:1.5; margin:.6rem 0 0 }
   @media (max-width:540px){
     #exampleshead{ display:grid; grid-template-columns:1fr auto; align-items:center } #exampleshead .sub{ grid-column:1; grid-row:2 } #examplesclose{ grid-column:2; grid-row:1 }
@@ -393,9 +394,6 @@
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink) }
   /* the MCP command wraps in full view (a clipped <input> hid the your-key placeholder mid-string);
      the swap-me token — or the injected, masked key — is highlighted so the one variable part is obvious */
-  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
-                     background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
-                     line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all }
   #agentpop .ap-cmd .ap-key{ background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink);
                              border-radius:.25rem; padding:0 .15rem }
   #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
@@ -422,13 +420,13 @@
   #describestatus{ font-size:.8rem; min-height:1.1em; margin-top:.45rem; color:var(--dim); }
   #describestatus:empty{ display:none }
   #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
-  #describestatus .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
+  #describestatus .meter{ font-family:var(--nano-font-mono,ui-monospace,monospace); color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
   #describestatus .dd-toggle{ font:inherit; font-size:.74rem; background:transparent; border:1px solid var(--line); border-radius:.4rem; color:var(--dim); padding:.08rem .4rem; margin-left:.35rem; cursor:pointer; }
   #describestatus .dd-toggle:hover{ color:var(--ink); border-color:var(--accent); }
   /* the ⚠ "show the model's reply" expander — raw reply + thinking behind a failed change */
   #describedetail{ margin-top:.45rem; max-height:38vh; overflow:auto; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; padding:.5rem .6rem; }
   #describedetail[hidden]{ display:none }
-  #describedetail pre{ margin:.2rem 0 .5rem; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--ink); }
+  #describedetail pre{ margin:.2rem 0 .5rem; white-space:pre-wrap; word-break:break-word; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.72rem; color:var(--ink); }
   #describedetail .dd-h{ font-size:.72rem; color:var(--dim); font-weight:700; margin:.15rem 0; }
   #describeversions{ display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; margin-top:.45rem; }
   #describeversions:empty{ display:none }
@@ -511,12 +509,12 @@
   #refuelqr svg{ width:100%; height:auto; display:block }
   .rf-addrrow{ display:flex; gap:.5rem; flex-wrap:wrap; text-align:left }
   #refueladdr{ flex:1 1 12rem; min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:.5rem;
-               padding:.6rem .65rem; font-size:.74rem; color:var(--ink); font-family:ui-monospace,monospace }
+               padding:.6rem .65rem; font-size:.74rem; color:var(--ink); font-family:var(--nano-font-mono,ui-monospace,monospace) }
   .rf-status{ margin:.8rem 0 .15rem; font-size:.8rem; color:var(--dim) }
   .rf-ok{ margin:.8rem 0 .15rem; font-size:.86rem; font-weight:700; color:var(--good) }
   .rf-alt{ margin:.55rem 0 0; font-size:.78rem }
   .rf-alt a{ color:var(--dim) }
-  #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim); font-variant-numeric:tabular-nums}
+  #cost{font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.78rem; color:var(--dim); font-variant-numeric:tabular-nums}
   #cost b{color:var(--ink)}
   /* signed in → the chip is a link into the Nano top-up panel: dotted-underlined amount + accent "+" */
   #cost:not(:empty){ cursor:pointer }
@@ -546,7 +544,7 @@
                display:flex; align-items:center; gap:.5rem; pointer-events:none; }
   #runest{ cursor:pointer; flex:0 0 auto; order:2;   /* rightmost → sits in the corner */
            display:flex; align-items:center; gap:.4rem; height:2.3rem; box-sizing:border-box;
-           font-family:ui-monospace,monospace; font-size:.78rem; line-height:1; color:var(--dim);
+           font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.78rem; line-height:1; color:var(--dim);
            background:var(--panel2,#1a1d24); border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
            border-radius:.6rem; padding:0 .7rem; box-shadow:0 4px 16px #0006, 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
            pointer-events:auto; user-select:none; white-space:nowrap;
@@ -584,17 +582,17 @@
   #runlive .rl-name{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   #runlive .rl-msg{ font-size:.7rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   #runlive .rl-poll{ font-size:.65rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums }
+                     font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums }
   #runlive .rl-poll a{ color:var(--accent); text-decoration:none }
   #runlive .rl-poll a:hover{ text-decoration:underline }
   #runlive .rl-el{ grid-column:3; grid-row:1 / span 2; align-self:center;
-                   font-family:ui-monospace,monospace; font-size:.72rem; color:var(--warn);
+                   font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.72rem; color:var(--warn);
                    font-variant-numeric:tabular-nums; white-space:nowrap }
   #runlive .rl-empty{ font-size:.76rem; color:var(--dim); padding:.25rem .2rem }
   /* In-progress poll diagnostics on the node card (long video/audio jobs): last check, job id, status URL. */
   .result .run-poll{ margin-top:.35rem; padding:.35rem .45rem; border-radius:.4rem; background:var(--panel2,#1a1d24);
                      border:1px solid var(--line); font-size:.72rem; color:var(--dim); line-height:1.35;
-                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; word-break:break-all }
+                     font-family:var(--nano-font-mono,ui-monospace,monospace); font-variant-numeric:tabular-nums; word-break:break-all }
   .result .run-poll-line{ display:flex; flex-wrap:wrap; align-items:center; gap:.25rem .4rem }
   .result .run-poll-line + .run-poll-line{ margin-top:.2rem }
   .result .run-poll-id{ color:var(--ink); font-size:.7rem }
@@ -915,7 +913,7 @@
   .body .ubtn:hover{ border-color:var(--accent) }
   .body .cambox video{ width:100%; border-radius:.45rem; background:#000; display:block; margin-bottom:.4rem }
   .body details.adv{ margin-top:.1rem } .body details.adv summary{ cursor:pointer; font-size:.72rem; color:var(--muted); font-weight:700 }
-  .body details.adv textarea{ margin-top:.35rem; font-family:ui-monospace,monospace; font-size:.76rem }
+  .body details.adv textarea{ margin-top:.35rem; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.76rem }
   .result{ display:none; margin-top:.1rem; border-top:1px dashed var(--line); padding-top:.5rem }
   .result.show{ display:block }
   .result img, .result video{ width:100%; border-radius:.45rem; display:block }
@@ -1044,7 +1042,7 @@
   #mpicklist button:hover{ background:var(--panel2) }
   #mpicklist button.sel{ background:#7c8cff22; font-weight:600 }
   #mpicklist .mname{ display:flex; align-items:center; gap:.4rem; min-width:0; word-break:break-all }
-  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.74rem }
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
   .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
@@ -1060,7 +1058,7 @@
   /* MODEL label left, price right on one row — the price recedes instead of reading like debug output */
   .mhead{ display:flex; align-items:baseline; justify-content:space-between; gap:.5rem }
   .mhead label{ margin-bottom:.15rem }
-  .mprice{ font-family:ui-monospace,monospace; font-size:.7rem; color:var(--muted); text-align:right;
+  .mprice{ font-family:var(--nano-font-mono,ui-monospace,monospace); font-size:.7rem; color:var(--muted); text-align:right;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:.8rem }
 
   /* ---------- app action: primary "Create/Update app" + a caret split-button that reveals "Save as a new app" ---------- */
@@ -1176,8 +1174,6 @@
   #sharemenu[hidden], #shareback[hidden]{ display:none; }
   .sm-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); padding:.3rem .5rem .35rem; }
   .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
-  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
-           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--dim); margin:.4rem .15rem .1rem; line-height:1.4; }
   .sm-warn{ font-size:.74rem; color:var(--dim); margin:.15rem .15rem .35rem; line-height:1.45;
@@ -1309,7 +1305,7 @@
 
 <header id="top">
   <h1 class="vh">nanoodle — AI workflow editor</h1>
-  <div class="logo" aria-hidden="true"><span class="nano">nano</span>odle</div>
+  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
   <div id="addmenu">
     <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
@@ -6128,6 +6124,7 @@ function modelDrifted(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  if(!catalogFetchedAt[t.modelKind]) return false;   // primed from cache but not yet revalidated this session → stay permissive: a stale prime can predate a model's launch (Idol Max Turbo, catalogued the day this was written), and badging from it flashes a false "model unavailable" — with a one-click swap away from a valid model — until the fresh list lands
   if(t.modelKind==="decision") return !catalogIsStale("decision") && !catItem("decision", decideModelId(n.fields.model));
   return !catItem(t.modelKind, n.fields.model);
 }
@@ -20857,6 +20854,21 @@ refreshUpdatesBadge();
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
+ { em:"🎮", slug:"photo-to-game-ready-mesh", title:"Photo to game-ready mesh", desc:"Upload one photo of an object: Idol Max Turbo rebuilds it as a textured 30,000-triangle mesh with UVs and PBR maps — a GLB that drops into Blender, a game engine or a slicer, with a guide that names the invented sides.",
+   thumb:"examples/gallery/photo-to-game-ready-mesh/preview.webp",
+   graph:{ v:1,
+   nodes:[{"fields":{"color":"yellow","text":"Photo → game-ready mesh. Upload one photo of one object. A vision model names what it is, Idol Max Turbo (Sperid Labs) rebuilds it as a textured triangle mesh — 30,000 triangles with UVs and PBR maps in a single GLB that drops into Blender, a game engine or a slicer — and a short guide tells you what you got and what was invented. This is the mesh sibling of Photo to 3D Splat: surfaces, not points. Swap the photo and ▶ Run."},"id":"c-intent","type":"comment","w":560,"x":-40,"y":-380},{"fields":{"image":""},"id":"src","name":"Object photo","type":"upload","w":320,"x":-40,"y":0},{"fields":{"model":"google/gemini-3.8-flash","q":"You are the surveyor in a photo-to-3D-mesh pipeline. Look at this photo and write an OBJECT SURVEY in this exact shape:\nObject: <what the single object is, one line>\nView: <the camera angle the photo shows it from, one line>\nMaterials and colours: <the main materials and colours, one line>\nHidden sides: <what the back, underside and far side probably look like — the parts the mesh must invent, one line>\nFragile details: <thin, shiny, transparent or fine-textured parts a reconstruction may get wrong, or 'none'>\nPlain factual lines only. No advice, no markdown, no extra lines."},"id":"survey","name":"Object survey — Gemini reads the photo","type":"vision","w":340,"x":380,"y":-40},{"fields":{"model":"speridlabs/idol/max/turbo","modelOpts":{"enable_pbr":true,"image_type":"real"},"prompt":"","sample":"examples/gallery/photo-to-game-ready-mesh/model.glb"},"id":"mesh","name":"Rebuild as a mesh — Idol Max Turbo","type":"model3d","w":380,"x":380,"y":300},{"fields":{"maxTokens":"500","model":"z-ai/glm-5.3-flash","reasoningEffort":"low","system":"You write the guide that ships with a textured triangle mesh rebuilt from ONE photo by Idol Max Turbo. The input is an object survey of that photo. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU GOT — a real polygon mesh of the object: 30,000 triangles with UVs, delivered as one GLB with the textures embedded — 2048px base-colour and normal maps plus metallic-roughness maps (PBR). Say plainly these are surfaces you can light, edit and print — the thing a Gaussian splat is not.\nWHERE IT DROPS IN — the GLB imports directly into Blender, Unity, Unreal and Godot, and slicers such as PrusaSlicer, Bambu Studio and Cura accept GLB for 3D printing. It arrives unrigged: the model offers character rigging as an option, and this workflow leaves it off.\nTHE HONEST EDGES — Idol invents every side the photo did not show, using the survey's hidden-sides line; fine detail lives in the texture maps, not the geometry — 30,000 triangles is a budget; thin, shiny or transparent parts are approximate; the mesh holds one object only and its scale is relative, not measured.\nPlain sentences, no markdown, no hype. Do not invent details the survey does not name."},"id":"guide","name":"Mesh guide — GLM writes what you got","type":"llm","w":340,"x":820,"y":300}],
+   links:[{"from":{"node":"src","port":"image"},"id":"l1","to":{"node":"survey","port":"image"}},{"from":{"node":"src","port":"image"},"id":"l2","to":{"node":"mesh","port":"image"}},{"from":{"node":"survey","port":"text"},"id":"l3","to":{"node":"guide","port":"prompt"}}] } },
+ { em:"🛍️", slug:"one-photo-whole-campaign", title:"One photo, whole campaign", desc:"Upload one product photo and write three edits — backdrop, props, offer text: Seedream 5.5 chains them into a finished sale poster, and a drift report checks that the product and its label survived every round.",
+   thumb:"examples/gallery/one-photo-whole-campaign/preview.webp",
+   graph:{ v:1,
+   nodes:[{"fields":{"color":"yellow","text":"One photo, whole campaign. Upload one product photo. A vision model writes down everything on the product first — every printed word included. Then Seedream 5.5 makes three edits in a chain, one change at a time: a new backdrop, campaign props, and the sale poster text. A blind re-read of the finished poster and a drift report close the loop: what was asked to change, and what moved that should not have. Swap the photo, rewrite the three edits, ▶ Run."},"id":"c-intent","type":"comment","w":560,"x":-40,"y":-380},{"fields":{"image":""},"id":"src","name":"Product photo","type":"upload","w":320,"x":-40,"y":0},{"fields":{"model":"google/gemini-3.8-flash","q":"You are the anchor reader in a product-photo editing pipeline. Look at this product photo and write PRODUCT ANCHORS in this exact shape:\nProduct: <what the product is, one line>\nLabel text: <every word printed on the product or its label, transcribed exactly, in reading order — or 'none'>\nColours: <the product's main colours, one line>\nMaterials and finish: <what it is made of and how it looks, one line>\nSetting now: <the background and surface in this photo, one line>\nPlain factual lines only. No advice, no markdown, no extra lines."},"id":"anchors","name":"Product anchors — Gemini reads the photo","type":"vision","w":340,"x":380,"y":-40},{"fields":{"text":"Change only the setting: place the candle on a dark rustic wooden table against a deep green wall, soft window light from the left. Keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same — every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED · 8 OZ."},"id":"step1","name":"Edit 1 · backdrop","type":"text","w":340,"x":-40,"y":330},{"fields":{"model":"bytedance/seedream-v5.5/edit","prompt":"","size":"1k"},"id":"edit1","name":"Backdrop swap — Seedream 5.5","type":"edit","w":380,"x":380,"y":300},{"fields":{"text":"Add a small stack of two cedar wood discs and a short sprig of dried eucalyptus on the table beside the candle. Change nothing else — the backdrop stays as it is, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same — every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED · 8 OZ."},"id":"step2","name":"Edit 2 · props","type":"text","w":340,"x":-40,"y":640},{"fields":{"model":"bytedance/seedream-v5.5/edit","prompt":"","size":"1k"},"id":"edit2","name":"Add the props — Seedream 5.5","type":"edit","w":380,"x":380,"y":620},{"fields":{"text":"Add elegant cream-coloured poster text in the empty wall space above the candle: '12.12 SALE' in large serif letters, and beneath it 'UP TO 30% OFF' in smaller letters. Change nothing else — the props stay where they are, and keep the candle, its glass jar, the gold lid, the ivory wax and the cream label exactly the same — every word on the label unchanged: EMBER & OAK, No. 12, CEDAR + SMOKE, HAND POURED · 8 OZ."},"id":"step3","name":"Edit 3 · offer text","type":"text","w":340,"x":-40,"y":950},{"fields":{"model":"bytedance/seedream-v5.5/edit","prompt":"","size":"1k"},"id":"edit3","name":"Add the offer text — Seedream 5.5","type":"edit","w":380,"x":380,"y":940},{"fields":{"model":"google/gemini-3.8-flash","q":"You are a blind reader in a product-photo pipeline. Describe this finished image in this exact shape:\nProduct: <what the product is, one line>\nLabel text: <every word printed on the product or its label, transcribed exactly, in reading order — or 'none'>\nColours: <the product's main colours, one line>\nSetting: <the background, surface and any props, one line>\nAdded text: <any poster or headline text in the image that is NOT on the product label, transcribed exactly — or 'none'>\nPlain factual lines only. No advice, no markdown, no extra lines."},"id":"reread","name":"Blind re-read — Gemini describes the poster","type":"vision","w":340,"x":820,"y":900},{"fields":{"sep":"\n"},"id":"js1","name":"Edits 1 + 2","type":"join","w":200,"x":820,"y":300},{"fields":{"sep":"\n"},"id":"js2","name":"All three edits","type":"join","w":200,"x":820,"y":460},{"fields":{"sep":"\n\nEDITS REQUESTED (the only changes that were allowed):\n"},"id":"j1","name":"Anchors + edits","type":"join","w":200,"x":1060,"y":300},{"fields":{"sep":"\n\nRE-READ (a blind reader described the finished poster; it never saw the original photo):\n"},"id":"j2","name":"Everything + re-read","type":"join","w":200,"x":1060,"y":460},{"fields":{"maxTokens":500,"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","system":"You write the drift report for a three-edit product campaign. The input gives you the product anchors read from the ORIGINAL photo, the three edits that were requested (the only changes allowed), and a blind re-read of the FINISHED poster. ByteDance claims Seedream 5.5 leaves unedited regions alone across many rounds — your job is to check that claim against these two reads, not to repeat it. Print exactly three lines:\nHELD: <the label words and product details that survived all three edits unchanged — or 'nothing held'>\nDRIFTED: <anything that changed without being requested — quote the anchor wording vs the re-read wording — or 'nothing'>\nCAMPAIGN: COMPLETE if all three requested edits are visible in the re-read (new setting, the props, the poster text), otherwise INCOMPLETE — <name what is missing>\nJudge only from the two reads in the input. Do not invent details neither read names."},"id":"checker","name":"Drift report — GLM grades the chain","type":"llm","w":340,"x":1300,"y":300}],
+   links:[{"from":{"node":"src","port":"image"},"id":"l1","to":{"node":"anchors","port":"image"}},{"from":{"node":"src","port":"image"},"id":"l2","to":{"node":"edit1","port":"image"}},{"from":{"node":"step1","port":"text"},"id":"l3","to":{"node":"edit1","port":"prompt"}},{"from":{"node":"edit1","port":"image"},"id":"l4","to":{"node":"edit2","port":"image"}},{"from":{"node":"step2","port":"text"},"id":"l5","to":{"node":"edit2","port":"prompt"}},{"from":{"node":"edit2","port":"image"},"id":"l6","to":{"node":"edit3","port":"image"}},{"from":{"node":"step3","port":"text"},"id":"l7","to":{"node":"edit3","port":"prompt"}},{"from":{"node":"edit3","port":"image"},"id":"l8","to":{"node":"reread","port":"image"}},{"from":{"node":"step1","port":"text"},"id":"l9","to":{"node":"js1","port":"a"}},{"from":{"node":"step2","port":"text"},"id":"l10","to":{"node":"js1","port":"b"}},{"from":{"node":"js1","port":"text"},"id":"l11","to":{"node":"js2","port":"a"}},{"from":{"node":"step3","port":"text"},"id":"l12","to":{"node":"js2","port":"b"}},{"from":{"node":"anchors","port":"text"},"id":"l13","to":{"node":"j1","port":"a"}},{"from":{"node":"js2","port":"text"},"id":"l14","to":{"node":"j1","port":"b"}},{"from":{"node":"j1","port":"text"},"id":"l15","to":{"node":"j2","port":"a"}},{"from":{"node":"reread","port":"text"},"id":"l16","to":{"node":"j2","port":"b"}},{"from":{"node":"j2","port":"text"},"id":"l17","to":{"node":"checker","port":"prompt"}}] } },
+ { em:"🖼️", slug:"edit-with-references", title:"Edit with references", desc:"Upload a main photo plus up to three reference pictures and name each one in a single instruction: MiniMax H3-Image fuses them into one scene, and a checker grades whether every piece landed and the subject survived.",
+   thumb:"examples/gallery/edit-with-references/preview.webp",
+   graph:{ v:1,
+   nodes:[{"fields":{"color":"yellow","text":"Edit with references. One main photo, up to three reference pictures, and one instruction that names each picture — MiniMax H3-Image (the model at #1 on Hugging Face this week; its open weights are ~135 GB and its license skips the US, EU, UK and Korea, so here it just runs in the browser) fuses them into a single scene. A survey reads the subject first, and a checker at the end grades whether every piece landed and the subject survived. Swap any 📷 input for your own photos and rewrite the instruction to match."},"id":"c-intent","type":"comment","w":720,"x":-40,"y":-380},{"fields":{"image":""},"id":"main","name":"Main photo","type":"upload","w":320,"x":-40,"y":0},{"fields":{"image":""},"id":"refjacket","name":"Reference 1 · outfit","type":"upload","w":320,"x":-40,"y":330},{"fields":{"image":""},"id":"refshades","name":"Reference 2 · accessory","type":"upload","w":320,"x":-40,"y":660},{"fields":{"image":""},"id":"refdog","name":"Reference 3 · companion","type":"upload","w":320,"x":-40,"y":990},{"fields":{"model":"google/gemini-3.8-flash","q":"You are the surveyor in a photo-editing pipeline. Look at this photo and write SUBJECT ANCHORS in this exact shape:\nFace: <face shape, skin tone, distinguishing features, one line>\nHair: <colour, length, style, one line>\nOutfit now: <what the person is wearing, one line>\nPose: <stance and where the arms and legs are, one line>\nBackground: <what is behind and under the person, one line>\nPlain factual lines only. No advice, no markdown, no extra lines."},"id":"survey","name":"Subject anchors — Gemini reads the photo","type":"vision","w":340,"x":380,"y":-40},{"fields":{"model":"minimax-h3-image","prompt":"","size":"1k"},"id":"edit","name":"Fuse the references — MiniMax H3-Image","type":"edit","w":380,"x":380,"y":320},{"fields":{"text":"Picture 1 is the main photo. Keep the person in Picture 1 exactly as they are — same face, same long dark hair, same pose, same jeans and shoes, same plain grey wall behind them. Dress the person in the red leather jacket from Picture 2, worn open over the white t-shirt. Put the round gold-framed sunglasses from Picture 3 on the person's face. Sit the Dalmatian puppy from Picture 4 on the floor beside the person's legs, looking at the camera. One single photorealistic scene with soft, even light."},"id":"instruction","name":"Edit instruction (names each picture)","type":"text","w":380,"x":380,"y":700},{"fields":{"model":"google/gemini-3.8-flash","q":"You are a blind reader in a photo-editing pipeline. Describe this picture factually in this exact shape:\nPerson: <who is in the picture — face and hair as visible, one line>\nWearing: <every garment you can see, one line>\nAccessories: <anything worn on the face, head, hands or body beyond clothing, or 'none'>\nAnimals: <any animal — kind, colouring, where it sits, or 'none'>\nBackground: <setting behind the subject, one line>\nPlain factual lines only. Do not guess at anything you cannot see."},"id":"reread","name":"Blind re-read — Gemini describes the result","type":"vision","w":340,"x":860,"y":320},{"fields":{"sep":"\n\nSUBJECT ANCHORS (read from the main photo before the edit):\n"},"id":"j1","name":"Instruction + anchors","type":"join","w":300,"x":860,"y":700},{"fields":{"sep":"\n\nRE-READ (a blind reader described the edited picture; it never saw the originals):\n"},"id":"j2","name":"Everything + re-read","type":"join","w":300,"x":1240,"y":700},{"fields":{"maxTokens":"400","model":"z-ai/glm-5.3-flash","reasoningEffort":"low","system":"You are the edit checker in a multi-reference photo-editing pipeline. The input gives the EDIT INSTRUCTION that was sent to the editor, then SUBJECT ANCHORS read from the main photo before the edit, then a RE-READ a blind reader wrote from the edited picture alone. Output exactly this shape:\nLANDED: <each element the instruction asked for that the re-read confirms, comma-separated, or 'nothing landed'>\nMISSING: <each asked-for element the re-read does not confirm or contradicts, comma-separated, or 'nothing missing'>\nSUBJECT: SURVIVED if the re-read's person matches the anchors (face, hair, pose, background), otherwise DRIFTED — <one line saying what changed>\nJudge only from the three texts. If the re-read is ambiguous about an element, count it as MISSING and say 'unclear in the re-read'. No markdown, no extra lines."},"id":"checker","name":"Edit report — GLM grades the fusion","type":"llm","w":340,"x":1240,"y":320}],
+   links:[{"from":{"node":"main","port":"image"},"id":"l1","to":{"node":"survey","port":"image"}},{"from":{"node":"main","port":"image"},"id":"l2","to":{"node":"edit","port":"image"}},{"from":{"node":"refjacket","port":"image"},"id":"l3","to":{"node":"edit","port":"image2"}},{"from":{"node":"refshades","port":"image"},"id":"l4","to":{"node":"edit","port":"image3"}},{"from":{"node":"refdog","port":"image"},"id":"l5","to":{"node":"edit","port":"image4"}},{"from":{"node":"instruction","port":"text"},"id":"l6","to":{"node":"edit","port":"prompt"}},{"from":{"node":"edit","port":"image"},"id":"l7","to":{"node":"reread","port":"image"}},{"from":{"node":"instruction","port":"text"},"id":"l8","to":{"node":"j1","port":"a"}},{"from":{"node":"survey","port":"text"},"id":"l9","to":{"node":"j1","port":"b"}},{"from":{"node":"j1","port":"text"},"id":"l10","to":{"node":"j2","port":"a"}},{"from":{"node":"reread","port":"text"},"id":"l11","to":{"node":"j2","port":"b"}},{"from":{"node":"j2","port":"text"},"id":"l12","to":{"node":"checker","port":"prompt"}}] } },
  { em:"🧊", slug:"photo-to-3d-splat", title:"Photo to 3D splat", desc:"Upload one photo of an object: Idol rebuilds it as a Gaussian splat you can orbit — the hidden sides invented and named as invented — for a flat $0.10 a run.",
    thumb:"examples/gallery/photo-to-3d-splat/preview.webp",
    graph:{ v:1,
@@ -21858,15 +21870,13 @@ $("signout").onclick = ()=> setKey(null);
 
 /* ===================== 🧩 UX auto-layout — layered engine + projection =====================
    Describe changes runs this over the applied graph before it lands on the
-   canvas: a Sugiyama-style layered layout (barycenter crossing reduction)
-   followed by the deterministic feasibility projection (feed-forward rank
-   order + de-overlap). Chosen by a fresh-Jev exam on 38 held-out graphs:
-   layered 0.582 vs the editor's tidy 0.555 vs messy originals 0.435, while
-   moving nodes less than tidy. The trained GNN generators and learned
-   pickers built alongside it never beat this by a real margin (lab:
-   ux-hypergan-layout, reports/eval-v2..v5 + pick-ridge), so the engine is
-   deterministic and weight-free: nothing to fetch, and any internal
-   problem leaves the graph exactly as it was.
+   canvas. The baseline is a Sugiyama-style layered layout followed by a
+   feasibility projection for feed-forward rank order and card spacing.
+   The optional local ParticleGAN model ranks swaps and rotations that keep
+   each card in its column. Its top eight reach the exact layout checks.
+   A refinement must remove crossings, keep cards clear and avoid increasing
+   wire occlusions. The baseline handles graphs without an eligible
+   improvement and model load failures.
    The pure engine below is pinned by scripts/check-ux-layout.mjs. */
 /* UX-LAYOUT-BEGIN */
 /* UX-PICK — deterministic layout candidates + learned linear picker.
@@ -22456,36 +22466,40 @@ $("signout").onclick = ()=> setKey(null);
     });
     return { nodes: nodes, links: links };
   }
+  function positionsFit(graph, positions) {
+    if (!positions) return false;
+    let ox0 = Infinity, oy0 = Infinity, ox1 = -Infinity, oy1 = -Infinity;
+    let nx0 = Infinity, ny0 = Infinity, nx1 = -Infinity, ny1 = -Infinity;
+    for (const {id, x, y, w, h} of graph.nodes) {
+      const position = positions[id];
+      if (!position || !Number.isFinite(position[0]) || !Number.isFinite(position[1])) return false;
+      const [nx, ny] = position;
+      ox0 = Math.min(ox0, x); ox1 = Math.max(ox1, x + w);
+      oy0 = Math.min(oy0, y); oy1 = Math.max(oy1, y + h);
+      nx0 = Math.min(nx0, nx); nx1 = Math.max(nx1, nx + w);
+      ny0 = Math.min(ny0, ny); ny1 = Math.max(ny1, ny + h);
+    }
+    const originalWidth = ox1 - ox0, originalHeight = oy1 - oy0;
+    // Legitimate edits can unpile a canvas. Bound implausible expansion.
+    return nx1 - nx0 <= Math.max(3 * originalWidth, originalWidth + 6000)
+      && ny1 - ny0 <= Math.max(3 * originalHeight, originalHeight + 6000);
+  }
   window.arrangeUxLayout = async function (g) {
     try {
       if (!g || !g.nodes || g.nodes.length < 2 || g.nodes.length > 600) return false;
-      if (!window.UXPick) return false;
-      var lg = uxToLayoutGraph(g);
-      var pos = window.UXPick.arrangePositions(lg);
-      if (!pos) return false;
-      var byId = {};
-      lg.nodes.forEach(function (n) { byId[n.id] = n; });
-      var cnt = 0, id;
-      var ox0 = 1e18, oy0 = 1e18, ox1 = -1e18, oy1 = -1e18;
-      var nx0 = 1e18, ny0 = 1e18, nx1 = -1e18, ny1 = -1e18;
-      for (id in pos) {
-        var p = pos[id], o = byId[id];
-        if (!o || !isFinite(p[0]) || !isFinite(p[1])) return false;
-        ox0 = Math.min(ox0, o.x); ox1 = Math.max(ox1, o.x + o.w);
-        oy0 = Math.min(oy0, o.y); oy1 = Math.max(oy1, o.y + o.h);
-        nx0 = Math.min(nx0, p[0]); nx1 = Math.max(nx1, p[0] + o.w);
-        ny0 = Math.min(ny0, p[1]); ny1 = Math.max(ny1, p[1] + o.h);
-        cnt++;
-      }
-      if (!cnt) return false;
-      // Plausibility: un-piling a graph legitimately spans wide, but a layout
-      // vastly larger than the original canvas is a malfunction — keep the
-      // user's layout in that case.
-      if (nx1 - nx0 > Math.max(3 * (ox1 - ox0), (ox1 - ox0) + 6000)) return false;
-      if (ny1 - ny0 > Math.max(3 * (oy1 - oy0), (oy1 - oy0) + 6000)) return false;
-      (g.nodes || []).forEach(function (n) {
-        var q = pos[String(n.id)];
-        if (q) { n.x = q[0]; n.y = q[1]; }
+      const engine = window.UXPick;
+      if (!engine) return false;
+      const layoutGraph = uxToLayoutGraph(g);
+      const baseline = engine.arrangePositions(layoutGraph);
+      if (!positionsFit(layoutGraph, baseline)) return false;
+      let positions = baseline;
+      try {
+        const {arrangeParticleLayout} = await import("./vendor/layout/particle-layout.mjs");
+        const candidate = arrangeParticleLayout(layoutGraph, engine, baseline);
+        if (candidate !== baseline && positionsFit(layoutGraph, candidate)) positions = candidate;
+      } catch (_) { /* Keep the layered layout if the optional model is unavailable. */ }
+      g.nodes.forEach(function (n) {
+        [n.x, n.y] = positions[String(n.id)];
       });
       return true;
     } catch (e) { return false; }
@@ -23392,9 +23406,14 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
-      // 🧩 UX auto-layout: the layered engine tidies the whole graph (near its
-      // original shape) before it lands; a silent no-op if anything is off.
+      // Layout can load its optional model while the editor is still interactive.
       try{ await window.arrangeUxLayout?.(appliedInternal); }catch(_){}
+      if(!ownsTarget()) return;
+      if(dbAbort.signal.aborted) throw dbAbort.signal.reason;
+      if(!canStartCall()){
+        setStatus("The workflow changed while editing. Your current changes were kept.");
+        return;
+      }
       committing = true; // no awaits below: errors now belong to our own apply
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
