@@ -6124,6 +6124,7 @@ function modelDrifted(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  if(!catalogFetchedAt[t.modelKind]) return false;   // primed from cache but not yet revalidated this session → stay permissive: a stale prime can predate a model's launch (Idol Max Turbo, catalogued the day this was written), and badging from it flashes a false "model unavailable" — with a one-click swap away from a valid model — until the fresh list lands
   if(t.modelKind==="decision") return !catalogIsStale("decision") && !catItem("decision", decideModelId(n.fields.model));
   return !catItem(t.modelKind, n.fields.model);
 }
@@ -20853,6 +20854,11 @@ refreshUpdatesBadge();
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
+ { em:"🎮", slug:"photo-to-game-ready-mesh", title:"Photo to game-ready mesh", desc:"Upload one photo of an object: Idol Max Turbo rebuilds it as a textured 30,000-triangle mesh with UVs and PBR maps — a GLB that drops into Blender, a game engine or a slicer, with a guide that names the invented sides.",
+   thumb:"examples/gallery/photo-to-game-ready-mesh/preview.webp",
+   graph:{ v:1,
+   nodes:[{"fields":{"color":"yellow","text":"Photo → game-ready mesh. Upload one photo of one object. A vision model names what it is, Idol Max Turbo (Sperid Labs) rebuilds it as a textured triangle mesh — 30,000 triangles with UVs and PBR maps in a single GLB that drops into Blender, a game engine or a slicer — and a short guide tells you what you got and what was invented. This is the mesh sibling of Photo to 3D Splat: surfaces, not points. Swap the photo and ▶ Run."},"id":"c-intent","type":"comment","w":560,"x":-40,"y":-380},{"fields":{"image":""},"id":"src","name":"Object photo","type":"upload","w":320,"x":-40,"y":0},{"fields":{"model":"google/gemini-3.8-flash","q":"You are the surveyor in a photo-to-3D-mesh pipeline. Look at this photo and write an OBJECT SURVEY in this exact shape:\nObject: <what the single object is, one line>\nView: <the camera angle the photo shows it from, one line>\nMaterials and colours: <the main materials and colours, one line>\nHidden sides: <what the back, underside and far side probably look like — the parts the mesh must invent, one line>\nFragile details: <thin, shiny, transparent or fine-textured parts a reconstruction may get wrong, or 'none'>\nPlain factual lines only. No advice, no markdown, no extra lines."},"id":"survey","name":"Object survey — Gemini reads the photo","type":"vision","w":340,"x":380,"y":-40},{"fields":{"model":"speridlabs/idol/max/turbo","modelOpts":{"enable_pbr":true,"image_type":"real"},"prompt":"","sample":"examples/gallery/photo-to-game-ready-mesh/model.glb"},"id":"mesh","name":"Rebuild as a mesh — Idol Max Turbo","type":"model3d","w":380,"x":380,"y":300},{"fields":{"maxTokens":"500","model":"z-ai/glm-5.3-flash","reasoningEffort":"low","system":"You write the guide that ships with a textured triangle mesh rebuilt from ONE photo by Idol Max Turbo. The input is an object survey of that photo. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU GOT — a real polygon mesh of the object: 30,000 triangles with UVs, delivered as one GLB with the textures embedded — 2048px base-colour and normal maps plus metallic-roughness maps (PBR). Say plainly these are surfaces you can light, edit and print — the thing a Gaussian splat is not.\nWHERE IT DROPS IN — the GLB imports directly into Blender, Unity, Unreal and Godot, and slicers such as PrusaSlicer, Bambu Studio and Cura accept GLB for 3D printing. It arrives unrigged: the model offers character rigging as an option, and this workflow leaves it off.\nTHE HONEST EDGES — Idol invents every side the photo did not show, using the survey's hidden-sides line; fine detail lives in the texture maps, not the geometry — 30,000 triangles is a budget; thin, shiny or transparent parts are approximate; the mesh holds one object only and its scale is relative, not measured.\nPlain sentences, no markdown, no hype. Do not invent details the survey does not name."},"id":"guide","name":"Mesh guide — GLM writes what you got","type":"llm","w":340,"x":820,"y":300}],
+   links:[{"from":{"node":"src","port":"image"},"id":"l1","to":{"node":"survey","port":"image"}},{"from":{"node":"src","port":"image"},"id":"l2","to":{"node":"mesh","port":"image"}},{"from":{"node":"survey","port":"text"},"id":"l3","to":{"node":"guide","port":"prompt"}}] } },
  { em:"🛍️", slug:"one-photo-whole-campaign", title:"One photo, whole campaign", desc:"Upload one product photo and write three edits — backdrop, props, offer text: Seedream 5.5 chains them into a finished sale poster, and a drift report checks that the product and its label survived every round.",
    thumb:"examples/gallery/one-photo-whole-campaign/preview.webp",
    graph:{ v:1,
@@ -21864,15 +21870,13 @@ $("signout").onclick = ()=> setKey(null);
 
 /* ===================== 🧩 UX auto-layout — layered engine + projection =====================
    Describe changes runs this over the applied graph before it lands on the
-   canvas: a Sugiyama-style layered layout (barycenter crossing reduction)
-   followed by the deterministic feasibility projection (feed-forward rank
-   order + de-overlap). Chosen by a fresh-Jev exam on 38 held-out graphs:
-   layered 0.582 vs the editor's tidy 0.555 vs messy originals 0.435, while
-   moving nodes less than tidy. The trained GNN generators and learned
-   pickers built alongside it never beat this by a real margin (lab:
-   ux-hypergan-layout, reports/eval-v2..v5 + pick-ridge), so the engine is
-   deterministic and weight-free: nothing to fetch, and any internal
-   problem leaves the graph exactly as it was.
+   canvas. The baseline is a Sugiyama-style layered layout followed by a
+   feasibility projection for feed-forward rank order and card spacing.
+   The optional local ParticleGAN model ranks swaps and rotations that keep
+   each card in its column. Its top eight reach the exact layout checks.
+   A refinement must remove crossings, keep cards clear and avoid increasing
+   wire occlusions. The baseline handles graphs without an eligible
+   improvement and model load failures.
    The pure engine below is pinned by scripts/check-ux-layout.mjs. */
 /* UX-LAYOUT-BEGIN */
 /* UX-PICK — deterministic layout candidates + learned linear picker.
@@ -22462,36 +22466,40 @@ $("signout").onclick = ()=> setKey(null);
     });
     return { nodes: nodes, links: links };
   }
+  function positionsFit(graph, positions) {
+    if (!positions) return false;
+    let ox0 = Infinity, oy0 = Infinity, ox1 = -Infinity, oy1 = -Infinity;
+    let nx0 = Infinity, ny0 = Infinity, nx1 = -Infinity, ny1 = -Infinity;
+    for (const {id, x, y, w, h} of graph.nodes) {
+      const position = positions[id];
+      if (!position || !Number.isFinite(position[0]) || !Number.isFinite(position[1])) return false;
+      const [nx, ny] = position;
+      ox0 = Math.min(ox0, x); ox1 = Math.max(ox1, x + w);
+      oy0 = Math.min(oy0, y); oy1 = Math.max(oy1, y + h);
+      nx0 = Math.min(nx0, nx); nx1 = Math.max(nx1, nx + w);
+      ny0 = Math.min(ny0, ny); ny1 = Math.max(ny1, ny + h);
+    }
+    const originalWidth = ox1 - ox0, originalHeight = oy1 - oy0;
+    // Legitimate edits can unpile a canvas. Bound implausible expansion.
+    return nx1 - nx0 <= Math.max(3 * originalWidth, originalWidth + 6000)
+      && ny1 - ny0 <= Math.max(3 * originalHeight, originalHeight + 6000);
+  }
   window.arrangeUxLayout = async function (g) {
     try {
       if (!g || !g.nodes || g.nodes.length < 2 || g.nodes.length > 600) return false;
-      if (!window.UXPick) return false;
-      var lg = uxToLayoutGraph(g);
-      var pos = window.UXPick.arrangePositions(lg);
-      if (!pos) return false;
-      var byId = {};
-      lg.nodes.forEach(function (n) { byId[n.id] = n; });
-      var cnt = 0, id;
-      var ox0 = 1e18, oy0 = 1e18, ox1 = -1e18, oy1 = -1e18;
-      var nx0 = 1e18, ny0 = 1e18, nx1 = -1e18, ny1 = -1e18;
-      for (id in pos) {
-        var p = pos[id], o = byId[id];
-        if (!o || !isFinite(p[0]) || !isFinite(p[1])) return false;
-        ox0 = Math.min(ox0, o.x); ox1 = Math.max(ox1, o.x + o.w);
-        oy0 = Math.min(oy0, o.y); oy1 = Math.max(oy1, o.y + o.h);
-        nx0 = Math.min(nx0, p[0]); nx1 = Math.max(nx1, p[0] + o.w);
-        ny0 = Math.min(ny0, p[1]); ny1 = Math.max(ny1, p[1] + o.h);
-        cnt++;
-      }
-      if (!cnt) return false;
-      // Plausibility: un-piling a graph legitimately spans wide, but a layout
-      // vastly larger than the original canvas is a malfunction — keep the
-      // user's layout in that case.
-      if (nx1 - nx0 > Math.max(3 * (ox1 - ox0), (ox1 - ox0) + 6000)) return false;
-      if (ny1 - ny0 > Math.max(3 * (oy1 - oy0), (oy1 - oy0) + 6000)) return false;
-      (g.nodes || []).forEach(function (n) {
-        var q = pos[String(n.id)];
-        if (q) { n.x = q[0]; n.y = q[1]; }
+      const engine = window.UXPick;
+      if (!engine) return false;
+      const layoutGraph = uxToLayoutGraph(g);
+      const baseline = engine.arrangePositions(layoutGraph);
+      if (!positionsFit(layoutGraph, baseline)) return false;
+      let positions = baseline;
+      try {
+        const {arrangeParticleLayout} = await import("./vendor/layout/particle-layout.mjs");
+        const candidate = arrangeParticleLayout(layoutGraph, engine, baseline);
+        if (candidate !== baseline && positionsFit(layoutGraph, candidate)) positions = candidate;
+      } catch (_) { /* Keep the layered layout if the optional model is unavailable. */ }
+      g.nodes.forEach(function (n) {
+        [n.x, n.y] = positions[String(n.id)];
       });
       return true;
     } catch (e) { return false; }
@@ -23398,9 +23406,14 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`<span class="done">✓ Done — no change was needed.</span> Try being more specific. ${usageMeter()}`); return; }
-      // 🧩 UX auto-layout: the layered engine tidies the whole graph (near its
-      // original shape) before it lands; a silent no-op if anything is off.
+      // Layout can load its optional model while the editor is still interactive.
       try{ await window.arrangeUxLayout?.(appliedInternal); }catch(_){}
+      if(!ownsTarget()) return;
+      if(dbAbort.signal.aborted) throw dbAbort.signal.reason;
+      if(!canStartCall()){
+        setStatus("The workflow changed while editing. Your current changes were kept.");
+        return;
+      }
       committing = true; // no awaits below: errors now belong to our own apply
       applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —

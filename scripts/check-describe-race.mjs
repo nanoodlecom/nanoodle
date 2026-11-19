@@ -68,6 +68,22 @@ for(const scenario of ['workspace switch','switch away and back','same-workspace
 await test('Describe protects in-place edits with an immutable starting snapshot',async()=>{
  const {c}=fixture(),d=deferred();c.runGptdiff=()=>d.promise;const pending=c.submit();c.graph.nodes[0].fields.text='manual edit';d.resolve({next:graph('STALE')});await pending;assert.equal(c.graph.nodes[0].fields.text,'manual edit');assert.equal(c.versions.length,0);assert.equal(c.input.value,'change A');
 });
+for(const interruption of ['workspace replacement','manual edit','Stop'])await test(`Describe preserves the workflow after ${interruption} during layout`,async()=>{
+ const {c}=fixture(),layout=deferred();let arranging=false;
+ c.window={arrangeUxLayout:()=>{arranging=true;return layout.promise;}};
+ c.runGptdiff=async()=>({next:graph('planned change')});
+ const pending=c.submit();await until(()=>arranging);
+ if(interruption==='workspace replacement'){
+  c.workspace='B';c.graph=graph('new workflow');c.status='new workspace status';
+ }else if(interruption==='manual edit')c.graph.nodes[0].fields.text='manual edit';
+ else c.dbAbort.abort();
+ const before=clone(c.graph);
+ layout.resolve(true);await pending;
+ assert.deepEqual(c.graph,before);assert.equal(c.versions.length,0);assert.equal(c.busy,false);
+ if(interruption==='workspace replacement')assert.equal(c.status,'new workspace status');
+ if(interruption==='manual edit')assert.match(c.status,/current changes were kept/);
+ if(interruption==='Stop')assert.match(c.status,/Stopped/);
+});
 await test('stale metered SSE settles exactly once without painting the replacement or starting apply',async()=>{
  const {c,charges,changes}=fixture();let controller,requests=0,applyCalls=0;
  const payload={choices:[{delta:{content:'offline diff'}}],x_nanogpt_pricing:{costUsd:0.012,inputTokens:7,outputTokens:3}};

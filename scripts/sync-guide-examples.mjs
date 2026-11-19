@@ -54,6 +54,14 @@ const HOWTO = {
     inspect: "Compare the original, the cut-out and the placed composite, then read the <em>Preservation verdict</em>. PRESERVED means every spec line was re-read exactly; DRIFTED quotes the lines that differ. In the saved run the headline label was letter-perfect and the checker still flagged the microprint line — that strictness is the feature, not a failure of the demo.",
     costHow: "Five model calls: the saved run reported $0.0906 in total (spec $0.0048, RMBG-3.0 cut-out $0.018, Nano Banana placement $0.039, blind re-read $0.0288, GLM checker $0.00). Prices and results vary.",
   },
+  "photo-to-game-ready-mesh": {
+    headline: "Photo to game-ready mesh",
+    job: "One photo of one object → a textured triangle mesh that drops into engines, Blender and slicers.",
+    purpose: "Gemini surveys the photo first: the object, the view, its materials and colours, the sides the photo hides, and the fragile details. Idol Max Turbo (Sperid Labs) rebuilds the object as a 30,000-triangle GLB with UVs and embedded PBR textures — real surfaces, not points. GLM writes the guide that ships with it: what you got, where it drops in, and which parts were invented rather than measured.",
+    edit: "Swap <em>Object photo</em> for your own photo of one object — whole, in frame, on an uncluttered background works best. Keep <em>Rebuild as a mesh</em> on <code>speridlabs/idol/max/turbo</code> with PBR on; for a character or creature, the model's rigging option adds a skeleton and animation clips at $0.125 (rigid props may not rig, and a failed rig fails the run). Idol Max ($0.20) is the stereo-depth quality variant of the same call.",
+    inspect: "Orbit the saved GLB in the workflow and compare it with the photo: surfaces and textures this time, not points — then read the guide's honest edges before you build on it. Fine detail lives in the 2048px texture maps, not the geometry; 30,000 triangles is a budget. The saved run's GLB parses at 29,992 triangles with UVs and three embedded maps.",
+    costHow: "Three model calls: the saved run reported $0.1029 in total (Idol Max Turbo a flat $0.10 with PBR included, Gemini survey $0.0029, GLM guide $0.00). Prices and results vary.",
+  },
   "one-photo-whole-campaign": {
     headline: "One photo, whole campaign",
     job: "One product photo → a finished sale poster in three chained edits, with a drift report that checks the no-drift claim.",
@@ -353,7 +361,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

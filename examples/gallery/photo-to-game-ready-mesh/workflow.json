@@ -1,0 +1,107 @@
+{
+ "v": 1,
+ "lid": 3,
+ "nid": 5,
+ "nodes": [
+  {
+   "fields": {
+    "color": "yellow",
+    "text": "Photo \u2192 game-ready mesh. Upload one photo of one object. A vision model names what it is, Idol Max Turbo (Sperid Labs) rebuilds it as a textured triangle mesh \u2014 30,000 triangles with UVs and PBR maps in a single GLB that drops into Blender, a game engine or a slicer \u2014 and a short guide tells you what you got and what was invented. This is the mesh sibling of Photo to 3D Splat: surfaces, not points. Swap the photo and \u25b6 Run."
+   },
+   "id": "c-intent",
+   "type": "comment",
+   "w": 560,
+   "x": -40,
+   "y": -380
+  },
+  {
+   "fields": {
+    "image": ""
+   },
+   "id": "src",
+   "name": "Object photo",
+   "type": "upload",
+   "w": 320,
+   "x": -40,
+   "y": 0
+  },
+  {
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are the surveyor in a photo-to-3D-mesh pipeline. Look at this photo and write an OBJECT SURVEY in this exact shape:\nObject: <what the single object is, one line>\nView: <the camera angle the photo shows it from, one line>\nMaterials and colours: <the main materials and colours, one line>\nHidden sides: <what the back, underside and far side probably look like \u2014 the parts the mesh must invent, one line>\nFragile details: <thin, shiny, transparent or fine-textured parts a reconstruction may get wrong, or 'none'>\nPlain factual lines only. No advice, no markdown, no extra lines."
+   },
+   "id": "survey",
+   "name": "Object survey \u2014 Gemini reads the photo",
+   "type": "vision",
+   "w": 340,
+   "x": 380,
+   "y": -40
+  },
+  {
+   "fields": {
+    "model": "speridlabs/idol/max/turbo",
+    "modelOpts": {
+     "enable_pbr": true,
+     "image_type": "real"
+    },
+    "prompt": "",
+    "sample": "examples/gallery/photo-to-game-ready-mesh/model.glb"
+   },
+   "id": "mesh",
+   "name": "Rebuild as a mesh \u2014 Idol Max Turbo",
+   "type": "model3d",
+   "w": 380,
+   "x": 380,
+   "y": 300
+  },
+  {
+   "fields": {
+    "maxTokens": "500",
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "system": "You write the guide that ships with a textured triangle mesh rebuilt from ONE photo by Idol Max Turbo. The input is an object survey of that photo. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU GOT \u2014 a real polygon mesh of the object: 30,000 triangles with UVs, delivered as one GLB with the textures embedded \u2014 2048px base-colour and normal maps plus metallic-roughness maps (PBR). Say plainly these are surfaces you can light, edit and print \u2014 the thing a Gaussian splat is not.\nWHERE IT DROPS IN \u2014 the GLB imports directly into Blender, Unity, Unreal and Godot, and slicers such as PrusaSlicer, Bambu Studio and Cura accept GLB for 3D printing. It arrives unrigged: the model offers character rigging as an option, and this workflow leaves it off.\nTHE HONEST EDGES \u2014 Idol invents every side the photo did not show, using the survey's hidden-sides line; fine detail lives in the texture maps, not the geometry \u2014 30,000 triangles is a budget; thin, shiny or transparent parts are approximate; the mesh holds one object only and its scale is relative, not measured.\nPlain sentences, no markdown, no hype. Do not invent details the survey does not name."
+   },
+   "id": "guide",
+   "name": "Mesh guide \u2014 GLM writes what you got",
+   "type": "llm",
+   "w": 340,
+   "x": 820,
+   "y": 300
+  }
+ ],
+ "links": [
+  {
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "id": "l1",
+   "to": {
+    "node": "survey",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "id": "l2",
+   "to": {
+    "node": "mesh",
+    "port": "image"
+   }
+  },
+  {
+   "from": {
+    "node": "survey",
+    "port": "text"
+   },
+   "id": "l3",
+   "to": {
+    "node": "guide",
+    "port": "prompt"
+   }
+  }
+ ]
+}
