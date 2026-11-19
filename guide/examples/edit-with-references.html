@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edit with references — nanoodle</title>
+<meta name="description" content="Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third. Reported saved run: $0.07053." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Edit with references — nanoodle" />
+<meta property="og:description" content="Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third. Reported saved run: $0.07053." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/edit-with-references" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Edit with references — nanoodle" />
+<meta name="twitter:description" content="Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third. Reported saved run: $0.07053." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/edit-with-references" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Edit with references</span></nav>
+
+  <main>
+    <h1><span class="grad">Edit with references</span></h1>
+    <p class="lede">Your photo, dressed by other photos — jacket from one, sunglasses from another, puppy from a third.</p>
+
+    <section>
+      <p class="meta-row">The woman keeps her face, hair and pose while a red leather jacket, round gold sunglasses and a Dalmatian puppy walk in from three other photos — one instruction, one fused scene · 2026-11-18 · Reported saved run: $0.07053. <code>google/gemini-3.8-flash</code> · <code>minimax-h3-image</code> · <code>z-ai/glm-5.3-flash</code></p>
+      <p>MiniMax H3-Image takes the main photo plus up to three reference pictures and one instruction that names each picture — Picture 1 is the main photo, Picture 2 the outfit, Picture 3 the accessory, Picture 4 the companion — and fuses them positionally into a single scene. A Gemini survey writes the subject&#39;s anchors first; a blind Gemini re-read describes the result; a GLM checker grades whether every piece landed and the subject survived.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/edit-with-references/edited.webp"><img src="/examples/gallery/edit-with-references/edited.webp" alt="Fused scene · MiniMax H3-Image · reported $0.064 — Edit with references" loading="lazy" /></a><figcaption>Fused scene · MiniMax H3-Image · reported $0.064 · <a href="/examples/gallery/edit-with-references/edited.webp" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Subject anchors · Gemini reads the main photo · reported $0.0029</summary><blockquote class="sample">Face: Oval face, fair skin with light freckles, dark brown eyes, small hoop earrings.
+Hair: Dark brown, chest-length, parted in the middle with loose waves.
+Outfit now: Plain white crewneck short-sleeve t-shirt, blue straight-leg denim jeans, white sneakers.
+Pose: Standing upright facing forward, arms hanging straight down at the sides, legs straight.
+Background: Solid flat light grey wall behind, smooth grey concrete ground underfoot.
+</blockquote></details><figcaption>Subject anchors · Gemini reads the main photo · reported $0.0029 · <a href="/examples/gallery/edit-with-references/anchors.txt" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Blind re-read · Gemini describes the result · reported $0.0036</summary><blockquote class="sample">Person: A woman with long, wavy dark brown hair parted in the middle, looking forward with a slight smile.
+Wearing: A red leather jacket, a plain white crewneck t-shirt, blue straight-leg jeans, and white sneakers.
+Accessories: Round dark sunglasses with thin metallic frames and small metallic hoop earrings.
+Animals: A Dalmatian puppy with white fur and black spots, sitting on the ground to the woman&#39;s lower-left side.
+Background: A plain, flat light gray wall and a smooth gray floor.
+</blockquote></details><figcaption>Blind re-read · Gemini describes the result · reported $0.0036 · <a href="/examples/gallery/edit-with-references/re-read.txt" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Edit report · GLM grades the fusion · reported $0.00</summary><blockquote class="sample">LANDED: red leather jacket, white t-shirt, jeans and sneakers unchanged, Dalmatian puppy sitting on the floor beside the legs, plain grey wall and floor preserved, hoops earrings preserved, long dark hair and pose preserved
+MISSING: jacket worn open (unclear in the re-read), round gold-framed sunglasses (re-read says only thin metallic frames, color unclear), puppy looking at the camera (unclear in the re-read)
+SUBJECT: SURVIVED — face, hair, outfit, pose, and background all match the anchors with no drift.
+</blockquote></details><figcaption>Edit report · GLM grades the fusion · reported $0.00 · <a href="/examples/gallery/edit-with-references/report.txt" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs comparison">
+          <figure><img src="/examples/gallery/edit-with-references/main-photo.webp" alt="Main photo" loading="lazy" /><figcaption>Main photo</figcaption></figure>
+          <figure><img src="/examples/gallery/edit-with-references/ref-jacket.webp" alt="Reference 1 · outfit" loading="lazy" /><figcaption>Reference 1 · outfit</figcaption></figure>
+          <figure><img src="/examples/gallery/edit-with-references/ref-sunglasses.webp" alt="Reference 2 · accessory" loading="lazy" /><figcaption>Reference 2 · accessory</figcaption></figure>
+          <figure><img src="/examples/gallery/edit-with-references/ref-puppy.webp" alt="Reference 3 · companion" loading="lazy" /><figcaption>Reference 3 · companion</figcaption></figure>
+        </div>
+      <div class="callout"><p>Upload one main photo and up to three reference pictures, then write one instruction that names each picture — Picture 1 is the main photo, Picture 2 the outfit, Picture 3 the accessory, Picture 4 the companion — and MiniMax H3-Image fuses them positionally into a single scene. It takes up to sixteen references this way. Before the edit, a Gemini survey writes the subject&#39;s anchors (face, hair, outfit, pose, background); after it, a second Gemini re-reads the result blind, never having seen the originals; a GLM checker holds instruction, anchors and re-read against each other and prints LANDED, MISSING and whether the SUBJECT SURVIVED. Why this model: H3-Image held #1 on Hugging Face trending for six straight days in November 2026 (~3.4M downloads) and tops independent open-weights editing boards, but its open weights total ~135 GB and the MiniMax community license excludes the US, EU, UK and Korea — most of the people downloading it cannot run it locally, so hosted in a browser is the route. In the saved run all four pictures land: the jacket is on her, worn open over the white t-shirt with its belt and zip pockets carried over; the sunglasses are on her face; the puppy sits by her legs with its head tilt intact; face, hair, pose, jeans and the grey wall are unchanged. Flaws and limits, honestly: the checker graded the sunglasses and the open jacket &#39;unclear in the re-read&#39; — the blind reader hedged on fine detail that is plainly visible in the picture itself, because the audit grades from text, not pixels; that conservatism is the design, but it means a clean edit can still print MISSING lines. The puppy&#39;s gaze lands near the camera rather than straight into it. The edit node&#39;s size is pinned to 1k — H3 accepts only 1K or 2K output and rejects pixel sizes, a pin found by a failed first probe. The four demo photos were painted by the media pipeline because the flow takes any upload — swap in real photos and it runs as saved.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Swap <em>Main photo</em> for your own portrait and <em>Reference 1 · outfit</em>, <em>Reference 2 · accessory</em> and <em>Reference 3 · companion</em> for your own garment, accessory and companion shots — keep the picture numbering, and rewrite <em>Edit instruction (names each picture)</em> to match. Keep <em>Fuse the references</em> on <code>minimax-h3-image</code> at size <code>1k</code> — H3 accepts only 1K or 2K output and rejects pixel sizes. The model takes up to 16 references if you wire more 📷 inputs.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Four model calls: the saved run reported $0.0705 in total (H3-Image edit $0.064 with three references, Gemini anchors $0.0029, blind re-read $0.0036, GLM checker $0.00). Prices and results vary.</li>
+        <li>Compare the fused scene with the four inputs one at a time: is the garment the one from its reference, is the subject still the same person, did anything uninvited move in? Then read the <em>Edit report</em>. LANDED and MISSING are graded from the blind re-read's text, not the pixels — in the saved run the checker hedged the sunglasses and the open jacket as unclear while both sit plainly in the picture. That conservatism is the audit working as designed.</li>
+      </ol>
+
+      <p class="howto-note">edit-with-references.NOTE.txt</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA6VY23IbuRH9lS7kwXbtkCuS8m2i2irblG2tbdmly6ZS0T6AM80ZiBhgFsBoxHU5lX9I3vMZ-55P2S_YT0g1gCE5lGgzlTeJBE430OecbvAzkyJn6WicMCnUwrL0b5_Z3OiKpZ-Z0jmylFVcKJawWhvHUiYqXiD7kjDax-SIJczpjdW2MTe4vLP-S_K_4Y63cTEXbh9Ug_Nrni3w7uIOerIH9HgXti15jnYn9uEe2JNd2LkudgI_3gP48F5goawzTeaE3rhth7duDf7k6-C10VXt7gW_tyod7NNtWIMGeb5PFfdI-tk2-vVovZTfi7rNzT7g868Bzu4F3FzRBxsd3EEbfyu97evZQrwjtU3EHfmNd6LdEVhWYrZAc0_Zf06Y8i4xSfzi6BICZW4JINNSG5ayJUqpW8KlUCk7zoWDVrgSDM7RoMrQDuGjQiDpQ11qpxNoanAaXGkQ1-ugFplrDNoEuMpBK4QNSoAruQPFK7SAPCu71fD7P_4FH4QSH_gtvJ0MTohf8NCVCJXOUQJ38KcRaAVvm6IQqoDXPENwpbDQIi7-DMJZ0DUqaFEUpbPADcLfR5PH8Oalz4QWSJGhsgh2IWoLhH55nsDxZQKX7_yid9ogT8BqKNEgCAfXjXVgGmVBKL9jZnRr0TyCeWPRg1QglNPAwQpVSASbocIhvIDAWiBuhGi2mV1j5mAujHXhgjjE8tERaQ2qHApDXgVtia5EA3iDZgm1wAxBcpVj7rduIlIocYP5EM5bXgNXS_jj3__8DYSqGwdzbWCpGwO6jdWzHsFga4RDj9SrkoaKu6wcrmiXDYRyqMgy3LL2rNNVFT5oWfp0fJCwW5YODg8StmTpYPLswLN6RbXgGClbIcYmQlxgKfuw4tU6QlNL7VXVsnSyFeBb6JvNJIY4W1F0BP_5DXTj5sLtF20y2SPeqsHciTemeDzL0FptlvuFfPJkj5Ch79yJN6F4ma5qroIN7xHv-fOteF53LGWF1oXE7wushBKDyfDZYC65LVnCfmEp-6tuvNICF4nu2pBSeCjmgNoMybUWNUpBsniv9SJwXdiwyFMxEPH88uWPx68u4MXpq7cfz86D5oQFvOVE8pLXmF4p0n4KR3OyAP9ZQoom2ipMIBeWQjbClhR5jjz6EXkR5fDDlXrLhUnhiPyvMQlIVIUrE7BuKbG38KNnCSjdpnDUllGjNRqrFXjz4Uaoorfnk7aUnnWciuEP592EdnJTBelJLLxH9Xa-5NmiMLpReRdNWJhhKVRQfKNyNBsZ9MNK0tCcZ67h0n9oQSu5HMKpBp7fiAwTUKRss8h1q_w_eOsMD4vXYl9128is82gyXGWlNtab9RvPhw1v2xLvjbCBe8S1w8C1ybPoDoc7uEaQFb8dlJNBoHvS9bKUsYRZ8StBjxarTOMUE_N83dhwy-uudW9jWWcZ97cxt40cJ-OtHGNr_BQb1ohK4_vTyrmG8A6x7hFEwXq957BcAvf7ll42lJ3lFVLZiMX0p9SqgJybBZRcmPhhrW33_TVyFThkS028Dgt89QuDS2i5lB1rqD0NYWrQ2q3Ewj0REblvMsEugeaQVdLjBFptVGis-iZyry19zxjYUhg3hE9NEIXnLRRa5oO54RXmYBtVSG6pTfZgJ6DVRjYPrD_-EM5FQJpyWXEnuIK6qetlf_Nht3kutTYwQyty7KORthKQWi_IAKJmM16h4WGKiY3aV80gl-QYWejbYeyxeu4S6rsKJI0Ta23059tIPD8vbTbQh3dHnEdr1nkq3cu6pwf_lwtzmEnh-zono_iqD0_RZkbM4hDVzWHRPuRyh_V-8nfs3UmTAiKRNsc4b8tET6IvsZ2sYLblq38JvpnCURhuCm5omqApBTKuwGJ__YvYPQXaFI64Wjpv7oGdkQ9eQiXyPIGSq9wC0UPnS5jhUqscMqn9roS-eKC0wgeETJYjIypw_58_x0KoPIHQIvyutpsJrXC2D9IzbovO3_Vagt2YtqdfTzUo7aBoSLWcfDceN94OfWkRhxujQHx_RD6-jCwY0Mebdp3Hotsof9tI93XPfvZkhx9arFnKrtSV2m7aD31UL9q-QcIM5zo2QiLko_RKrc7gX2Qx_5MNKX3XtZ11ntdadFke9LO8o591lmfHg7PjF1N4uCWS7kryVVqYd3ymZwUoYihY3voF2ohCKC5tP_nxhhkQoUO9vutq8LXcR-PDXeLntxd6gcqylB0e0Lu0s4NfB1x8X8hq8Hg4WTmBQW61Eqo4ns_DQzA86uzSOqy2hjU66Orp4Y2iaqQTg42H3A7juPCPBXpWFOImMul4enIBJ6fnF2eXry5OPp6Gd17LLVhStX8mhpjaJPS3ujPq7UuauJ1DV9CterZGO1wD9QsKXGo6w8fG0QG6luyNrrO49y9Op8dTciZyb5TojWn7icTtAnP_sHLdVNjpLdNqLkxlyTyqig8s1txwh3nnGYEc4SVH7vHh5Pz85PRNF9JDDwh6M3iHnmu03h5iGMLMtHKG5yJz3wpaCUvNj6LGAqRwfnn208lPx1MQ881ID2w3Lfi3YKx0NwM-jHbrR5QwncxWJvgoAU1DRSsswvTs5PXF8dTb0FHnf2D50hs4XV5WclVg_sOV-rHJC_QuuK5g-IGBeqYdwkkvRepAvJqJotGNBT7TDZlld210FY1ypGFuIV5yGJz4Eh40KpPIzXoWCqf24_K3Z-T1jy6bM4BB-gkmOO77D9073nenxvbeYlJWfaNd2QA57c8Ju2Hp6Mt_AXlKdaTmFQAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#edit-with-references">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/edit-with-references/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/edit-with-references/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#edit-with-references">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/photo-to-3d-splat">Photo to 3D splat</a>
+        <a href="/guide/examples/one-photo-whole-campaign">One photo, whole campaign →</a>
+        <a href="/examples/gallery/#edit-with-references">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

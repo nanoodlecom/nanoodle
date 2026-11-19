@@ -55,6 +55,12 @@ const catalog = {
     { id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} },
     { id:visionId, name:"Starter vision", capabilities:{vision:true}, pricing:{prompt:0.1,completion:0.1} },
   ] },
+  "/api/v1/decision-models": { data:[{
+    id:"perplexity/pplx-decider-v1.2", name:"Synthetic decision model",
+    architecture:{output_modalities:["decisions"]},
+    decision_input:{available:true,image_input:true,image_limits:{maxImages:4}},
+    pricing:{prompt:0.02,completion:0},
+  }] },
   "/api/v1/image-models": { data:[{ id:imageId, name:"Starter image", architecture:{modality:"text->image"},
     pricing:{per_image:{"1k":0.04,"3:2":0.01}}, supported_parameters:{resolutions:["1k","3:2"]} }] },
   "/api/v1/video-models": { data:[{ id:videoId, name:"Starter video", capabilities:{text_to_video:true, image_to_video:true},

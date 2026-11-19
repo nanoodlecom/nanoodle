@@ -228,7 +228,7 @@ for (const [label, block] of [["index.html", IDX_BLOCK], ["play.html", PLAY_BLOC
 }
 
 console.log("estimate + njs catalog");
-check(/chatUnitUsd\(it, inTok, 0\) \* \(decideMode\(f\)==="pick" \? 2 : 1\)/.test(IDX),
+check(/chatUnitUsd\(it, inTok, 0\); return u==null \? null : u \* \(decideMode\(f\)==="pick" \? 2 : 1\)/.test(IDX),
   "editor run-cost: pick ×2, choose/score/yesno ×1");
 check(/u \* \(decideMode\(f\)==="pick" \? 2 : 1\)/.test(PLAY),
   "app run-cost: pick ×2, choose/score/yesno ×1");

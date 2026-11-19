@@ -35,21 +35,26 @@ try{
   applyGraphData({v:1,nodes:[{id:'n1',type:'text',x:0,y:0,fields:{text:'A before'}}],links:[]});flushSave();
   window.__describeTest.setPlanner(async prev=>{window.__plans++;const next=structuredClone(prev);next.nodes[0].fields.text='A applied '+window.__plans;return {rawDiff:'offline',next};});
  });
- const input=page.locator('#describegoal');await input.fill('make the first change');await input.press('Control+Enter');
+ const input=page.locator('#describegoal'), prompt='  make the first change  ';
+ await input.fill(prompt);await input.press('Control+Enter');
  await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__describeTest.capture().versions.length===2);
- assert.equal(await page.evaluate(()=>window.__plans),1);assert.equal(await page.evaluate(()=>window.__allRuns),0);
+ assert.equal(await input.inputValue(),prompt);
+ await page.locator('#describego').click();
+ await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__describeTest.capture().versions.length===3);
+ assert.equal(await input.inputValue(),prompt);assert.equal(await page.evaluate(()=>window.__plans),2);
+ assert.equal(await page.evaluate(()=>window.__allRuns),0);
  await input.fill('A next request');const a=await page.evaluate(()=>readWorkspaces().active);
  const b=await page.evaluate(()=>{openExampleWorkspace({v:1,nodes:[{id:'n1',type:'text',fields:{text:'B'}}],links:[]},'B','offline-b');return readWorkspaces().active;});
  assert.equal(await input.inputValue(),'');await input.fill('B request');await page.evaluate(id=>switchWorkspace(id),a);
- assert.equal(await input.inputValue(),'A next request');assert.equal(await page.locator('#describeversions [data-ver]').count(),2);
+ assert.equal(await input.inputValue(),'A next request');assert.equal(await page.locator('#describeversions [data-ver]').count(),3);
  const before=await page.evaluate(()=>JSON.stringify(window.__describeTest.capture()));
  await page.evaluate(id=>{const old=workspaceStorage.setItem;let writes=0;workspaceStorage.setItem=(k,v)=>{if(k==='noodle_graph'&&++writes===3)throw Error('offline final-save fixture');return old(k,v);};try{switchWorkspace(id);}finally{workspaceStorage.setItem=old;}},b);
  assert.equal(await page.evaluate(()=>readWorkspaces().active),a);assert.equal(await page.evaluate(()=>JSON.stringify(window.__describeTest.capture())),before);
  await page.locator('#describeversions [data-ver="0"]').click();assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('data-ver')),'0');assert.equal(await input.inputValue(),'A next request');
  for(const flags of [{isComposing:true},{keyCode:229}])await input.evaluate((el,flags)=>el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,...flags})),flags);
- assert.equal(await page.evaluate(()=>window.__plans),1);assert.equal(await input.inputValue(),'A next request');
- await input.press('Enter');await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__plans===2);assert.equal(await page.evaluate(()=>window.__allRuns),0);
- console.log('✓ real editor Apply: Ctrl+Enter once, IME ignored, focused version chip, distinct A/B drafts/history and failed-switch rollback');
+ assert.equal(await page.evaluate(()=>window.__plans),2);assert.equal(await input.inputValue(),'A next request');
+ await input.press('Enter');await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__plans===3);assert.equal(await page.evaluate(()=>window.__allRuns),0);
+ console.log('✓ real editor Apply: Ctrl+Enter and Apply reuse the exact prompt, IME ignored, focused version chip, distinct A/B drafts/history and failed-switch rollback');
  // FileReader is a real asynchronous graph-replacement path. Resolve the
  // original planner only after a new graph/draft/status own the composer.
  await input.fill('request for the old graph');

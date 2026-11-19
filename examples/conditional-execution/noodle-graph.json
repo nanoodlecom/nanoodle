@@ -1,0 +1,48 @@
+{
+  "v": 1,
+  "nodes": [
+    {"id":"n1","type":"text","name":"Request","x":40,"y":180,"fields":{"text":"Tell me about programming languages."}},
+    {"id":"n2","type":"decide-branch","name":"Technical topic?","x":350,"y":90,"fields":{"model":"perplexity/pplx-decider-v1.2","question":"Is the request about a technical subject?"}},
+    {"id":"n3","type":"llm","name":"Shared context","x":320,"y":680,"fields":{"model":"z-ai/glm-5.3-flash","system":"Summarize the request in one sentence."}},
+    {"id":"n4","type":"llm","name":"Technical answer","x":690,"y":60,"fields":{"model":"google/gemini-3.8-flash","prompt":"Give a concise technical explanation."}},
+    {"id":"n5","type":"decide-branch","name":"Creative topic?","x":690,"y":530,"fields":{"model":"perplexity/pplx-decider-v1.2","question":"Would a playful answer suit this request?"}},
+    {"id":"n6","type":"llm","name":"Playful answer","x":1070,"y":330,"fields":{"model":"openai/gpt-5-mini","prompt":"Give a short, playful answer."}},
+    {"id":"n7","type":"llm","name":"Direct answer","x":1070,"y":800,"fields":{"model":"openai/gpt-4.1-mini","prompt":"Give a short, direct answer."}},
+    {"id":"n8","type":"join","name":"General answer","x":1400,"y":420,"fields":{}},
+    {"id":"n9","type":"join","name":"Answer","x":1730,"y":120,"fields":{}}
+  ],
+  "links": [
+    {"id":"l1","from":{"node":"n1","port":"text"},"to":{"node":"n2","port":"text"}},
+    {"id":"l2","from":{"node":"n1","port":"text"},"to":{"node":"n3","port":"prompt"}},
+    {"id":"l3","from":{"node":"n2","port":"yes"},"to":{"node":"n4","port":"system"}},
+    {"id":"l4","from":{"node":"n2","port":"no"},"to":{"node":"n5","port":"text"}},
+    {"id":"l5","from":{"node":"n3","port":"text"},"to":{"node":"n4","port":"prompt"}},
+    {"id":"l7","from":{"node":"n3","port":"text"},"to":{"node":"n6","port":"prompt"}},
+    {"id":"l8","from":{"node":"n3","port":"text"},"to":{"node":"n7","port":"prompt"}},
+    {"id":"l9","from":{"node":"n5","port":"yes"},"to":{"node":"n6","port":"system"}},
+    {"id":"l10","from":{"node":"n5","port":"no"},"to":{"node":"n7","port":"system"}},
+    {"id":"l11","from":{"node":"n6","port":"text"},"to":{"node":"n8","port":"a"}},
+    {"id":"l12","from":{"node":"n7","port":"text"},"to":{"node":"n8","port":"b"}},
+    {"id":"l13","from":{"node":"n4","port":"text"},"to":{"node":"n9","port":"a"}},
+    {"id":"l14","from":{"node":"n8","port":"text"},"to":{"node":"n9","port":"b"}}
+  ],
+  "legacy": {
+    "v": 1,
+    "nodes": [
+      {"id":"n1","type":"text","fields":{"text":"a dog"}},
+      {"id":"n2","type":"decide","fields":{"model":"perplexity/pplx-decider-v1.2","mode":"yesno","gate":true,"question":"Is it a cat?"}},
+      {"id":"n4","type":"llm","fields":{"model":"google/gemini-3.8-flash","prompt":"Write a cat poem."}}
+    ],
+    "links": [
+      {"id":"l1","from":{"node":"n1","port":"text"},"to":{"node":"n2","port":"text"}},
+      {"id":"l2","from":{"node":"n2","port":"text"},"to":{"node":"n4","port":"prompt"}}
+    ]
+  },
+  "cases": [
+    {"name":"yes","answers":[0.5],"calls":["n2","n3","n4"],"skipped":["n5","n6","n7","n8"],"output":"n4"},
+    {"name":"no then yes","answers":[0,1],"calls":["n2","n3","n5","n6"],"skipped":["n4","n7"],"output":"n6"},
+    {"name":"no then no","answers":[0,0],"calls":["n2","n3","n5","n7"],"skipped":["n4","n6"],"output":"n7"},
+    {"name":"missing decision","answers":[null],"calls":["n2","n3"],"error":true},
+    {"name":"invalid inner decision","answers":[0,"NaN"],"calls":["n2","n3","n5"],"error":true}
+  ]
+}

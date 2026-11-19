@@ -1,0 +1,31 @@
+@import url("./tokens/tokens.css");
+@import url("./fonts/fonts.css");
+
+:root {
+  --bg: var(--nano-color-canvas);
+  --panel: var(--nano-color-panel);
+  --panel2: var(--nano-color-raised);
+  --ink: var(--nano-color-ink);
+  --muted: var(--nano-color-muted);
+  --dim: var(--nano-color-dim);
+  --line: var(--nano-color-line);
+  --accent: var(--nano-color-accent);
+  --accent2: var(--nano-color-image-port);
+  --cyan: var(--nano-color-wordmark-start);
+}
+body { background: var(--bg); font-family: var(--nano-font-body); overflow-wrap: anywhere; }
+a { color: var(--nano-color-accent-ink); text-underline-offset: .2em; }
+:focus-visible { outline: var(--nano-control-focus-width) solid var(--nano-color-accent-ink); outline-offset: 3px; }
+.logo { display: inline-flex; align-items: center; gap: .4rem; color: var(--ink); font-family: var(--nano-font-display); font-weight: 400; }
+.logo::before { content: ""; width: 24px; height: 24px; background: url("/favicon-32.png") center / contain no-repeat; flex: none; }
+.logo .nano { color: transparent; font-weight: 400; filter: none; }
+.logo .ui, code { font-family: var(--nano-font-mono); }
+h1 { font-family: var(--nano-font-display); font-weight: 400; }
+h1 .grad { color: var(--nano-color-accent-ink); background: none; }
+.ghost, a.cta, a.primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--nano-control-height);
+  border-radius: var(--nano-radius-control);
+}
+a.cta:not(.secondary), a.cta.primary, a.primary { background: var(--nano-color-accent); color: var(--nano-color-on-accent); }

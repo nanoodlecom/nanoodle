@@ -39,6 +39,23 @@ async function test(name,fn){try{await fn();console.log('✓ '+name);}catch(e){f
 await test('Describe clean completion applies once and retains a newly typed next draft',async()=>{
  const {c}=fixture(),d=deferred();c.runGptdiff=()=>d.promise;const pending=c.submit();c.input.value='next request';d.resolve({next:graph('applied')});await pending;assert.equal(c.graph.nodes[0].fields.text,'applied');assert.equal(c.versions.length,2);assert.equal(c.input.value,'next request');assert.equal(c.busy,false);
 });
+await test('Describe keeps the exact editable prompt for consecutive changes and respects clearing it',async()=>{
+ const {c}=fixture(),prompts=[];
+ const prompt='  make another change  ';
+ c.input.value=prompt;c.input.focus=()=>{};
+ c.runGptdiff=async(_prev,goal)=>{prompts.push(goal);return {next:graph('applied '+prompts.length)};};
+ await c.submit();assert.equal(c.input.value,prompt);assert.equal(c.graph.nodes[0].fields.text,'applied 1');
+ await c.submit();assert.equal(c.input.value,prompt);assert.equal(c.graph.nodes[0].fields.text,'applied 2');
+ assert.deepEqual(prompts,['make another change','make another change']);assert.equal(c.versions.length,3);
+ c.input.value='';await c.submit();assert.equal(c.input.value,'');assert.equal(prompts.length,2);
+});
+await test('Describe cancellation leaves the prompt available to retry',async()=>{
+ const {c}=fixture();
+ c.runGptdiff=()=>new Promise((_resolve,reject)=>c.dbAbort.signal.addEventListener('abort',()=>reject(c.dbAbort.signal.reason),{once:true}));
+ const pending=c.submit();c.dbAbort.abort();await pending;
+ assert.equal(c.input.value,'change A');assert.equal(c.graph.nodes[0].fields.text,'start');
+ assert.equal(c.versions.length,0);assert.equal(c.busy,false);assert.match(c.status,/Stopped/);
+});
 for(const scenario of ['workspace switch','switch away and back','same-workspace graph replacement','identical graph replacement','late failure'])await test('Describe rejects '+scenario,async()=>{
  const {c}=fixture(),d=deferred();c.runGptdiff=()=>d.promise;const original=clone(c.graph),pending=c.submit();
  if(scenario==='workspace switch'){c.workspace='B';c.graph=graph('B');}
@@ -50,6 +67,22 @@ for(const scenario of ['workspace switch','switch away and back','same-workspace
 });
 await test('Describe protects in-place edits with an immutable starting snapshot',async()=>{
  const {c}=fixture(),d=deferred();c.runGptdiff=()=>d.promise;const pending=c.submit();c.graph.nodes[0].fields.text='manual edit';d.resolve({next:graph('STALE')});await pending;assert.equal(c.graph.nodes[0].fields.text,'manual edit');assert.equal(c.versions.length,0);assert.equal(c.input.value,'change A');
+});
+for(const interruption of ['workspace replacement','manual edit','Stop'])await test(`Describe preserves the workflow after ${interruption} during layout`,async()=>{
+ const {c}=fixture(),layout=deferred();let arranging=false;
+ c.window={arrangeUxLayout:()=>{arranging=true;return layout.promise;}};
+ c.runGptdiff=async()=>({next:graph('planned change')});
+ const pending=c.submit();await until(()=>arranging);
+ if(interruption==='workspace replacement'){
+  c.workspace='B';c.graph=graph('new workflow');c.status='new workspace status';
+ }else if(interruption==='manual edit')c.graph.nodes[0].fields.text='manual edit';
+ else c.dbAbort.abort();
+ const before=clone(c.graph);
+ layout.resolve(true);await pending;
+ assert.deepEqual(c.graph,before);assert.equal(c.versions.length,0);assert.equal(c.busy,false);
+ if(interruption==='workspace replacement')assert.equal(c.status,'new workspace status');
+ if(interruption==='manual edit')assert.match(c.status,/current changes were kept/);
+ if(interruption==='Stop')assert.match(c.status,/Stopped/);
 });
 await test('stale metered SSE settles exactly once without painting the replacement or starting apply',async()=>{
  const {c,charges,changes}=fixture();let controller,requests=0,applyCalls=0;
@@ -96,6 +129,6 @@ await test('an already dispatched apply still records its charge once after an i
 });
 await test('fresh generation and apply still complete and record both calls once',async()=>{
  const {c,charges}=fixture();let requests=0;c.fetch=async()=>{requests++;return new Response(meteredFrame);};c.runGptdiff=paidPair;
- await c.submit();assert.equal(requests,2);assert.equal(charges.length,2);assert.equal(c.USAGE.cost,0.024);assert.equal(c.graph.nodes[0].fields.text,'applied');assert.equal(c.versions.length,2);assert.equal(c.input.value,'');assert.equal(c.busy,false);
+ await c.submit();assert.equal(requests,2);assert.equal(charges.length,2);assert.equal(c.USAGE.cost,0.024);assert.equal(c.graph.nodes[0].fields.text,'applied');assert.equal(c.versions.length,2);assert.equal(c.input.value,'change A');assert.equal(c.busy,false);
 });
 if(failures)process.exitCode=1;

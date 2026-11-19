@@ -1,0 +1,28 @@
+@import url("./tokens/tokens.css");
+@import url("./fonts/fonts.css");
+
+:focus-visible {
+  outline: var(--nano-control-focus-width, 2px) solid var(--nano-color-accent-ink, #a9b6ff);
+  outline-offset: 2px;
+}
+
+#agentpop .ap-cmd, .sm-url {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--nano-font-mono, ui-monospace, monospace);
+  color: var(--dim);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: .45rem;
+  padding: .4rem .5rem;
+}
+
+#agentpop .ap-cmd {
+  font-size: .72rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.sm-url { font-size: .78rem; }
