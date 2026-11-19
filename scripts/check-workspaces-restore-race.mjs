@@ -12,7 +12,7 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const chrome = ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find((p) => existsSync(p));
+const chrome = process.env.NANOODLE_CHROMIUM || ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find((p) => existsSync(p));
 if (!chrome) { console.log("⊘ check-workspaces-restore-race: no Chrome (covered by check-workspaces.mjs)"); process.exit(0); }
 
 const mime = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml" };
@@ -63,7 +63,14 @@ const navigate = async (url) => { await send("Page.navigate", { url }); await sl
   for (let i = 0; i < 120; i++) { if (await evaluate(`document.readyState==="complete" && location.href===${JSON.stringify(url)}`)) return; await sleep(250); } };
 await send("Runtime.enable"); await send("Page.enable");
 // Toasts fade, so record every text the page ever showed.
-await send("Page.addScriptToEvaluateOnNewDocument", { source: `window.__seen = "";
+await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+  const localFetch=window.fetch.bind(window);
+  window.fetch=(input,init)=>{
+    const url=new URL(input instanceof Request?input.url:input,location.href);
+    if(url.origin===location.origin)return localFetch(input,init);
+    return Promise.resolve(new Response('{"data":[]}',{headers:{"Content-Type":"application/json"}}));
+  };
+  window.__seen = "";
   new MutationObserver(() => { try { window.__seen += "\\n" + document.body.innerText; } catch (_) {} })
     .observe(document, { subtree: true, childList: true, characterData: true });` });
 
