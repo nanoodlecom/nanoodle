@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mesh diet — nanoodle</title>
+<meta name="description" content="One photo → a 30,000-triangle mesh, retopologized down to the face budget your engine actually allows. Reported saved run: $0.40342." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Mesh diet — nanoodle" />
+<meta property="og:description" content="One photo → a 30,000-triangle mesh, retopologized down to the face budget your engine actually allows. Reported saved run: $0.40342." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/mesh-diet" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Mesh diet — nanoodle" />
+<meta name="twitter:description" content="One photo → a 30,000-triangle mesh, retopologized down to the face budget your engine actually allows. Reported saved run: $0.40342." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/mesh-diet" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Mesh diet</span></nav>
+
+  <main>
+    <h1><span class="grad">Mesh diet</span></h1>
+    <p class="lede">One photo → a 30,000-triangle mesh, retopologized down to the face budget your engine actually allows.</p>
+
+    <section>
+      <p class="meta-row">The 30,000-triangle dragon from Photo to Game-Ready Mesh, retopologized to a 4,000-face budget by Hyper3D Low Poly — the saved output parses at 3,929 triangles, silhouette intact · 2026-11-19 · Reported saved run: $0.40342. <code>google/gemini-3.8-flash</code> · <code>speridlabs/idol/max/turbo</code> · <code>hyper3d/lowpoly</code> · <code>z-ai/glm-5.3-flash</code></p>
+      <p>Idol Max Turbo rebuilds the photo as a textured mesh of exactly 30,000 triangles; Hyper3D Low Poly then retopologizes it to a target face count you set (4,000 in the saved run, inside its 200–10,000 range), carrying the UVs and PBR textures over. A Gemini surveyor first writes down the silhouette features that must survive the cut, and a GLM guide closes with the budget table — Roblox caps a mesh at 20,000 triangles, mobile props run 300–3,000, WebGL props 1,000–10,000 — and the honest edges.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/mesh-diet/preview.webp" aria-label="1. The diet mesh turning: Hyper3D Low Poly&#39;s retopologized GLB rendered one full turn, 3,929 triangles · reported $0.20 — Mesh diet"><source src="/examples/gallery/mesh-diet/turntable.mp4" type="video/mp4"></video><figcaption>1. The diet mesh turning: Hyper3D Low Poly&#39;s retopologized GLB rendered one full turn, 3,929 triangles · reported $0.20 · <a href="/examples/gallery/mesh-diet/turntable.mp4" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/mesh-diet/before-after.png"><img src="/examples/gallery/mesh-diet/before-after.png" alt="2. The countable diet: 30,000 triangles (left) → 3,929 (right), same angle, both parsed from the saved GLBs — Mesh diet" loading="lazy" /></a><figcaption>2. The countable diet: 30,000 triangles (left) → 3,929 (right), same angle, both parsed from the saved GLBs · <a href="/examples/gallery/mesh-diet/before-after.png" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Object survey · Gemini names the silhouette that must survive · reported $0.0034</summary><blockquote class="sample">Object: Bronze winged dragon figurine on a flat square plinth.
+
+Silhouette: Wide, scalloped bat-like wings spread bilaterally; upright S-curving serpentine neck and torso; helical coiled tail forming a circular base; antlered head profile angled forward.
+
+Fragile details: Slender curling chin whiskers; thin cranial horns and mane spikes; pointed wing membrane tips and claws; sharp dorsal spinal ridge scales; open jaw with individual small teeth.
+</blockquote></details><figcaption>Object survey · Gemini names the silhouette that must survive · reported $0.0034 · <a href="/examples/gallery/mesh-diet/survey.txt" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Mesh-diet guide · GLM writes the budget table and the honest edges · reported $0.00</summary><blockquote class="sample">WHAT YOU GOT
+
+Your bronze winged dragon figurine, rebuilt as a low-poly mesh ready for a game engine. The full silhouette survived the diet: the wide scalloped bat wings still spread bilaterally with their scalloped trailing edges, the S-curving serpentine neck and torso still reads as an upright S, the helical coiled tail still forms its circular base, and the antlered head profile still angles forward. The flat square plinth is intact. The bronze PBR textures and UVs carried over from the original mesh, so the material look is unchanged.
+
+The retopology target you set was 4,000 faces; the tested output measured 3,876 triangles. Automatic retopology lands NEAR its target, not exactly on it — quote the target as a target, and check the final count in your engine.
+
+PICK YOUR BUDGET
+
+The face-count field is the lever. Roblox caps a single mesh at 20,000 triangles, so this mesh fits comfortably with room to spare. Mobile props typically run 300–3,000 triangles, so dropping the target lower — say 1,500–2,500 — would suit a mobile scene, at the cost of softer wing scallops and tail coils. WebGL/three.js props run 1,000–10,000, so the current setting sits mid-range there. Keep a target near 4,000 if this dragon is a hero prop on a plinth; lower it if you need a crowd of them or a background piece.
+
+THE HONEST EDGES
+
+Automatic retopology is not hand retopology: a character that must deform at the joints still wants edge loops a person designs. Props, environment pieces and LODs — like this figurine — are exactly what this is for. The diet is in triangles, not megabytes: the output file can be as large as the input, because texture resolution is a separate lever. And the survey&#39;s fragile details will soften first — the curling chin whiskers, thin cranial horns and mane spikes, pointed wing tips and claws, the sharp dorsal scale ridge, and the individual teeth in the open jaw are the places to inspect closely before shipping.
+</blockquote></details><figcaption>Mesh-diet guide · GLM writes the budget table and the honest edges · reported $0.00 · <a href="/examples/gallery/mesh-diet/guide.txt" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs">
+          <figure><img src="/examples/gallery/mesh-diet/object-photo.webp" alt="Object photo" loading="lazy" /><figcaption>Object photo</figcaption></figure>
+        </div>
+      <div class="callout"><p>AI mesh generators hand you a prop with a hundred thousand triangles and call it done; engines budget in thousands. This workflow closes that gap in the browser: Idol Max Turbo rebuilds one photo as a textured mesh of exactly 30,000 triangles, then Hyper3D Low Poly (landed on NanoGPT the day before this shipped) retopologizes it down to a face budget you set — 4,000 here, inside its 200–10,000 range — carrying the UVs and PBR textures over. A Gemini surveyor first writes down the silhouette features that must survive the cut, and the GLM guide closes with the budget table (Roblox caps a mesh at 20,000 triangles; mobile props run 300–3,000; WebGL props 1,000–10,000) and the honest edges. The proof is countable, and the counts are printed: the morning probe parsed at 30,000 in, 3,876 out; this saved run parses at 30,000 in, 3,929 out. Automatic retopology lands NEAR its target, not on it — quote the target as a target. Silhouette was checked by rendering both GLBs from three angles: wings, coiled tail, antlered head and plinth all read at ~4k triangles; the chin whiskers, teeth and wing-tip points merge, exactly what the survey flagged as fragile. Flaws and limits: automatic retopology is not hand retopology — a character that must deform at the joints still wants edge loops a person designs; props, environment pieces and LODs are the claim. The diet is in triangles, not megabytes: the diet GLB is 11.8 MB against the heavy mesh&#39;s 10.0 MB, because the transferred textures are as large as the source&#39;s — texture resolution is a separate lever. Already have a heavy GLB? Wire it straight into the Low Poly node&#39;s model input and skip the rebuild. One pricing note the run exposed: Idol Max Turbo&#39;s catalog price is variant-based, and the PBR variant this graph uses bills $0.20, not the $0.10 base. The turntable and the before/after still are plain flat-shaded renders of the saved GLBs with their own base-colour textures, not beauty shots.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Swap <em>Object photo</em> for your own photo of one object, and set the face budget on <em>Mesh diet — Hyper3D Low Poly</em>: lower for crowds and mobile, higher for a hero prop. Already have a heavy GLB? Wire it straight into that node's model input and delete the rebuild — retopology is the point. Keep <code>transfer_texture</code> on so the PBR maps carry over.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Four model calls: the saved run reported $0.4034 in total (Hyper3D Low Poly a flat $0.20, Idol Max Turbo $0.20 — its PBR variant bills $0.20, not the $0.10 base — Gemini survey $0.0034, GLM guide $0.00). Prices and results vary.</li>
+        <li>Parse the output GLB and count: automatic retopology lands NEAR its target, not on it — the probe measured 3,876 against the 4,000 target and the saved run 3,929. Compare the before/after still: wings, coiled tail, antlered head and plinth survive; the whiskers and teeth merge. And check the file size before you celebrate — the diet is in triangles, not megabytes: the saved diet GLB is 11.8 MB against the heavy mesh's 10.0 MB, because the transferred textures are as large as the source's.</li>
+      </ol>
+
+      <p class="howto-note">mesh-diet.NOTE.txt</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA7VY227cNhB991cM9iUxsDd7nTbZBCmSxrHbunHgS4OgLgKuNJIYUxyVQ3mtFv33Ykbai9fruC99W1EkdXjmzMzh_r0DvZveFPb6O9BzNl389Prze_1JKXJvCr_vAPy9AwA9fddLBtZH9LHX18HYVKjDVJarUW9KHT2mOdgIcwrX3L3KLLpUNtZNZaGjIHMbdI7m7SzoRbyNMvqxoEhwVe_vvdiH3JQ4mNVpjhFK5GIIl5UjkwJ5hEpnUqYPNPuKSRzCTyk5-NXcwkUdZgQBZ7V1KQsow2BgMu6Px-NBDNb43CHIZ-uAqW7_Eo6bCsPkHZzQHD6SayAW6CFgpIoc5fYv1K1SmnuIJG8hMwlCh7GhGhgjPD2Qr0CBAeUo470DKGlmHYLxKcxxBlWgisHZGwQTwUCGc4gF1Wx8ujuEN8B1uMGGAmQ2cARPEVm_x9YVVGOMCBkaAS_jJkJZc9RlsqnMTOo4hDcuoEkbKIx8Cgo0Nw0cnbz9AT7ZgHIYjsHYvIhgfXek5elFE08YSkrRgfVVHfUAfG0rndjRO-xJDP9p4z3vTeHFeNw-3PamMDjoHhp52Hsx3unmrquMQ7IhsFojvaGvUw1zG_oH9GVLk-vcTVCT_YdAbUekAdgAdWPZkt8Ada4zlZBWhg8gUxplQU6UOxzlWFpvB5Ph80HmDBeLVPhT5nymGkxoA7nUgvVgVKmD1GKEylborMchnBBdi5BiYblLDFVasFE0B6dvfz788QLOL89-O_ws2-hEvDVJBC5MhdMr33I7hVfzQncSqWmOtIcCy31NNfni6yt_vtThFF7J7MngGVAd5fVWZUbrHIgYwWQRg35BzgKWRaqST3fzABZZyoskkiUVMfb118zmLXhun6tAmXWC7X0wuWRbitFYxx3A7A6ykjiCs9coWU7AlEX0QAFKDLlmpaP5EgIkVPvIr6_8L4iVpE3tUwzwYizFLuUhvDdJZCDvmj54AjaC2xmf1ybHexkyOXhIjJPxVjkKUxtiVD1NNlPkrM3Jttwpvx15d0vjYxrlCoNNnZnxyKbkRqW5HcXVwm7maRVXi6GH3swcfqlmUuBjqLHfvdCk_LIAHtA4JaRjBHpVoLKKW7P2-RpRy4cHs1by4j_R9Kswo1nU0bNZ-h8jqND56cjRvFpO306LtIgvKqDeFA7GXXEUiMF4zjB86dpQx9pD1HQjbMrK6SHwVn_yKDfOYWhGy9owUhzD3M2-Sejz_ccIzWub4gajzpUbbB6tzbrHmLm9oGv0MtR7Nh7fYUrG_hoYO8pdOXg2nNythAENk7c-P8wyCkrCmmXghiOWi2LZ1jrJc4XcVh4ubMUwt7EAc89NSMFI6wRTmDVtQRTfkjmaT8F0VdRy1-SiTNpwF5pidxyE2BGtqq7prMaqiPVbM3HPYtxzF1oIowmCU92FSkePVjMGcRi8sBhaysXGcMQUQu1frj9THaVnl2hYIU76z7__7n5ZNXWk0kSbrLA0UrpShg-Hb87ARu7wSGmLQB5s7AMT_FmTkK7vWPjofu4Or_yVvyiwcw2W7zSyJ7zRkShr31Mdks7ZDeGTRnR7s7ryn47fXMDn00s4Or248q9aO7Jiso3HFNiUiw7Wl_4STBIt-cUX16Jz-Rtr0_z49mwRVIbEhGCFyRsMQ_ggm63aY9v32TS82eL6AnvNqUUMJQ9fC-6PP_34i-A-g7eX744OBbt0VS4oRKhMMHkwVQGxsT5fCz-LLFLkaL2RA3AfaunPgoQRqnrmLBeiZRU4T-GMZo5uITGVyLTr5SpSE2F_Q5wvFwa1NaaxqWxinKiz9tKSBpPN-Z9wdnQyikVAHH7lbt2euus93XwIF509HrQC1sKwkILDGwxT6bEYIKMASaB52kaghdKHwuZF91acayD9SkvjxfEhHJ9-ODy_gMN3R4fnIoE5Sf9WSFA5IyFAubskyFN4ure7XeiWVdSFfHlteJEbkBRGRKOOZWFmUswolNAJ4StZCVAb_rmR35jmCI5Iua8wMHmJns09v2y56gP6GxvIyzUKKosJtqc_OX3Hav06oVkWiBmFITzd31VStW_JuF8XsJyixNzMmigHVj_aFgCxRZAYDzOUJHVGHU4biDZBZ5iYmpf3IQjI5GrNFKvyQZFm7OI2hKeTXXgvfqqzWCCdIF2UozYznrCkmxoxZznCXOjpfJbearqE0EgtnRJ8IJDeqi6qClZomWFDYmeFECtEG6lucr3SWdbfSJzTRaETRvm-5fruocbXWa4d-KO9HvvrbRdht7docIHKVXuTO9KdGwz0qq5XtVeRNRiRtqxbu2dsXbqtK7v9_wXLymT-dySTbyLZtmPb-B-BsjJyWxduhXLwbVK2Eq3_OzyCZc0DrRZ2vmyJZgf-2PnnX8NuE_toEQAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#mesh-diet">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/mesh-diet/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/mesh-diet/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#mesh-diet">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/photo-to-game-ready-mesh">Photo to game-ready mesh</a>
+        <a href="/examples/gallery/#mesh-diet">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

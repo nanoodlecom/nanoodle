@@ -1,5 +1,64 @@
 [
  {
+  "slug": "mesh-diet",
+  "title": "Mesh diet",
+  "date": "2026-11-19",
+  "review": "The 30,000-triangle dragon from Photo to Game-Ready Mesh, retopologized to a 4,000-face budget by Hyper3D Low Poly \u2014 the saved output parses at 3,929 triangles, silhouette intact",
+  "note": "AI mesh generators hand you a prop with a hundred thousand triangles and call it done; engines budget in thousands. This workflow closes that gap in the browser: Idol Max Turbo rebuilds one photo as a textured mesh of exactly 30,000 triangles, then Hyper3D Low Poly (landed on NanoGPT the day before this shipped) retopologizes it down to a face budget you set \u2014 4,000 here, inside its 200\u201310,000 range \u2014 carrying the UVs and PBR textures over. A Gemini surveyor first writes down the silhouette features that must survive the cut, and the GLM guide closes with the budget table (Roblox caps a mesh at 20,000 triangles; mobile props run 300\u20133,000; WebGL props 1,000\u201310,000) and the honest edges. The proof is countable, and the counts are printed: the morning probe parsed at 30,000 in, 3,876 out; this saved run parses at 30,000 in, 3,929 out. Automatic retopology lands NEAR its target, not on it \u2014 quote the target as a target. Silhouette was checked by rendering both GLBs from three angles: wings, coiled tail, antlered head and plinth all read at ~4k triangles; the chin whiskers, teeth and wing-tip points merge, exactly what the survey flagged as fragile. Flaws and limits: automatic retopology is not hand retopology \u2014 a character that must deform at the joints still wants edge loops a person designs; props, environment pieces and LODs are the claim. The diet is in triangles, not megabytes: the diet GLB is 11.8 MB against the heavy mesh's 10.0 MB, because the transferred textures are as large as the source's \u2014 texture resolution is a separate lever. Already have a heavy GLB? Wire it straight into the Low Poly node's model input and skip the rebuild. One pricing note the run exposed: Idol Max Turbo's catalog price is variant-based, and the PBR variant this graph uses bills $0.20, not the $0.10 base. The turntable and the before/after still are plain flat-shaded renders of the saved GLBs with their own base-colour textures, not beauty shots.",
+  "layout": "sequence",
+  "costUsd": 0.40342,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "speridlabs/idol/max/turbo",
+   "hyper3d/lowpoly",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "e24f60fa07341d336408783acabdefb3214f6574ffe956e34323f0e3fc1de744",
+  "inputs": [
+   {
+    "label": "Object photo",
+    "src": "mesh-diet/object-photo.webp"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "mesh-diet/turntable.mp4",
+    "kind": "video",
+    "label": "1. The diet mesh turning: Hyper3D Low Poly's retopologized GLB rendered one full turn, 3,929 triangles \u00b7 reported $0.20",
+    "costUsd": 0.2,
+    "sha256": "c0febf29327dd89e836965f437e33f49cac22e13253eafee9a3ee61226c42713"
+   },
+   {
+    "src": "mesh-diet/before-after.png",
+    "kind": "image",
+    "label": "2. The countable diet: 30,000 triangles (left) \u2192 3,929 (right), same angle, both parsed from the saved GLBs",
+    "costUsd": 0,
+    "sha256": "a5339c70d29b5defeebf47e6de69d20bd299a56a664f61ffca6e6bd281eae5a9"
+   },
+   {
+    "src": "mesh-diet/survey.txt",
+    "kind": "text",
+    "label": "Object survey \u00b7 Gemini names the silhouette that must survive \u00b7 reported $0.0034",
+    "costUsd": 0.0034,
+    "collapsed": true,
+    "sha256": "c931b7a6394bdc4db5fee5ae498372d7281088a6200a29ace7b4157976525d59"
+   },
+   {
+    "src": "mesh-diet/guide.txt",
+    "kind": "text",
+    "label": "Mesh-diet guide \u00b7 GLM writes the budget table and the honest edges \u00b7 reported $0.00",
+    "costUsd": 0,
+    "collapsed": true,
+    "sha256": "be57cff6c01d1210f6b94f6a2772e2ffa18eba19391e7664408b7b517f425e11"
+   }
+  ],
+  "preview": "mesh-diet/preview.webp",
+  "workflow": "mesh-diet/workflow.json",
+  "workflowSha256": "ecdae065d2147cd10ecc8e23be5bc273aa0620367d853fdfb45db556e56fed4a",
+  "workflowNote": "mesh-diet.NOTE.txt"
+ },
+ {
   "slug": "photo-to-game-ready-mesh",
   "title": "Photo to game-ready mesh",
   "date": "2026-11-18",

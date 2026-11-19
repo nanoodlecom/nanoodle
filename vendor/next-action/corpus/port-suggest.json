@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 37,
-  "edgeCount": 254,
+  "graphCount": 38,
+  "edgeCount": 258,
   "typeToType": {
     "text→image": 34,
     "image→ivideo": 10,
@@ -31,7 +31,7 @@
     "edit→lipsync": 1,
     "tts→lipsync": 2,
     "text→lipsync": 2,
-    "upload→vision": 5,
+    "upload→vision": 6,
     "upload→edit": 6,
     "edit→vision": 3,
     "vision→join": 6,
@@ -39,9 +39,10 @@
     "join→llm": 8,
     "join→image": 1,
     "image→model3d": 1,
+    "upload→model3d": 3,
+    "model3d→model3d": 1,
+    "vision→llm": 3,
     "llm→ivideo": 1,
-    "upload→model3d": 2,
-    "vision→llm": 2,
     "edit→inpaint": 1,
     "upload→inpaint": 1,
     "text→inpaint": 1,
@@ -101,7 +102,7 @@
     "edit.image→lipsync.image": 1,
     "tts.audio→lipsync.audio": 2,
     "text.text→lipsync.prompt": 2,
-    "upload.image→vision.image": 5,
+    "upload.image→vision.image": 6,
     "upload.image→edit.image": 3,
     "upload.image→edit.image2": 1,
     "upload.image→edit.image3": 1,
@@ -114,13 +115,14 @@
     "text.text→join.b": 8,
     "join.text→image.prompt": 1,
     "image.image→model3d.image": 1,
+    "upload.image→model3d.image": 3,
+    "model3d.model→model3d.model": 1,
+    "vision.text→llm.prompt": 3,
     "image.image→edit.image3": 1,
     "image.image→edit.image4": 1,
     "llm.text→ivideo.prompt": 1,
     "vision.text→join.a": 2,
     "join.text→join.b": 1,
-    "upload.image→model3d.image": 2,
-    "vision.text→llm.prompt": 2,
     "edit.image→inpaint.image": 1,
     "upload.image→inpaint.mask": 1,
     "text.text→inpaint.prompt": 1,
@@ -253,18 +255,21 @@
       "lipsync|audio": 2
     },
     "upload|image": {
-      "vision|image": 5,
+      "vision|image": 6,
       "edit|image": 3,
       "edit|image2": 1,
       "edit|image3": 1,
       "edit|image4": 1,
-      "model3d|image": 2,
+      "model3d|image": 3,
       "inpaint|mask": 1
     },
     "vision|text": {
       "join|b": 4,
-      "join|a": 2,
-      "llm|prompt": 2
+      "llm|prompt": 3,
+      "join|a": 2
+    },
+    "model3d|model": {
+      "model3d|model": 1
     },
     "inpaint|image": {
       "ivideo|image": 1
@@ -432,9 +437,12 @@
     },
     "model3d": {
       "inputs": [
-        "image"
+        "image",
+        "model"
       ],
-      "outputs": []
+      "outputs": [
+        "model"
+      ]
     },
     "inpaint": {
       "inputs": [

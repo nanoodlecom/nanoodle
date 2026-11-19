@@ -1,0 +1,13 @@
+WHAT YOU GOT
+
+Your bronze winged dragon figurine, rebuilt as a low-poly mesh ready for a game engine. The full silhouette survived the diet: the wide scalloped bat wings still spread bilaterally with their scalloped trailing edges, the S-curving serpentine neck and torso still reads as an upright S, the helical coiled tail still forms its circular base, and the antlered head profile still angles forward. The flat square plinth is intact. The bronze PBR textures and UVs carried over from the original mesh, so the material look is unchanged.
+
+The retopology target you set was 4,000 faces; the tested output measured 3,876 triangles. Automatic retopology lands NEAR its target, not exactly on it — quote the target as a target, and check the final count in your engine.
+
+PICK YOUR BUDGET
+
+The face-count field is the lever. Roblox caps a single mesh at 20,000 triangles, so this mesh fits comfortably with room to spare. Mobile props typically run 300–3,000 triangles, so dropping the target lower — say 1,500–2,500 — would suit a mobile scene, at the cost of softer wing scallops and tail coils. WebGL/three.js props run 1,000–10,000, so the current setting sits mid-range there. Keep a target near 4,000 if this dragon is a hero prop on a plinth; lower it if you need a crowd of them or a background piece.
+
+THE HONEST EDGES
+
+Automatic retopology is not hand retopology: a character that must deform at the joints still wants edge loops a person designs. Props, environment pieces and LODs — like this figurine — are exactly what this is for. The diet is in triangles, not megabytes: the output file can be as large as the input, because texture resolution is a separate lever. And the survey's fragile details will soften first — the curling chin whiskers, thin cranial horns and mane spikes, pointed wing tips and claws, the sharp dorsal scale ridge, and the individual teeth in the open jaw are the places to inspect closely before shipping.
