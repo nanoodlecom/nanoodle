@@ -141,6 +141,7 @@ const bundle = [
   grab(/const VIDEO_IMG_ROLE_KEYS = \{[^}]*\};/, "VIDEO_IMG_ROLE_KEYS"),
   grab(/const VIDEO_REF_PRICE_KEYS = \[[^\]]*\];/, "VIDEO_REF_PRICE_KEYS"),
   grab(/const videoRefsModePriced = \(p\)=>[\s\S]*?;/, "videoRefsModePriced"),
+  grab(/const videoRefsModeOpt = \(m\)=>\{[^}]*\};/, "videoRefsModeOpt"),
   grab(/const videoRefsPriced = \(m\)=> \{[^}]*\};/, "videoRefsPriced"),
   grab(/const VIDEO_REF_MAX = \[[\s\S]*?\];/, "VIDEO_REF_MAX"),
   extractFn(IDX, "videoFreetextSkip"),

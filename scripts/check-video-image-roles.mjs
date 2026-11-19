@@ -91,6 +91,8 @@ function loadAssigns(src, name) {
     "alibaba/wan-3.0/image-to-video",
     "google/gemini-omni-flash/v1.1",
     "Google/Gemini-Omni-Flash/v1.1",
+    "google/gemini-omni-flash/v1.2",
+    "Google/Gemini-Omni-Flash/v1.2",
   ];
   const LAST_NO = [
     "minimax-hailuo", "hailuo-02", "seedance-2.0", "luma-ray", "kling-v2", "",
@@ -136,6 +138,7 @@ function loadAssigns(src, name) {
     grab(/const VIDEO_IMG_ROLE_KEYS = \{[^}]*\};/, "VIDEO_IMG_ROLE_KEYS"),
     grab(/const VIDEO_REF_PRICE_KEYS = \[[^\]]*\];/, "VIDEO_REF_PRICE_KEYS"),
     grab(/const videoRefsModePriced = \(p\)=>[\s\S]*?;/, "videoRefsModePriced"),
+    grab(/const videoRefsModeOpt = \(m\)=>\{[^}]*\};/, "videoRefsModeOpt"),
     grab(/const videoRefsPriced = \(m\)=> \{[^}]*\};/, "videoRefsPriced"),
     grab(/const VIDEO_LAST_FRAME_FAMILIES = \/[^\n]+\/i;/, "VIDEO_LAST_FRAME_FAMILIES"),
     grab(/const VIDEO_REF_MAX = \[[\s\S]*?\];/, "VIDEO_REF_MAX"),
@@ -244,6 +247,37 @@ function loadAssigns(src, name) {
   ok(omni11 && omni11.key === "reference_images" && omni11.cap === 4,
     `editor: gemini-omni-flash/v1.1 ref spec is reference_images/4, got ${JSON.stringify(omni11)}`);
 
+  // google/gemini-omni-flash/v1.2 (2026-11-06): duration/resolution/aspect_ratio/mode only — no
+  // last_image param, no reference_to_video price key. Token refundable_reservation pricing.
+  // Refs advertised via mode.options value "reference"; last via family fallback; cap 6.
+  MODELS["google/gemini-omni-flash/v1.2"] = {
+    params: {
+      duration: {}, resolution: {}, aspect_ratio: {},
+      mode: {
+        type: "select",
+        options: [
+          { value: "auto", label: "Automatic" },
+          { value: "reference", label: "Reference" },
+          { value: "edit", label: "Edit" },
+          { value: "extend", label: "Extend" },
+        ],
+        default: "auto",
+      },
+    },
+    pricing: {
+      type: "refundable_reservation",
+      reservation_usd: 15,
+      rates_per_million_tokens: { input: 2.55, output: 12.0 },
+    },
+  };
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash/v1.2", "ivideo"), "last") === true,
+    "editor: gemini-omni-flash/v1.2 last_image via family fallback (catalog hides the param)");
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash/v1.2"), "refs") === true,
+    "editor: gemini-omni-flash/v1.2 refs via mode.options value reference (no reference_to_video price key)");
+  const omni12 = T.videoRefSpec(node("google/gemini-omni-flash/v1.2"));
+  ok(omni12 && omni12.key === "reference_images" && omni12.cap === 6,
+    `editor: gemini-omni-flash/v1.2 ref spec is reference_images/6, got ${JSON.stringify(omni12)}`);
+
   // kling-o1 bills reference_to_video_image / _video — not the exact reference_to_video key.
   // Must stay OFF (those keys are a different shape; canRef already hid the mode).
   MODELS["kling-video-o1"] = {
@@ -316,6 +350,19 @@ function loadAssigns(src, name) {
     ok(!drifted.length, `refMaxFor(${JSON.stringify(id)}, ${JSON.stringify(pricing)}) === ${want}` +
       (drifted.length ? ` — ${drifted.map(([l, fn]) => l + "=" + fn(id, pricing)).join(", ")}` : ""));
   }
+  // Omni v1.2 cap lives on the hand-maintained play RUNTIME twin (`var id = …`).
+  // The generated njs-engine / vendor copies regenerate from nanoodle-js — out of scope here.
+  const playRuntime = extractAllFns(PLAY, "refMaxFor").filter((fn) => /var id = String/.test(fn));
+  ok(playRuntime.length >= 1, `play RUNTIME refMaxFor (var-style) ×${playRuntime.length}`);
+  for (const fnSrc of playRuntime) {
+    ok(/gemini-omni-flash/.test(fnSrc) && /v1\\.2/.test(fnSrc),
+      "play RUNTIME refMaxFor source includes Omni v1.2 cap branch");
+    const fn = new Function(fnSrc + "; return refMaxFor;")();
+    ok(fn("google/gemini-omni-flash/v1.2", undefined) === 6,
+      `play RUNTIME refMaxFor(omni v1.2) === 6, got ${fn("google/gemini-omni-flash/v1.2", undefined)}`);
+    ok(fn("google/gemini-omni-flash/v1.1", undefined) === 4,
+      `play RUNTIME refMaxFor(omni v1.1) stays generic 4, got ${fn("google/gemini-omni-flash/v1.1", undefined)}`);
+  }
 }
 
 // ---- D. play RUNTIME payload (honor authored wires; drop only when known-incapable)
@@ -347,6 +394,20 @@ catalog.video = [
       text_to_video: { "720p": 0.13, "4k": 0.39 },
       reference_to_video: { "720p": 0.16, "4k": 0.48 },
     } },
+  },
+  {
+    id: "google/gemini-omni-flash/v1.2",
+    supported_parameters: { parameters: {
+      duration: {}, resolution: {}, aspect_ratio: {},
+      mode: { type: "select", options: [
+        { value: "auto" }, { value: "reference" }, { value: "edit" }, { value: "extend" },
+      ], default: "auto" },
+    } },
+    pricing: {
+      type: "refundable_reservation",
+      reservation_usd: 15,
+      rates_per_million_tokens: { input: 2.55, output: 12.0 },
+    },
   },
   { id: "plain-t2v", supported_parameters: { parameters: {} } },
   {
@@ -404,6 +465,13 @@ async function spyRun(type, fields, inp) {
 }
 
 {
+  const { sent } = await spyRun("ivideo", { model: "google/gemini-omni-flash/v1.2" }, { image: START, endframe: END });
+  ok(sent && sent.opts.last_image === END,
+    `play: gemini-omni-flash/v1.2 (catalog hides last_image) still sends end frame, got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
+  ok(sent && sent.img === START, "play: gemini-omni-flash/v1.2 ivideo still sends the start image");
+}
+
+{
   const { sent, notes } = await spyRun("ivideo", { model: "google/gemini-omni-flash" }, { image: START, endframe: END });
   ok(sent && sent.opts.last_image == null,
     `play: gemini-omni-flash v1 must omit last_image (no supportsLastImage / no first-last-frame), got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
@@ -439,6 +507,14 @@ async function spyRun(type, fields, inp) {
     `play: omni 1.1 refs ride reference_images (reference_to_video mode pricing), got ${JSON.stringify(sent && sent.opts.refKey)}`);
   ok(sent && Array.isArray(sent.opts.refImages) && sent.opts.refImages.join(",") === "R1,R2",
     `play: omni 1.1 keeps both refs, got ${JSON.stringify(sent && sent.opts.refImages)}`);
+}
+
+{
+  const { sent } = await spyRun("tvideo", { model: "google/gemini-omni-flash/v1.2" }, { ref1: "R1", ref2: "R2" });
+  ok(sent && sent.opts.refKey === "reference_images",
+    `play: omni 1.2 refs ride reference_images (mode.options value reference), got ${JSON.stringify(sent && sent.opts.refKey)}`);
+  ok(sent && Array.isArray(sent.opts.refImages) && sent.opts.refImages.join(",") === "R1,R2",
+    `play: omni 1.2 keeps both refs, got ${JSON.stringify(sent && sent.opts.refImages)}`);
 }
 
 {
@@ -487,4 +563,4 @@ if (fail) {
   console.error(`\n✗ video-image-roles: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video + google/gemini-omni-flash/v1.1; v1 stays OFF) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");
+console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video + google/gemini-omni-flash/v1.1+v1.2; v1 stays OFF) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");
