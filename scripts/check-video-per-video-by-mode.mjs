@@ -62,7 +62,7 @@ for (const [name, src, end] of ENGINES) {
     ["chip passes the node filter and the node", /livePrice\(t\.modelKind, fields, t\.modelFilter, n\)/],
     // The trailing { params, defaults } is the untouched-audio catalog context.
     // refCount and picker.filter stay the arguments these pins exist to protect.
-    ["livePrice forwards wired ref count to videoUnitUsd", /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), refCount, videoWired, nodeFilter(?:, \{[^)]*\})?\)/],
+    ["livePrice forwards wired ref count to videoUnitUsd", /videoUnitUsd\(pricing, quoteFields, refCount, videoWired, nodeFilter(?:, \{[^)]*\})?\)/],
     ["picker rows price by the picker filter", /videoUnitUsd\(applyVideoQuotePricing\(m\.id, m\.pricing\), \{\}, false, false, picker\.filter(?:, \{[^)]*\})?\)/],
     ["picker rows render pickerRowPrice", /<span class="price">\$\{esc\(pickerRowPrice\(m\)\)\}<\/span>/],
   ];
