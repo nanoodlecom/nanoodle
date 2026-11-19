@@ -21872,10 +21872,11 @@ $("signout").onclick = ()=> setKey(null);
    Describe changes runs this over the applied graph before it lands on the
    canvas. The baseline is a Sugiyama-style layered layout followed by a
    feasibility projection for feed-forward rank order and card spacing.
-   The optional local ParticleGAN model proposes swaps inside a column.
-   It applies a swap only if it removes crossings while keeping card
-   clearances and avoiding new wire occlusions. The baseline handles any
-   graph without an eligible improvement and any model load failure.
+   The optional local ParticleGAN model ranks swaps and rotations that keep
+   each card in its column. Its top eight reach the exact layout checks.
+   A refinement must remove crossings, keep cards clear and avoid increasing
+   wire occlusions. The baseline handles graphs without an eligible
+   improvement and model load failures.
    The pure engine below is pinned by scripts/check-ux-layout.mjs. */
 /* UX-LAYOUT-BEGIN */
 /* UX-PICK — deterministic layout candidates + learned linear picker.

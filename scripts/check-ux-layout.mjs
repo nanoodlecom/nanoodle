@@ -15,8 +15,8 @@
 //   3. DEGENERATE — <2 nodes and >600 nodes are no-ops; the hook never throws.
 //   4. DETERMINISM — the same graph gives the same positions twice.
 //   5. FINITE — every written position is a finite number.
-//   6. REFINEMENT — the packaged model improves a real gallery graph and
-//      leaves a straight chain on the layered layout.
+//   6. REFINEMENT — the packaged model improves a real gallery graph, handles
+//      a skip mesh requiring coordinated moves, and keeps a straight chain.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -133,6 +133,19 @@ async function run() {
     const chain = sandbox.window.__uxToLayoutGraph(messyChain());
     const chainBase = engine.arrangePositions(chain);
     if (arrangeParticleLayout(chain, engine, chainBase) !== chainBase) failures.push("ParticleGAN should keep a crossing-free layout");
+
+    const fixture = JSON.parse(readFileSync(join(ROOT, "scripts/fixtures/particle-crossing-mesh.json"), "utf8"));
+    const mesh = {nodes: fixture.nodes, links: fixture.links.map(([from, to], i) => ({id: `l${i}`, from, to}))};
+    const meshBase = engine.arrangePositions(mesh);
+    const meshResult = arrangeParticleLayout(mesh, engine, meshBase);
+    const meshBefore = engine.layoutMetrics(mesh, meshBase);
+    const meshAfter = engine.layoutMetrics(mesh, meshResult);
+    if (meshBefore.edge_crossings !== 11 || meshAfter.edge_crossings > 8) {
+      failures.push("ParticleGAN did not resolve the coordinated skip-mesh crossings");
+    }
+    if (meshAfter.overlap_pairs || meshAfter.backward_edges || mesh.nodes.some(({id}) => meshResult[id][0] !== meshBase[id][0])) {
+      failures.push("ParticleGAN skip-mesh changes violated layout geometry");
+    }
   }
 
   return failures;
