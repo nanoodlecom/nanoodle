@@ -31,10 +31,15 @@ try{
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async d=>{errors.push(d.message());await d.dismiss();});await page.goto(base);
  await page.waitForFunction(()=>window.__describeTest&&typeof readWorkspaces==='function'&&!wsRestorePending&&readWorkspaces());
  await page.evaluate(()=>{
-  claimInitialCanvas();ensureAuth=()=>true;window.__allRuns=0;runAll=()=>{window.__allRuns++;};window.__plans=0;
+  claimInitialCanvas();ensureAuth=()=>true;window.__allRuns=0;window.__plans=0;
+  const startRun=runAll;
+  runAll=()=>{window.__allRuns++;startRun();};
   applyGraphData({v:1,nodes:[{id:'n1',type:'text',x:0,y:0,fields:{text:'A before'}}],links:[]});flushSave();
   window.__describeTest.setPlanner(async prev=>{window.__plans++;const next=structuredClone(prev);next.nodes[0].fields.text='A applied '+window.__plans;return {rawDiff:'offline',next};});
  });
+ await page.keyboard.press('Control+Enter');
+ await page.locator('.node[data-id="n1"][data-status="done"]').waitFor();
+ assert.equal(await page.evaluate(()=>window.__allRuns),1,'the first canvas shortcut runs once');
  const input=page.locator('#describegoal'), prompt='  make the first change  ';
  await input.fill(prompt);await input.press('Control+Enter');
  await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__describeTest.capture().versions.length===2);
@@ -42,7 +47,7 @@ try{
  await page.locator('#describego').click();
  await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__describeTest.capture().versions.length===3);
  assert.equal(await input.inputValue(),prompt);assert.equal(await page.evaluate(()=>window.__plans),2);
- assert.equal(await page.evaluate(()=>window.__allRuns),0);
+ assert.equal(await page.evaluate(()=>window.__allRuns),1);
  await input.fill('A next request');const a=await page.evaluate(()=>readWorkspaces().active);
  const b=await page.evaluate(()=>{openExampleWorkspace({v:1,nodes:[{id:'n1',type:'text',fields:{text:'B'}}],links:[]},'B','offline-b');return readWorkspaces().active;});
  assert.equal(await input.inputValue(),'');await input.fill('B request');await page.evaluate(id=>switchWorkspace(id),a);
@@ -53,8 +58,36 @@ try{
  await page.locator('#describeversions [data-ver="0"]').click();assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('data-ver')),'0');assert.equal(await input.inputValue(),'A next request');
  for(const flags of [{isComposing:true},{keyCode:229}])await input.evaluate((el,flags)=>el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,...flags})),flags);
  assert.equal(await page.evaluate(()=>window.__plans),2);assert.equal(await input.inputValue(),'A next request');
- await input.press('Enter');await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__plans===3);assert.equal(await page.evaluate(()=>window.__allRuns),0);
+ await input.press('Enter');await page.waitForFunction(()=>!window.__describeTest.isBusy()&&window.__plans===3);assert.equal(await page.evaluate(()=>window.__allRuns),1);
  console.log('✓ real editor Apply: Ctrl+Enter and Apply reuse the exact prompt, IME ignored, focused version chip, distinct A/B drafts/history and failed-switch rollback');
+ const tabA=page.locator('.wstab[data-id="'+a+'"]');
+ const tabB=page.locator('.wstab[data-id="'+b+'"]');
+ await tabA.press('ArrowRight');
+ assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),b);
+ await page.keyboard.down('Control');
+ await page.keyboard.down('Enter');
+ await page.keyboard.down('Enter'); // repeat while held
+ await page.keyboard.up('Enter');
+ await page.keyboard.up('Control');
+ assert.equal(await page.evaluate(()=>window.__allRuns),2,'the first Ctrl+Enter after switching tabs runs once');
+ await page.locator('.node[data-id="n1"][data-status="done"]').waitFor();
+ await page.keyboard.press('ArrowLeft');
+ assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),a);
+ await page.keyboard.press('Meta+Enter');
+ assert.equal(await page.evaluate(()=>window.__allRuns),3,'Cmd+Enter also runs from keyboard-selected tabs');
+ await page.locator('.node[data-id="n1"][data-status="done"]').waitFor();
+ await tabB.press('Enter');
+ assert.equal(await page.evaluate(()=>readWorkspaces().active),b,'plain Enter activates the focused tab');
+ assert.equal(await page.evaluate(()=>window.__allRuns),3);
+ const nodeText=page.locator('.node[data-id="n1"] textarea').first();
+ const text=await nodeText.inputValue();
+ await nodeText.press('End');
+ await nodeText.press('Enter');
+ assert.equal(await nodeText.inputValue(),text+'\n','plain Enter still inserts a newline in node text');
+ await nodeText.press('Control+Enter');
+ assert.equal(await page.evaluate(()=>window.__allRuns),3,'editing a node field keeps the Run shortcut inactive');
+ await tabA.press('Enter');
+ console.log('✓ real editor Run: first canvas and tab shortcuts, plain Enter tab activation, and node input focus');
  // FileReader is a real asynchronous graph-replacement path. Resolve the
  // original planner only after a new graph/draft/status own the composer.
  await input.fill('request for the old graph');
