@@ -4,16 +4,16 @@
   "title": "Talking photo",
   "date": "2026-11-19",
   "review": "A weathered marble emperor, silent for two thousand years, performs one line \u2014 frame-checked against the audio: mouth nearly closed at the pause, wide open on the loudest word",
-  "note": "Upload one front-facing photo with a story in its face \u2014 a statue, a painting, a portrait \u2014 write one short line, and the photo performs it. The script node carries a direction line plus the line itself; a Gemini TTS voice (Sulafat) performs it, a trim node caps the clip at five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs, generated audio off, and moves the mouth to the supplied voice. A GLM guide closes with what you made, how it works, and the honest edges. The demo subject is a cracked marble emperor bust, chipped nose and all, delivering: \"Two thousand years silent... and you wake me NOW?\" The sync claim was checked in the video, not the listing: a probe run came first, and its returned clip's embedded audio envelope matches the driving clip bin for bin, including its silent pause \u2014 at that pause (~3.0s) the statue's mouth is nearly closed, and at the loudest word (~4.5s) it is wide open; this saved run repeats the pattern at its own quietest and loudest moments. Two pricing facts the catalog listing does not shout, both measured: audio-driven LTX runs render at 1080p even when 720p is selected, so they bill at the 1080p rate of $0.14 a second, not the $0.10 720p rate \u2014 the probe's 5.00s billed exactly $0.70 and this saved run's 4.875s billed $0.6832, plus $0.0249917 of speech (balance-verified) and a $0 guide. The honest edges, also printed in the guide: no current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most (this demo's pause did close; do not count on it). Keep scripts near ten words, because every second bills. Front-facing faces with an unobstructed mouth work best, and statues and paintings forgive more than photographs of real people. Have your own voice clip? Replace the speech node with an audio upload wired into the same port.",
+  "note": "Upload one front-facing photo with a story in its face \u2014 a statue, a painting, a portrait \u2014 write one short line, and the photo performs it. The script node carries a direction line plus the line itself; a Gemini TTS voice (Algenib) performs it, a trim node caps the clip at five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs, generated audio off, and moves the mouth to the supplied voice. A GLM guide closes with what you made, how it works, and the honest edges. The demo subject is a cracked marble emperor bust, chipped nose and all, delivering: \"Two thousand years silent... and you wake me NOW?\" The sync claim was checked in the video, not the listing: a probe run came first, and its returned clip's embedded audio envelope matches the driving clip bin for bin, including its silent pause \u2014 at that pause (~3.0s) the statue's mouth is nearly closed, and at the loudest word (~4.5s) it is wide open; this saved run repeats the pattern at its own quietest and loudest moments. Two pricing facts the catalog listing does not shout, both measured: audio-driven LTX runs render at 1080p even when 720p is selected, so they bill at the 1080p rate of $0.14 a second, not the $0.10 720p rate \u2014 the probe's 5.00s billed exactly $0.70 and this saved run's 4.875s billed $0.6832, plus $0.0249917 of speech (balance-verified) and a $0 guide. The honest edges, also printed in the guide: no current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most (this demo's pause did close; do not count on it). Keep scripts near ten words, because every second bills. Front-facing faces with an unobstructed mouth work best, and statues and paintings forgive more than photographs of real people. Have your own voice clip? Replace the speech node with an audio upload wired into the same port.",
   "layout": "sequence",
-  "costUsd": 0.7081917,
+  "costUsd": 0.725,
   "costExact": false,
   "models": [
    "gemini-3.1-flash-tts-preview",
    "lightricks/ltx-2.5/fast",
    "z-ai/glm-5.3-flash"
   ],
-  "graphSha256": "44dfebcbe65b597dbc3c6b11e7a3fb1baaf1f6b272e26bf549c849199a16cb13",
+  "graphSha256": "72236d095e7e05a26c90d2a39009778afa51b41dcd1c4b8efea38425d50ce799",
   "inputs": [
    {
     "label": "Subject photo",
@@ -21,23 +21,23 @@
    },
    {
     "label": "Script \u2014 what the photo says",
-    "text": "Direction: an ancient marble emperor, woken after two thousand years. Low, gravelly, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
+    "text": "Direction: an ancient marble emperor, woken after two thousand years. An old man's voice \u2014 low, gravelly, stone-dry, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
    }
   ],
   "outputs": [
    {
     "src": "talking-photo/talking-photo.mp4",
     "kind": "video",
-    "label": "1. The emperor speaks: LTX-2.5 Fast moves the marble mouth to the voice clip, 4.875s at 1080\u00d71920 \u00b7 reported $0.6832",
-    "costUsd": 0.6832,
-    "sha256": "38ba2bef45e125518b2b4d250c3a214536da9c0731fdec59a1294ce3d8337d8d"
+    "label": "1. The emperor speaks: LTX-2.5 Fast moves the marble mouth to the voice clip, 5s at 1080\u00d71920 \u00b7 reported $0.70",
+    "costUsd": 0.7,
+    "sha256": "4ec98d54b0a1f8609c0f7a221633d200c4b7c82c5b17f68f1ca1ce7b439419c7"
    },
    {
     "src": "talking-photo/voice-clip.mp3",
     "kind": "audio",
-    "label": "2. The driving voice clip: Sulafat performs the script, trimmed to five seconds \u00b7 reported $0.025",
-    "costUsd": 0.0249917,
-    "sha256": "b50519d78d05eb8d04ecaec05f746a36f163a3216bdc4beaef835ec92a032499"
+    "label": "2. The driving voice clip: Algenib performs the script, trimmed to five seconds \u00b7 reported $0.025",
+    "costUsd": 0.025,
+    "sha256": "3aa84936babde0b0064d0a54b2d53d5e5ade2918894490eca477a4393c4bf110"
    },
    {
     "src": "talking-photo/guide.txt",
@@ -45,12 +45,12 @@
     "label": "Talking-photo guide \u00b7 GLM writes what you made and the honest edges \u00b7 reported $0.00",
     "costUsd": 0,
     "collapsed": true,
-    "sha256": "e8afc6f2ce4c9b70016a56767f01226b13273aff930485445ab0e4085058d180"
+    "sha256": "fd454dc6371ba8a2cec0ab88b7dde8e208d3c7358b4017ba2dcf5e00c6278a55"
    }
   ],
   "preview": "talking-photo/preview.webp",
   "workflow": "talking-photo/workflow.json",
-  "workflowSha256": "69efa676e7c08647f8c4d4f4da3548af836a382a4bf52a06c618044b993e39f1",
+  "workflowSha256": "c20efcdcdb8cdb1b71ce2f39c808f1981f93168007746f6c523b8cb4cba06af6",
   "workflowNote": "talking-photo.NOTE.txt"
  },
  {
