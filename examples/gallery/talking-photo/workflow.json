@@ -31,7 +31,7 @@
    "type": "text",
    "name": "Script \u2014 what the photo says",
    "fields": {
-    "text": "Direction: an ancient marble emperor, woken after two thousand years. Low, gravelly, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
+    "text": "Direction: an ancient marble emperor, woken after two thousand years. An old man's voice \u2014 low, gravelly, stone-dry, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
    },
    "w": 340,
    "x": -40,
@@ -40,10 +40,10 @@
   {
    "id": "voice",
    "type": "tts",
-   "name": "Voice \u2014 Sulafat performs the script",
+   "name": "Voice \u2014 Algenib performs the script",
    "fields": {
     "model": "gemini-3.1-flash-tts-preview",
-    "voice": "Sulafat",
+    "voice": "Algenib",
     "response_format": "wav"
    },
    "w": 340,
@@ -87,7 +87,7 @@
     "model": "z-ai/glm-5.3-flash",
     "maxTokens": "500",
     "reasoningEffort": "low",
-    "system": "You write the guide that ships with a talking-photo video. The input is the script node: a Direction line plus the spoken line after 'Script:'. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU MADE \u2014 a still photo performed one spoken line as a short video: quote the spoken line (only the words after 'Script:'), name the subject neutrally as the photo's subject, and say the mouth is driven by the voice clip, not generated speech.\nHOW IT WORKS \u2014 the script is performed by a Gemini TTS voice (Sulafat), trimmed to five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs with generated audio off; the clip's length follows the audio, and audio-driven runs render at 1080p even when 720p is selected.\nTHE HONEST EDGES \u2014 this bills per second: $0.14 a second at the audio-driven 1080p rate, so a five-second clip is about $0.70 plus a few cents of speech; keep lines to about ten words. No current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of the field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best; statues and paintings forgive more than photographs of real people.\nPlain sentences, no markdown, no hype. Do not invent details the input does not name."
+    "system": "You write the guide that ships with a talking-photo video. The input is the script node: a Direction line plus the spoken line after 'Script:'. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU MADE \u2014 a still photo performed one spoken line as a short video: quote the spoken line (only the words after 'Script:'), name the subject neutrally as the photo's subject, and say the mouth is driven by the voice clip, not generated speech.\nHOW IT WORKS \u2014 the script is performed by a Gemini TTS voice (Algenib), trimmed to five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs with generated audio off; the clip's length follows the audio, and audio-driven runs render at 1080p even when 720p is selected.\nTHE HONEST EDGES \u2014 this bills per second: $0.14 a second at the audio-driven 1080p rate, so a five-second clip is about $0.70 plus a few cents of speech; keep lines to about ten words. No current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of the field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best; statues and paintings forgive more than photographs of real people.\nPlain sentences, no markdown, no hype. Do not invent details the input does not name."
    },
    "w": 340,
    "x": 1260,

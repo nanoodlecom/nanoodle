@@ -107,7 +107,7 @@ const catalogs = {
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
-    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore', 'Sulafat'] } },
+    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore', 'Sulafat', 'Algenib'] } },
     { id: 'gpt-4o-mini-tts', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] } },
     { id: 'elevenlabs/eleven-v4-turbo', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Alicia', 'Aria', 'Roger', 'Sarah', 'Laura', 'Charlie', 'George', 'Callum', 'River', 'Liam', 'Charlotte', 'Alice', 'Matilda', 'Will', 'Jessica', 'Eric', 'Chris', 'Brian', 'Daniel', 'Lily', 'Bill'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
