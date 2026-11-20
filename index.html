@@ -2205,6 +2205,7 @@ const I18N = {
     "no image yet — drop one here":"aún sin imagen — suelta una aquí",
     "leave empty: it’s asked for when the app runs":"déjalo vacío: se pedirá al ejecutar la app",
     "running…":"ejecutando…",
+    "stopped":"detenido",
     "Now running":"En ejecución",
     "Currently running nodes":"Nodos en ejecución",
     "Show this node on the canvas":"Mostrar este nodo en el lienzo",
@@ -3006,6 +3007,7 @@ const I18N = {
     "no image yet — drop one here":"aucune image — déposez-en une ici",
     "leave empty: it’s asked for when the app runs":"laissez vide : ce sera demandé à l’exécution de l’app",
     "running…":"exécution…",
+    "stopped":"arrêté",
     "Now running":"En cours",
     "Currently running nodes":"Nœuds en cours d’exécution",
     "Show this node on the canvas":"Afficher ce nœud sur le canevas",
@@ -3807,6 +3809,7 @@ const I18N = {
     "no image yet — drop one here":"noch kein Bild — eins hier ablegen",
     "leave empty: it’s asked for when the app runs":"leer lassen: wird beim Ausführen der App abgefragt",
     "running…":"läuft…",
+    "stopped":"gestoppt",
     "Now running":"Läuft gerade",
     "Currently running nodes":"Aktuell laufende Knoten",
     "Show this node on the canvas":"Diesen Knoten auf der Fläche zeigen",
@@ -4608,6 +4611,7 @@ const I18N = {
     "no image yet — drop one here":"nenhuma imagem ainda — solte uma aqui",
     "leave empty: it’s asked for when the app runs":"deixe vazio: será pedido quando o app rodar",
     "running…":"executando…",
+    "stopped":"parado",
     "Now running":"Em execução",
     "Currently running nodes":"Nós em execução",
     "Show this node on the canvas":"Mostrar este nó no canvas",
@@ -5409,6 +5413,7 @@ const I18N = {
     "no image yet — drop one here":"画像なし — ここに画像をドロップ",
     "leave empty: it’s asked for when the app runs":"空のままならアプリ実行時に入力を求めます",
     "running…":"実行中…",
+    "stopped":"停止",
     "Now running":"実行中",
     "Currently running nodes":"実行中のノード",
     "Show this node on the canvas":"このノードをキャンバスで表示",
@@ -12305,7 +12310,7 @@ function setStopped(n){
   n.el.dataset.status = "idle";
   delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
-  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ ${esc(t("stopped"))}</div>`; }
   paintRunLive();
 }
 // A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
