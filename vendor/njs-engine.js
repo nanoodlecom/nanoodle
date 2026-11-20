@@ -1,5 +1,5 @@
-/* data-hash=d400d9ed55829dcf */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-7da165ea7b13 (21 modules) */
+/* data-hash=3c63730892a3c703 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-aeb2f5c2c7eb (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1371,8 +1371,12 @@ class NanoClient {
     return j;
   }
 
-  /** POST /v1/images/generations (NOTE: not /api/v1). Returns data: / https URL(s). */
-  async image({ prompt, model, size, imageDataUrl, maskDataUrl, extra, n = 1, multi = false }, { onCost, signal } = {}) {
+  /** POST /v1/images/generations (NOTE: not /api/v1). Returns data: / https URL(s).
+   * With multi + items, returns { urls, layers } instead: layers is the per-item
+   * `layer` metadata aligned by index with urls (layer-decomposition models return
+   * { z_index, name, description, bounding_box } per item), or null when no item
+   * carries any. Items with neither b64_json nor url drop out of both arrays. */
+  async image({ prompt, model, size, imageDataUrl, maskDataUrl, extra, n = 1, multi = false, items = false }, { onCost, signal } = {}) {
     const body = { model, size: size || "1024x1024", n, response_format: "b64_json" };
     if (prompt) body.prompt = prompt; // omit when blank — upscalers run with no instruction
     if (imageDataUrl) body.imageDataUrl = imageDataUrl; // string OR array (edit multi-reference)
@@ -1381,12 +1385,21 @@ class NanoClient {
     const r = await this._postJson("/v1/images/generations", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
     const j = await r.json();
-    const urls = (j.data || [])
-      .map((d) => (d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url))
+    const pairs = (j.data || [])
+      .map((d) => {
+        const url = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url;
+        return url ? { url, layer: d.layer != null ? d.layer : null } : null;
+      })
       .filter(Boolean);
+    const urls = pairs.map((p) => p.url);
     if (!urls.length) throw new NanoodleError("no image in response");
     if (onCost) onCost(costWithHeaders(j, r));
-    return multi ? urls : urls[0];
+    if (!multi) return urls[0];
+    if (items) {
+      const layers = pairs.map((p) => p.layer);
+      return { urls, layers: layers.some((l) => l != null) ? layers : null };
+    }
+    return urls;
   }
 
   /** POST /api/generate-video then poll GET /api/video/status?requestId= until COMPLETED. */
@@ -2103,14 +2116,20 @@ function guardInputRoles(model, inp) {
 }
 
 /**
- * edit/inpaint have a single image output, but some models always bill (and return) a fixed
- * batch — midjourney/text-to-image and higgsfield-soul declare fixed_image_count: 4. Ask with
- * multi so we can SEE the extras and say we dropped them; the return shape stays one url.
+ * edit/inpaint surface EVERY image a model returns. `image` stays the first — the
+ * long-standing single-output contract, unchanged for existing graphs — `images`
+ * carries them all in response order (mirroring the image node's variations
+ * output), and when response items carry layer metadata (layer-decomposition
+ * models), `layers` carries it aligned by index with `images`. Fixed-batch
+ * models (midjourney fixed_image_count: 4) surface their variants the same way;
+ * nothing a model returns is dropped silently anymore.
  */
-function keptFirst(urls, ctx) {
-  if (!Array.isArray(urls)) return urls; // host-injected ctx.image that ignores multi → already one url
-  if (urls.length > 1 && ctx && ctx.progress) ctx.progress(`model returned ${urls.length} images, kept the first`);
-  return urls[0];
+function multiOut(res) {
+  if (typeof res === "string") return { image: res, images: [res] }; // a host-injected ctx.image that ignores multi/items → already one url
+  const urls = Array.isArray(res) ? res : res.urls; // …or one that honors multi but not `items` → bare urls
+  const out = { image: urls[0], images: urls };
+  if (!Array.isArray(res) && res.layers) out.layers = res.layers;
+  return out;
 }
 
 function promptOf(n, inp, errMsg) {
@@ -2710,8 +2729,7 @@ const RUNNERS = {
     imgs = await Promise.all(imgs.map((u) => fitImage(u, ctx, "source image")));
     guardRefsSize(imgs);
     const src = imgs.length > 1 ? imgs : imgs[0]; // array → multi-image composite; string → single edit
-    const urls = await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: src, extra: imgExtra(n), multi: true });
-    return { image: keptFirst(urls, ctx) };
+    return multiOut(await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: src, extra: imgExtra(n), multi: true, items: true }));
   },
 
   async inpaint(n, inp, ctx) {
@@ -2724,8 +2742,7 @@ const RUNNERS = {
     // ctx.maskToSource lets a browser host inject its canvas compositor (handles JPEG/WebP
     // sources the pure-PNG path can't, where ffmpeg isn't an option).
     const mask = await (ctx.maskToSource || maskToSource)(rawMask, source, mediaOpts(ctx));
-    const urls = await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: source, maskDataUrl: mask, extra: imgExtra(n), multi: true });
-    return { image: keptFirst(urls, ctx) };
+    return multiOut(await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: source, maskDataUrl: mask, extra: imgExtra(n), multi: true, items: true }));
   },
 
   async tvideo(n, inp, ctx) {
@@ -6505,5 +6522,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-7da165ea7b13";
+  window.NanoodleEngine.version = "src-aeb2f5c2c7eb";
 })();
