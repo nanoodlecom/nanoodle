@@ -8736,7 +8736,8 @@ function imgExtra(n){
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
-      const rawUrls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
+      const rawPairs = (j.data||[]).map(function(d){ const u = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; return u ? { url: u, layer: (d && typeof d.layer === "object" && d.layer) ? d.layer : null } : null; }).filter(Boolean);
+      const rawUrls = rawPairs.map(function(p){ return p.url; });
       if(!rawUrls.length) throw new Error("no image in response");
       // Record cost before the content read: if that read fails, the paid request is still on the meter.
       const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
@@ -8748,6 +8749,13 @@ function imgExtra(n){
       for(const u of rawUrls){
         try{ urls.push(await resolveContentMedia(u)); }
         catch(e){ throw opaqueContentError(e, false); }
+      }
+      if(opts.items){
+        // Multi-image surfacing (twin of the SDK engine's items mode): every url in
+        // response order + the per-item layer metadata aligned by index, or null
+        // layers when no item carries any. Nothing is dropped.
+        const layers = rawPairs.some(function(p){ return p.layer; }) ? rawPairs.map(function(p){ return p.layer; }) : null;
+        return { urls, layers };
       }
       return opts.multi ? urls : urls[0];
     },
@@ -11024,7 +11032,11 @@ return "image/png";
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
           throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, withImageKnobs(withImageAspect(imgExtra(n), n, _m), n, _m)) };
+        const res = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, withImageKnobs(withImageAspect(imgExtra(n), n, _m), n, _m), { items: true });
+        const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // tolerate a host ctx that answers bare
+        const out = { image: urls[0], images: urls };
+        if(res && res.layers) out.layers = res.layers;
+        return out;
       }
     },
     inpaint: {
@@ -11039,7 +11051,11 @@ return "image/png";
         if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
         const mask = await maskToSource(rawMask, source);
         const _ipCat = await rawCatItem("image", mdl(n));
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _ipCat)||SIZES[0][0], source, mask, withImageKnobs(withImageAspect(imgExtra(n), n, _ipCat), n, _ipCat)) };
+        const res = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _ipCat)||SIZES[0][0], source, mask, withImageKnobs(withImageAspect(imgExtra(n), n, _ipCat), n, _ipCat), { items: true });
+        const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // tolerate a host ctx that answers bare
+        const out = { image: urls[0], images: urls };
+        if(res && res.layers) out.layers = res.layers;
+        return out;
       }
     },
     resize: {
