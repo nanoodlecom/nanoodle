@@ -10182,7 +10182,11 @@ const NODE_TYPES = {
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
       const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n)) };
+      const res = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n), { items: true });
+      const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // a host ctx may answer bare — normalize like the SDK does
+      const out = { image: urls[0], images: urls };
+      if(res && res.layers) out.layers = res.layers;
+      return out;
     }
   },
 
@@ -10250,7 +10254,11 @@ const NODE_TYPES = {
       const mask = await maskToSource(rawMask, source);   // composite onto black at the source's pixel size
       if((source.length + mask.length) > MEDIA_INLINE_MAX)
         throw new Error("image too large (~4 MB limit) — use a smaller source image");
-      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), source, mask, imgExtra(n)) };
+      const res = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), source, mask, imgExtra(n), { items: true });
+      const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // a host ctx may answer bare — normalize like the SDK does
+      const out = { image: urls[0], images: urls };
+      if(res && res.layers) out.layers = res.layers;
+      return out;
     }
   },
 
@@ -14829,7 +14837,8 @@ const CTX = {
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
-    const rawUrls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    const rawPairs = (j.data||[]).map(d=> { const u = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url; return u ? { url: u, layer: (d && typeof d.layer === "object" && d.layer) ? d.layer : null } : null; }).filter(Boolean);
+    const rawUrls = rawPairs.map(p2=> p2.url);
     if(!rawUrls.length) throw new Error("no image in response");
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
@@ -14842,6 +14851,13 @@ const CTX = {
     for(const u of rawUrls){
       try{ urls.push(await resolveContentMedia(u)); }
       catch(e){ throw opaqueContentError(e, false); }
+    }
+    if(opts.items){
+      // Items mode: hand back every returned url plus the layer metadata that
+      // rode along with each item (null when an item has none) — the multi-image
+      // contract the edit and inpaint runners shape their outputs from.
+      const layers = rawPairs.some(p2=> p2.layer) ? rawPairs.map(p2=> p2.layer) : null;
+      return { urls, layers };
     }
     return opts.multi ? urls : urls[0];
   },
