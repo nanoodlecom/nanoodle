@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Photo to editable layers — nanoodle</title>
+<meta name="description" content="One photo → a stack of named layers: base plate, background, and each element as its own transparent PNG with a bounding box. Reported saved run: $0.02735." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Photo to editable layers — nanoodle" />
+<meta property="og:description" content="One photo → a stack of named layers: base plate, background, and each element as its own transparent PNG with a bounding box. Reported saved run: $0.02735." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/photo-to-editable-layers" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Photo to editable layers — nanoodle" />
+<meta name="twitter:description" content="One photo → a stack of named layers: base plate, background, and each element as its own transparent PNG with a bounding box. Reported saved run: $0.02735." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/photo-to-editable-layers" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Photo to editable layers</span></nav>
+
+  <main>
+    <h1><span class="grad">Photo to editable layers</span></h1>
+    <p class="lede">One photo → a stack of named layers: base plate, background, and each element as its own transparent PNG with a bounding box.</p>
+
+    <section>
+      <p class="meta-row">One photo of a marble bust returns as four named layers — base plate, background, bust, pedestal — each a transparent PNG with a bounding box; stacked at their coordinates they rebuild the photo (mean abs diff 14.26/255) · 2026-11-20 · Reported saved run: $0.02735. <code>google/gemini-3.1-flash-lite</code> · <code>bytedance/seedream/v5/flash/layerize</code> · <code>z-ai/glm-4.6</code></p>
+      <p>A Gemini survey names what should separate and what will resist. Seedream 5.0 Flash Layerize returns the stack — a clean base plate, the background, and each element as a transparent PNG carrying a name, a z-index and a bounding box on the edit node&#39;s images and layers outputs. GLM writes the guide: what you got, what to do with the pieces, and the honest edges.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/photo-to-editable-layers/layer-bust.png"><img src="/examples/gallery/photo-to-editable-layers/layer-bust.png" alt="1. The bust, lifted: the saved run&#39;s z2 layer &#39;ancient marble bust&#39; as a transparent PNG, pedestal excluded · reported $0.027 (whole stack) — Photo to editable layers" loading="lazy" /></a><figcaption>1. The bust, lifted: the saved run&#39;s z2 layer &#39;ancient marble bust&#39; as a transparent PNG, pedestal excluded · reported $0.027 (whole stack) · <a href="/examples/gallery/photo-to-editable-layers/layer-bust.png" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/photo-to-editable-layers/base-plate.png"><img src="/examples/gallery/photo-to-editable-layers/base-plate.png" alt="2. The base plate: the same scene with bust and pedestal removed and the holes inpainted — the z0 layer every stack starts from — Photo to editable layers" loading="lazy" /></a><figcaption>2. The base plate: the same scene with bust and pedestal removed and the holes inpainted — the z0 layer every stack starts from · <a href="/examples/gallery/photo-to-editable-layers/base-plate.png" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/photo-to-editable-layers/recomposed.jpg"><img src="/examples/gallery/photo-to-editable-layers/recomposed.jpg" alt="3. The rebuild: background, bust and pedestal stacked at their bounding boxes over the base plate — mean abs diff 14.26/255 vs the original photo — Photo to editable layers" loading="lazy" /></a><figcaption>3. The rebuild: background, bust and pedestal stacked at their bounding boxes over the base plate — mean abs diff 14.26/255 vs the original photo · <a href="/examples/gallery/photo-to-editable-layers/recomposed.jpg" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/photo-to-editable-layers/layer-background.png"><img src="/examples/gallery/photo-to-editable-layers/layer-background.png" alt="4. The background layer: &#39;dark background&#39;, z1, a soft photographic matte at 720×1359 — Photo to editable layers" loading="lazy" /></a><figcaption>4. The background layer: &#39;dark background&#39;, z1, a soft photographic matte at 720×1359 · <a href="/examples/gallery/photo-to-editable-layers/layer-background.png" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/photo-to-editable-layers/layer-pedestal.png"><img src="/examples/gallery/photo-to-editable-layers/layer-pedestal.png" alt="5. The pedestal layer: &#39;statue pedestal&#39;, z3, cropped to its bounding box [77, 1310, 645, 1440] — Photo to editable layers" loading="lazy" /></a><figcaption>5. The pedestal layer: &#39;statue pedestal&#39;, z3, cropped to its bounding box [77, 1310, 645, 1440] · <a href="/examples/gallery/photo-to-editable-layers/layer-pedestal.png" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Layer survey · Gemini names what will separate and what will resist · reported $0.0004</summary><blockquote class="sample">Background: Dark, indistinct shadowed void.
+Main Subject: Weathered, cracked stone bust.
+Supporting Elements: Integral stone plinth.
+
+The hair resists clean separation; its intricate, porous texture and deep crevices blend complexly into the dark background, making precise edge masking difficult.
+</blockquote></details><figcaption>Layer survey · Gemini names what will separate and what will resist · reported $0.0004 · <a href="/examples/gallery/photo-to-editable-layers/survey.txt" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Layers guide · GLM writes what you got, what to do with them, and the honest edges · reported $0.00</summary><blockquote class="sample">**What You Got**
+You receive a layer stack. The stack contains a clean base plate with the stone bust and pedestal removed and the area inpainted. The background is a separate transparent PNG. The main subject, the weathered stone bust, is its own named layer. The supporting element, the stone pedestal base, is also its own named layer. Stacking these layers at their provided coordinates reconstructs the original image.
+
+**What to Do With Them**
+Use these layers for precise compositing. A direct application is to place the isolated stone bust onto a different backdrop, such as a library shelf or a digital gallery wall, changing the context without a new photoshoot. You could also separate the bust from its pedestal, moving the subject to a new base or removing it entirely for a floating effect.
+
+**The Honest Edges**
+The model works best with sharp, clear images. The fine hair curls will likely have soft, imperfect edges, as photographic cutouts struggle with such detail against a dark background. The inpainted area on the base plate is a plausible recreation, not the original pixels. Each run re-segments the photo, so layer boundaries and names may shift slightly, and a rebuild will be visually close but not pixel-perfect.
+</blockquote></details><figcaption>Layers guide · GLM writes what you got, what to do with them, and the honest edges · reported $0.00 · <a href="/examples/gallery/photo-to-editable-layers/guide.txt" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs">
+          <figure><img src="/examples/gallery/photo-to-editable-layers/photo.webp" alt="Photo" loading="lazy" /><figcaption>Photo</figcaption></figure>
+        </div>
+      <div class="callout"><p>Layer separation is the oldest ask in photo editing — give me the subject, the background and the props as pieces I can move — and the browser version has always been a mask you paint yourself. This workflow makes it one run: a Gemini survey names what should separate and what will resist, Seedream 5.0 Flash Layerize (bytedance/seedream/v5/flash/layerize, $0.027 flat at every size — the Seedream 5.5 decomposition route bills $0.60) returns a clean base plate plus each element as its own transparent PNG carrying a name, a z-index and a bounding box, and a GLM guide closes with what to do with the stack and the honest edges. The claim was checked by rebuilding: stacking this saved run&#39;s background, bust and pedestal at their boxes over the base plate lands at a mean absolute difference of 14.26/255 against the original photo, 82.3% of pixels within 25 — close, visibly the same photograph, not pixel-perfect. The bust cutout is genuinely clean (head, neck and drapery, pedestal excluded, edges tight); the background layer is a soft matte. Honest edges, all measured on this ship&#39;s own runs: the model RE-SEGMENTS every run — in the morning probe the bust was z3 and the pedestal z2, in this saved run they are z2 and z3 with reworded names, and recomposition across runs scored 6.65 to 27.30, so treat names and boundaries as per-run, not canonical. Some photos refuse outright with a 422 (the candle product shot from One Photo, Whole Campaign did; refusals are never charged), and identical requests flake — the route went 200/422/200 across this ship&#39;s attempts, with remote-URL inputs the flakiest and inlined images landing first try. The base plate behind a lifted element is regenerated inpaint, plausible rather than the original pixels, and fine hair and weathered edges separate worst. Why this shipped the day it did: the model&#39;s response always carried all four layers, but every nanoodle executor&#39;s edit node kept only the first returned image, so a graph received just the empty base plate — the fix (edit nodes surface every returned image plus the layer metadata) landed across JS, Py, Rust, the editor&#39;s embedded engine and nanoodle-mcp on 2026-11-20, and this example is its first proof. The saved run is assembled from two runs of this exact graph and says so in run.json: layers from the run whose layerize call landed, guide text from a second run whose layerize call refused — the guide does not read the layers, only the survey.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Swap <em>Photo</em> for your own image — one clear subject on a distinguishable background separates best. Edit <em>Layer instruction</em> only to name what matters (a person, a product, a sign); the layer count itself is the model's decision, not a setting. Keep <em>Layerize — Seedream V5 Flash</em> on <code>bytedance/seedream/v5/flash/layerize</code>; wire its images output onward to use every layer in the same graph, or open the run's outputs to download the stack.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Two paid calls: the saved run reported $0.0274 in total (Layerize a flat $0.027 at every size, Gemini survey $0.0004, GLM guide $0.00). Refused photos are not charged. Prices and results vary.</li>
+        <li>Stack the saved layers at their bounding boxes (layers.json carries each name, z-index and box) and compare with the photo: this run rebuilds at a mean absolute difference of 14.26/255. Then check the bust cutout's edges against the survey's warning — the weathered hair is where the alpha goes soft.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA7VX72_bNhD9nr_iwRiwBJAVO027zvnUoVlTrGuKxl1RbMVASyeLC0VqJGVHLfq_D0dKiu066Q9gXwyBlMh3d-_uPX88wGg1mmGaHGCkZM6PE37Wm88mJzea4c8D4OMBgFHYHGnjaZSEBd_WxEuZqSrSvlvVogqrTxam8fCldFgbe10os-7eKCSpnM8O52Lk6cbzF68uLueX-Ks5mf58gvOnz-dPfnlxjhdP3p2_vuLlyfQURhPq0ngDqRMIOC-ya5gCfG0OJVqyDqbxKa6IckuiwsN0gl-VcCVe8Lb8QKgbpRx8Sahl5htLELWwfgaBTJHQWAhHqJXwhENakW19KfUSShaecj4_QWkUOUhdC6k95UdJOG8hsuulNY3OEwidg0RWojCW4iJIEScLwkF6B7PWePXyGdbSl7AkFLwV2tXCks7aJIaVxG1-f8GHMJKFuUlxFaL3JVXhXghOOEmLzBibSy08uYCCkRkrl1ILBUuLRqrcDTm1IR8htz08rh1_2DiC5Md2XZKlFD9M0snJTyiU8BxWONlRLazw0ugUF0aT86B8GZIT9peNzKkDB9L5DM5UXR0dLBV8y2GjF1KpIZGVyYmxjh0tGZJDqANso-FMSEyMLaREWEkOrpSFT4aIOzYIS8gabxrvEmjjsaLMG-vSEfPvUyTlzWiG00l8bkcznJzG5zWvP5ocdC9utoKz2U4nNLUyIt9phFcc5h3Ul5VYhpfug_JgMrnF8uBkL5Zy6K4eS-iqbSSB_pDaedtkXK4vNORVrCvFLg5YIbU3oFx6sVB9hmdbrK-E1HDN4h_KuloI3cL4kixy6bzUme955pLYINIZ7rUcRm81wL0leniymZfT_TVq7IrandSspLsNvk_OVXiz74l1KTzWUqme3HRHrgJN-fulMUtFx0uqpJbjB-l0XPDMGSvZf4vRv6EK0sVOGJKxkq4RashJbJsh456hZKZRORZDr1EeK9EXYHf0hA7aWwjX1LWxnmfIcOFhbU3tEhSN1ZLHYQLmwFGKX40NFUrCdHClsR51aYWjFPOSdFhWUtMM61Jm5TBApENlnIeS16RaeANLjiOP8_V2ZERk67JN8WjCUpE7VOJGVk31efUf3dkW-8sf07NTfmbvvs5gYejKP2jHHw-jdHyp-ovWUy50Rseu-_R49fA4MOBYdYf3LHD8PMNINN78Pf1tN8jHj78xyDBed2JUqtoJ8VkYwl18rWls5E5U0C-F92Es5PFSVePT9NEQRus8Vbz7zjRYWxkGRT_tWRvEoPyRxD133ZaMfz5Potzdp9-HGzJ0lIIB8JT3RuWxdQVik3cy4sS6F6NwbYq3Ae_0ZDKePu5pF96wRChJ5JTDUZiSLsXbiydzvLt8g2eXczYJG6nrU7rHOYQwomr1bXFrIAaV2vER320jbuemZ0ux7R3ElnM466AH5_CNpoFuROZV2-Vkfomnl3j7fH6B-cX577M9ToILLKBpHYLKrakT8G-0DnE8RRoI5OTkUics-15WBIHamrzJPI8eH0Lh1FlypTE8w85ClOHCzOjMkmfnsOqmZsG5mV88v4pV_9ENIy9luLi4fHl-Ncf502fnV3tNiWm8lcvS45DBsvUga42N-Wk71r28nCMrhV1S3pPB27YnBNkErhS2ZunlgX50FiIXqi5F55P4FGcKH29fWlGXMtvnWcaZla4-C9M5YCikJpRC2qG5mMvOn3UsGri4oFIGBdic0JaWpKmXk0DAhM2VDLu1Eo2TC0URwRYdanlDyp3d4dSGPmM9H2xbODp2zt3uDQvyayLNH8Q3RM89KKFzh0wZx62-BShCDKjGNdmCMn8GWWwgEdbKFV_qwomV8YQ3r1-gL2wmdF917kNbSe9Je9XiUHMIfYmPhobXkJqlL--EOsIrpGV9t22K11SQxaDSWLQd59lp3JKxy0Z3bLxM6hXvFFJR3E66zGWm4Qwbu9XQ5FK8NCjbOhQLdJMpUQV9RSXs9ededzooy-cyE-3uAd7HP4j6et8fQTXtRcOa6lYy-H_jljnGiO0GL0Wzu4HDmz3fbRi2vZ_ulfmT_wXLpnv4eiwP7sUyGPXbA4Pd_i4otTVV7e_Bcnp_Xvbm-mvgbFiOu9Ec4P3Bp_8A0DaDUG0QAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#photo-to-editable-layers">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/photo-to-editable-layers/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/photo-to-editable-layers/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#photo-to-editable-layers">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/talking-photo">Talking photo</a>
+        <a href="/examples/gallery/#photo-to-editable-layers">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
