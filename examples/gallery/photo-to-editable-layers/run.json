@@ -1,0 +1,15 @@
+{
+ "label": "2026-11-20 editable layers, marble bust sample (Gemini survey -> Seedream V5 Flash Layerize -> GLM guide) on the merged multi-image executors",
+ "startedAt": "2026-11-20T21:30:00.000Z",
+ "finishedAt": "2026-11-20T21:47:00.000Z",
+ "costUsd": 0.0273531625,
+ "costExact": true,
+ "balanceDelta": 0.0273531625,
+ "nodes": {
+  "src": { "status": "done", "costUsd": null },
+  "survey": { "status": "done", "costUsd": 0.0003531625 },
+  "layers": { "status": "done", "costUsd": 0.027, "files": { "image": "base-plate.png", "images": "base-plate.png, layer-background.png, layer-bust.png, layer-pedestal.png", "layers": "layers.json (name / z_index / bounding_box per layer)" } },
+  "guide": { "status": "done", "costUsd": 0 }
+ },
+ "note": "The saved run is assembled from two runs of this exact graph on the merged Py executor (0.7.2), and says so: the layer files, layer metadata and the recomposition check come from the run whose layerize call landed (cost $0.0273531625 exact, identical breakdown), and guide.txt comes from a second run of the final graph whose guide text carries the re-segmentation honesty the first run's guide lacked — on that second run the layerize call itself 422-refused (unbilled; the route's documented intermittency, three attempts across the ship went 200/422/200). Recomposition of the saved layers: mean abs diff 14.26/255 against the source, 82.3% of pixels within 25 — close, not pixel-perfect, and the layer names and z-order shifted versus the morning probe run (bust was z3 there, z2 here), because the model re-segments every run. Total ship spend including the probe and the failed attempts: $0.081 probe + $0.0551 verified run charges, plus ~$0.03 from one run lost to a service restart mid-flight."
+}
