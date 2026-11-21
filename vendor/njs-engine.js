@@ -1,5 +1,5 @@
-/* data-hash=3c63730892a3c703 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-aeb2f5c2c7eb (21 modules) */
+/* data-hash=5fed261d6193b92f */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-11bc542509b2 (21 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -5854,7 +5854,7 @@ __def("decide.mjs", function (__x, __req) {
 // uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
 const { NanoodleError } = __req("errors.mjs");
 
-const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
+const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.2";
 const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 /** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
@@ -6522,5 +6522,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-aeb2f5c2c7eb";
+  window.NanoodleEngine.version = "src-11bc542509b2";
 })();
