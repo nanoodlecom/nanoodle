@@ -2035,6 +2035,7 @@ const I18N = {
     "Share":"Compartir",
     "Save":"Guardar",
     "download this graph as JSON":"descargar este grafo como JSON",
+    "Saved {name}":"Guardado {name}",
     "Load":"Cargar",
     "open a graph JSON file":"abrir un archivo JSON de grafo",
     "More actions":"Más acciones",
@@ -2837,6 +2838,7 @@ const I18N = {
     "Share":"Partager",
     "Save":"Enregistrer",
     "download this graph as JSON":"télécharger ce graphe en JSON",
+    "Saved {name}":"Enregistré {name}",
     "Load":"Charger",
     "open a graph JSON file":"ouvrir un fichier de graphe JSON",
     "More actions":"Plus d’actions",
@@ -3639,6 +3641,7 @@ const I18N = {
     "Share":"Teilen",
     "Save":"Speichern",
     "download this graph as JSON":"diesen Graphen als JSON herunterladen",
+    "Saved {name}":"Gespeichert: {name}",
     "Load":"Laden",
     "open a graph JSON file":"eine Graph-JSON-Datei öffnen",
     "More actions":"Weitere Aktionen",
@@ -4441,6 +4444,7 @@ const I18N = {
     "Share":"Compartilhar",
     "Save":"Salvar",
     "download this graph as JSON":"baixar este grafo como JSON",
+    "Saved {name}":"Salvo {name}",
     "Load":"Carregar",
     "open a graph JSON file":"abrir um arquivo de grafo JSON",
     "More actions":"Mais ações",
@@ -5243,6 +5247,7 @@ const I18N = {
     "Share":"共有",
     "Save":"保存",
     "download this graph as JSON":"このグラフをJSONでダウンロード",
+    "Saved {name}":"{name}を保存しました",
     "Load":"読み込み",
     "open a graph JSON file":"グラフのJSONファイルを開く",
     "More actions":"その他の操作",
@@ -18128,6 +18133,7 @@ function saveFile(){
   const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
+  toast(t("Saved {name}").replace("{name}", ()=>a.download));   // a browser download alone is easy to miss — confirm on the page too
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
