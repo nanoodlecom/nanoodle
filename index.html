@@ -1959,6 +1959,7 @@ const I18N = {
     "gap between frames (sec)":"intervalo entre fotogramas (seg)",
     "high":"alto",
     "image":"imagen",
+    "source":"fuente",
     "last frame":"último fotograma",
     "length (sec)":"longitud (seg)",
     "low":"bajo",
@@ -2595,6 +2596,7 @@ const I18N = {
     "What’s new":"Nouveautés",
     "Workflow canvas":"Canevas du workflow",
     "image":"image",
+    "source":"source",
     "seed":"graine",
     "variation":"variation",
     "variations":"variations",
@@ -3566,6 +3568,7 @@ const I18N = {
     "gap between frames (sec)":"Abstand zwischen Frames (Sek.)",
     "high":"hoch",
     "image":"Bild",
+    "source":"Quelle",
     "last frame":"letztes Frame",
     "length (sec)":"Länge (Sek.)",
     "low":"niedrig",
@@ -4370,6 +4373,7 @@ const I18N = {
     "gap between frames (sec)":"intervalo entre quadros (seg)",
     "high":"alto",
     "image":"imagem",
+    "source":"fonte",
     "last frame":"último quadro",
     "length (sec)":"duração (seg)",
     "low":"baixo",
@@ -5171,6 +5175,7 @@ const I18N = {
     "gap between frames (sec)":"フレーム間の間隔 (秒)",
     "high":"高",
     "image":"画像",
+    "source":"ソース",
     "last frame":"最後のフレーム",
     "length (sec)":"長さ (秒)",
     "low":"低",
@@ -5709,6 +5714,7 @@ function translateTree(root){
     if(el.closest(I18N_SKIP)) return;
     ["placeholder","title","aria-label"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookup(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
   });
+  root.querySelectorAll("img[alt]").forEach(el=>{ if(el.closest(I18N_SKIP)) return; const hit=i18nLookup(el.getAttribute("alt")); if(hit!=null) el.setAttribute("alt",hit); });
   const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode(n){
     const p=n.parentElement; if(!p) return NodeFilter.FILTER_REJECT;
     const tag=p.tagName; if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SCRIPT"||tag==="STYLE") return NodeFilter.FILTER_REJECT;
@@ -9981,7 +9987,7 @@ const NODE_TYPES = {
     kw:"photo picture camera webcam capture file drop png jpg selfie",
     inputs:[], outputs:[{name:"image", type:"image"}], preview:"none",
     body:(n)=>`
-      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim empt">no image yet — drop one here<small>leave empty: it’s asked for when the app runs</small></span>`}</div>
+      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="${t("image")}"/>` : `<span class="dim empt">no image yet — drop one here<small>leave empty: it’s asked for when the app runs</small></span>`}</div>
       <div class="two">
         <button class="ubtn" data-up="file">⬆ <span>Upload</span></button>
         <button class="ubtn" data-up="cam">📷 <span>Webcam</span></button>
@@ -10245,7 +10251,7 @@ const NODE_TYPES = {
         ? "the wired Image input is empty — add a photo there and it shows up here, ready to brush"
         : "source comes from the wire — run once to load it here, then brush";
       const canvasHTML = n.fields.image
-        ? `<img src="${esc(n.fields.image)}" alt="source"/><canvas data-mcanvas></canvas>`
+        ? `<img src="${esc(n.fields.image)}" alt="${t("source")}"/><canvas data-mcanvas></canvas>`
         : `<span class="dim">${imgWired
             ? (wiredSrc ? "" : wiredHint)
             : "upload or capture an image, then brush the area to repaint"}</span>`;
@@ -11739,7 +11745,7 @@ function mountUpload(n){
   const cambox = el.querySelector("[data-cambox]");
   const video = el.querySelector("[data-upvid]");
   let stream = null;
-  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`; save();
+  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${esc(url)}" alt="${t("image")}"/>`; save();
     // a downstream Inpaint node brushing this WIRED photo can load its canvas right now — no run needed
     for(const l of (graph.links||[])){
       const dn = l.from.node===n.id ? byId(l.to.node) : null;
@@ -12108,7 +12114,7 @@ document.addEventListener("drop", (e)=>{
       fileToDataURL(item.f, (url)=>{
         node.fields.image = url;
         const prev = node.el && node.el.querySelector("[data-uprev]");
-        if(prev) prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`;
+        if(prev) prev.innerHTML = `<img src="${esc(url)}" alt="${t("image")}"/>`;
         save();
       });
     } else {
@@ -12189,7 +12195,7 @@ function mountInpaint(n){
   // a wired source passes store=false so the user's transient upstream image isn't serialized.
   const render = (url, store)=>{
     const img = new Image();
-    img.onload = ()=>{ wrap.innerHTML = `<img src="${esc(url)}" alt="source"/><canvas data-mcanvas></canvas>`;
+    img.onload = ()=>{ wrap.innerHTML = `<img src="${esc(url)}" alt="${t("source")}"/><canvas data-mcanvas></canvas>`;
       initMask(img.naturalWidth, img.naturalHeight);
       if(n.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bindCanvas(); }; m.src=n.fields.mask; }
       else bindCanvas();
