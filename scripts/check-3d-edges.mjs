@@ -176,11 +176,11 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
     "an oversize data: GLB is blanked and leaves no stub");
 }
 
-const createApp = IDX.slice(IDX.indexOf("async function openCreateApp()"), IDX.indexOf('$("makeapp").onclick'));
-const resumeAt = createApp.indexOf("appSyncSig()===lastHandoffSig");
+const createApp = IDX.slice(IDX.indexOf("function startAppRequest(kind)"), IDX.indexOf('$("makeapp").onclick'));
+const canvasOnlyAt = createApp.indexOf("if(usesCanvas && graph.nodes.some");
 const blockAt = createApp.indexOf('n.type==="model3d" || n.type==="mupload"');
 const handoffAt = createApp.indexOf("serializeGraph()");
-ok(resumeAt > 0 && blockAt > resumeAt, "same-graph Create-app resume returns before the 3D block");
+ok(canvasOnlyAt > 0 && blockAt > canvasOnlyAt, "the 3D guard applies to creating or updating from the canvas");
 ok(blockAt > 0 && handoffAt > blockAt && /showCreateAppBlock\(\);\s*return;/.test(createApp.slice(blockAt, handoffAt)),
   "the 3D block shows its warning and returns before the builder handoff");
 

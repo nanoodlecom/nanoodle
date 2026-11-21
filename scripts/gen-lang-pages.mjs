@@ -60,7 +60,7 @@ export const PAGES = {
     otherLabel: "Otros idiomas",
     legalLabel: "Aviso legal y privacidad",
     srcLabel: "Código abierto (MIT) — lee el código en GitHub",
-    nanoLabel: "También en nano.nanoodle.com",
+    baseLabel: "Pagos para agentes en Base (en preparación)",
   },
   fr: {
     ogLocale: "fr_FR",
@@ -78,7 +78,7 @@ export const PAGES = {
     otherLabel: "Autres langues",
     legalLabel: "Mentions légales et confidentialité",
     srcLabel: "Open source (MIT) — lisez le code sur GitHub",
-    nanoLabel: "Aussi sur nano.nanoodle.com",
+    baseLabel: "Paiements des agents sur Base (en préparation)",
   },
   de: {
     ogLocale: "de_DE",
@@ -96,7 +96,7 @@ export const PAGES = {
     otherLabel: "Andere Sprachen",
     legalLabel: "Rechtliches und Datenschutz",
     srcLabel: "Open Source (MIT) — lies den Code auf GitHub",
-    nanoLabel: "Auch auf nano.nanoodle.com",
+    baseLabel: "Agentenzahlungen auf Base (in Vorbereitung)",
   },
   pt: {
     ogLocale: "pt_BR",
@@ -114,7 +114,7 @@ export const PAGES = {
     otherLabel: "Outros idiomas",
     legalLabel: "Aviso legal e privacidade",
     srcLabel: "Código aberto (MIT) — leia o código no GitHub",
-    nanoLabel: "Também em nano.nanoodle.com",
+    baseLabel: "Pagamentos de agentes na Base (em preparação)",
   },
   ja: {
     ogLocale: "ja_JP",
@@ -132,7 +132,7 @@ export const PAGES = {
     otherLabel: "他の言語",
     legalLabel: "利用規約とプライバシー",
     srcLabel: "オープンソース（MIT）— コードは GitHub で",
-    nanoLabel: "nano.nanoodle.com でも開けます",
+    baseLabel: "Base でのエージェント支払い（準備中）",
   },
 };
 
@@ -284,7 +284,7 @@ ${jsonLd(code)}
   <p><a class="cta" href="/?lang=${code}">${esc(p.cta)} →</a></p>
   <footer>
     <div class="langs">${p.otherLabel}: ${otherLangs(code)}</div>
-    <div><a href="https://nano.nanoodle.com/${code}/">${esc(p.nanoLabel)}</a></div>
+    <div><a href="/base">${esc(p.baseLabel)}</a></div>
     <div><a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">${esc(p.srcLabel)}</a></div>
     <div><a href="/legal">${esc(p.legalLabel)}</a></div>
   </footer>

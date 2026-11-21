@@ -27,7 +27,7 @@ const gifImage = id => ({ ...image(id, ['1k', '2k', '4k'], true), supported_para
 } });
 const catalogs = {
   chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
-    ...(['google/gemini-3.8-flash', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
+    ...(['google/gemini-3.8-flash', 'google/gemini-3.1-flash-lite', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
   image: [
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9', '9:16'], true),
     image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9', '9:16']),
@@ -49,6 +49,7 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
+    image('bytedance/seedream/v5/flash/layerize', ['auto', 'auto_1K', 'auto_1.5K', 'auto_2K'], true),
     gifImage('gpt-image-2.6-flare'),
     gifImage('gpt-image-2.6-sunburst'),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
@@ -81,6 +82,8 @@ const catalogs = {
     { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '768p', '1080p']), duration: opts(['5','6','7','8','9','10','11','12','13','14','15']),
         camera_motion: opts(['orbit-right','orbit-left','push-in','pull-back','rise']) } } },
+    { id: 'lightricks/ltx-2.5/fast', architecture: { modality: 'text+image+audio->video', input_modalities: ['text', 'image', 'audio'] }, capabilities: { text_to_video: true, image_to_video: true, audio_input: true, audio_generation: true },
+      supported_parameters: { parameters: { resolution: opts(['720p', '1080p', '1440p', '2160p']), duration: opts(['6','8','10','12','14','16','18','20']), generateAudio: { type: 'switch', default: true } } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
     { id: 'wan-video-image-to-video', capabilities: { image_to_video: true },
@@ -105,7 +108,7 @@ const catalogs = {
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man', 'Lively_Girl'] } },
-    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
+    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore', 'Sulafat', 'Algenib'] } },
     { id: 'gpt-4o-mini-tts', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'] } },
     { id: 'elevenlabs/eleven-v4-turbo', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Alicia', 'Aria', 'Roger', 'Sarah', 'Laura', 'Charlie', 'George', 'Callum', 'River', 'Liam', 'Charlotte', 'Alice', 'Matilda', 'Will', 'Jessica', 'Eric', 'Chris', 'Brian', 'Daniel', 'Lily', 'Bill'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
@@ -120,6 +123,8 @@ const catalogs = {
       supported_parameters: { parameters: { resolution: opts(['512', '1024', '1536']), texture_size: opts(['1024', '2048', '4096']), target_face_count: { type: 'number', min: 10000, max: 1000000 } } } },
     { id: 'speridlabs/idol/max/turbo', architecture: { input_modalities: ['image'] },
       supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), enable_pbr: { type: 'switch' }, rig: { type: 'switch' } } } },
+    { id: 'hyper3d/lowpoly', architecture: { input_modalities: ['text', 'image', '3d'] },
+      supported_parameters: { parameters: { face_count: { type: 'number', min: 200, max: 10000 }, transfer_texture: { type: 'switch' } } } },
     { id: 'speridlabs/idol', architecture: { input_modalities: ['image'] },
       supported_parameters: { parameters: { image_type: opts(['synthetic', 'real']), num_gaussians: { type: 'number', min: 32768, max: 1048576 }, num_inference_steps: { type: 'number', min: 1, max: 50 }, guidance_scale: { type: 'number', min: 0, max: 10 } } } },
   ],

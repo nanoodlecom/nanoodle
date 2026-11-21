@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Talking photo — nanoodle</title>
+<meta name="description" content="One photo with a story in its face + one short line → the photo performs it, mouth driven by the voice clip. Reported saved run: at least $0.725." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Talking photo — nanoodle" />
+<meta property="og:description" content="One photo with a story in its face + one short line → the photo performs it, mouth driven by the voice clip. Reported saved run: at least $0.725." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/talking-photo" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Talking photo — nanoodle" />
+<meta name="twitter:description" content="One photo with a story in its face + one short line → the photo performs it, mouth driven by the voice clip. Reported saved run: at least $0.725." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/talking-photo" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Talking photo</span></nav>
+
+  <main>
+    <h1><span class="grad">Talking photo</span></h1>
+    <p class="lede">One photo with a story in its face + one short line → the photo performs it, mouth driven by the voice clip.</p>
+
+    <section>
+      <p class="meta-row">A weathered marble emperor, silent for two thousand years, performs one line — frame-checked against the audio: mouth nearly closed at the pause, wide open on the loudest word · 2026-11-19 · Reported saved run: at least $0.725. <code>gemini-3.1-flash-tts-preview</code> · <code>lightricks/ltx-2.5/fast</code> · <code>z-ai/glm-5.3-flash</code></p>
+      <p>The script node carries a direction line plus the spoken line. A Gemini TTS voice (Algenib) performs it, a trim node caps the clip at five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs — generated audio off — and moves the mouth to the supplied voice. GLM writes the guide: what you made, how it works, and the honest edges, including the per-second price and the pause caveat.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/talking-photo/preview.webp" aria-label="1. The emperor speaks: LTX-2.5 Fast moves the marble mouth to the voice clip, 5s at 1080×1920 · reported $0.70 — Talking photo"><source src="/examples/gallery/talking-photo/talking-photo.mp4" type="video/mp4"></video><figcaption>1. The emperor speaks: LTX-2.5 Fast moves the marble mouth to the voice clip, 5s at 1080×1920 · reported $0.70 · <a href="/examples/gallery/talking-photo/talking-photo.mp4" download>Download</a></figcaption></figure>
+          <figure><audio controls preload="none" aria-label="Talking photo"><source src="/examples/gallery/talking-photo/voice-clip.mp3" type="audio/mpeg"></audio><figcaption>2. The driving voice clip: Algenib performs the script, trimmed to five seconds · reported $0.025 · <a href="/examples/gallery/talking-photo/voice-clip.mp3" download>Download</a></figcaption></figure>
+          <figure class="sequence-text"><details><summary>Talking-photo guide · GLM writes what you made and the honest edges · reported $0.00</summary><blockquote class="sample">WHAT YOU MADE — This video is a still photograph of an ancient marble emperor, used as the photo&#39;s subject, performing one spoken line. The mouth movement is driven entirely by the voice clip, not generated speech. The line performed is: &quot;Two thousand years silent... and you wake me NOW?&quot; The emperor appears to speak these words directly, as if woken after two thousand years and not pleased about it.
+
+HOW IT WORKS — The script line was performed by a Gemini TTS voice, Algenib, delivering the old man&#39;s gravelly, clipped reading. The audio was trimmed to five seconds. LTX-2.5 Fast then took the photo and that audio as direct inputs, with generated audio turned off, so the clip carries only the original voice track. The clip&#39;s length follows the audio&#39;s length. Note that audio-driven runs render at 1080p even when 720p is selected.
+
+THE HONEST EDGES — Billing is per second: $0.14 a second at the audio-driven 1080p rate, so this five-second clip is about $0.70, plus a few cents for the speech. Keep lines to about ten words. No current model reliably closes the mouth on pauses; in a frame-counted shootout, LTX was best of the field and still closed the mouth on only 2 of 6 pauses. Short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best, and statues and paintings forgive more than photographs of real people — which suits a marble emperor well.
+</blockquote></details><figcaption>Talking-photo guide · GLM writes what you made and the honest edges · reported $0.00 · <a href="/examples/gallery/talking-photo/guide.txt" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs">
+          <figure><img src="/examples/gallery/talking-photo/subject-photo.webp" alt="Subject photo" loading="lazy" /><figcaption>Subject photo</figcaption></figure>
+        </div>
+      <div class="callout"><p>Upload one front-facing photo with a story in its face — a statue, a painting, a portrait — write one short line, and the photo performs it. The script node carries a direction line plus the line itself; a Gemini TTS voice (Algenib) performs it, a trim node caps the clip at five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs, generated audio off, and moves the mouth to the supplied voice. A GLM guide closes with what you made, how it works, and the honest edges. The demo subject is a cracked marble emperor bust, chipped nose and all, delivering: &quot;Two thousand years silent... and you wake me NOW?&quot; The sync claim was checked in the video, not the listing: a probe run came first, and on this saved run the mouth was frame-checked against the audio — wide open mid-line (1.5s) and closed on the script&#39;s ellipsis pause (~3.0s), where the waveform itself goes quiet. The voice pairing was checked the same way: the example first shipped with Sulafat, a female voice (measured 210 Hz) on a marble emperor — caught and called out the same day — and was re-voiced with Algenib, whose performance here measures 143 Hz; the clip above is that corrected run. Two pricing facts the catalog listing does not shout, both measured: audio-driven LTX runs render at 1080p even when 720p is selected, so they bill at the 1080p rate of $0.14 a second, not the $0.10 720p rate — a 5.00s clip bills exactly $0.70 — this saved run billed $0.70, plus about $0.025 of speech and a $0 guide. The honest edges, also printed in the guide: no current model reliably closes the mouth on pauses — in a frame-counted shootout LTX was best of field and still only closed on 2 of 6 pauses — so short lines with few pauses forgive most (this demo&#39;s pause did close; do not count on it). Keep scripts near ten words, because every second bills. Front-facing faces with an unobstructed mouth work best, and statues and paintings forgive more than photographs of real people. Have your own voice clip? Replace the speech node with an audio upload wired into the same port.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Swap <em>Subject photo</em> for a front-facing photo with an unobstructed mouth — statues and paintings forgive more than photographs of real people. Rewrite <em>Script — what the photo says</em>: keep the direction line, change the words after <em>Script:</em>, and stay near ten words — the trim caps the voice at five seconds and every second bills. Keep <em>Talking photo</em> on <code>lightricks/ltx-2.5/fast</code> with generated audio off; your own recorded clip can replace the speech node, wired into the same audio port.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Two paid calls: the saved run reported $0.70819 in total (LTX-2.5 Fast $0.6832 for 4.875 seconds at the audio-driven 1080p rate of $0.14/s, speech $0.02499 balance-verified, GLM guide $0.00). Prices and results vary.</li>
+        <li>Play the saved clip and watch the mouth against the words: in the probe and the saved run it is nearly closed at the audio pause and wide open on the loudest word. Then read the guide's honest edges — no current model reliably closes the mouth on pauses, and audio-driven runs render at 1080p even when 720p is selected.</li>
+      </ol>
+
+      <p class="howto-note">talking-photo.NOTE.txt</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA7VXbW_jNhL-nl8xMAqkBWzFcV429X4oAmx2U9x2c9i4TYtLcaClkcWaInkcyoqu2P9eDCnZimJveh_um0gNh8-8P_zzCEab0RxOx0cwUjIbzeGSP3X4vAqfJkMazeFfRwB_HgHAKPwbpROpPWo_GodN31gM26Ysd7talGH31tQgPdTGran9lUtUGSsOSvmgMo5lG1TK1FEKRh6fPO8uhFpLvQJbGG8S-NkqIzIwGiF3RvtJLtLtb6ilL0AAeeMakBqkJ8hFivBYzaan5-GX8BWOQYAVUnupV-HbOO-E9J1c7aTHcAkVxnlQUvMZnYEvsL3LosuNKwmkn4OAjZEpQmkyVOBQZBRE48GPi18ns-QC3gvy4MUaqaen0xoVpEpaEASZdJh6kNpWnoJMaTbtudJUvgBvwkJUmTQJvJcbBMLU6IxARrlMUiotQ5iHddCdG_Yy7c5Gu8LnJHNygxpcpQmWUik2stWawH0t7B7c0URfoGbvXSwv4XOlE7gVG4TGVA5MrfvGSU0eRfYD_OghFRocWsUhYl1kEdMCOPW2oZAOQegIEKoYfqlb60mUGKKXjDhtvsQUq0dz-H46jYun0Rwm5-2i4cXZ1fSole0nNrl0kNPxtkFK31fLPzg0wQsHclqWYhWEh6jOZodQ7YeUOmmHlRYqY4ApyG1dVgjfCxSJ5lDtdUX2LmSbNHoeXK1TidpDKdxSIWBp0Rk3htqsUYPIPTrwNQfAVMRp0KBwlMC1BqMyKIU-pjbiLSJl6jGsnNigUs2Y61PjJHPNGGRphefbxrB0ktYhrThPLGbdaW04yVbopF4lcLetSisqQmhtRaWkJUljKITLGHQhSBIYDZ_uHhKILprD4gVwIKlQ-yRJwuWNqaAWa4QS-eQPL0J4fiiEZ9O9QQyeGMbQ0yCEv_T9da1WqOVy12NCrveTYRjJ0HhYzwpLqeXkLDmd5EpQMfGeJtbhRuK2t0ZEcxi193T7DskaTfhvvlSEzKjF5qsOOLt63QEczqH9TpZ7HRBaROuFXDrycNG1tQOWkxcuQJ12ZijUK1_w1sUQ--zyEPbL2V7sXqj1ADvnWaPTAfxnc6qzoN_4XwuckqvCO5mu6UT5Jz52km-Pwcg6U9o4ETkX2iYkdb_QLYp1myuVtUpi29dBKFNl43ZwlGbDQKUGNiPOTD5TG5dRAh9NusYMUlGiE-PYYXMnyrb4VLObQWP4Q9RxfAAF_FCgiKOqDB3EbPAt4AZd4wu-FBUhz-CGAJ9E6lXDw056kJTAJwNp5WnMBa-xBhNsjOsIB0rDXSrpJaxRFW-xY97Mprb7E9x6Z_3O01waGp3weM0-Gc0hF4ow_PvSniJRWhXCiU_hk05WQil0zYmP8Z0EVz9fJaU9f1EkV71Eu5q-1uhXlcyGPUKpYYl8YKkutz58_CnyFIoNn_tWKbZaDubZfydCnqxUOblIzmKL2PpMPC24xVMonel052VBRku9uslzE2utR9SoIY8lb_7GnTMwJ86QYBJ4hkaFtNSRs2eug43M0CTAOR24TsddYrMLTIDZ1XZABboBVlWtmA0zKWzGwXTcNvrjBB4CltPZlLnS6dU0Zjgnfpd7vnC4myZOrJywBc0f9cPt9QJ-u_sZfrp-d9Nnj4EU9fkfRjL6DAixaFAazJvDfyrj8QXgb01XTRHYwIDvxsCBb-s51rvGyjuhYtlsK_-YOoFI5kj0ipQ92vK6ZTNgmlxaHrq6yFr-lTzq27sH-HEBD3ef_3Hfmd8Li6Se-csGBHwIYwcWi_tW_bftbPluDNzsWdAbyHs0NWL9W9y47WJDWhwyaoc-Spk8f7ulu8cEcRr8fd7rUGfomFacTq-mlruXhprpLfcXNp1QYeoxSx714vYGbu8-3dwv4Obdh5uer2Rk0NSj0HP4ZprEPArrjro8wxAvZYPGQAZEcNmkPRAJNIFYmsqztjfTWAsCcqwhRe0JTN7G8S2sEW3INWLnx1OezYmtPjRc52Knjg8XJcVSNZAqQ89eG0ZHukWdhVLzpU6UOElNpUP2FMZ4vuLj4leoBcESyTMcVhP6UczOUEQh98M1XEAwY7nLwR1keu-vNtxsZyuVG7fifCoN-QTe95-D_OjrOo6GSpsleVdx0Fp7-EUa8L1tn4TxkdU9CvvKXehiOqZk7BAM1qHg95GxCpNH_U8leKAiP41TjDOrFG6dmVqHRdFYTOCdCRUn9YadnqEXUkU3x-6XGaQgwZX_4k3zjHmdbrlMj3odwe_xRa_X-97u6rSbDs6Uu9nAXfbZCwhGtm308SXTw-HNy3M7krT34L6Bp2ZfR9Ljujud4bnyCpYe294dbMnTYTRnX0WzV2eo2tfQ7Kjv3oN7sZx_FcsrGv-3IL0G5eL_FKQe3TkcpCP4_ejLXxAiXOmpEgAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#talking-photo">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/talking-photo/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/talking-photo/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#talking-photo">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/mesh-diet">Mesh diet</a>
+        <a href="/guide/examples/photo-to-editable-layers">Photo to editable layers →</a>
+        <a href="/examples/gallery/#talking-photo">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

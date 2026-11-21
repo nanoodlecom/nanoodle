@@ -1,0 +1,37 @@
+{
+ "label": "2026-11-19 mesh diet, dragon sample (Gemini survey -> Idol Max Turbo mesh -> Hyper3D Low Poly retopo -> GLM guide)",
+ "startedAt": "2026-11-19T16:06:00.000Z",
+ "finishedAt": "2026-11-19T16:11:00.000Z",
+ "costUsd": 0.40342,
+ "costExact": true,
+ "balanceDelta": 0.40342,
+ "nodes": {
+  "src": {
+   "status": "done",
+   "costUsd": null
+  },
+  "survey": {
+   "status": "done",
+   "costUsd": 0.00342
+  },
+  "mesh": {
+   "status": "done",
+   "costUsd": 0.2,
+   "files": {
+    "model": "heavy.glb (30,000 triangles, counted)"
+   }
+  },
+  "diet": {
+   "status": "done",
+   "costUsd": 0.2,
+   "files": {
+    "model": "model.glb"
+   }
+  },
+  "guide": {
+   "status": "done",
+   "costUsd": 0
+  }
+ },
+ "note": "Probe first (same morning): the chained probe parsed at 30,000 triangles in, 3,876 out against the 4,000 target. This saved run parses at 30,000 in, 3,929 out \u2014 automatic retopology lands near its target, not on it. Silhouette checked by rendering both GLBs from three angles (before-after.png is the same-angle pair): wings, coiled tail, antlered head and plinth survive; whiskers and teeth merge. The diet GLB (11.8 MB) is larger than the heavy GLB (10.0 MB) because the transferred PBR textures are as large as the source's \u2014 the diet is in triangles, not megabytes. Idol Max Turbo billed $0.20: its catalog pricing is variant-based and the static_pbr variant costs $0.20, not the $0.10 base."
+}
