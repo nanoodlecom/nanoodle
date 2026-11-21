@@ -2,6 +2,7 @@
 // Post-deploy smoke gate: a fresh headless browser against the LIVE site (or any base URL).
 //   1. (when a sha is given) wait until /sw.js carries CACHE = "nanoodle-<sha7>" AND the editor
 //      HTML carries <meta name="nanoodle-build" content="<sha7>"> (both stamped by stamp-sw.mjs)
+//      On main pushes, also compare the served play page and browser engine with the checkout.
 //   2. load the editor; prove the page's own build marker; fail on any warning/error banner or
 //      toast, and on any console error / uncaught page error
 //   3. open a new workspace, rename it (which saves it), reload, re-prove the build marker,
@@ -13,16 +14,21 @@
 // Env:
 //   NANOODLE_SMOKE_URL        base URL (default https://nanoodle.com)
 //   NANOODLE_SMOKE_SHA        commit to wait for / prove (version checks skipped when unset)
+//   NANOODLE_SMOKE_ENGINE     set to "1" to verify the served browser engine files against this checkout
 //   NANOODLE_SMOKE_WAIT_S     max seconds to wait for the deploy (default 900)
 //   NANOODLE_PLAYWRIGHT       path to playwright/index.mjs (dev tooling lives outside the site)
 //   NANOODLE_SMOKE_ARTIFACTS  where to drop a failure screenshot + log
 //   GITHUB_STEP_SUMMARY       (set by Actions) the result table is appended here
-import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const base = (process.env.NANOODLE_SMOKE_URL || "https://nanoodle.com").replace(/\/+$/, "");
 const sha7 = (process.env.NANOODLE_SMOKE_SHA || "").trim().slice(0, 7);
+const mainPush = process.env.GITHUB_EVENT_NAME === "push" && process.env.GITHUB_REF === "refs/heads/main";
+const verifyEngine = mainPush || process.env.NANOODLE_SMOKE_ENGINE === "1";
+if (verifyEngine && !sha7) throw new Error("The engine asset check requires NANOODLE_SMOKE_SHA");
 const waitS = Number(process.env.NANOODLE_SMOKE_WAIT_S || 900);
 const artifacts = process.env.NANOODLE_SMOKE_ARTIFACTS;
 const mod = process.env.NANOODLE_PLAYWRIGHT;
@@ -58,17 +64,23 @@ async function summary(ok, extra = "") {
   console.log("\n" + md);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, md);
 }
-async function fetchText(url) {
+async function fetchLive(url) {
   const r = await fetch(url, { cache: "no-store", headers: { "cache-control": "no-cache" }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-  return r.text();
+  return r;
 }
+async function fetchText(url) { return (await fetchLive(url)).text(); }
+const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 const pageBuild = html => (html.match(/<meta name="nanoodle-build" content="([^"]*)"/) || [, "(no nanoodle-build meta)"])[1];
 
 const consoleErrors = [], ignored = [], pageErrors = [];
 let browser, page, ok = false;
 try {
   if (sha7) await step(`deploy live (sw.js "nanoodle-${sha7}" + page build "${sha7}")`, async () => {
+    const expectedEngine = verifyEngine ? await Promise.all([
+      ["/play", "../play.html"],
+      ["/vendor/njs-engine.js", "../vendor/njs-engine.js"],
+    ].map(async ([route, file]) => [route, sha256(await readFile(new URL(file, import.meta.url)))])) : [];
     const t0 = Date.now(), until = t0 + waitS * 1000; let last = "";
     while (Date.now() < until) {
       try {
@@ -76,7 +88,19 @@ try {
         const cache = (sw.match(/const CACHE = "([^"]*)"/) || [, "(no CACHE line)"])[1];
         const build = pageBuild(await fetchText(`${base}/?smoke=${Date.now()}`));
         last = `sw.js CACHE "${cache}", page build "${build}"`;
-        if (cache === `nanoodle-${sha7}` && build === sha7) return `seen after ${Math.round((Date.now() - t0) / 1000)}s`;
+        if (cache === `nanoodle-${sha7}` && build === sha7) {
+          const differences = await Promise.all(expectedEngine.map(async ([route, expected]) => {
+            const response = await fetchLive(`${base}${route}`);
+            const live = sha256(Buffer.from(await response.arrayBuffer()));
+            return live === expected ? null : `${route} SHA-256 ${live}, expected ${expected}`;
+          }));
+          const mismatches = differences.filter(Boolean);
+          if (!mismatches.length) {
+            const checked = expectedEngine.map(([route, digest]) => `${route} SHA-256 ${digest}`).join(", ");
+            return `seen after ${Math.round((Date.now() - t0) / 1000)}s${checked ? ". Matched " + checked : ""}`;
+          }
+          last += `. ${mismatches.join(", ")}`;
+        }
       } catch (e) { last = String(e.message || e); }
       if (Date.now() + 15000 >= until) break;
       await new Promise(r => setTimeout(r, 15000));
