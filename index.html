@@ -123,6 +123,14 @@
   #addpop{ position:absolute; top:110%; left:0; background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
            padding:.35rem; display:none; flex-direction:column; gap:.05rem; min-width:235px; box-shadow:0 12px 40px #0008; z-index:40;}
   #addpop.open{display:flex}
+  @media (max-width:540px){
+    /* phones: #top button{white-space:nowrap} also governs the palette's buttons, so the
+       panel sizes to its longest unwrappable line and, anchored to the mid-bar Add button,
+       runs off the right edge (measured 532px wide at left:172 on a 390px phone — item
+       descriptions clipped mid-word). Anchor it to the viewport instead and let text wrap. */
+    #addpop{ position:fixed; left:8px; right:8px; top:56px; min-width:0 }
+    #addpop button{ white-space:normal }
+  }
   #addsearch{ width:100%; box-sizing:border-box; min-height:46px; margin:0 0 .25rem; background:var(--panel2); border:1px solid var(--line);
               border-radius:.5rem; padding:.5rem .6rem; color:inherit; font:inherit }
   #addlist{ display:flex; flex-direction:column; gap:.05rem; overflow-y:auto; max-height:min(60vh, calc(100vh - 52px - var(--db-h,3rem) - 6rem)) }   /* never spill under the fixed describe bar (the extra ~3rem covers the search box that sits above this scroll area) */
