@@ -232,10 +232,14 @@ console.log("✓ check-3d-csp: dropped GLB draws under the _headers CSP");
 // The editor reads local model bytes under its shipping connect-src policy.
 const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue: true, expression: `(async () => {
   const input = graph.nodes.find(n => n.type === "mupload");
-  const slicer = addNode("slice-3d", 400, 200, {slices:16, resolution:24});
-  const render = addNode("sprite-stack-render", 720, 200, {});
-  connect(input.id, "model", slicer.id, "model");
-  connect(slicer.id, "sheet", render.id, "sheet");
+  function addConnected(type, origin, dir, port, x) {
+    const socket = origin.el.querySelector('.port[data-dir="' + dir + '"][data-port="' + port + '"]');
+    quickSpawn(type, x, 200, dir, socket.dataset.ptype, socket);
+    return graph.nodes[graph.nodes.length - 1];
+  }
+  const slicer = addConnected("slice-3d", input, "out", "model", 400);
+  Object.assign(slicer.fields, {slices:16, resolution:24});
+  const render = addConnected("sprite-stack-render", slicer, "out", "sheet", 720);
   await runGroup([render.id]);
   const layout = JSON.parse(slicer.out.layout);
   const img = new Image(); img.src = slicer.out.sheet; await img.decode();
@@ -243,15 +247,33 @@ const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue
   const saved = serializeGraph();
   applyGraphData(saved);
   await runGroup([render.id]);
+  const destination = addNode("sprite-stack-render", 1400, 200, {});
+  const imageSink = addNode("resize", 1400, 800, {});
+  function checkUpstream(dest, port, x) {
+    const src = addConnected("slice-3d", dest, "in", port, x);
+    return serializeGraph().links.some(l => l.from.node === src.id && l.from.port === port &&
+      l.to.node === dest.id && l.to.port === port);
+  }
+  const source = byId(slicer.id);
+  history.replaceState(null, "", location.pathname);
+  function checkAddMenu(type, port) {
+    const dest = addNode(type, 1800, 1200, {});
+    geoSettleNew(dest, {dir:"out", anchor:source});
+    return serializeGraph().links.some(l => l.from.node === source.id && l.from.port === port &&
+      l.to.node === dest.id && l.to.port === port);
+  }
+  const wiring = {upstreamSheet:checkUpstream(destination,"sheet",1100), upstreamImage:checkUpstream(imageSink,"image",1100),
+    menuSheet:checkAddMenu("sprite-stack-render","sheet"), menuImage:checkAddMenu("resize","image")};
+  const wired = Object.values(wiring).every(Boolean);
   return {
-    width: img.width, height: img.height, order: layout.order,
+    wiring, wired, width: img.width, height: img.height, order: layout.order,
     same: preview === byId(render.id).out.image,
     restored: byId(slicer.id).out.sheet === slicer.out.sheet,
     violations: (window.__csp || []).filter(s => /connect-src.*(?:data:|blob:)/.test(s))
   };
 })()` });
 const result = stack.result?.result?.value;
-if (!result || result.width !== 384 || result.height !== 24 || result.order !== "bottom-to-top" ||
+if (!result || !result.wired || result.width !== 384 || result.height !== 24 || result.order !== "bottom-to-top" ||
     !result.same || !result.restored || result.violations.length) {
   fail("sprite stack editor run/reopen failed: " + JSON.stringify(result || stack.result?.exceptionDetails?.text || stack.error));
 }

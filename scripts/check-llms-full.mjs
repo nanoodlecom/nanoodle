@@ -63,8 +63,8 @@ const known = registeredTypes();
 // aliases the tables use that are not literal NODE_TYPES keys
 const ALIASES = new Set(["upload"]);   // stands for upload / aupload / vupload
 
-const rows = [...actual.matchAll(/^\| *(local|browser canvas|local media†|NanoGPT|custom URL) *\| *(.+?) *\|$/gm)];
-// nanoodle-js: local, browser canvas, local media, NanoGPT, custom URL. nanoodle-py: local, local media, NanoGPT.
+const rows = [...actual.matchAll(/^\| *(local|sprite rendering|local media†|NanoGPT|custom URL) *\| *(.+?) *\|$/gm)];
+// nanoodle-js: local, sprite rendering, local media, NanoGPT, custom URL. nanoodle-py: local, local media, NanoGPT.
 if (rows.length !== 8) {
   fails.push(
     `expected 8 supported-node rows in llms-full.txt (5 in nanoodle-js, 3 in nanoodle-py), found ${rows.length}.\n` +

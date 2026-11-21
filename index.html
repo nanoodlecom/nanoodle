@@ -13402,7 +13402,10 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
         ports = [...n.el.querySelectorAll(sel)];
       }
       ports = ports.filter(p=> !p.classList.contains("disabled"));
-      const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+      // When adding an upstream source, prefer its like-named output. Slice 3D
+      // can supply either a sheet or an ordinary image preview on image wires.
+      const namedOutput = dir==="in" && (ports.find(p=> p.dataset.port===originPort.dataset.port) || ports.find(p=> p.dataset.port===type));
+      const target = namedOutput || ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
       if(!target) return false;
       const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
       if(!connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port)) return false;
@@ -17209,8 +17212,13 @@ function geoWireNew(n, spec){
     const target = raw.find(p => p.name === fit[0].name && !p.disabled && !p.filled);
     if(target) pairs.push({ o:o, target:target });
   }
-  if(pairs.length !== 1) return false;
-  connect(pairs[0].o.dataset.node, pairs[0].o.dataset.port, pairs[0].target.el.dataset.node, pairs[0].target.el.dataset.port);
+  // A single input can accept both the slice sheet and the preview. Its
+  // port name distinguishes them, just as it does for a reverse wire drop.
+  const candidates = pairs.length > 1 && pairs.every(p => p.target.el === pairs[0].target.el)
+    ? pairs.filter(p => p.o.dataset.port === p.target.name) : pairs;
+  if(candidates.length !== 1) return false;
+  const {o, target} = candidates[0];
+  connect(o.dataset.node, o.dataset.port, target.el.dataset.node, target.el.dataset.port);
   dismissConnectHint();
   return true;
 }

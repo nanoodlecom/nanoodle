@@ -191,7 +191,7 @@ ok(SRC.includes('id="selmenu"') && SRC.includes(">Tidy selection<"), "tidy lives
 ok(SRC.includes('e.code==="KeyT"') && SRC.includes("geoTidySelection()"), "Shift+T tidies the selection");
 ok(SRC.includes("geoSettleNew(n, { dir, anchor:byId(originPort.dataset.node), drop:"), "wire-drop add uses the layout slot");
 ok(SRC.includes('geoSettleNew(n, { dir:"out", anchor:placeAnchor })'), "Add-node menu uses the layout slot");
-ok(SRC.includes("connect(pairs[0].o.dataset.node, pairs[0].o.dataset.port, pairs[0].target.el.dataset.node, pairs[0].target.el.dataset.port)"), "Add-menu auto-wire goes through connect()");
+ok(SRC.includes("connect(o.dataset.node, o.dataset.port, target.el.dataset.node, target.el.dataset.port)"), "Add-menu auto-wire goes through connect()");
 ok(!/Mess selection|Mess up|Scramble/.test(SRC), "no Mess/Scramble controls");
 ok(!SRC.includes('id="na-panel"') && !SRC.includes("na-ghost"), "no next-action debug panel or ghost");
 ok(SRC.includes("requestAnimationFrame(step)") && !/setInterval\(/.test(SRC.slice(SRC.indexOf("function geoEnter"), SRC.indexOf("function geoSettleNew"))), "entrance animation is a bounded rAF, not an interval");
