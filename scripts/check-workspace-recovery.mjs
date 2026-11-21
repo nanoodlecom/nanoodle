@@ -18,9 +18,32 @@ const child=spawn(chrome,['--headless=new','--disable-gpu','--no-sandbox','--no-
 const servers=[];let socket;
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.css':'text/css'};
 try{
-  const port=await new Promise((yes,no)=>{
-    const timer=setTimeout(()=>no(Error('Chromium startup timeout')),20000);let text='';
-    child.on('error',no);child.once('exit',(code,signal)=>{clearTimeout(timer);no(Error('Chromium exited '+(signal||code)+': '+text.slice(-1200)));});child.stderr.on('data',bytes=>{text+=bytes;const m=text.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)/);if(m){clearTimeout(timer);yes(m[1]);}});
+  // Chromium writes the chosen port into the isolated profile when using port 0.
+  // Use that file as the readiness signal and keep launcher output for failures.
+  const port=await new Promise((resolve,reject)=>{
+    let output='';
+    const collect=bytes=>{output=(output+bytes).slice(-1600);};
+    child.stdout.on('data',collect);
+    child.stderr.on('data',collect);
+    const exited=(code,signal)=>finish(Error(`Chromium exited ${signal||code}: ${output.trim()}`));
+    const finish=(error,activePort)=>{
+      clearTimeout(deadline);
+      clearInterval(poll);
+      child.off('error',finish);
+      child.off('exit',exited);
+      if(error) reject(error);
+      else resolve(activePort);
+    };
+    const deadline=setTimeout(()=>finish(Error(`Chromium startup timeout: ${output.trim()}`)),60000);
+    const activePortFile=join(profile,'DevToolsActivePort');
+    const poll=setInterval(()=>{
+      try{
+        const activePort=Number(readFileSync(activePortFile,'utf8').split('\n')[0]);
+        if(Number.isInteger(activePort) && activePort>0 && activePort<=65535) finish(null,activePort);
+      }catch(error){if(error.code!=='ENOENT') finish(error);}
+    },100);
+    child.once('error',finish);
+    child.once('exit',exited);
   });
   const targets=await(await fetch(`http://127.0.0.1:${port}/json`)).json();
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);

@@ -5,7 +5,6 @@
 Choose where you want the workflow to run. The browser editor and apps use your NanoGPT account (OAuth or API key) and bill your NanoGPT balance. Standard model calls go directly from your browser to NanoGPT without a Nanoodle model proxy. Hosted MCP is a separate service: it receives tool inputs and quotes each paid run. Viewing examples and inspecting a graph do not run models.
 
 ## Pages
-- [nano.nanoodle.com](https://nano.nanoodle.com/): the same nanoodle site served on its own subdomain — the editor, examples, guides and the localized pages (es/fr/de/pt/ja) are all there too.
 - [nanoodle on Base](https://nanoodle.com/base): the Base front door — agent payments in USDC on Base over x402, in preparation (the adapter is qualified offline; live settlement and any marketplace listing are not open yet).
 - [Editor](https://nanoodle.com/): the node editor (also reachable at /app and /editor). Build and run workflows; share a graph as a URL.
 - [App builder](https://nanoodle.com/play): turns any workflow into a standalone, shareable app — auto inputs, Run, outputs; share via link or export a self-contained .html.
@@ -13,6 +12,7 @@ Choose where you want the workflow to run. The browser editor and apps use your 
 - [Terms, Privacy & FAQ](https://nanoodle.com/legal): how it works and what it does (and does not) collect.
 
 ## Choose how an agent runs it
+- [Call a ready-made workflow on hosted MCP — Nano endpoint](https://nano.nanoodle.com/llms.txt): the hosted nanoodle-mcp server also answers at https://nano.nanoodle.com/mcp — every workflow as a tool your agent can call, paying per run in Nano (XNO) via x402. No account, no API key.
 - [Call a ready-made workflow on hosted MCP](https://mcp.nanoodle.com/llms.txt): start with a tool that matches the outcome, such as comparing image models, animating a still or making a song. Nano (XNO) is the default on this endpoint; eligible tools support NEAR and USDC on NEAR. Use `tools/list` on the endpoint for the exact tools and schemas.
 - [Compose a supported graph on hosted MCP](https://near.nanoodle.com/llms.txt): start with free `noodle_guide` and `price_noodle`, then quote `run_noodle`. This endpoint accepts NEAR or Circle-issued USDC on NEAR, not Nano. It supports a priced subset of the editor's nodes, not arbitrary graphs, file paths or custom endpoints.
 - [Give your own recipe a hosted endpoint](https://near.nanoodle.com/creators): upload a graph and expose its named inputs. Nanoodle stores the recipe but does not serve its source to callers. Anyone with the link can quote and pay to run it; the link is not access control.

@@ -74,9 +74,10 @@ Nothing is submitted from the editor automatically.
 
 **Hosted:** https://nanoodle.com serves exactly the files in this repo as a
 static site (Cloudflare Pages / Workers assets — see `wrangler.jsonc`,
-`_headers`, `_redirects`, `sw.js`). The same deployment is also served at
-https://nano.nanoodle.com — same editor, examples, guides and localized
-pages, on its own subdomain. A Base front door lives at
+`_headers`, `_redirects`, `sw.js`). The hosted MCP server also answers at
+https://nano.nanoodle.com (endpoint https://nano.nanoodle.com/mcp) —
+agents call workflows as tools there and pay per run in Nano (x402).
+A Base front door lives at
 https://nanoodle.com/base — the coming USDC-on-Base x402 payment rail for
 agents, currently in preparation. There is no server-side code; hosting
 adds nothing but HTTPS and the CSP headers.
