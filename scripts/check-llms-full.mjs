@@ -51,7 +51,7 @@ function registeredTypes() {
   const start = html.indexOf("const NODE_TYPES = {");
   if (start < 0) throw new Error("NODE_TYPES not found in index.html");
   const block = html.slice(start, html.indexOf("\n};", start));
-  const keys = [...block.matchAll(/^ {2}([a-z][a-z0-9]*): \{/gm)].map((m) => m[1]);
+  const keys = [...block.matchAll(/^ {2}"?([a-z][a-z0-9-]*)"?: \{/gm)].map((m) => m[1]);
   if (!keys.length) throw new Error("parsed 0 NODE_TYPES keys from index.html");
   return new Set(keys);
 }
@@ -63,11 +63,11 @@ const known = registeredTypes();
 // aliases the tables use that are not literal NODE_TYPES keys
 const ALIASES = new Set(["upload"]);   // stands for upload / aupload / vupload
 
-const rows = [...actual.matchAll(/^\| *(local|local media†|NanoGPT|custom URL) *\| *(.+?) *\|$/gm)];
-// nanoodle-js: local, local media, NanoGPT, custom URL. nanoodle-py: local, local media, NanoGPT.
-if (rows.length !== 7) {
+const rows = [...actual.matchAll(/^\| *(local|browser canvas|local media†|NanoGPT|custom URL) *\| *(.+?) *\|$/gm)];
+// nanoodle-js: local, browser canvas, local media, NanoGPT, custom URL. nanoodle-py: local, local media, NanoGPT.
+if (rows.length !== 8) {
   fails.push(
-    `expected 7 supported-node rows in llms-full.txt (4 in nanoodle-js, 3 in nanoodle-py), found ${rows.length}.\n` +
+    `expected 8 supported-node rows in llms-full.txt (5 in nanoodle-js, 3 in nanoodle-py), found ${rows.length}.\n` +
     "  The libraries' README table shape changed, so this guard went blind.\n" +
     "  Update the row regex in scripts/check-llms-full.mjs.");
 } else {

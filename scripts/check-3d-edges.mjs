@@ -152,7 +152,7 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
     idbPutGlb() {},
   };
   vm.createContext(ser);
-  vm.runInContext(extractFn(IDX, "serializeGraph") + "\nglobalThis.serializeGraph=serializeGraph;", ser);
+  vm.runInContext(extractFn(IDX, "uploadedModelName") + "\n" + extractFn(IDX, "modelFileMime") + "\n" + extractFn(IDX, "serializeGraph") + "\nglobalThis.serializeGraph=serializeGraph;", ser);
 
   ser.graph.nodes = [{
     id: "n1", type: "mupload", x: 0, y: 0, w: 200,

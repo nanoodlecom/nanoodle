@@ -224,7 +224,7 @@ JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## Node types in the editor
 
-The editor registers 31 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
+The editor registers 33 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
 
 ### Inputs
 
@@ -232,8 +232,14 @@ The editor registers 31 node types. Titles and one-line descriptions below are t
 - `upload` — 📷 Image input: Upload or capture an image
 - `aupload` — 🎤 Audio input: Upload an audio clip
 - `vupload` — 📹 Video input: Upload a video clip
-- `mupload` — 📦 3D input: Upload a .glb
+- `mupload` — 📦 3D input: Upload a GLB, a self-contained glTF, or a Gaussian PLY
 - `choice` — 🔘 Choice: A dropdown the app user picks from — the selected line is the value on the wire
+
+### 3D
+
+- `slice-3d` — 🧩 Slice 3D: Slice a mesh or Gaussian splat into a sprite sheet
+- `sprite-stack-render` — 🎞️ Sprite stack render: Rotate a sprite sheet into a still or turntable
+- `model3d` — 🧊 3D model: Image and/or text → a 3D mesh or Gaussian splat
 
 ### Text
 
@@ -259,10 +265,6 @@ The editor registers 31 node types. Titles and one-line descriptions below are t
 - `combine` — 🎬 Combine videos: Join clips end-to-end into one video
 - `soundtrack` — 🎚 Soundtrack: Video + audio → video (add music / narration)
 - `lipsync` — 🎭 Avatar / lipsync: Image + audio → talking video
-
-### 3D
-
-- `model3d` — 🧊 3D model: Image and/or text → a 3D mesh or Gaussian splat
 
 ### Audio
 
@@ -379,10 +381,15 @@ unrecoverable.
 
 | runs | node types |
 |---|---|
-| local | text, upload (image/audio/video), mupload (3D .glb), choice, join, comment |
+| local | text, upload (image/audio/video), mupload (3D asset), choice, join, comment |
+| browser canvas | slice-3d, sprite-stack-render |
 | local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
 | NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, model3d‡, vedit, lipsync, music, remix, tts, transcribe, cleanvoice§ |
 | custom URL | endpoint (POST to a URL in the graph; no NanoGPT key) |
+
+`slice-3d` takes a `model` wire and an optional `paletteImage`. It reads static GLB or self-contained glTF 2 triangle meshes and uncompressed Gaussian PLY splats (ASCII or binary little-endian). Use the original Gaussian PLY for splats. Auto up is Y for meshes and Z for splats. The default is 48 layers of 48 × 48 pixels, 16 colors and an outline. Set `palette` to 0 to preserve source colors.
+
+The `sheet` output is a transparent PNG with square tiles ordered from ground at left to top at right. The `layout` text output gives the bounds, axis and sampling dimensions. The `image` output previews the stack at 35° yaw. Wire `sheet` into `sprite-stack-render.sheet` to change yaw, pitch, layer spacing or pixel scale. Enable `turntable` to add a local `video` output with configurable duration, fps, start yaw and end yaw. These nodes run through `nanoodle/browser` with Canvas 2D. Turntable export uses the browser’s MP4 or WebM recorder.
 
 † `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 

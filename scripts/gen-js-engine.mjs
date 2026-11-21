@@ -189,8 +189,19 @@ if (re.test(html)) {
 const vendorFile = `/* data-hash=${hash} */\n${bundle}\n`;
 const vendorCur = existsSync(VENDOR) ? readFileSync(VENDOR, "utf8") : null;
 
+// Keep the small, lazy GLB viewer standalone while sharing the slicer's
+// transform and GLB chunk reader. The helper module has no imports.
+const viewerPath = join(HERE, "..", "vendor", "glb-viewer.js");
+const viewer = readFileSync(viewerPath, "utf8");
+const scene = readFileSync(join(SRC, "gltf-scene.mjs"), "utf8").replace(/^export /gm, "").trimEnd();
+const sceneBlock = /  \/\/ GLTF-SCENE:BEGIN[\s\S]*?  \/\/ GLTF-SCENE:END/;
+if (!sceneBlock.test(viewer)) throw new Error("glb-viewer.js is missing its shared scene helper markers");
+const nextViewer = viewer.replace(sceneBlock, () => "  // GLTF-SCENE:BEGIN\n" +
+  scene.split("\n").map(line => line ? "  " + line : "").join("\n") + "\n  // GLTF-SCENE:END");
+
 if (check) {
   const stale = [];
+  if (viewer !== nextViewer) stale.push("vendor/glb-viewer.js");
   if (next !== html) stale.push("play.html");
   if (vendorCur !== vendorFile) stale.push("vendor/njs-engine.js");
   if (!stale.length) { console.log(`✓ njs-engine: embedded bundle is current (nanoodle-js@${version}, ${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB)`); process.exit(0); }
@@ -198,9 +209,10 @@ if (check) {
   process.exit(1);
 }
 
-if (next === html && vendorCur === vendorFile) {
+if (next === html && vendorCur === vendorFile && nextViewer === viewer) {
   console.log(`✓ njs-engine: already current (nanoodle-js@${version})`);
 } else {
+  if (nextViewer !== viewer) writeFileSync(viewerPath, nextViewer);
   if (next !== html) writeFileSync(PLAY, next);
   if (vendorCur !== vendorFile) writeFileSync(VENDOR, vendorFile);
   console.log(`✓ njs-engine: embedded nanoodle-js@${version} (${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB) into play.html + vendor/njs-engine.js`);

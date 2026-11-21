@@ -70,7 +70,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const profile = mkdtempSync(join(tmpdir(), "nanoodle-3d-csp-"));
 const proc = spawn(chrome, [
-  "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--no-default-browser-check",
+  "--password-store=basic", "--use-mock-keychain", "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--no-default-browser-check",
   "--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl",
   `--user-data-dir=${profile}`, "--remote-debugging-port=0", origin + "/?product=off&na=0",
 ], { stdio: ["ignore", "pipe", "pipe"] });
@@ -228,6 +228,34 @@ while (Date.now() < drawDeadline) {
 }
 if (!drew) fail("dropped GLB did not draw a canvas under the production CSP within " + drawTimeoutMs + "ms; last state " + JSON.stringify(lastState));
 console.log("✓ check-3d-csp: dropped GLB draws under the _headers CSP");
+// Exercise the installed graph runners with the same dropped, textured GLB.
+// The editor reads local model bytes under its shipping connect-src policy.
+const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue: true, expression: `(async () => {
+  const input = graph.nodes.find(n => n.type === "mupload");
+  const slicer = addNode("slice-3d", 400, 200, {slices:16, resolution:24});
+  const render = addNode("sprite-stack-render", 720, 200, {});
+  connect(input.id, "model", slicer.id, "model");
+  connect(slicer.id, "sheet", render.id, "sheet");
+  await runGroup([render.id]);
+  const layout = JSON.parse(slicer.out.layout);
+  const img = new Image(); img.src = slicer.out.sheet; await img.decode();
+  const preview = slicer.out.image;
+  const saved = serializeGraph();
+  applyGraphData(saved);
+  await runGroup([render.id]);
+  return {
+    width: img.width, height: img.height, order: layout.order,
+    same: preview === byId(render.id).out.image,
+    restored: byId(slicer.id).out.sheet === slicer.out.sheet,
+    violations: (window.__csp || []).filter(s => /connect-src.*(?:data:|blob:)/.test(s))
+  };
+})()` });
+const result = stack.result?.result?.value;
+if (!result || result.width !== 384 || result.height !== 24 || result.order !== "bottom-to-top" ||
+    !result.same || !result.restored || result.violations.length) {
+  fail("sprite stack editor run/reopen failed: " + JSON.stringify(result || stack.result?.exceptionDetails?.text || stack.error));
+}
+console.log("✓ check-3d-csp: textured GLB slices, renders and reopens under the editor CSP");
 ws.close();
 proc.kill("SIGKILL");
 server.close();

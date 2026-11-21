@@ -395,11 +395,11 @@ function contractCoverage(src) {
   const keysOf = (blockRe, label) => {
     const m = src.match(blockRe);
     if (!m) { F.push(`CONTRACT: could not locate ${label} in index.html — the extractor is stale`); return null; }
-    return [...m[1].matchAll(/^ {4}([a-z][a-z0-9]*):\s*\{/gm)].map((k) => k[1]);
+    return [...m[1].matchAll(/^ {4}"?([a-z][a-z0-9-]*)"?:\s*\{/gm)].map((k) => k[1]);
   };
   // NODE_TYPES entries sit at 2-space indent; DESC_FIELDS entries at 4-space.
   const ntm = src.match(/NODE_TYPES = \{([\s\S]*?)\n\};/);
-  const nodeTypes = ntm ? [...ntm[1].matchAll(/^ {2}([a-z][a-z0-9]*): \{/gm)].map((k) => k[1]) : null;
+  const nodeTypes = ntm ? [...ntm[1].matchAll(/^ {2}"?([a-z][a-z0-9-]*)"?: \{/gm)].map((k) => k[1]) : null;
   if (!nodeTypes) F.push("CONTRACT: could not locate NODE_TYPES in index.html — the extractor is stale");
   const descKeys = keysOf(/const DESC_FIELDS = \{([\s\S]*?)\n {2}\};/, "DESC_FIELDS");
   if (!nodeTypes || !descKeys) return F;

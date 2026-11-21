@@ -29,19 +29,18 @@ vm.createContext(ctx);
 vm.runInContext(extractFn("droppedFileKind") + "\nfunction is3dFile(f){ return droppedFileKind(f)==='model3d'; }\nglobalThis.droppedFileKind = droppedFileKind;", ctx);
 const kind = ctx.droppedFileKind;
 ok(kind({ name: "cup.glb", type: "" }) === "model3d", ".glb name routes to 3D");
-ok(kind({ name: "cup.GLTF", type: "" }) === "gltf", ".gltf is refused rather than treated as a GLB");
+ok(kind({ name: "cup.GLTF", type: "" }) === "model3d", ".gltf routes to 3D");
 ok(kind({ name: "x.bin", type: "model/gltf-binary" }) === "model3d", "gltf-binary mime routes to 3D");
-ok(kind({ name: "x.bin", type: "model/gltf+json" }) === "gltf", "gltf+json is refused rather than treated as a GLB");
+ok(kind({ name: "x.bin", type: "model/gltf+json" }) === "model3d", "gltf+json routes to 3D");
 ok(kind({ name: "shot.png", type: "image/png" }) === "image", "png routes to an image input");
 ok(kind({ name: "shot.JPG", type: "" }) === "image", "jpeg extension routes to an image input");
 ok(kind({ name: "notes.pdf", type: "application/pdf" }) === "", "other files are rejected");
 
 ok(SRC.includes('addEventListener("dragover"') && SRC.includes('indexOf("Files")') && SRC.includes("e.preventDefault()"),
   "a document dragover preventDefault keeps the browser from navigating");
-ok(SRC.includes('addEventListener("drop"') && SRC.includes('dropToast(e.clientX, e.clientY, "drop a .glb or an image")'),
+ok(SRC.includes('addEventListener("drop"') && SRC.includes('dropToast(e.clientX, e.clientY, "Drop an image, .glb, .gltf or .ply file")'),
   "a rejected drop toasts at the cursor instead of downloading");
-ok(SRC.includes('dropToast(e.clientX, e.clientY, "only .glb for now")'),
-  "a .gltf drop says only .glb for now");
+ok(kind({ name: "cloud.ply", type: "" }) === "model3d", "Gaussian PLY routes to 3D");
 ok(SRC.includes("that's a 3D file — drop it on the canvas"),
   "Image input names a .glb instead of a bad image");
 ok(SRC.includes("3D nodes stay in the editor for now — Create app doesn’t run them yet"),
