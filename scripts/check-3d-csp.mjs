@@ -247,6 +247,33 @@ const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue
   const saved = serializeGraph();
   applyGraphData(saved);
   await runGroup([render.id]);
+  // Export through the same graph with browser recording unavailable.
+  const restoredRender = byId(render.id);
+  Object.assign(restoredRender.fields, {turntable:true, duration:0.5, fps:8});
+  const recorder = window.MediaRecorder;
+  try {
+    window.MediaRecorder = undefined;
+    await runGroup([restoredRender.id]);
+  } finally {
+    window.MediaRecorder = recorder;
+  }
+  const url = restoredRender.out.video;
+  if (!url?.startsWith("data:video/mp4;base64,")) throw new Error("Missing MP4 turntable");
+  const encoded = atob(url.slice(url.indexOf(",") + 1));
+  const mp4 = encoded.slice(4, 8) === "ftyp" && encoded.includes("avcC");
+  const player = document.createElement("video");
+  let played = false;
+  if (player.canPlayType('video/mp4; codecs="avc1.42001f"')) {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(Error("Timed out decoding turntable")), 10000);
+      player.onloadeddata = () => { clearTimeout(timeout); resolve(); };
+      player.onerror = () => { clearTimeout(timeout); reject(Error("Browser could not decode turntable")); };
+      player.src = url;
+      player.load();
+    });
+    played = player.videoWidth > 0 && Math.abs(player.duration - 0.5) < 0.01;
+    if (!played) throw new Error("Wrong duration or dimensions for browser-decoded turntable");
+  }
   const destination = addNode("sprite-stack-render", 1400, 200, {});
   const imageSink = addNode("resize", 1400, 800, {});
   function checkUpstream(dest, port, x) {
@@ -266,18 +293,18 @@ const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue
     menuSheet:checkAddMenu("sprite-stack-render","sheet"), menuImage:checkAddMenu("resize","image")};
   const wired = Object.values(wiring).every(Boolean);
   return {
-    wiring, wired, width: img.width, height: img.height, order: layout.order,
+    wiring, wired, mp4, played, width: img.width, height: img.height, order: layout.order,
     same: preview === byId(render.id).out.image,
     restored: byId(slicer.id).out.sheet === slicer.out.sheet,
     violations: (window.__csp || []).filter(s => /connect-src.*(?:data:|blob:)/.test(s))
   };
 })()` });
 const result = stack.result?.result?.value;
-if (!result || !result.wired || result.width !== 384 || result.height !== 24 || result.order !== "bottom-to-top" ||
+if (!result || !result.wired || !result.mp4 || result.width !== 384 || result.height !== 24 || result.order !== "bottom-to-top" ||
     !result.same || !result.restored || result.violations.length) {
   fail("sprite stack editor run/reopen failed: " + JSON.stringify(result || stack.result?.exceptionDetails?.text || stack.error));
 }
-console.log("✓ check-3d-csp: textured GLB slices, renders and reopens under the editor CSP");
+console.log("✓ check-3d-csp: textured GLB slices, reopens and exports MP4 under the editor CSP" + (result.played ? " (decoded in Chromium)" : ""));
 ws.close();
 proc.kill("SIGKILL");
 server.close();

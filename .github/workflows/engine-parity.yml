@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24.22.3"
-      # No npm install: both repos are dependency-free; the checks use Node built-ins only.
+      # This gate checks browser bundles and request payloads. Headless image codecs load on demand.
       - name: embedded bundle is current (play block ↔ vendor/njs-engine.js ↔ nanoodle-js src)
         working-directory: nanoodle
         run: node scripts/gen-js-engine.mjs --check

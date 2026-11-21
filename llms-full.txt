@@ -142,13 +142,10 @@ Replace the code with your own (or delete the parameter and use bare
 
 ### Run workflows from code
 
-A saved graph (`noodle-graph.json`) — or any share link — doesn't need the
-browser: two zero-dependency sibling libraries re-execute it headlessly —
-[nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)
-(`npm install nanoodle` 0.8.0, Node 22.23.5+, 24.22.3+, or 26.13.1+) and
-[nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)
-(`pip install nanoodle` 0.5.0, stdlib-only). Same graphs, same results;
-useful for scripts, servers, and agent skills. Walkthrough:
+The JavaScript, Python and Rust executors run the same saved graph file.
+Install the JavaScript package with `npm install nanoodle`, the Python package
+with `pip install nanoodle`, or the Rust CLI with `cargo install nanoodle --locked`.
+JavaScript and Python can also open an editor share link directly.
 [Run workflows headlessly](https://nanoodle.com/guide/run-headless).
 
 ```js
@@ -171,8 +168,9 @@ Everything lives under the [nanoodlecom](https://github.com/nanoodlecom) GitHub 
 | Repo | What it is |
 | --- | --- |
 | [nanoodle](https://github.com/nanoodlecom/nanoodle) | NanoGPT workflow editor, app builder, and site (this repo) |
-| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | Zero-dependency JS executor — use when running saved graphs from Node or the CLI |
-| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Zero-dependency Python executor — use when your scripts speak Python |
+| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | JavaScript SDK and CLI for saved graphs |
+| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Python SDK and CLI for saved graphs |
+| [nanoodle-rs](https://github.com/nanoodlecom/nanoodle-rs) | Rust crate and CLI for saved graphs |
 | [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) | MCP server exposing saved graphs as tools — use when an AI agent should run your workflows |
 | [run-noodle-action](https://github.com/nanoodlecom/run-noodle-action) | GitHub Action — use when a graph should run in CI |
 | [nanoodle-skill](https://github.com/nanoodlecom/nanoodle-skill) | One agent skill that teaches an agent to build any graph — use when the agent should author workflows itself |
@@ -289,7 +287,7 @@ Repository: https://github.com/nanoodlecom/nanoodle-js · package: `nanoodle` (`
 and re-run them here — same graph, same [NanoGPT](https://nano-gpt.com) API,
 your own key.
 
-Zero runtime dependencies. Library + CLI in one install.
+The library and CLI come in one npm install.
 
 Looking for Python? → **[nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)**
 
@@ -302,7 +300,7 @@ agents.
 | | |
 |---|---|
 | **Package** | `nanoodle` on npm |
-| **Runtime** | Node 22.23.5+, 24.22.3+, or 26.13.1+ · built-in `fetch` · no deps |
+| **Runtime** | Node 22.23.5+, 24.22.3+, or 26.13.1+ · built-in `fetch` · sharp and libavif for local image decoding |
 | **Sibling** | [Python package](https://github.com/nanoodlecom/nanoodle-py) (same graphs, same semantics) |
 | **Editor** | [nanoodle.com](https://nanoodle.com) — wire nodes, hit 💾, download the graph |
 
@@ -389,7 +387,7 @@ unrecoverable.
 
 `slice-3d` takes a `model` wire and an optional `paletteImage`. It reads static GLB or self-contained glTF 2 triangle meshes and uncompressed Gaussian PLY splats (ASCII or binary little-endian). Use the original Gaussian PLY for splats. Auto up is Y for meshes and Z for splats. The default is 48 layers of 48 × 48 pixels, 16 colors and an outline. Set `palette` to 0 to preserve source colors.
 
-The `sheet` output is a transparent PNG with square tiles ordered from ground at left to top at right. The `layout` text output gives the bounds, axis and sampling dimensions. The `image` output previews the stack at 35° yaw. Wire `sheet` into `sprite-stack-render.sheet` to change yaw, pitch, layer spacing or pixel scale. Enable `turntable` to add a local `video` output with configurable duration, fps, start yaw and end yaw. In the editor and `nanoodle/browser`, Canvas 2D draws the view and MediaRecorder exports MP4 or WebM. Node.js runs the same graph headlessly. Its CPU renderer reads ordinary PNG sheets directly and uses FFmpeg on PATH for additional image codecs and MP4 turntables.
+The `sheet` output is a transparent PNG with square tiles ordered from ground at left to top at right. The `layout` text output gives the bounds, axis and sampling dimensions. The `image` output previews the stack at 35° yaw. Wire `sheet` into `sprite-stack-render.sheet` to change yaw, pitch, layer spacing or pixel scale. Enable `turntable` to add a local `video` output with configurable duration, fps, start yaw and end yaw. The editor draws with Canvas 2D. Node.js runs the same graph headlessly. Texture, palette and sheet inputs accept PNG, APNG, JPEG, GIF, WebP, AVIF, BMP, ICO and CUR. Animated inputs use their first displayed frame. A normal npm install supplies the image decoders. Both runtimes encode H.264 MP4 turntables in-process.
 
 † `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 
@@ -412,7 +410,7 @@ Repository: https://github.com/nanoodlecom/nanoodle-py · package: `nanoodle` (`
 and re-run them here — same graph, same [NanoGPT](https://nano-gpt.com) API,
 your own key.
 
-The package installs the library, CLI and embedded QuickJS runtime together.
+The package installs the library and CLI. Sprite nodes use the Python standard library and Pillow for JPEG, WebP and AVIF image decoding.
 
 Looking for JavaScript / Node? → **[nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)**
 Running graphs in GitHub CI → [run-noodle-action](https://github.com/nanoodlecom/run-noodle-action) · saved graphs as AI-agent tools → [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) · Agent Skills → [nanoodle-skill](https://github.com/nanoodlecom/nanoodle-skill) / [noodle-skills](https://github.com/nanoodlecom/noodle-skills)
@@ -426,7 +424,7 @@ agents.
 | | |
 |---|---|
 | **Package** | `nanoodle` on PyPI |
-| **Runtime** | Python ≥ 3.11 · quickjs-ng for local sprite rendering |
+| **Runtime** | Python ≥ 3.11 · Pillow for image codecs |
 | **Sibling** | [JavaScript package](https://github.com/nanoodlecom/nanoodle-js) (same graphs, same semantics) |
 | **Editor** | [nanoodle.com](https://nanoodle.com) — wire nodes, hit 💾, download the graph |
 
@@ -656,11 +654,11 @@ is `0.0`, and the reason is in `errors[0].message`:
 
 | runs | node types |
 |---|---|
-| local | text, upload (image/audio/video/3D `.glb`), choice, join, comment, endpoint‡ |
-| local media† | resize, vframes, combine, soundtrack, trim, extractaudio, slice-3d, sprite-stack-render |
+| local | text, upload (image/audio/video/3D `.glb`), choice, join, comment, endpoint‡, slice-3d, sprite-stack-render |
+| local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
 | NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, model3d, vedit, lipsync, music, remix, tts, transcribe, cleanvoice |
 
-Wire `mupload.model` to `slice-3d.model` and `slice-3d.sheet` to `sprite-stack-render.sheet`. The slicer accepts self-contained triangle glTF/GLB or uncompressed Gaussian PLY. Its horizontal PNG strip, JSON layout text and preview are separate outputs. The renderer produces an image and, with `turntable` enabled, an MP4. Python runs the renderer in-process and uses FFmpeg on PATH for image decoding and video encoding.
+Wire `mupload.model` to `slice-3d.model` and `slice-3d.sheet` to `sprite-stack-render.sheet`. The slicer accepts self-contained triangle glTF/GLB or uncompressed Gaussian PLY. Its horizontal PNG strip, JSON layout text and preview are separate outputs. The renderer produces an image and, with `turntable` enabled, an MP4. Python reads PNG, JPEG, GIF, WebP, BMP, ICO, CUR and AVIF images, projects the layers and encodes the H.264 turntable in-process. glTF materials can select WebP textures with `EXT_texture_webp`. Installing `nanoodle` also installs Pillow.
 
 † `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 

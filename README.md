@@ -138,13 +138,10 @@ Replace the code with your own (or delete the parameter and use bare
 
 ## Run workflows from code
 
-A saved graph (`noodle-graph.json`) — or any share link — doesn't need the
-browser: two zero-dependency sibling libraries re-execute it headlessly —
-[nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)
-(`npm install nanoodle` 0.8.0, Node 22.23.5+, 24.22.3+, or 26.13.1+) and
-[nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)
-(`pip install nanoodle` 0.5.0, stdlib-only). Same graphs, same results;
-useful for scripts, servers, and agent skills. Walkthrough:
+The JavaScript, Python and Rust executors run the same saved graph file.
+Install the JavaScript package with `npm install nanoodle`, the Python package
+with `pip install nanoodle`, or the Rust CLI with `cargo install nanoodle --locked`.
+JavaScript and Python can also open an editor share link directly.
 [Run workflows headlessly](https://nanoodle.com/guide/run-headless).
 
 ```js
@@ -167,8 +164,9 @@ Everything lives under the [nanoodlecom](https://github.com/nanoodlecom) GitHub 
 | Repo | What it is |
 | --- | --- |
 | [nanoodle](https://github.com/nanoodlecom/nanoodle) | NanoGPT workflow editor, app builder, and site (this repo) |
-| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | Zero-dependency JS executor — use when running saved graphs from Node or the CLI |
-| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Zero-dependency Python executor — use when your scripts speak Python |
+| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | JavaScript SDK and CLI for saved graphs |
+| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Python SDK and CLI for saved graphs |
+| [nanoodle-rs](https://github.com/nanoodlecom/nanoodle-rs) | Rust crate and CLI for saved graphs |
 | [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) | MCP server exposing saved graphs as tools — use when an AI agent should run your workflows |
 | [run-noodle-action](https://github.com/nanoodlecom/run-noodle-action) | GitHub Action — use when a graph should run in CI |
 | [nanoodle-skill](https://github.com/nanoodlecom/nanoodle-skill) | One agent skill that teaches an agent to build any graph — use when the agent should author workflows itself |

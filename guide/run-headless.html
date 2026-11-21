@@ -81,11 +81,10 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
       browser.</p>
 
       <div class="callout">
-        <p><strong>Install <code>nanoodle</code>. Not <code>nanoodle-js</code>.</strong>
-        npm 0.8.0 and PyPI 0.5.0 are both named <code>nanoodle</code>. Zero runtime
-        dependencies (Node ≥ 20 with built-in <code>fetch</code>; Python ≥ 3.9, stdlib
-        only). Same graphs, same semantics. A saved
-        <code>noodle-graph.json</code> works anywhere a share URL does.</p>
+        <p><strong>Install <code>nanoodle</code>.</strong> The JavaScript and Python
+        packages on npm and PyPI install their image libraries automatically. Rust users
+        can install the CLI with <code>cargo install nanoodle --locked</code> and run
+        a saved graph with <code>nanoodle-rs run noodle-graph.json</code>.</p>
       </div>
     </section>
 
@@ -243,6 +242,11 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
 
     <section>
       <h2 id="what-runs-where">What runs where</h2>
+      <p>For sprite stacking, connect the 3D input’s <code>model</code> output to
+      <strong>Slice 3D</strong>, then connect its <code>sheet</code> output to
+      <strong>Sprite stack render</strong>. The site and all three executors can render a
+      still or an H.264 turntable locally. This graph runs without an API key or a separate
+      FFmpeg installation.</p>
       <p>Pure-logic nodes (text, uploads, choice, join, comment) run locally; generation nodes
       (llm, image, edit, inpaint, vision, video, lipsync, music, remix, tts, transcribe)
       call NanoGPT. The 6 media-processing nodes (resize, vframes, combine, soundtrack, trim,

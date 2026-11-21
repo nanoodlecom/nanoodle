@@ -1,5 +1,5 @@
-/* data-hash=fe05d6dd4f67c18a */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-08b4e548a9db (27 modules) */
+/* data-hash=c82c98a1055eae8f */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-66bf15b81bdb (28 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1941,6 +1941,12 @@ function scrubMediaPlaceholders(n, warnings) {
   const keys = n.type === "mupload" ? MEDIA_FIELD_KEYS.concat(["model"]) : MEDIA_FIELD_KEYS;
   for (const k of keys) {
     const v = n.fields[k];
+    // Built-in editor examples store their same-origin assets as relative paths.
+    if (typeof v === "string" && /^examples\/[A-Za-z0-9_./-]+$/.test(v) && !v.includes("..")) {
+      const origin = globalThis.location?.origin;
+      n.fields[k] = (/^https?:\/\//.test(origin || "") ? origin : "https://nanoodle.com") + "/" + v;
+      continue;
+    }
     if (v == null || v === "" || (typeof v === "string" && MEDIA_URL_RE.test(v.trim()))) continue;
     const shown = typeof v === "string"
       ? `"${v.length > 60 ? v.slice(0, 57) + "…" : v}"`
@@ -3708,7 +3714,8 @@ __def("local-media.mjs", function (__x, __req) {
  *
  * Outputs are data: URLs so they plug into the existing MediaRef / network-inline pipeline.
  */
-const { inflate, deflate } = __req("zlib.mjs");
+const { deflate } = __req("zlib.mjs");
+const { decodePngPixels } = __req("png-decoder.mjs");
 const { NanoodleError } = __req("errors.mjs");
 const { bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { MP4CAT } = __req("mp4cat.mjs");
@@ -3912,99 +3919,9 @@ function pngChunk(type, data) {
   return out;
 }
 
-/** Decode 8-bit RGB/RGBA/gray/gray+alpha PNG → { w, h, rgba:Uint8ClampedArray }. */
+/** Decode a PNG texture to straight-alpha 8-bit RGBA. */
 async function decodePng(bytes, allowSpriteStrip = false) {
-  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  if (u8.length < 8 || u8[0] !== 0x89 || u8[1] !== 0x50) {
-    throw new NanoodleError("couldn't read that image to resize");
-  }
-  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  for (let i = 0; i < 8; i++) if (u8[i] !== sig[i]) throw new NanoodleError("couldn't read that image to resize");
-
-  let w = 0, h = 0, bitDepth = 8, colorType = 2;
-  const idats = [];
-  let p = 8;
-  while (p + 8 <= u8.length) {
-    // >>> 0: PNG chunk lengths are unsigned; JS << is signed 32-bit
-    const len = ((u8[p] << 24) | (u8[p + 1] << 16) | (u8[p + 2] << 8) | u8[p + 3]) >>> 0;
-    if (p + 12 + len > u8.length) throw new NanoodleError("couldn't read that image to resize");
-    const type = String.fromCharCode(u8[p + 4], u8[p + 5], u8[p + 6], u8[p + 7]);
-    const data = u8.subarray(p + 8, p + 8 + len);
-    p += 12 + len;
-    if (type === "IHDR") {
-      w = ((data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3]) >>> 0;
-      h = ((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]) >>> 0;
-      bitDepth = data[8];
-      colorType = data[9];
-      if (data[10] !== 0 || data[11] !== 0 || data[12] !== 0) {
-        throw new NanoodleError("couldn't read that image to resize"); // compressed/filter/interlace
-      }
-    } else if (type === "IDAT") {
-      idats.push(data);
-    } else if (type === "IEND") break;
-  }
-  if (!(w > 0) || !(h > 0) || bitDepth !== 8) {
-    throw new NanoodleError("couldn't read that image to resize");
-  }
-  const maxWidth = allowSpriteStrip && h <= 128 ? 128 * 128 : MAX_IMAGE_DIM;
-  if (w > maxWidth || h > MAX_IMAGE_DIM) {
-    throw new NanoodleError(
-      `image is too large to resize in-process (${w}×${h}; max ${MAX_IMAGE_DIM}px) — use smaller source dimensions`);
-  }
-  // colorType: 0 gray, 2 RGB, 4 gray+A, 6 RGBA (no palette)
-  if (colorType !== 0 && colorType !== 2 && colorType !== 4 && colorType !== 6) {
-    throw new NanoodleError("couldn't read that image to resize");
-  }
-  const cpp = colorType === 0 ? 1 : colorType === 2 ? 3 : colorType === 4 ? 2 : 4;
-  const raw = await inflate(catBytes(idats));
-  const stride = w * cpp;
-  const expected = h * (1 + stride);
-  if (raw.length < expected) throw new NanoodleError("couldn't read that image to resize");
-
-  const unfiltered = new Uint8Array(h * stride);
-  for (let y = 0; y < h; y++) {
-    const ftype = raw[y * (1 + stride)];
-    const row = raw.subarray(y * (1 + stride) + 1, y * (1 + stride) + 1 + stride);
-    const dest = unfiltered.subarray(y * stride, (y + 1) * stride);
-    const prev = y > 0 ? unfiltered.subarray((y - 1) * stride, y * stride) : null;
-    for (let x = 0; x < stride; x++) {
-      const left = x >= cpp ? dest[x - cpp] : 0;
-      const up = prev ? prev[x] : 0;
-      const upLeft = prev && x >= cpp ? prev[x - cpp] : 0;
-      let v = row[x];
-      if (ftype === 1) v = (v + left) & 255; // Sub
-      else if (ftype === 2) v = (v + up) & 255; // Up
-      else if (ftype === 3) v = (v + ((left + up) >> 1)) & 255; // Average
-      else if (ftype === 4) { // Paeth
-        const p0 = left + up - upLeft;
-        const pa = Math.abs(p0 - left), pb = Math.abs(p0 - up), pc = Math.abs(p0 - upLeft);
-        const pr = pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft;
-        v = (v + pr) & 255;
-      } else if (ftype !== 0) {
-        throw new NanoodleError("couldn't read that image to resize");
-      }
-      dest[x] = v;
-    }
-  }
-
-  const rgba = new Uint8ClampedArray(w * h * 4);
-  for (let i = 0, px = 0; i < w * h; i++, px += cpp) {
-    const o = i * 4;
-    if (colorType === 0) {
-      rgba[o] = rgba[o + 1] = rgba[o + 2] = unfiltered[px];
-      rgba[o + 3] = 255;
-    } else if (colorType === 2) {
-      rgba[o] = unfiltered[px]; rgba[o + 1] = unfiltered[px + 1]; rgba[o + 2] = unfiltered[px + 2];
-      rgba[o + 3] = 255;
-    } else if (colorType === 4) {
-      rgba[o] = rgba[o + 1] = rgba[o + 2] = unfiltered[px];
-      rgba[o + 3] = unfiltered[px + 1];
-    } else {
-      rgba[o] = unfiltered[px]; rgba[o + 1] = unfiltered[px + 1];
-      rgba[o + 2] = unfiltered[px + 2]; rgba[o + 3] = unfiltered[px + 3];
-    }
-  }
-  return { w, h, rgba };
+  return decodePngPixels(bytes, {maxDim:MAX_IMAGE_DIM, allowSpriteStrip});
 }
 
 async function encodePngRgba(w, h, rgba) {
@@ -4791,7 +4708,7 @@ async function muxSoundtrack(videoUrl, audioUrl, loop = false, { fetch: fetchFn,
 __x.MAX_FRAMES = MAX_FRAMES; __x.MAX_IMAGE_DIM = MAX_IMAGE_DIM; __x.MP4CAT = MP4CAT;
 // PNG codec internals — used by the nanoodle repo's dual-engine parity harness
 // (pixel-level mask comparison + headless canvas shim). Not part of the stable API.
-__x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba; __x.withTemp = withTemp; __x.runProc = runProc;
+__x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba;
 
 __x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
 });
@@ -5871,8 +5788,9 @@ function imageModelOpts(opts) {
 __x.imageModelOpts = imageModelOpts;
 });
 __def("sprite-stack.mjs", function (__x, __req) {
-const { number, viewPlan, softwareFrame, flag, turntablePlan } = __req("sprite-projection.mjs");
-const { decodeSpriteImage, frameUrl, encodeTurntable } = __req("sprite-cpu.mjs");
+const { number, viewPlan, softwareView, flag, turntablePlan } = __req("sprite-projection.mjs");
+const { encodePngRgba } = __req("local-media.mjs");
+const { encodeSpriteMp4 } = __req("sprite-video.mjs");
 const { MediaRef, bytesToDataUrl } = __req("media.mjs");
 const { gaussianModel, triangleModel } = __req("sprite-model.mjs");
 const { slicePixels } = __req("sprite-slices.mjs");
@@ -5908,8 +5826,7 @@ async function imagePixels(blob) {
 }
 async function readMedia(value, ctx) {
   const media = new MediaRef(String(value), { fetch: ctx?.fetch });
-  const bytes = await media.bytes({ signal: ctx?.signal });
-  return new Blob([bytes], { type: media.mime || "application/octet-stream" });
+  return media.bytes({ signal: ctx?.signal });
 }
 function png(el) {
   const result = el.toDataURL("image/png");
@@ -5920,7 +5837,7 @@ function png(el) {
 function stackView(sheet, fields) {
   const { tile, layers, scale, rise, squash, w, h } = viewPlan(sheet, fields);
   const el = canvas(w, h),
-    ctx = el.getContext("2d");
+    ctx = el.getContext("2d", { willReadFrequently: flag(fields.turntable, false) });
   function draw(yaw) {
     ctx.resetTransform();
     ctx.clearRect(0, 0, w, h);
@@ -5934,62 +5851,28 @@ function stackView(sheet, fields) {
     }
     ctx.resetTransform();
   }
-  return { el, draw };
+  return { el, ctx, draw };
 }
 
-// Match the editor's MP4-first canvas export, falling back to WebM where available.
-async function recordTurntable(view, fields, signal) {
-  if (typeof MediaRecorder === "undefined" || !view.el.captureStream)
-    throw new Error("Turntable export requires MediaRecorder and canvas.captureStream.");
-  const mime = [
-    "video/mp4;codecs=avc1.42E01E",
-    "video/mp4",
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
-    "video/webm",
-  ].find((m) => MediaRecorder.isTypeSupported(m));
-  if (!mime) throw new Error("No supported MP4 or WebM recorder in this browser.");
-  const { fps, duration, from, to, count: frames } = turntablePlan(fields);
-  view.draw(from);
-  let stream = view.el.captureStream(0);
-  if (typeof stream.getVideoTracks()[0]?.requestFrame !== "function") {
-    stream.getTracks().forEach((track) => track.stop());
-    stream = view.el.captureStream(fps);
-  }
-  const [track] = stream.getVideoTracks();
-  let rec;
-  try {
-    rec = new MediaRecorder(stream, { mimeType: mime });
-    const chunks = [];
-    const stopped = new Promise((resolve, reject) => {
-      rec.ondataavailable = (e) => {
-        if (e.data.size) chunks.push(e.data);
-      };
-      rec.onerror = (e) => reject(e.error || new Error("Turntable recording failed."));
-      rec.onstop = resolve;
-    });
-    const start = performance.now();
-    async function animate() {
-      rec.start();
-      for (let frame = 0; frame < frames; frame++) {
-        signal?.throwIfAborted();
-        view.draw(from + ((to - from) * frame) / (frames - 1));
-        track.requestFrame?.();
-        const deadline = start + ((frame + 1) * duration * 1000) / frames;
-        await new Promise((resolve) => setTimeout(resolve, Math.max(0, deadline - performance.now())));
-        if (rec.state === "inactive") break;
+async function frameUrl(frame) {
+  return bytesToDataUrl(await encodePngRgba(frame.width, frame.height, frame.data), "image/png");
+}
+
+async function encodeTurntable(draw, fields, signal) {
+  const { duration, from, to, count } = turntablePlan(fields);
+  async function* frames() {
+    let lastYield = performance.now();
+    for (let i = 0; i < count; i++) {
+      // Give the editor and Node event loop time to deliver cancellation between frames.
+      if (performance.now() - lastYield >= 16) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        lastYield = performance.now();
       }
-      if (rec.state !== "inactive") rec.stop();
+      signal?.throwIfAborted();
+      yield draw(from + ((to - from) * i) / (count - 1));
     }
-    await Promise.all([animate(), stopped]);
-    signal?.throwIfAborted();
-    const blob = new Blob(chunks, { type: rec.mimeType.split(";")[0] });
-    if (!blob.size) throw new Error("The browser produced an empty turntable recording.");
-    return bytesToDataUrl(new Uint8Array(await blob.arrayBuffer()), blob.type);
-  } finally {
-    if (rec && rec.state !== "inactive") rec.stop();
-    stream.getTracks().forEach((t) => t.stop());
   }
+  return bytesToDataUrl(await encodeSpriteMp4(frames(), duration), "video/mp4");
 }
 
 async function slice3d(node, inp, ctx) {
@@ -5997,14 +5880,15 @@ async function slice3d(node, inp, ctx) {
   const fields = node.fields || {},
     size = number(fields, "resolution", 48, 16, 128, true),
     layers = number(fields, "slices", 48, 8, 128, true);
-  const pixels =
-    typeof document === "undefined" ? (blob) => decodeSpriteImage(blob, ctx?.signal) : imagePixels;
-  const modelBlob = await readMedia(inp.model, ctx),
-    bytes = new Uint8Array(await modelBlob.arrayBuffer());
+  const headless = typeof document === "undefined";
+  const pixels = headless
+    ? (await import("./sprite-image.mjs")).decodeSpriteBytes
+    : (raw, mime) => imagePixels(new Blob([raw], { type: mime }));
+  const bytes = await readMedia(inp.model, ctx);
   const model =
     bytes[0] === 112 && bytes[1] === 108 && bytes[2] === 121
       ? gaussianModel(bytes)
-      : await triangleModel(bytes, (raw, mime) => pixels(new Blob([raw], { type: mime })));
+      : await triangleModel(bytes, pixels);
   const palette = number(fields, "palette", 16, 0, 64, true);
   const supplied = palette && inp.paletteImage ? await pixels(await readMedia(inp.paletteImage, ctx)) : null;
   ctx?.signal?.throwIfAborted();
@@ -6013,12 +5897,12 @@ async function slice3d(node, inp, ctx) {
     { size, layers, axis: fields.upAxis || "auto", outline: flag(fields.outline, true), palette },
     supplied,
   );
-  if (typeof document === "undefined") {
+  if (headless) {
     const sheet = { width: sliced.width, height: sliced.height, data: sliced.rgba };
     return {
       sheet: await frameUrl(sheet),
       layout: JSON.stringify(sliced.layout),
-      image: await frameUrl(softwareFrame(sheet, {}, 35)),
+      image: await frameUrl(softwareView(sheet, {})(35)),
     };
   }
   const el = canvas(size * layers, size);
@@ -6031,21 +5915,27 @@ async function slice3d(node, inp, ctx) {
 async function renderSpriteStack(node, inp, ctx) {
   if (!inp.sheet) throw new Error("Wire the Slice 3D sheet into Sprite stack render.");
   const fields = node.fields || {},
-    blob = await readMedia(inp.sheet, ctx);
+    bytes = await readMedia(inp.sheet, ctx);
   const yaw = number(fields, "yaw", 35, -3600, 3600);
   if (typeof document === "undefined") {
-    const sheet = await decodeSpriteImage(blob, ctx?.signal);
-    const image = await frameUrl(softwareFrame(sheet, fields, yaw));
+    const { decodeSpriteBytes } = await import("./sprite-image.mjs");
+    const sheet = await decodeSpriteBytes(bytes);
+    const draw = softwareView(sheet, fields);
+    const image = await frameUrl(draw(yaw));
     if (!flag(fields.turntable, false)) return { image };
-    return { image, video: await encodeTurntable(sheet, fields, ctx?.signal) };
+    return { image, video: await encodeTurntable(draw, fields, ctx?.signal) };
   }
-  const sheet = await bitmap(blob);
+  const sheet = await bitmap(new Blob([bytes]));
   try {
     const view = stackView(sheet, fields);
     view.draw(yaw);
     const image = png(view.el);
     if (!flag(fields.turntable, false)) return { image };
-    return { image, video: await recordTurntable(view, fields, ctx?.signal) };
+    const draw = (angle) => {
+      view.draw(angle);
+      return view.ctx.getImageData(0, 0, view.el.width, view.el.height);
+    };
+    return { image, video: await encodeTurntable(draw, fields, ctx?.signal) };
   } finally {
     sheet.close?.();
   }
@@ -6351,15 +6241,32 @@ async function nodeZlib() {
   return _zlib;
 }
 
-async function pipeThrough(bytes, stream) {
+async function pipeThrough(bytes, stream, maxOutputLength) {
   const out = new Blob([bytes]).stream().pipeThrough(stream);
-  return new Uint8Array(await new Response(out).arrayBuffer());
+  if (maxOutputLength === undefined) return new Uint8Array(await new Response(out).arrayBuffer());
+  const reader = out.getReader();
+  const data = new Uint8Array(maxOutputLength);
+  let size = 0;
+  try {
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) return data.subarray(0, size);
+      if (value.length > data.length-size) {
+        await reader.cancel();
+        throw new Error("Decompressed data exceeds the declared image size");
+      }
+      data.set(value, size);
+      size += value.length;
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
-async function inflate(bytes) {
+async function inflate(bytes, maxOutputLength) {
   const z = await nodeZlib();
-  if (z) return new Uint8Array(z.inflateSync(bytes));
-  return streamZlib.inflate(bytes);
+  if (z) return new Uint8Array(z.inflateSync(bytes, {maxOutputLength}));
+  return streamZlib.inflate(bytes, maxOutputLength);
 }
 
 async function deflate(bytes, { level = 9 } = {}) {
@@ -6431,7 +6338,7 @@ async function gunzipLax(bytes) {
 // The browser implementations, exported so tests can exercise them in Node
 // (which also ships Compression/DecompressionStream) without hiding node:zlib.
 const streamZlib = {
-  inflate: (b) => pipeThrough(b, new DecompressionStream("deflate")),
+  inflate: (b, limit) => pipeThrough(b, new DecompressionStream("deflate"), limit),
   deflate: (b) => pipeThrough(b, new CompressionStream("deflate")),
   gunzip: (b) => pipeThrough(b, new DecompressionStream("gzip")),
   gunzipLax: (b) => {
@@ -6441,6 +6348,236 @@ const streamZlib = {
 };
 
 __x.inflate = inflate; __x.deflate = deflate; __x.gunzip = gunzip; __x.gunzipLax = gunzipLax; __x.streamZlib = streamZlib;
+});
+__def("png-decoder.mjs", function (__x, __req) {
+// PNG scanlines share their filtering and sample reconstruction across Adam7
+// passes. The atlas can be wider than an ordinary texture (128 x 128 tiles).
+const { inflate } = __req("zlib.mjs");
+const { NanoodleError } = __req("errors.mjs");
+
+const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+const CHANNELS = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
+const DEPTHS = { 0: [1, 2, 4, 8, 16], 2: [8, 16], 3: [1, 2, 4, 8], 4: [8, 16], 6: [8, 16] };
+const ADAM7 = [
+  [0, 0, 8, 8],
+  [4, 0, 8, 8],
+  [0, 4, 4, 8],
+  [2, 0, 4, 4],
+  [0, 2, 2, 4],
+  [1, 0, 2, 2],
+  [0, 1, 1, 2],
+];
+
+function check(condition, detail) {
+  if (!condition) throw new NanoodleError("Invalid PNG: " + detail);
+}
+
+function unfilter(row, prev, step, mode) {
+  check(mode <= 4, "unknown scanline filter");
+  if (!mode) return;
+  for (let x = 0; x < row.length; x++) {
+    const a = x >= step ? row[x - step] : 0;
+    const b = prev ? prev[x] : 0;
+    if (mode === 1) row[x] += a;
+    else if (mode === 2) row[x] += b;
+    else if (mode === 3) row[x] += (a + b) >> 1;
+    else {
+      const c = prev && x >= step ? prev[x - step] : 0;
+      const da = Math.abs(b - c),
+        db = Math.abs(a - c),
+        dc = Math.abs(a + b - 2 * c);
+      row[x] += da <= db && da <= dc ? a : db <= dc ? b : c;
+    }
+  }
+}
+
+function sample(row, n, depth) {
+  if (depth === 8) return row[n];
+  if (depth === 16) return row[2 * n] * 256 + row[2 * n + 1];
+  const bit = n * depth;
+  return (row[bit >> 3] >> (8 - depth - (bit & 7))) & ((1 << depth) - 1);
+}
+
+async function decodePngPixels(bytes, { maxDim, allowSpriteStrip, firstAnimationFrame = false }) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  check(
+    SIGNATURE.every((v, i) => u[i] === v),
+    "signature",
+  );
+  const view = new DataView(u.buffer, u.byteOffset, u.byteLength);
+  let w,
+    h,
+    depth,
+    type,
+    interlace,
+    palette,
+    trns,
+    ended = false,
+    compressedSize = 0;
+  let animated = false,
+    sawIdat = false,
+    controlCount = 0,
+    firstFrame;
+  const chunks = [];
+  for (let p = 8; p + 12 <= u.length; ) {
+    const length = view.getUint32(p),
+      start = p + 8;
+    check(start + length + 4 <= u.length, "truncated chunk");
+    const name = String.fromCharCode(...u.subarray(p + 4, start));
+    const data = u.subarray(start, start + length);
+    check(name === "IHDR" || w, "missing header");
+    if (name === "IHDR") {
+      check(p === 8 && length === 13, "header");
+      w = view.getUint32(start);
+      h = view.getUint32(start + 4);
+      depth = data[8];
+      type = data[9];
+      interlace = data[12];
+      const maxWidth = allowSpriteStrip && h <= 128 ? 16384 : maxDim;
+      check(w > 0 && h > 0, "empty dimensions");
+      if (w > maxWidth || h > maxDim)
+        throw new NanoodleError(
+          `image is too large to resize in-process (${w}×${h}; max ${maxDim}px) — use smaller source dimensions`,
+        );
+      check(DEPTHS[type]?.includes(depth) && !data[10] && !data[11] && interlace <= 1, "header encoding");
+    } else if (name === "PLTE") {
+      check(!sawIdat && length > 0 && length <= 768 && length % 3 === 0, "palette");
+      palette = data;
+    } else if (name === "tRNS") {
+      check(
+        !sawIdat &&
+          ((type === 3 && palette && length <= palette.length / 3) ||
+            (type === 0 && length === 2) ||
+            (type === 2 && length === 6)),
+        "transparency",
+      );
+      trns = data;
+    } else if (firstAnimationFrame && name === "acTL") {
+      check(!sawIdat && !animated && length === 8 && view.getUint32(start), "animation control");
+      animated = true;
+    } else if (animated && name === "fcTL") {
+      check(length === 26, "animation frame control");
+      if (++controlCount === 1) {
+        const width = view.getUint32(start + 4),
+          height = view.getUint32(start + 8);
+        const x = view.getUint32(start + 12),
+          y = view.getUint32(start + 16);
+        check(
+          width && height && x + width <= w && y + height <= h && data[24] <= 2 && data[25] <= 1,
+          "animation frame bounds or operation",
+        );
+        check(sawIdat || (width === w && height === h && !x && !y), "animated IDAT dimensions");
+        firstFrame = { width, height, x, y, poster: sawIdat, over: data[25] === 1 };
+        // With fcTL after IDAT, IDAT is a separate poster outside the animation.
+        if (sawIdat) {
+          chunks.length = 0;
+          compressedSize = 0;
+        }
+      }
+    } else if (animated && name === "fdAT") {
+      check(firstFrame && sawIdat && length >= 4, "animation frame data");
+      if (controlCount === 1 && firstFrame.poster) {
+        chunks.push(data.subarray(4));
+        compressedSize += length - 4;
+      }
+    } else if (name === "IDAT") {
+      check(!firstFrame?.poster, "IDAT after animation frame data");
+      sawIdat = true;
+      compressedSize += length;
+      chunks.push(data);
+    } else if (name === "IEND") {
+      check(length === 0, "end chunk");
+      ended = true;
+      break;
+    } else check((u[p + 4] & 32) !== 0, "unsupported critical chunk " + name);
+    p = start + length + 4;
+  }
+  check(ended && chunks.length && (type !== 3 || palette), "missing image data or palette");
+  const frame = firstFrame || { width: w, height: h, x: 0, y: 0 };
+  const channels = CHANNELS[type],
+    bpp = channels * depth;
+  const passes = [];
+  let expected = 0;
+  for (const [x0, y0, dx, dy] of interlace ? ADAM7 : [[0, 0, 1, 1]]) {
+    const cols = Math.ceil((frame.width - x0) / dx),
+      rows = Math.ceil((frame.height - y0) / dy);
+    if (cols <= 0 || rows <= 0) continue;
+    const stride = Math.ceil((cols * bpp) / 8);
+    passes.push({ x0, y0, dx, dy, cols, rows, stride });
+    expected += rows * (stride + 1);
+  }
+  let compressed = chunks[0];
+  if (chunks.length > 1) {
+    compressed = new Uint8Array(compressedSize);
+    let at = 0;
+    for (const chunk of chunks) {
+      compressed.set(chunk, at);
+      at += chunk.length;
+    }
+  }
+  const raw = await inflate(compressed, expected);
+  check(raw.length === expected, "unexpected decompressed length");
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  const max = (1 << depth) - 1;
+  const uint8 = depth === 8 ? (v) => v : (v) => Math.round((v * 255) / max);
+  const key = [];
+  if (trns && type !== 3) {
+    for (let i = 0; i < trns.length; i += 2) key.push(trns[i] * 256 + trns[i + 1]);
+  }
+  let p = 0;
+  for (const { x0, y0, dx, dy, cols, rows, stride } of passes) {
+    let prev;
+    for (let y = 0; y < rows; y++) {
+      const filter = raw[p++];
+      const row = raw.subarray(p, p + stride);
+      p += stride;
+      unfilter(row, prev, Math.ceil(bpp / 8), filter);
+      prev = row;
+      let dst = ((frame.y + y0 + y * dy) * w + frame.x + x0) * 4;
+      if (type === 6 && depth === 8 && dx === 1) {
+        rgba.set(row, dst);
+        continue;
+      }
+      for (let col = 0, n = 0; col < cols; col++, n += channels, dst += dx * 4) {
+        const first = sample(row, n, depth);
+        if (type === 3) {
+          check(3 * first + 2 < palette.length, "palette index");
+          rgba[dst] = palette[3 * first];
+          rgba[dst + 1] = palette[3 * first + 1];
+          rgba[dst + 2] = palette[3 * first + 2];
+          rgba[dst + 3] = trns?.[first] ?? 255;
+        } else if (type === 0 || type === 4) {
+          rgba[dst] = rgba[dst + 1] = rgba[dst + 2] = uint8(first);
+          rgba[dst + 3] = type === 4 ? uint8(sample(row, n + 1, depth)) : first === key[0] ? 0 : 255;
+        } else {
+          const g = sample(row, n + 1, depth),
+            b = sample(row, n + 2, depth);
+          rgba[dst] = uint8(first);
+          rgba[dst + 1] = uint8(g);
+          rgba[dst + 2] = uint8(b);
+          rgba[dst + 3] =
+            type === 6
+              ? uint8(sample(row, n + 3, depth))
+              : first === key[0] && g === key[1] && b === key[2]
+                ? 0
+                : 255;
+        }
+      }
+    }
+  }
+  // The first animation frame blends onto transparent black. Only fully
+  // transparent samples differ between SOURCE and OVER on an empty canvas.
+  if (frame.over)
+    for (let y = frame.y; y < frame.y + frame.height; y++) {
+      for (let x = frame.x; x < frame.x + frame.width; x++) {
+        const dst = (y * w + x) * 4;
+        if (!rgba[dst + 3]) rgba.fill(0, dst, dst + 3);
+      }
+    }
+  return { w, h, rgba };
+}
+
+__x.decodePngPixels = decodePngPixels;
 });
 __def("mp4cat.mjs", function (__x, __req) {
 /**
@@ -6616,6 +6753,11 @@ function concatMp4(buffers, opts){
     outTracks.push(merged);
   }
 
+  return muxTracks(buffers, outTracks);
+}
+
+// Both a lossless concat and a newly encoded sprite track use the same muxer.
+function muxTracks(buffers, outTracks, fastStart = false) {
   // Build mdat first so chunk offsets are known. Layout: ftyp + mdat + moov.
   const ftyp = box("ftyp", enc("isom"), u32(0x200), enc("isomiso2avc1mp41"));
   // assemble mdat data, recording each sample's absolute offset
@@ -6629,10 +6771,21 @@ function concatMp4(buffers, opts){
       cursor += s.size;
     }
   }
-  const mdatData = concat(mdatParts);
-  const mdat = concat([u32(mdatData.length + 8), enc("mdat"), mdatData]);
+  if(cursor > 0xffffffff) throw new Error("MP4 exceeds 32-bit chunk offsets");
+  const mdatHeader = concat([u32(cursor - ftyp.length), enc("mdat")]);
 
-  // moov
+  let moov = movieBox(outTracks, 0);
+  if (cursor + moov.length > 0xffffffff) throw new Error("MP4 exceeds 32-bit file size");
+  if (fastStart) {
+    // All chunk offsets are fixed-width stco entries. Moving moov in
+    // front of mdat shifts each entry by exactly the size of moov.
+    moov = movieBox(outTracks, moov.length);
+    return concat([ftyp, moov, mdatHeader, ...mdatParts]);
+  }
+  return concat([ftyp, mdatHeader, ...mdatParts, moov]);
+}
+
+function movieBox(outTracks, chunkShift) {
   const mvTimescale = 1000;
   let maxDurMs = 0;
   const trakBoxes = [];
@@ -6647,7 +6800,7 @@ function concatMp4(buffers, opts){
     const stts = fullbox("stts", 0, 0, u32(sttsRuns.length), ...sttsRuns.map(r=>concat([u32(r[0]), u32(r[1])])));
     const stsz = fullbox("stsz", 0, 0, u32(0), u32(t.samples.length), ...t.samples.map(s=>u32(s.size)));
     const stsc = fullbox("stsc", 0, 0, u32(1), concat([u32(1), u32(1), u32(1)]));
-    const stco = fullbox("stco", 0, 0, u32(t.samples.length), ...t.samples.map(s=>u32(s.newOffset)));
+    const stco = fullbox("stco", 0, 0, u32(t.samples.length), ...t.samples.map(s=>u32(s.newOffset + chunkShift)));
     const children = [t.stsdRaw, stts];
     if(t.kind==="video"){
       const anyCts = t.samples.some(s=>s.cts!==0);
@@ -6687,9 +6840,7 @@ function concatMp4(buffers, opts){
     u32(0x00010000), u16(0x0100), u16(0), new Uint8Array(8),
     concat([u32(0x00010000),u32(0),u32(0),u32(0),u32(0x00010000),u32(0),u32(0),u32(0),u32(0x40000000)]),
     new Uint8Array(24), u32(trackId));
-  const moov = box("moov", mvhd, ...trakBoxes);
-
-  return concat([ftyp, mdat, moov]);
+  return box("moov", mvhd, ...trakBoxes);
 }
 
 // quick sniff
@@ -6721,7 +6872,25 @@ function mp4ParamsMatch(bufs){
     return true;
   }catch(e){ return false; }
 }
-  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4 };
+// A single AVC track, with one length-prefixed NAL per sample. Keep the
+// visual sample entry and AVC decoder configuration in the sample table.
+function muxAvc(samples, width, height, seconds, sps, pps) {
+  const avcC = box("avcC", Uint8Array.of(1, sps[1], sps[2], sps[3], 0xff, 0xe1),
+    u16(sps.length), sps, Uint8Array.of(1), u16(pps.length), pps);
+  const avc1 = box("avc1", new Uint8Array(6), u16(1), new Uint8Array(16),
+    u16(width), u16(height), u32(0x00480000), u32(0x00480000), u32(0),
+    u16(1), new Uint8Array(32), u16(24), u16(0xffff), avcC);
+  const timescale = 90000;
+  const total = Math.round(seconds * timescale);
+  const buffers = samples.map(s => s.bytes);
+  const entries = samples.map((s, i) => ({
+    bufIdx: i, offset: 0, size: s.bytes.length, cts: 0, sync: s.sync,
+    dur: Math.round((i + 1) * total / samples.length) - Math.round(i * total / samples.length)
+  }));
+  return muxTracks(buffers, [{kind:"video", width, height, timescale,
+    stsdRaw:fullbox("stsd", 0, 0, u32(1), avc1), samples:entries}], true);
+}
+  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4, muxAvc };
 })();
 
 
@@ -6755,45 +6924,80 @@ function viewPlan(sheet, fields) {
   return { tile, layers, scale, rise, squash, w, h };
 }
 
-// Invert each layer's orthographic transform at output pixel centers. This is
-// nearest-neighbor sampling and source-over alpha, matching the editor canvas.
-function softwareFrame(sheet, fields, yaw) {
-  const { tile, layers, scale, rise, squash, w, h } = viewPlan(sheet, fields);
-  const data = new Uint8ClampedArray(w * h * 4);
-  const angle = (yaw * Math.PI) / 180,
-    c = Math.cos(angle),
-    s = Math.sin(angle);
-  const radius = (tile * scale * (Math.abs(c) + Math.abs(s))) / 2;
-  const left = Math.max(0, Math.floor(w / 2 - radius)),
-    right = Math.min(w, Math.ceil(w / 2 + radius));
-  for (let l = 0; l < layers; l++) {
-    const cy = h / 2 + ((layers - 1) / 2 - l) * rise * scale;
-    const top = Math.max(0, Math.floor(cy - radius * squash)),
-      bottom = Math.min(h, Math.ceil(cy + radius * squash));
-    for (let y = top; y < bottom; y++) {
-      const dy = (y + 0.5 - cy) / (scale * squash);
-      for (let x = left; x < right; x++) {
-        const dx = (x + 0.5 - w / 2) / scale;
-        const u = Math.floor(c * dx + s * dy + tile / 2),
-          v = Math.floor(-s * dx + c * dy + tile / 2);
-        if (u < 0 || v < 0 || u >= tile || v >= tile) continue;
-        const src = (v * sheet.width + l * tile + u) * 4,
-          dst = (y * w + x) * 4,
-          alpha = sheet.data[src + 3];
-        if (!alpha) continue;
-        if (alpha === 255 || !data[dst + 3]) {
-          data.set(sheet.data.subarray(src, src + 4), dst);
-        } else {
-          const under = data[dst + 3] * (1 - alpha / 255),
-            a = alpha + under;
-          for (let k = 0; k < 3; k++)
-            data[dst + k] = (sheet.data[src + k] * alpha + data[dst + k] * under) / a;
-          data[dst + 3] = a;
+// Scan transparency once per sheet. Empty sky and empty layers are common in a sliced mesh.
+function occupiedLayers(sheet, plan) {
+  const { tile, layers, rise, scale, h } = plan;
+  const result = [];
+  for (let layer = 0; layer < layers; layer++) {
+    let left = tile, top = tile, right = 0, bottom = 0;
+    for (let y = 0; y < tile; y++) {
+      let alpha = (y * sheet.width + layer * tile) * 4 + 3;
+      for (let x = 0; x < tile; x++, alpha += 4) {
+        if (!sheet.data[alpha]) continue;
+        left = Math.min(left, x);
+        right = Math.max(right, x + 1);
+        top = Math.min(top, y);
+        bottom = y + 1;
+      }
+    }
+    if (right === 0) continue;
+    result.push({
+      offset: layer * tile,
+      x: (left + right - tile) / 2, y: (top + bottom - tile) / 2,
+      halfWidth: (right - left) / 2, halfHeight: (bottom - top) / 2,
+      cy: h / 2 + ((layers - 1) / 2 - layer) * rise * scale,
+    });
+  }
+  return result;
+}
+
+// Invert the orthographic transform at each output pixel center, then composite
+// layers in ground-to-top order. draw() can be reused for every turntable angle.
+function softwareView(sheet, fields) {
+  const plan = viewPlan(sheet, fields);
+  const { tile, scale, squash, w, h } = plan;
+  const layers = occupiedLayers(sheet, plan);
+  return function draw(yaw) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    const angle = (yaw * Math.PI) / 180, c = Math.cos(angle), s = Math.sin(angle);
+    const cosX = new Float64Array(w), sinX = new Float64Array(w);
+    for (let x = 0; x < w; x++) {
+      const dx = (x + 0.5 - w / 2) / scale;
+      cosX[x] = c * dx;
+      sinX[x] = -s * dx;
+    }
+    for (const layer of layers) {
+      const cx = w / 2 + scale * (c * layer.x - s * layer.y);
+      const cy = layer.cy + scale * squash * (s * layer.x + c * layer.y);
+      const rx = scale * (Math.abs(c) * layer.halfWidth + Math.abs(s) * layer.halfHeight);
+      const ry = scale * squash * (Math.abs(s) * layer.halfWidth + Math.abs(c) * layer.halfHeight);
+      const left = Math.max(0, Math.floor(cx - rx)), right = Math.min(w, Math.ceil(cx + rx));
+      const top = Math.max(0, Math.floor(cy - ry)), bottom = Math.min(h, Math.ceil(cy + ry));
+      for (let y = top; y < bottom; y++) {
+        const dy = (y + 0.5 - layer.cy) / (scale * squash);
+        const sinY = s * dy, cosY = c * dy;
+        for (let x = left; x < right; x++) {
+          const u = Math.floor(cosX[x] + sinY + tile / 2), v = Math.floor(sinX[x] + cosY + tile / 2);
+          if (u < 0 || u >= tile || v < 0 || v >= tile) continue;
+          const src = (v * sheet.width + layer.offset + u) * 4, alpha = sheet.data[src + 3];
+          if (!alpha) continue;
+          const dst = (y * w + x) * 4;
+          if (alpha === 255 || !data[dst + 3]) {
+            data[dst] = sheet.data[src];
+            data[dst + 1] = sheet.data[src + 1];
+            data[dst + 2] = sheet.data[src + 2];
+            data[dst + 3] = alpha;
+          } else {
+            const under = data[dst + 3] * (1 - alpha / 255), a = alpha + under;
+            for (let k = 0; k < 3; k++)
+              data[dst + k] = (sheet.data[src + k] * alpha + data[dst + k] * under) / a;
+            data[dst + 3] = a;
+          }
         }
       }
     }
-  }
-  return { width: w, height: h, data };
+    return { width: w, height: h, data };
+  };
 }
 
 function flag(value, fallback) {
@@ -6807,103 +7011,276 @@ function turntablePlan(fields) {
   return { fps, duration, from, to, count: Math.max(2, Math.round(fps * duration)) };
 }
 
-__x.number = number; __x.viewPlan = viewPlan; __x.softwareFrame = softwareFrame; __x.flag = flag; __x.turntablePlan = turntablePlan;
+__x.number = number; __x.viewPlan = viewPlan; __x.softwareView = softwareView; __x.flag = flag; __x.turntablePlan = turntablePlan;
 });
-__def("sprite-cpu.mjs", function (__x, __req) {
-const { bytesToDataUrl, sniffMime, extForMime } = __req("media.mjs");
-const { decodePng, encodePngRgba, runProc, withTemp } = __req("local-media.mjs");
-const { softwareFrame, turntablePlan } = __req("sprite-projection.mjs");
+__def("sprite-video.mjs", function (__x, __req) {
+// A small H.264 Baseline encoder for software-rendered pixel art. I_PCM
+// preserves changed macroblocks; P_Skip cheaply repeats stationary areas.
+// These are standard H.264 macroblock types. MP4CAT supplies the container.
+const { MP4CAT } = __req("mp4cat.mjs");
 
-async function decodeSpriteImage(blob, signal) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  if (bytes[0] === 137 && bytes[1] === 80) {
-    try {
-      const { w, h, rgba } = await decodePng(bytes, true);
-      return { width: w, height: h, data: rgba };
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      // FFmpeg handles indexed, interlaced and higher-bit-depth PNGs.
+const GOP = 60;
+const BLOCK_BYTES = 16 * 16 + 2 * 8 * 8;
+
+class Bits {
+  constructor() {
+    this.buffer = new Uint8Array(128);
+    this.size = 0;
+    this.partial = 0;
+    this.used = 0;
+  }
+
+  reserve(count) {
+    if (this.size + count <= this.buffer.length) return;
+    const next = new Uint8Array(Math.max(this.buffer.length * 2, this.size + count));
+    next.set(this.buffer.subarray(0, this.size));
+    this.buffer = next;
+  }
+
+  bit(value) {
+    this.partial = (this.partial << 1) | Number(value);
+    if (++this.used === 8) this.align();
+  }
+
+  align() {
+    if (!this.used) return;
+    this.reserve(1);
+    this.buffer[this.size++] = this.partial << (8 - this.used);
+    this.partial = 0;
+    this.used = 0;
+  }
+
+  uint(value, length) {
+    for (let i = length - 1; i >= 0; i--) this.bit((value >>> i) & 1);
+  }
+
+  ue(value) {
+    const code = value + 1;
+    const length = 32 - Math.clz32(code);
+    this.uint(0, length - 1);
+    this.uint(code, length);
+  }
+
+  bytes(bytes) {
+    this.align();
+    this.reserve(bytes.length);
+    this.buffer.set(bytes, this.size);
+    this.size += bytes.length;
+  }
+
+  finish() {
+    this.bit(1);
+    this.align();
+    return this.buffer.subarray(0, this.size);
+  }
+}
+
+// H.264 7.4.1: escape start-code emulation even inside raw PCM. MP4 video
+// samples carry a four-byte length; avcC stores the parameter sets separately.
+function nal(header, rbsp, lengthPrefixed = false) {
+  let extra = 0, zeros = 0;
+  for (const b of rbsp) {
+    if (zeros === 2 && b <= 3) { extra++; zeros = 0; }
+    zeros = b === 0 ? zeros + 1 : 0;
+  }
+  const length = 1 + rbsp.length + extra;
+  const out = new Uint8Array((lengthPrefixed ? 4 : 0) + length);
+  let pos = lengthPrefixed ? 4 : 0;
+  if (lengthPrefixed) new DataView(out.buffer).setUint32(0, length);
+  out[pos++] = header;
+  if (!extra) {
+    out.set(rbsp, pos);
+    return out;
+  }
+  zeros = 0;
+  for (const b of rbsp) {
+    if (zeros === 2 && b <= 3) { out[pos++] = 3; zeros = 0; }
+    out[pos++] = b;
+    zeros = b === 0 ? zeros + 1 : 0;
+  }
+  return out;
+}
+
+// Annex A, Tables A-1/A-2: frame size in macroblocks, MB/s, baseline kb/s.
+// Start at level 3, supported by conventional mobile and desktop AVC players.
+function avcLevel(cols, rows, fps, kbps) {
+  const levels = [
+    [30, 1620, 40500, 10000], [31, 3600, 108000, 14000], [32, 5120, 216000, 20000],
+    [40, 8192, 245760, 20000], [41, 8192, 245760, 50000], [42, 8704, 522240, 50000],
+    [50, 22080, 589824, 135000], [51, 36864, 983040, 240000], [52, 36864, 2073600, 240000],
+    [60, 139264, 4177920, 240000], [61, 139264, 8355840, 480000], [62, 139264, 16711680, 800000],
+  ];
+  const blocks = cols * rows;
+  const level = levels.find(([, fs, mbps, br]) => blocks <= fs && Math.max(cols, rows) ** 2 <= 8 * fs &&
+    blocks * fps <= mbps && kbps <= br);
+  if (!level) throw new Error("Sprite video exceeds H.264 Baseline level limits.");
+  return level[0];
+}
+
+function parameterSets(width, height, cols, rows, level) {
+  const s = new Bits();
+  s.bytes(Uint8Array.of(66, 0xc0, level));
+  s.ue(0); s.ue(0); s.ue(2); s.ue(1); // SPS id, four frame_num bits, POC type 2, one reference
+  s.bit(0); s.ue(cols - 1); s.ue(rows - 1);
+  s.bit(1); s.bit(1);                 // progressive, direct_8x8_inference
+  const right = (cols * 16 - width) / 2;
+  const bottom = (rows * 16 - height) / 2;
+  s.bit(!!(right || bottom));
+  if (right || bottom) { s.ue(0); s.ue(right); s.ue(0); s.ue(bottom); }
+  // Square pixels, limited-range BT.601 matrix applied to sRGB primaries
+  // and transfer. Explicit metadata keeps large and small clips consistent.
+  s.bit(1);                            // VUI present
+  s.bit(1); s.uint(1, 8);              // 1:1 sample aspect ratio
+  s.bit(0);                            // no overscan information
+  s.bit(1); s.uint(5, 3); s.bit(0); s.bit(1);
+  s.uint(1, 8); s.uint(13, 8); s.uint(6, 8);
+  s.bit(1); s.ue(1); s.ue(1);          // centred 2x2 chroma samples
+  s.uint(0, 5);                        // timing, NAL/VCL HRD, pic_struct, restrictions
+  const p = new Bits();
+  p.ue(0); p.ue(0); p.bit(0); p.bit(0); // CAVLC, one slice group
+  p.ue(0); p.ue(0); p.ue(0);
+  p.bit(0); p.uint(0, 2);             // weighted prediction
+  p.ue(0); p.ue(0); p.ue(0);         // signed Exp-Golomb zero QP offsets
+  p.bit(1); p.bit(0); p.bit(0);       // deblock control present
+  return [nal(0x67, s.finish()), nal(0x68, p.finish())];
+}
+
+// BT.601 limited-range Y'CbCr. Composite onto black before subsampling;
+// repeat the outermost pixel for partial right/bottom macroblocks. Store
+// each block contiguously in H.264's Y, Cb, Cr order for direct I_PCM writes.
+function packBlocks(frame, cols, rows, blocks) {
+  const { data, width, height } = frame;
+  for (let by = 0; by < rows; by++) for (let bx = 0; bx < cols; bx++) {
+    const start = (by * cols + bx) * BLOCK_BYTES;
+    let chroma = 0;
+    for (let y = 0; y < 16; y += 2) for (let x = 0; x < 16; x += 2) {
+      let red = 0, green = 0, blue = 0;
+      for (let dy = 0; dy < 2; dy++) {
+        const sy = Math.min(by * 16 + y + dy, height - 1);
+        for (let dx = 0; dx < 2; dx++) {
+          const sx = Math.min(bx * 16 + x + dx, width - 1);
+          const pixel = (sy * width + sx) * 4;
+          const alpha = data[pixel + 3];
+          let r = 0, g = 0, b = 0;
+          if (alpha === 255) {
+            r = data[pixel]; g = data[pixel + 1]; b = data[pixel + 2];
+          } else if (alpha) {
+            r = Math.floor((data[pixel] * alpha + 127) / 255);
+            g = Math.floor((data[pixel + 1] * alpha + 127) / 255);
+            b = Math.floor((data[pixel + 2] * alpha + 127) / 255);
+          }
+          blocks[start + (y + dy) * 16 + x + dx] = 16 + ((66 * r + 129 * g + 25 * b + 128) >> 8);
+          red += r; green += g; blue += b;
+        }
+      }
+      blocks[start + 256 + chroma] = 128 + ((-38 * red - 74 * green + 112 * blue + 512) >> 10);
+      blocks[start + 320 + chroma] = 128 + ((112 * red - 94 * green - 18 * blue + 512) >> 10);
+      chroma++;
     }
   }
-  return withTemp(async (dir) => {
-    const { writeFile, readFile } = await import("node:fs/promises");
-    const input = dir + "/source." + extForMime(sniffMime(bytes)),
-      output = dir + "/image.png";
-    await writeFile(input, bytes);
-    await runProc(
-      "ffmpeg",
-      [
-        "-nostdin",
-        "-v",
-        "error",
-        "-protocol_whitelist",
-        "file",
-        "-f",
-        "image2",
-        "-i",
-        input,
-        "-frames:v",
-        "1",
-        "-pix_fmt",
-        "rgba",
-        "-c:v",
-        "png",
-        output,
-      ],
-      { signal },
-    );
-    const { w, h, rgba } = await decodePng(new Uint8Array(await readFile(output)), true);
-    return { width: w, height: h, data: rgba };
-  });
 }
 
-async function frameUrl(frame) {
-  return bytesToDataUrl(await encodePngRgba(frame.width, frame.height, frame.data), "image/png");
+// A flat block can use an Intra_16x16 directional prediction when its
+// left or top neighbour is the same colour. No transform coefficients then
+// need transmitting. Record a colour only when every sample matches.
+function flatColor(words, offset) {
+  const y = words[offset], cb = words[offset + 64], cr = words[offset + 80];
+  if (y !== (y >>> 24) * 0x01010101 || cb !== (cb >>> 24) * 0x01010101 ||
+      cr !== (cr >>> 24) * 0x01010101) return -1;
+  for (let i = 1; i < 64; i++) if (words[offset + i] !== y) return -1;
+  for (let i = 1; i < 16; i++) {
+    if (words[offset + 64 + i] !== cb || words[offset + 80 + i] !== cr) return -1;
+  }
+  return ((y & 255) << 16) | ((cb & 255) << 8) | (cr & 255);
 }
 
-async function encodeTurntable(sheet, fields, signal) {
-  const { duration, from, to, count } = turntablePlan(fields);
-  return withTemp(async (dir) => {
-    const { writeFile, readFile } = await import("node:fs/promises");
-    for (let i = 0; i < count; i++) {
-      signal?.throwIfAborted();
-      const frame = softwareFrame(sheet, fields, from + ((to - from) * i) / (count - 1));
-      const png = await encodePngRgba(frame.width, frame.height, frame.data);
-      await writeFile(dir + "/" + String(i).padStart(5, "0") + ".png", png);
+function encodeSlice(index, current, previous, cols) {
+  const idr = index % GOP === 0;
+  const s = new Bits();
+  s.ue(0); s.ue(idr ? 2 : 0); s.ue(0); // first macroblock, I/P slice, PPS id
+  s.uint((index % GOP) & 15, 4);
+  if (idr) {
+    s.ue(Math.floor(index / GOP) & 1);  // alternate idr_pic_id
+    s.bit(0); s.bit(0);                // no_output_of_prior_pics, long_term_reference
+  } else {
+    s.bit(0); s.bit(0); s.bit(0);      // default reference list and sliding reference window
+  }
+  s.ue(0); s.ue(1);                    // zero QP delta, disabled deblocking (exact P_Skip)
+  const curWords = new Uint32Array(current.buffer);
+  const refWords = new Uint32Array(previous.buffer);
+  const colors = new Int32Array(cols);
+  const pcm = new Uint8Array(cols);
+  let skipped = 0;
+  for (let offset = 0, block = 0; offset < current.length; offset += BLOCK_BYTES, block++) {
+    const x = block % cols;
+    const hasLeft = x !== 0, hasTop = block >= cols;
+    const color = flatColor(curWords, offset / 4);
+    const matchLeft = color >= 0 && hasLeft && colors[x - 1] === color;
+    const matchTop = color >= 0 && hasTop && colors[x] === color;
+    colors[x] = color;
+    if (!idr) {
+      let word = offset / 4;
+      const end = word + BLOCK_BYTES / 4;
+      while (word < end && curWords[word] === refWords[word]) word++;
+      if (word === end) { pcm[x] = 0; skipped++; continue; }
+      s.ue(skipped);
+      skipped = 0;
     }
-    const args = [
-      "-nostdin",
-      "-v",
-      "error",
-      "-framerate",
-      String(count / duration),
-      "-i",
-      dir + "/%05d.png",
-      "-an",
-    ];
-    const out = dir + "/turntable.mp4";
-    try {
-      await runProc(
-        "ffmpeg",
-        [...args, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
-        { signal },
-      );
-    } catch (error) {
-      if (!/unknown encoder.*libx264|encoder.*libx264.*not found/i.test(error.message)) throw error;
-      await runProc(
-        "ffmpeg",
-        [...args, "-y", "-c:v", "mpeg4", "-q:v", "3", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
-        { signal },
-      );
+    if (matchLeft || matchTop) {
+      const horizontal = matchLeft;
+      s.ue((idr ? 1 : 6) + Number(horizontal)); // zero AC/chroma, luma vertical or horizontal
+      s.ue(horizontal ? 1 : 2);                 // chroma horizontal or vertical
+      s.ue(0);                                 // no QP delta
+      // A PCM neighbour contributes 16 to nC. With our only other modes
+      // (skipped or zero residual), the CAVLC nC table is either 0 or >=8.
+      if ((hasLeft && pcm[x - 1]) || (hasTop && pcm[x])) s.uint(3, 6);
+      else s.bit(1);                           // coeff_token for zero luma DC coefficients
+      pcm[x] = 0;
+    } else {
+      s.ue(idr ? 25 : 30);                    // I_PCM in the I/P mb_type tables
+      s.bytes(current.subarray(offset, offset + BLOCK_BYTES));
+      pcm[x] = 1;
     }
-    return bytesToDataUrl(new Uint8Array(await readFile(out)), "video/mp4");
-  });
+  }
+  if (skipped) s.ue(skipped);
+  return { bytes: nal(idr ? 0x65 : 0x41, s.finish(), true), sync: idr };
 }
 
-__x.decodeSpriteImage = decodeSpriteImage; __x.frameUrl = frameUrl; __x.encodeTurntable = encodeTurntable;
+async function encodeSpriteMp4(frames, duration) {
+  if (!(Number.isFinite(duration) && duration > 0)) throw new Error("Invalid sprite video duration.");
+  let width, height, cols, rows, current, previous;
+  const samples = [];
+  let totalBytes = 0;
+  for await (const frame of frames) {
+    if (!samples.length) {
+      ({ width, height } = frame);
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2 ||
+          width > 65534 || height > 65534 || (width & 1) || (height & 1))
+        throw new Error("Sprite video requires even pixel dimensions.");
+      cols = Math.ceil(width / 16); rows = Math.ceil(height / 16);
+      current = new Uint8Array(cols * rows * BLOCK_BYTES);
+      previous = new Uint8Array(current.length);
+    }
+    if (frame.width !== width || frame.height !== height || frame.data.length !== width * height * 4)
+      throw new Error("Sprite video frames have inconsistent dimensions.");
+    packBlocks(frame, cols, rows, current);
+    const sample = encodeSlice(samples.length, current, previous, cols);
+    samples.push(sample);
+    totalBytes += sample.bytes.length;
+    // One 32-bit chunk offset per frame. Reject before accumulating further
+    // samples; muxTracks also checks the final layout before allocating it.
+    if (totalBytes + 40 > 0xffffffff) throw new Error("Sprite video exceeds the 32-bit MP4 size limit.");
+    [current, previous] = [previous, current];
+  }
+  if (!samples.length) throw new Error("Sprite video needs at least one frame.");
+  const level = avcLevel(cols, rows, samples.length / duration, totalBytes * 8 / duration / 1000);
+  return MP4CAT.muxAvc(samples, width, height, duration, ...parameterSets(width, height, cols, rows, level));
+}
+
+__x.encodeSpriteMp4 = encodeSpriteMp4;
 });
 __def("sprite-model.mjs", function (__x, __req) {
-const { dataUrlBytes } = __req("media.mjs");
+const { dataUrlBytes, sniffMime } = __req("media.mjs");
 
 const { ident, mul, trs, xform, unpackGlb } = __req("gltf-scene.mjs");
 
@@ -6939,8 +7316,8 @@ function embedded(uri) {
 async function triangleModel(bytes, imagePixels) {
   const { json, bin } = unpack(bytes);
   if (json?.asset?.version !== "2.0") throw new Error("Expected glTF 2.0.");
-  if (json.extensionsRequired?.length)
-    throw new Error("Unsupported required glTF extensions: " + json.extensionsRequired.join(", "));
+  const unsupported = (json.extensionsRequired || []).filter((name) => name !== "EXT_texture_webp");
+  if (unsupported.length) throw new Error("Unsupported required glTF extensions: " + unsupported.join(", "));
   const buffers = (json.buffers || []).map((b, i) => {
     const data = b.uri ? embedded(b.uri).bytes : i === 0 && bin;
     if (!data || data.length < b.byteLength) throw new Error("Missing or truncated glTF buffer.");
@@ -6993,15 +7370,25 @@ async function triangleModel(bytes, imagePixels) {
   }
   const textures = new Map();
   async function texture(info) {
-    const tex = json.textures?.[info.index],
-      img = json.images?.[tex?.source];
+    const tex = json.textures?.[info.index];
+    const useWebp = Object.hasOwn(tex?.extensions || {}, "EXT_texture_webp");
+    const source = useWebp ? tex.extensions.EXT_texture_webp?.source : tex?.source;
+    const img = json.images?.[source];
+    if (useWebp && (!Number.isSafeInteger(source) || source < 0 || !img))
+      throw new Error("Invalid EXT_texture_webp image source.");
     if (!img || info.extensions?.KHR_texture_transform)
       throw new Error("Unsupported base-color texture encoding or transform.");
-    if (!textures.has(tex.source)) {
+    if (useWebp && !img.uri && img.mimeType !== "image/webp")
+      throw new Error("EXT_texture_webp bufferView requires image/webp.");
+    if (!textures.has(source)) {
       const image = img.uri ? embedded(img.uri) : { bytes: bufferView(img.bufferView), mime: img.mimeType };
-      textures.set(tex.source, await imagePixels(image.bytes, image.mime));
+      const webp = sniffMime(image.bytes) === "image/webp";
+      if (useWebp && !webp) throw new Error("EXT_texture_webp source must contain a WebP image.");
+      textures.set(source, { pixels: await imagePixels(image.bytes, image.mime), webp });
     }
-    return { pixels: textures.get(tex.source), sampler: json.samplers?.[tex.sampler] || {} };
+    const cached = textures.get(source);
+    if (useWebp && !cached.webp) throw new Error("EXT_texture_webp source must contain a WebP image.");
+    return { pixels: cached.pixels, sampler: json.samplers?.[tex.sampler] || {} };
   }
   const meshes = [];
   async function emit(index, world) {
@@ -7639,5 +8026,5 @@ function unpackGlb(bytes) {
 __x.ident = ident; __x.mul = mul; __x.trs = trs; __x.xform = xform; __x.unpackGlb = unpackGlb;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-08b4e548a9db";
+  window.NanoodleEngine.version = "src-66bf15b81bdb";
 })();
