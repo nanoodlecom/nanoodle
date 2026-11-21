@@ -267,7 +267,7 @@ function checkIndex(root, fail) {
   const INTERNAL = [
     { tag: "undo/redo (_restore)",        snippet: "applyGraphData(JSON.parse(entry.s), entry.boundary ? {resultStash:entry.stash} : {carryResults:true})" },
     { tag: "boot local-graph load()",     snippet: "applyGraphData(JSON.parse(raw))" },
-    { tag: "boot default graph",          snippet: "applyGraphData(JSON.parse(JSON.stringify(d)))" },
+    { tag: "boot default graph",          snippet: "applyGraphData(JSON.parse(JSON.stringify(d)), {restingStarter:true})" },
     { tag: "OAuth-redirect resume",       snippet: "applyGraphData(JSON.parse(rs))" },
     { tag: "copilot selectVersion",       snippet: "applyGraphData(clone(v.graph), {carryResults:true})" },
     { tag: "copilot submit",              snippet: "applyGraphData(appliedInternal, {carryResults:true})" },
