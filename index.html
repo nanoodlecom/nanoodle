@@ -18120,7 +18120,7 @@ function saveFile(){
   const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
-  toast(t("Saved {name}").replace("{name}", a.download));   // a browser download alone is easy to miss — confirm on the page too
+  toast(t("Saved {name}").replace("{name}", ()=>a.download));   // a browser download alone is easy to miss — confirm on the page too
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
