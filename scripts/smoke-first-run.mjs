@@ -314,6 +314,9 @@ try {
         assert.ok(await page.locator("#top").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "the compact toolbar fits at 320px");
         assert.ok(await page.locator("#workspaces").evaluate(el => el.scrollWidth <= el.clientWidth + 1), "Create app and Share fit in the workspace strip at 320px");
         await page.setViewportSize(viewport);
+        // The toolbar's resize handler moves its children on the next animation
+        // frame. Finish that layout before testing focus inside the MCP menu.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       }
       const workspaceApp = page.locator("#workspaces").getByRole("button", {name:"Create app", exact:true});
       assert.equal(await workspaceApp.isVisible(), true, "Create app is available directly from the workspace");
