@@ -203,19 +203,13 @@
   #appmodal[hidden]{ display:none }
   #appmodal{ position:fixed; inset:0; z-index:200; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
              background:rgba(4,6,11,.74); backdrop-filter:blur(3px); }
+  #appmodalframe[hidden], #appmodalstatus[hidden]{ display:none }
+  #appmodalstatus{ margin:auto; max-width:28rem; padding:1rem; text-align:center;
+                   background:var(--panel); border:1px solid var(--line); border-radius:.8rem }
   #appmodalframe{ margin:auto; width:100%; height:100%; max-width:1180px; border:1px solid var(--line);
                   border-radius:.8rem; background:var(--bg); box-shadow:0 30px 90px #000a; }
   #appmodalclose{ position:absolute; top:.7rem; right:.9rem; z-index:2; width:2.1rem; height:2.1rem; border-radius:.55rem;
                   display:flex; align-items:center; justify-content:center; font-size:1.05rem; }
-  #appmodalhint[hidden]{ display:none }
-  #appmodalhint{ position:absolute; left:50%; bottom:1.1rem; transform:translateX(-50%); z-index:3;
-                 max-width:min(560px,90vw); display:flex; gap:.7rem; align-items:center;
-                 padding:.5rem .55rem .5rem .85rem; border:1px solid var(--line); border-radius:.6rem;
-                 background:var(--panel); box-shadow:0 12px 40px #000a; font-size:.82rem; color:var(--ink); }
-  #appmodalhint b{ color:var(--accent) }
-  #appmodalhintok{ flex:none; padding:.3rem .7rem; border:1px solid var(--line); border-radius:.4rem;
-                   background:var(--panel2); color:var(--ink); font-size:.78rem; cursor:pointer; }
-  #appmodalhintok:hover{ border-color:var(--accent) }
   /* updates — a tiny changelog (static updates.json, newest first). The 📣 button
      opens it; an unseen-count badge nudges return visits. No server, no tracking. */
   #updatesmodal[hidden]{ display:none }
@@ -1182,6 +1176,7 @@
   #sharemenu .sm-apps button{ border:0; background:transparent; color:var(--dim);
                               padding:.4rem .45rem; font-size:.8rem; text-align:left }
   #sharemenu .sm-apps button:hover{ color:var(--ink); background:var(--panel2) }
+  #appcontext, #appcopycontext{ flex-basis:100%; margin:.25rem .45rem; font-size:.78rem; color:var(--dim); overflow-wrap:anywhere }
   @media (pointer:coarse){ #shareclose, #sharemenu .sm-apps button{ min-height:44px } }
   .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
   .sm-copy{ flex:none; }
@@ -1208,8 +1203,13 @@
     background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
   #share, #wsmakeapp{ flex:none; align-self:center; min-height:27px; padding:0 .65rem;
                      color:var(--dim); font-size:.78rem; white-space:nowrap }
-  #wsmakeapp{ margin-left:auto; max-width:11rem; overflow:hidden; text-overflow:ellipsis;
+  #wsmakeapp{ display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+              margin-left:auto; max-width:16rem; overflow:hidden;
               background:transparent; border-color:transparent }
+  #wsmakeapp span{ overflow:hidden; text-overflow:ellipsis; min-width:0 }
+  #wsappname{ color:var(--dim); font-size:.72rem }
+  #wsappname:not([hidden])::before{ content:"· "; }
+  #wsapplabel{ color:var(--ink); }
   #wsmakeapp:hover{ color:var(--ink); background:var(--panel2); border-color:transparent }
   #share:hover, #share[aria-expanded="true"]{ color:var(--ink); border-color:var(--nano-color-control-line,#67728a) }
   #share .compact{ display:none }
@@ -1292,7 +1292,9 @@
     #workspaces{ align-items:center; padding-left:max(.5rem, env(safe-area-inset-left)); padding-right:max(.5rem, env(safe-area-inset-right)); }
     #share, #wsmakeapp{ min-height:44px; font-size:.88rem }
     #share{ margin-left:.25rem }
-    #wsmakeapp{ max-width:45%; padding-inline:.45rem }
+    #wsmakeapp{ max-width:44%; padding-inline:.4rem; flex-direction:column; gap:.05rem }
+    #wsmakeapp span{ max-width:100%; line-height:1.2 }
+    #wsappname:not([hidden])::before{ content:none }
     #share .lbl{ display:none }
     #share .compact{ display:inline }
     #wstabs{ display:none }
@@ -1410,7 +1412,7 @@
     </div>
   </div>
   <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
-  <button id="wsmakeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
+  <button id="wsmakeapp" type="button" title="App builder" disabled><span id="wsapplabel">Loading app…</span><span id="wsappname" hidden data-no-i18n></span></button>
   <button id="share" type="button" aria-label="Share workflow" title="Share workflow" aria-haspopup="dialog" aria-controls="sharemenu" aria-expanded="false"><span class="lbl">Share workflow</span><span class="compact">Share</span></button>
 </div>
 <div id="wspersistence" hidden role="status"><span id="wspersistence-text"></span><button id="wspersistence-save" type="button" hidden>Save this workflow</button><button id="wspersistence-retry" type="button" hidden>Retry saving</button></div>
@@ -1497,10 +1499,10 @@
 </div>
 
 <!-- Create-app popup: play.html embedded over the editor -->
-<div id="appmodal" hidden>
+<div id="appmodal" role="dialog" aria-label="App builder" hidden>
   <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
-  <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
-  <div id="appmodalhint" hidden><span>This is your app. <b>Customize</b> restyles it; ✎ <b>Edit workflow</b> returns to the graph and keeps this app bound.</span><button id="appmodalhintok" title="Got it">Got it</button></div>
+  <p id="appmodalstatus" role="status" hidden></p>
+  <iframe id="appmodalframe" title="App builder" allow="clipboard-write; fullscreen"></iframe>
 </div>
 
 <!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
@@ -1555,9 +1557,11 @@
   </div>
   <p class="sm-note">This link opens your exact workflow for anyone to run or remix.</p>
   <div class="sm-apps">
-    <button id="makeapp" type="button" title="Turn this workflow into a shareable app">Create app</button>
-    <button id="newapp" type="button" hidden title="Save this as a brand-new app — the one you’re editing stays untouched">Save as a new app</button>
+    <p id="appcontext" hidden></p>
+    <button id="makeapp" type="button" title="App builder" disabled>Loading app…</button>
     <button id="openapps" type="button" hidden title="Open one of your saved apps — created or imported">My apps</button>
+    <button id="newapp" type="button" hidden aria-describedby="appcopycontext">Save as a new app</button>
+    <p id="appcopycontext" hidden>A new app starts with the default layout. Future updates from this workflow go to the new app.</p>
   </div>
 
   <div class="sm-head">Make it shorter — optional</div>
@@ -1773,6 +1777,27 @@ const I18N = {
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "App builder":"Constructor de apps",
+    "Loading app…":"Cargando app…",
+    "Apply this workflow to “{app}” in this browser. Previously shared links keep their version.":"Aplica este flujo a “{app}” en este navegador. Los enlaces compartidos conservan su versión.",
+    "Create an app for this workflow or open a saved app.":"Crea una app para este flujo o abre una guardada.",
+    "Unsaved app":"App sin guardar",
+    "App builder couldn’t load. Close it and try again.":"No se pudo cargar el constructor. Ciérralo e inténtalo de nuevo.",
+    "App unavailable":"App no disponible",
+    "Create replacement app":"Crear app de reemplazo",
+    "“{app}” is unavailable in this browser.":"“{app}” no está disponible en este navegador.",
+    "“{app}” is up to date.":"“{app}” está al día.",
+    "This workflow has changes to apply to “{app}”.":"Este flujo tiene cambios pendientes para “{app}”.",
+    "Review unsaved app":"Revisar app sin guardar",
+    "The preview is open for review. You can retry saving it.":"Puedes revisar la vista previa y volver a guardar.",
+    "Add a node before creating an app.":"Añade un nodo antes de crear una app.",
+    "Wait for the app action to finish.":"Espera a que termine la operación.",
+    "Leave the unsaved app preview? You can retry saving or export it first.":"¿Salir de la vista previa sin guardar? Puedes volver a guardar o exportar primero.",
+    "Updating app…":"Actualizando app…",
+    "Creating app…":"Creando app…",
+    "Opening app…":"Abriendo app…",
+    "App saved. This workflow could not be linked to it.":"App guardada. No se pudo vincular este flujo.",
+    "This app is unavailable. Use Share to create a replacement.":"Esta app no está disponible. Crea un reemplazo desde Compartir.",
     "Update app":"Actualizar app",
     "Open app":"Abrir app",
     "Update {app}":"Actualizar {app}",
@@ -1869,7 +1894,7 @@ const I18N = {
     "Save as a new app":"Guardar como app nueva",
     "My apps":"Mis apps",
     "Open one of your saved apps — created or imported":"Abre una de tus apps guardadas — creadas o importadas",
-    "Save this as a brand-new app — the one you’re editing stays untouched":"Guarda esto como una app totalmente nueva — la que estás editando queda intacta",
+    "A new app starts with the default layout. Future updates from this workflow go to the new app.":"La nueva app empieza con el diseño predeterminado. Las próximas actualizaciones de este flujo se aplicarán a la nueva app.",
     "Search nodes… (image, voice, video)":"Buscar nodos… (imagen, voz, vídeo)",
     "nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens.":"nanolink es el acortador propio de nanoodle — un Cloudflare Worker + KV sin registros ni analíticas. da.gd es un servicio independiente de terceros que ve y guarda cada enlace que acorta.",
     "view nanolink source":"ver el código de nanolink",
@@ -2560,6 +2585,27 @@ const I18N = {
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "App builder":"Créateur d’apps",
+    "Loading app…":"Chargement de l’app…",
+    "Apply this workflow to “{app}” in this browser. Previously shared links keep their version.":"Appliquez ce workflow à « {app} » dans ce navigateur. Les liens déjà partagés gardent leur version.",
+    "Create an app for this workflow or open a saved app.":"Créez une app pour ce workflow ou ouvrez une app enregistrée.",
+    "Unsaved app":"App non enregistrée",
+    "App builder couldn’t load. Close it and try again.":"Impossible de charger le créateur d’apps. Fermez-le et réessayez.",
+    "App unavailable":"App indisponible",
+    "Create replacement app":"Créer une app de remplacement",
+    "“{app}” is unavailable in this browser.":"« {app} » est indisponible dans ce navigateur.",
+    "“{app}” is up to date.":"« {app} » est à jour.",
+    "This workflow has changes to apply to “{app}”.":"Ce workflow contient des changements à appliquer à « {app} ».",
+    "Review unsaved app":"Voir l’app non enregistrée",
+    "The preview is open for review. You can retry saving it.":"Vous pouvez revoir l’aperçu et réessayer de l’enregistrer.",
+    "Add a node before creating an app.":"Ajoutez un nœud avant de créer une app.",
+    "Wait for the app action to finish.":"Attendez la fin de l’opération.",
+    "Leave the unsaved app preview? You can retry saving or export it first.":"Quitter l’aperçu non enregistré ? Vous pouvez réessayer de l’enregistrer ou l’exporter d’abord.",
+    "Updating app…":"Mise à jour de l’app…",
+    "Creating app…":"Création de l’app…",
+    "Opening app…":"Ouverture de l’app…",
+    "App saved. This workflow could not be linked to it.":"L’app est enregistrée. Ce workflow n’a pas pu y être lié.",
+    "This app is unavailable. Use Share to create a replacement.":"Cette app est indisponible. Utilisez Partager pour en créer une autre.",
     "Update app":"Actualiser l’app",
     "Open app":"Ouvrir l’app",
     "Update {app}":"Mettre à jour {app}",
@@ -2656,7 +2702,7 @@ const I18N = {
     "Save as a new app":"Enregistrer comme nouvelle app",
     "My apps":"Mes apps",
     "Open one of your saved apps — created or imported":"Ouvrez une de vos apps enregistrées — créées ou importées",
-    "Save this as a brand-new app — the one you’re editing stays untouched":"Enregistrer ceci comme une toute nouvelle app — celle que vous modifiez reste inchangée",
+    "A new app starts with the default layout. Future updates from this workflow go to the new app.":"La nouvelle app utilise la mise en page par défaut. Les prochaines mises à jour de ce flux s’appliqueront à la nouvelle app.",
     "Search nodes… (image, voice, video)":"Rechercher des nœuds… (image, voix, vidéo)",
     "nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens.":"nanolink est le raccourcisseur maison de nanoodle — un Worker Cloudflare + KV, sans journaux ni analytique. da.gd est un service tiers indépendant qui voit et conserve chaque lien qu’il raccourcit.",
     "view nanolink source":"voir le code de nanolink",
@@ -3341,6 +3387,27 @@ const I18N = {
     "Full changelog":"Vollständiges Änderungsprotokoll",
     "📷 Webcam":"📷 Webcam",
     "Inpaint":"Inpaint",
+    "App builder":"App-Builder",
+    "Loading app…":"App wird geladen…",
+    "Apply this workflow to “{app}” in this browser. Previously shared links keep their version.":"Wende diesen Workflow in diesem Browser auf „{app}“ an. Geteilte Links behalten ihre Version.",
+    "Create an app for this workflow or open a saved app.":"Erstelle eine App für diesen Workflow oder öffne eine gespeicherte App.",
+    "Unsaved app":"Ungespeicherte App",
+    "App builder couldn’t load. Close it and try again.":"Der App-Builder konnte nicht geladen werden. Schließe ihn und versuche es erneut.",
+    "App unavailable":"App nicht verfügbar",
+    "Create replacement app":"Ersatz-App erstellen",
+    "“{app}” is unavailable in this browser.":"„{app}“ ist in diesem Browser nicht verfügbar.",
+    "“{app}” is up to date.":"„{app}“ ist auf dem neuesten Stand.",
+    "This workflow has changes to apply to “{app}”.":"Dieser Workflow enthält Änderungen für „{app}“.",
+    "Review unsaved app":"Ungespeicherte App ansehen",
+    "The preview is open for review. You can retry saving it.":"Du kannst die Vorschau ansehen und erneut speichern.",
+    "Add a node before creating an app.":"Füge zuerst einen Knoten hinzu.",
+    "Wait for the app action to finish.":"Warte, bis die App-Aktion abgeschlossen ist.",
+    "Leave the unsaved app preview? You can retry saving or export it first.":"Ungespeicherte Vorschau verlassen? Du kannst zuerst erneut speichern oder exportieren.",
+    "Updating app…":"App wird aktualisiert…",
+    "Creating app…":"App wird erstellt…",
+    "Opening app…":"App wird geöffnet…",
+    "App saved. This workflow could not be linked to it.":"App gespeichert. Dieser Workflow konnte nicht mit ihr verknüpft werden.",
+    "This app is unavailable. Use Share to create a replacement.":"Diese App ist nicht verfügbar. Erstelle über Teilen eine Ersatz-App.",
     "Update app":"App aktualisieren",
     "Open app":"App öffnen",
     "Update {app}":"{app} aktualisieren",
@@ -3437,7 +3504,7 @@ const I18N = {
     "Save as a new app":"Als neue App speichern",
     "My apps":"Meine Apps",
     "Open one of your saved apps — created or imported":"Öffne eine deiner gespeicherten Apps — erstellt oder importiert",
-    "Save this as a brand-new app — the one you’re editing stays untouched":"Dies als brandneue App speichern — die, die du gerade bearbeitest, bleibt unverändert",
+    "A new app starts with the default layout. Future updates from this workflow go to the new app.":"Die neue App verwendet das Standardlayout. Künftige Aktualisierungen aus diesem Workflow gelten für die neue App.",
     "Search nodes… (image, voice, video)":"Nodes suchen… (Bild, Stimme, Video)",
     "nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens.":"nanolink ist nanoodles eigener Kürzungsdienst — ein Cloudflare Worker + KV, ohne Logs und ohne Analytics. da.gd ist ein unabhängiger Drittanbieter-Dienst, der jeden gekürzten Link sieht und speichert.",
     "view nanolink source":"Quellcode von nanolink ansehen",
@@ -4114,6 +4181,27 @@ const I18N = {
     "📷 Webcam":"📷 Webcam",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
+    "App builder":"Criador de apps",
+    "Loading app…":"Carregando app…",
+    "Apply this workflow to “{app}” in this browser. Previously shared links keep their version.":"Aplique este fluxo a “{app}” neste navegador. Os links já compartilhados mantêm sua versão.",
+    "Create an app for this workflow or open a saved app.":"Crie um app para este fluxo ou abra um app salvo.",
+    "Unsaved app":"App não salvo",
+    "App builder couldn’t load. Close it and try again.":"Não foi possível carregar o criador de apps. Feche e tente novamente.",
+    "App unavailable":"App indisponível",
+    "Create replacement app":"Criar app substituto",
+    "“{app}” is unavailable in this browser.":"“{app}” não está disponível neste navegador.",
+    "“{app}” is up to date.":"“{app}” está atualizado.",
+    "This workflow has changes to apply to “{app}”.":"Este fluxo tem alterações para aplicar a “{app}”.",
+    "Review unsaved app":"Ver app não salvo",
+    "The preview is open for review. You can retry saving it.":"Você pode revisar a prévia e tentar salvar de novo.",
+    "Add a node before creating an app.":"Adicione um nó antes de criar um app.",
+    "Wait for the app action to finish.":"Aguarde a ação do app terminar.",
+    "Leave the unsaved app preview? You can retry saving or export it first.":"Sair da prévia não salva? Você pode tentar salvar novamente ou exportar primeiro.",
+    "Updating app…":"Atualizando app…",
+    "Creating app…":"Criando app…",
+    "Opening app…":"Abrindo app…",
+    "App saved. This workflow could not be linked to it.":"App salvo. Não foi possível vincular este fluxo a ele.",
+    "This app is unavailable. Use Share to create a replacement.":"Este app não está disponível. Use Compartilhar para criar um substituto.",
     "Update app":"Atualizar app",
     "Open app":"Abrir app",
     "Update {app}":"Atualizar {app}",
@@ -4210,7 +4298,7 @@ const I18N = {
     "Save as a new app":"Salvar como novo app",
     "My apps":"Meus apps",
     "Open one of your saved apps — created or imported":"Abra um dos seus apps salvos — criados ou importados",
-    "Save this as a brand-new app — the one you’re editing stays untouched":"Salve isto como um app totalmente novo — o que você está editando permanece inalterado",
+    "A new app starts with the default layout. Future updates from this workflow go to the new app.":"O novo app começa com o layout padrão. As próximas atualizações deste fluxo serão aplicadas ao novo app.",
     "Search nodes… (image, voice, video)":"Buscar nós… (imagem, voz, vídeo)",
     "nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens.":"nanolink é o encurtador próprio do nanoodle — um Cloudflare Worker + KV, sem logs e sem analytics. da.gd é um serviço independente de terceiros que vê e guarda cada link que encurta.",
     "view nanolink source":"ver o código do nanolink",
@@ -4890,6 +4978,27 @@ const I18N = {
     "Undo the last edit":"直前の編集を元に戻す",
     "What’s new":"新着情報",
     "Workflow canvas":"ワークフローキャンバス",
+    "App builder":"アプリビルダー",
+    "Loading app…":"アプリを読み込み中…",
+    "Apply this workflow to “{app}” in this browser. Previously shared links keep their version.":"このブラウザーの「{app}」にワークフローを適用します。共有済みのリンクには以前のバージョンが残ります。",
+    "Create an app for this workflow or open a saved app.":"このワークフローのアプリを作成するか、保存済みのアプリを開けます。",
+    "Unsaved app":"未保存のアプリ",
+    "App builder couldn’t load. Close it and try again.":"アプリビルダーを読み込めませんでした。閉じてから再試行してください。",
+    "App unavailable":"アプリを開けません",
+    "Create replacement app":"代わりのアプリを作成",
+    "“{app}” is unavailable in this browser.":"このブラウザーには「{app}」がありません。",
+    "“{app}” is up to date.":"「{app}」は最新です。",
+    "This workflow has changes to apply to “{app}”.":"このワークフローには「{app}」への未反映の変更があります。",
+    "Review unsaved app":"未保存のアプリを確認",
+    "The preview is open for review. You can retry saving it.":"プレビューを確認し、保存を再試行できます。",
+    "Add a node before creating an app.":"アプリを作成する前にノードを追加してください。",
+    "Wait for the app action to finish.":"アプリの処理が終わるまでお待ちください。",
+    "Leave the unsaved app preview? You can retry saving or export it first.":"未保存のプレビューを閉じますか？先に保存を再試行するか、エクスポートできます。",
+    "Updating app…":"アプリを更新中…",
+    "Creating app…":"アプリを作成中…",
+    "Opening app…":"アプリを開いています…",
+    "App saved. This workflow could not be linked to it.":"アプリは保存されましたが、このワークフローにリンクできませんでした。",
+    "This app is unavailable. Use Share to create a replacement.":"このアプリは利用できません。共有から代わりのアプリを作成できます。",
     "Update app":"アプリを更新",
     "Open app":"アプリを開く",
     "Update {app}":"{app} を更新",
@@ -4987,7 +5096,7 @@ const I18N = {
     "Save as a new app":"新しいアプリとして保存",
     "My apps":"マイアプリ",
     "Open one of your saved apps — created or imported":"保存したアプリを開く — 作成またはインポートしたもの",
-    "Save this as a brand-new app — the one you’re editing stays untouched":"これを新しいアプリとして保存 — 編集中のアプリはそのまま残ります",
+    "A new app starts with the default layout. Future updates from this workflow go to the new app.":"新しいアプリには既定のレイアウトが使われます。以後、このワークフローからの更新は新しいアプリに適用されます。",
     "Search nodes… (image, voice, video)":"ノードを検索… (画像、音声、動画)",
     "nanolink is nanoodle’s own shortener — a Cloudflare Worker + KV with no logs and no analytics. da.gd is an independent third-party service that sees and stores every link it shortens.":"nanolinkはnanoodle自身の短縮サービス（Cloudflare Worker + KV）です — ログも解析もありません。da.gdは独立した第三者のサービスで、短縮するすべてのリンクを閲覧・保存します。",
     "view nanolink source":"nanolinkのソースを見る",
@@ -10081,7 +10190,11 @@ const NODE_TYPES = {
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
       const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n)) };
+      const res = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n), { items: true });
+      const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // a host ctx may answer bare — normalize like the SDK does
+      const out = { image: urls[0], images: urls };
+      if(res && res.layers) out.layers = res.layers;
+      return out;
     }
   },
 
@@ -10149,7 +10262,11 @@ const NODE_TYPES = {
       const mask = await maskToSource(rawMask, source);   // composite onto black at the source's pixel size
       if((source.length + mask.length) > MEDIA_INLINE_MAX)
         throw new Error("image too large (~4 MB limit) — use a smaller source image");
-      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), source, mask, imgExtra(n)) };
+      const res = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), source, mask, imgExtra(n), { items: true });
+      const urls = typeof res === "string" ? [res] : (Array.isArray(res) ? res : res.urls);   // a host ctx may answer bare — normalize like the SDK does
+      const out = { image: urls[0], images: urls };
+      if(res && res.layers) out.layers = res.layers;
+      return out;
     }
   },
 
@@ -14728,7 +14845,8 @@ const CTX = {
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
-    const rawUrls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    const rawPairs = (j.data||[]).map(d=> { const u = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url; return u ? { url: u, layer: (d && typeof d.layer === "object" && d.layer) ? d.layer : null } : null; }).filter(Boolean);
+    const rawUrls = rawPairs.map(p2=> p2.url);
     if(!rawUrls.length) throw new Error("no image in response");
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
@@ -14741,6 +14859,13 @@ const CTX = {
     for(const u of rawUrls){
       try{ urls.push(await resolveContentMedia(u)); }
       catch(e){ throw opaqueContentError(e, false); }
+    }
+    if(opts.items){
+      // Items mode: hand back every returned url plus the layer metadata that
+      // rode along with each item (null when an item has none) — the multi-image
+      // contract the edit and inpaint runners shape their outputs from.
+      const layers = rawPairs.some(p2=> p2.layer) ? rawPairs.map(p2=> p2.layer) : null;
+      return { urls, layers };
     }
     return opts.multi ? urls : urls[0];
   },
@@ -18403,9 +18528,8 @@ function closeShareMenu(){
   $("share").setAttribute("aria-expanded", "false");
   if(restoreFocus) $("share").focus();
 }
-// Set when this editor session is editing the workflow of an existing app (carried in
-// via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
-// this id so the app updates in place instead of spawning a fresh default app.
+// Each workspace knows the ID of the app it opens and updates.
+let appWorkspaceReady = false;
 let pendingAppId = null;
 let pendingAppTitle = null;   // the loaded app's name, for the page title (carried alongside pendingAppId)
 // The single chokepoint for the app binding: keep the in-memory pair, the persisted
@@ -18425,58 +18549,100 @@ function setPendingApp(id, title){
   if(typeof stampActiveApp==="function") stampActiveApp();
   try{ updateTitle(); }catch(_){}
 }
-// True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
-// i.e. there is genuinely nothing to Update. appSyncSig = content + node layout: rearranging
-// nodes counts (the stored workflow keeps positions, so a moved node IS pending work), while
-// pan/zoom doesn't. Its app: field is the SAME pendingAppId on both sides so it cancels out.
-// When in doubt — app missing from the library, unreadable store, or sigs differ — return
-// false so the button still says "Update" and never falsely claims up-to-date.
-function boundAppUpToDate(){
-  if(!pendingAppId) return false;
+let savedEditorAppsSource = null;
+let savedEditorAppsCache = [];
+function savedEditorApps(){
   try{
-    const apps = JSON.parse(localStorage.getItem("noodle_apps") || "[]");
-    const app = (Array.isArray(apps) ? apps : []).find(a=> a && a.id===pendingAppId);
-    if(!app || !app.graph) return false;
-    return appSyncSig(app.graph) === appSyncSig();
-  }catch(_){ return false; }
+    const source = localStorage.getItem("noodle_apps") || "[]";
+    if(source!==savedEditorAppsSource){
+      const apps = JSON.parse(source);
+      savedEditorAppsCache = Array.isArray(apps) ? apps.filter(app=>app && app.id) : [];
+      savedEditorAppsSource = source;
+    }
+    return savedEditorAppsCache;
+  }catch(_){ return []; }
+}
+function editorAppState(apps){
+  const app = pendingAppId ? apps.find(entry=>entry.id===pendingAppId) : null;
+  const title = String(app?.title || pendingAppTitle || "").trim();
+  if(!appWorkspaceReady) return {kind:"loading", title};
+  if(appRequest && appRequest.kind!=="library" && appRequest.workspace===(readWorkspaces()?.active ?? null))
+    return {kind:"working", title};
+  if(unsavedAppRequest && unsavedAppRequest.workspace===(readWorkspaces()?.active ?? null)
+      && unsavedAppRequest.binding===pendingAppId) return { kind:"unsaved", title };
+  if(!pendingAppId) return { kind:"create", title };
+  if(!app || !graphPayloadOk(app.graph)) return { kind:"missing", title };
+  // Node layout is part of the saved workflow. The canvas view is not.
+  const kind = appSyncSig(app.graph)===appSyncSig() ? "open" : "update";
+  return { kind, title };
 }
 // Keep both app actions in sync. Use a short label on the workspace strip.
 function refreshAppButton(){
   const workspaceAction = $("wsmakeapp");
-  const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  // Name the destination so users can tell which app the action will update.
-  const short = appTitle ? (appTitle.length > 20 ? appTitle.slice(0,19)+"…" : appTitle) : "app";
-  let workspaceLabel, shareLabel, title;
-  if(!pendingAppId){
-    workspaceLabel = shareLabel = t("Create app");
-    title = t("Turn this workflow into a shareable app");
-  } else if(boundAppUpToDate()){
+  const apps = savedEditorApps();
+  const {kind, title:appTitle} = editorAppState(apps);
+  const name = appTitle || t("your app");
+  const short = name.length > 20 ? name.slice(0,19)+"…" : name;
+  let workspaceLabel, shareLabel, title, hint = "";
+  if(kind==="loading"){
+    workspaceLabel = shareLabel = t("Loading app…");
+    title = t("App builder");
+  }else if(kind==="working"){
+    workspaceLabel = shareLabel = appRequest.message || t("App builder");
+    title = workspaceLabel;
+  }else if(kind==="open"){
     workspaceLabel = t("Open app");
     shareLabel = t("Open {app}").replace("{app}", ()=>short);
-    title = t("Open “{app}” — it already has this workflow").replace("{app}", ()=>appTitle || t("your app"));
-  } else {
+    title = t("Open “{app}” — it already has this workflow").replace("{app}", ()=>name);
+    hint = t("“{app}” is up to date.").replace("{app}", ()=>name);
+  }else if(kind==="update"){
     workspaceLabel = t("Update app");
     shareLabel = t("Update {app}").replace("{app}", ()=>short);
-    title = t("Update “{app}” with this workflow").replace("{app}", ()=>appTitle || t("your app"));
+    title = t("Update “{app}” with this workflow").replace("{app}", ()=>name);
+    hint = t("Apply this workflow to “{app}” in this browser. Previously shared links keep their version.").replace("{app}", ()=>name);
+  }else if(kind==="unsaved"){
+    workspaceLabel = t("Unsaved app");
+    shareLabel = t("Review unsaved app");
+    title = hint = t("The preview is open for review. You can retry saving it.");
+  }else if(kind==="missing"){
+    workspaceLabel = t("App unavailable");
+    shareLabel = t("Create replacement app");
+    title = t("“{app}” is unavailable in this browser.").replace("{app}", ()=>name);
+    hint = title;
+  }else{
+    shareLabel = t("Create app");
+    workspaceLabel = apps.length ? t("My apps") : shareLabel;
+    title = t("Turn this workflow into a shareable app");
+    if(!graph.nodes.length) hint = t("Add a node before creating an app.");
+    else if(apps.length) hint = t("Create an app for this workflow or open a saved app.");
   }
-  const workspaceLabelChanged = workspaceAction && workspaceAction.textContent !== workspaceLabel;
-  for(const [button, label] of [[workspaceAction, workspaceLabel], [$("makeapp"), shareLabel]]){
-    if(!button) continue;
-    if(button.title !== title) button.title = title;
-    if(button.textContent !== label) button.textContent = label;
-  }
-  if(workspaceLabelChanged) scrollActiveTabIntoView();
+  const workspaceVerb = $("wsapplabel"), workspaceName = $("wsappname");
+  const showName = !!appTitle && (kind==="open" || kind==="update");
+  const actionSizeChanged = workspaceVerb.textContent!==workspaceLabel
+    || workspaceName.hidden===showName || (showName && workspaceName.textContent!==appTitle);
+  if(workspaceVerb.textContent!==workspaceLabel) workspaceVerb.textContent = workspaceLabel;
+  workspaceName.hidden = !showName;
+  if(showName && workspaceName.textContent!==appTitle) workspaceName.textContent = appTitle;
+  workspaceAction.disabled = kind==="loading" || (kind==="create" && !apps.length && !graph.nodes.length);
+  workspaceAction.title = kind==="create" && apps.length ? t("My apps") : hint || title;
+  const shareAction = $("makeapp");
+  shareAction.disabled = kind==="loading" || (!graph.nodes.length && (kind==="create" || kind==="missing" || kind==="update"));
+  shareAction.title = title;
+  if(shareAction.textContent!==shareLabel) shareAction.textContent = shareLabel;
+  const context = $("appcontext");
+  context.hidden = !hint;
+  if(context.textContent !== hint) context.textContent = hint;
+  const canCopy = graph.nodes.length>0 && (kind==="open" || kind==="update");
+  $("newapp").hidden = !canCopy;
+  $("appcopycontext").hidden = !canCopy;
+  const library = $("openapps");
+  if(library) library.hidden = !apps.length;
+  if(actionSizeChanged) scrollActiveTabIntoView();
 }
 function updateTitle(){
-  const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — AI workflows and MCP tools";
+  const {title} = editorAppState(savedEditorApps());
+  document.title = pendingAppId ? `nanoodle - ${title || "app"} app` : "nanoodle — AI workflows and MCP tools";
   refreshAppButton();
-  // Show Save as a new app for a bound workflow and My apps for a non-empty library.
-  let lib = 0;
-  try{ const a = JSON.parse(localStorage.getItem("noodle_apps") || "[]"); lib = Array.isArray(a) ? a.length : 0; }catch(_){}
-  const nw = $("newapp");
-  if(nw) nw.hidden = !pendingAppId;
-  const oa = $("openapps"); if(oa) oa.hidden = !lib;
 }
 /* WORKSPACES-BEGIN
    Each tab is one autosaved graph. noodle_graph stays the ACTIVE tab, same JSON as before,
@@ -20760,6 +20926,7 @@ async function loadFromHash(){
 }
 $("share").onclick = async ()=>{
   try{
+    refreshAppButton();
     openShareMenu(await buildShareUrl());
     $("sm-copy").focus();
   }catch(e){ flash(t("share failed")+": "+e.message); }
@@ -20813,23 +20980,15 @@ document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').for
 });
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
 // Turn this workflow into a standalone app (play.html). Hand off the graph via the
-// existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
-// Open the app builder as a popup over the editor (play.html in a modal iframe), so it
-// feels cohesive instead of a separate tab. Same-origin → it shares the signed-in key.
-// Keep the builder iframe ALIVE across dismissals so closing the modal (✕, Esc, or a stray
-// backdrop click) never throws away the app you're mid-build on. Reopening "Create app" with
-// the same graph just unhides the live document — draft, generated versions, title, scroll
-// and focus all intact. When the app-meaningful graph DID change, we re-hand-off over
-// postMessage (__handoff__): re-assigning src to "play.html"+hash would differ only in the
-// fragment, which the browser treats as fragment navigation — NO reload, and play.html has
-// no hashchange listener — so the new graph would be silently dropped. The src assignment
-// is for the FIRST load only.
-let appFrameLoaded = false;     // play.html finished booting in the iframe (it posted __appready__)
-let appFrameBooting = false;    // src assigned but boot unconfirmed — a postMessage now would be
-                                // lost (no listener) or clobbered by the in-flight boot's hash graph
-let queuedHandoff = null;       // __handoff__ parked during that window; flushed on __appready__
-let queuedMyApps = false;       // "open the My apps menu" parked during that window; flushed after any parked handoff
-let lastHandoffSig = null;      // signature of the graph last handed to the builder
+// The builder stays mounted. Each request names the intended operation and
+// returns its result separately from preview navigation and unrelated library actions.
+let appFrameLoaded = false;
+let appFrameBootId = null;
+let appBootTimer = null;
+let appRequest = null;
+let unsavedAppRequest = null;
+let appRequestSerial = 0;
+let appReturnFocus = null;
 // What the built app actually consumes: node identity/type/name/fields + links + which app we're
 // editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
 // is an app-meaningful change and must re-hand-off. Deliberately EXCLUDES the canvas view
@@ -20859,86 +21018,113 @@ function appSyncSig(g){
   return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.x, n.y, n.w??null]));
 }
 function closeAppModal(){
-  $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
-  try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
-  updateTitle();   // a builder session can grow/empty the app library → recompute the ▾/My-apps reveal
+  $("appmodal").hidden = true;
+  try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}
+  updateTitle();
+  if(appReturnFocus?.isConnected) appReturnFocus.focus();
 }
-// First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
-// come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
-// My apps opens the builder's library over whichever app was last open.
-// browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
-// posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
-function openMyApps(){
-  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
-  if(appFrameLoaded || appFrameBooting){
-    $("appmodal").hidden = false;
-    if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){} }
-    else queuedMyApps = true;   // still booting — the __appready__ handler below delivers it
-    return;
-  }
-  // First boot, and bare on purpose: play.html restores its last-open app underneath the menu.
-  // Deliberately NOT openAppModal(): that stamps lastHandoffSig with the CURRENT canvas sig, and
-  // since no handoff actually happened, a later ✨ Create app would false-match its "same graph →
-  // just re-show" fast path and silently skip handing the canvas over.
-  $("appmodalframe").src = "play.html";
-  appFrameBooting = true; queuedMyApps = true;
+function showAppModal(message){
   $("appmodal").hidden = false;
+  $("appmodalstatus").textContent = message;
+  $("appmodalstatus").hidden = !message;
+  $("appmodalframe").hidden = !!message;
+  $("appmodalclose").focus();
 }
-async function openCreateApp(){
-  $("appblock").hidden = true;
-  if(!graph.nodes.length){ flash("add a node first"); return; }
-  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
-  queuedMyApps = false;   // a Create/Update supersedes a parked menu-open — don't pop the library over the fresh handoff
-
-  // Same graph + builder loaded (or still booting off this very graph) → just bring your
-  // app back (no reload, no fresh draft).
-  if((appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig){
-    $("appmodal").hidden = false;
-    try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
+function sendAppRequest(){
+  if(!appRequest || !appFrameLoaded) return;
+  const {serial, kind, appId, graph, canCreate} = appRequest;
+  $("appmodalframe").contentWindow.postMessage({type:"__appaction__", serial, kind, appId, graph, canCreate}, "*");
+}
+function startAppRequest(kind){
+  if(appRequest){
+    const active = readWorkspaces()?.active ?? null;
+    if(appRequest.workspace===active) showAppModal(appRequest.message);
+    else flash(t("Wait for the app action to finish."));
     return;
   }
-  if(graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
+  if(kind==="unsaved"){ showAppModal(""); return; }
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
+  if(unsavedAppRequest){
+    if(!confirm(t("Leave the unsaved app preview? You can retry saving or export it first."))){
+      showAppModal("");
+      return;
+    }
+    unsavedAppRequest = null;
+    $("appmodalframe").contentWindow.postMessage({type:"__discardappsave__"}, "*");
+  }
+  const usesCanvas = kind==="create" || kind==="copy" || kind==="update";
+  if(usesCanvas && !graph.nodes.length){ flash(t("Add a node before creating an app.")); return; }
+  if(usesCanvas && graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
     showCreateAppBlock();
     return;
   }
-  const graphData = serializeGraph();
-  const json = JSON.stringify(graphData);
-  try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
-  // Builder already live but the graph changed → hand the new graph into the running
-  // document over the message channel (see the reload note above). appId carries the
-  // binding: set → update that app in place; null → mint a brand-new app. If the first
-  // load is still booting (slow device, reopened within the load window) the frame can't
-  // hear us yet — park the payload; the __appready__ handler below flushes it.
-  if(appFrameLoaded || appFrameBooting){
-    const payload = { type:"__handoff__", graph:graphData, appId:pendingAppId||null };
-    if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
-    else queuedHandoff = payload;
-    lastHandoffSig = appSyncSig();
-    $("appmodal").hidden = false;
-    return;
-  }
-  let hash;
-  if(pendingAppId){   // editing an existing app's workflow → hand the graph back under its id
-    const payload = JSON.stringify({ v:1, graph:graphData, appId:pendingAppId });
-    const packed = await gzip(payload).catch(()=>null);
-    hash = packed ? "#ga="+bytesToB64url(packed) : "#ga=u"+bytesToB64url(new TextEncoder().encode(payload));
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
+  $("appblock").hidden = true;
+  appReturnFocus = document.activeElement;
+  const message = t(kind==="update" ? "Updating app…" : usesCanvas ? "Creating app…" : "Opening app…");
+  appRequest = {
+    serial:++appRequestSerial, kind, message, workspace:readWorkspaces()?.active ?? null,
+    binding:pendingAppId, appId:kind==="open" || kind==="update" ? pendingAppId : null,
+    graph:usesCanvas ? serializeGraph() : null,
+    canCreate:kind==="library" && !pendingAppId && !!graph.nodes.length,
+  };
+  showAppModal(message);
+  refreshAppButton();
+  if(appFrameLoaded){
+    sendAppRequest();
   }else{
-    const packed = await gzip(json).catch(()=>null);
-    hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+    $("appmodalframe").src = "play.html?editor=1";
+    appBootTimer = setTimeout(()=>{
+      if(appFrameLoaded || !appRequest) return;
+      appRequest = null;
+      refreshAppButton();
+      if(!$("appmodal").hidden) showAppModal(t("App builder couldn’t load. Close it and try again."));
+    }, 15000);
   }
-  openAppModal(hash);
 }
-$("makeapp").onclick = ()=>{ closeShareMenu(); return openCreateApp(); };
+function finishAppRequest(result){
+  const request = appRequest || unsavedAppRequest;
+  if(!request || request.serial!==result.serial) return;
+  appRequest = null;
+  unsavedAppRequest = result.error==="storage" ? request : null;
+  const d = readWorkspaces();
+  const active = d?.active ?? null;
+  if(result.ok && result.appId && ["create","copy","update"].includes(request.kind)){
+    try{
+      if(active===request.workspace && pendingAppId===request.binding){
+        setPendingApp(result.appId, result.title);
+      }else if(d){
+        const tab = d.tabs.find(tab=>tab.id===request.workspace);
+        if(tab && tab.id!==active && (tab.app?.id || null)===request.binding){
+          tab.app = {id:result.appId, title:result.title};
+          writeWorkspaces(d);
+        }
+      }
+    }catch(_){ flash(t("App saved. This workflow could not be linked to it.")); }
+  }
+  $("appmodalstatus").hidden = true;
+  $("appmodalframe").hidden = false;
+  updateTitle();
+  if(result.error==="missing"){
+    closeAppModal();
+    flash(t("This app is unavailable. Use Share to create a replacement."));
+  }
+}
+function openCreateApp(){
+  const apps = savedEditorApps();
+  const {kind} = editorAppState(apps);
+  if(kind==="missing"){ $("share").click(); return; }
+  startAppRequest(kind==="create" && apps.length ? "library" : kind);
+}
 $("wsmakeapp").onclick = openCreateApp;
-// "Save as a new app" (shown only while this workflow is bound to an app): unlink first, then open the
-// builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
-$("newapp").onclick = ()=>{
+$("makeapp").onclick = ()=>{
+  const {kind} = editorAppState(savedEditorApps());
   closeShareMenu();
-  try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
-  return openCreateApp();
+  startAppRequest(kind==="missing" ? "copy" : kind);
 };
-$("openapps").onclick = ()=>{ closeShareMenu(); openMyApps(); };
+$("newapp").onclick = ()=>{ closeShareMenu(); startAppRequest("copy"); };
+$("openapps").onclick = ()=>{ closeShareMenu(); startAppRequest("library"); };
+addEventListener("storage", e=>{ if(e.key==="noodle_apps" || e.key===null) updateTitle(); });
 function showCreateAppBlock(){
   const el = $("appblock"); if(!el) return;
   const names = graph.nodes.filter(n=> n.type==="model3d" || n.type==="mupload")
@@ -20950,13 +21136,34 @@ function showCreateAppBlock(){
 }
 $("appblockx").onclick = (e)=>{ e.stopPropagation(); const el = $("appblock"); if(el) el.hidden = true; };
 $("appmodalclose").onclick = closeAppModal;
-$("appmodalhintok").onclick = ()=>{ $("appmodalhint").hidden = true; try{ localStorage.setItem("noodle_appbuilder_intro_seen","1"); }catch(_){} };
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
+
+function editSavedAppWorkflow({ appId, graph:savedGraph, title }){
+  if(wsMutationBlocked() || !graphPayloadOk(savedGraph)) return;
+  if(appId && appId===pendingAppId){ closeAppModal(); return; }
+  const linked = appId && readWorkspaces()?.tabs.find(tab=>tab.app?.id===appId);
+  if(linked){
+    switchWorkspace(linked.id);
+    if(readWorkspaces()?.active===linked.id) closeAppModal();
+    return;
+  }
+  if(!openWorkspaceWithGraph(savedGraph, title || t("Workflow"), {fit:true})) return;
+  try{ if(appId) setPendingApp(appId, title); }
+  catch(_){ flash(t("App saved. This workflow could not be linked to it.")); }
+  closeAppModal();
+}
 
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
   if(e.data.type==="__closeapp__") closeAppModal();
+  else if(e.data.type==="__editappworkflow__") editSavedAppWorkflow(e.data);
+  else if(e.data.type==="__createappfromlibrary__"){
+    if(!$("appmodal").hidden && editorAppState(savedEditorApps()).kind==="create") startAppRequest("create");
+  }
+  else if(e.data.type==="__appsaveabandoned__"){
+    if(unsavedAppRequest?.serial===e.data.serial){ unsavedAppRequest = null; refreshAppButton(); }
+  }
   // builder asked to edit the workflow: load that app's graph onto the canvas, remember
   // its id so the next "Create app" updates it, and drop back to the editor.
   else if(e.data.type==="__editflow__"){
@@ -20992,35 +21199,18 @@ addEventListener("message", e=>{
       }
     }
     if(ok){ try{ setPendingApp(e.data.appId, e.data.title); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); } }
-    lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
   }
-  // The builder only sends this for apps created from the canvas handoff. Bind the
-  // workspace to the saved app so both actions reopen it and later edits update it.
-  else if(e.data.type==="__appsaved__"){
-    const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
-    try{ setPendingApp(e.data.appId, e.data.title); }
-    catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); }
-    if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
+  else if(e.data.type==="__appactionwaiting__" && appRequest?.serial===e.data.serial){
+    appRequest.message = "";
+    if(!$("appmodal").hidden) showAppModal("");
   }
-  // builder finished booting → it can hear postMessage now. Flush any handoff parked during
-  // the load window; the boot installed the STALE hash graph, and if it committed, its
-  // __appsaved__ arrived BEFORE this (same-pair postMessage order is guaranteed) — so send
-  // under the CURRENT binding to re-target that same app instead of minting a duplicate.
-  else if(e.data.type==="__appready__"){
-    appFrameLoaded = true; appFrameBooting = false;
-    if(queuedHandoff){
-      const q = queuedHandoff; queuedHandoff = null;
-      q.appId = pendingAppId || q.appId || null;
-      try{ $("appmodalframe").contentWindow.postMessage(q, "*"); }catch(_){}
-    }
-    // "My apps" clicked during the boot window: pop the library menu now that the builder can
-    // hear us. AFTER any parked handoff — if both are queued, the menu opens over the applied
-    // graph (the handoff was the older intent; the menu click was the last thing they asked for).
-    if(queuedMyApps){
-      queuedMyApps = false;
-      try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){}
-    }
+  else if(e.data.type==="__appactionresult__") finishAppRequest(e.data);
+  else if(e.data.type==="__appready__" && (!appFrameLoaded || e.data.bootId!==appFrameBootId)){
+    appFrameLoaded = true;
+    appFrameBootId = e.data.bootId;
+    clearTimeout(appBootTimer);
+    sendAppRequest();
   }
 });
 function seed(){
@@ -21405,6 +21595,19 @@ refreshUpdatesBadge();
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
+ { em:"\U0001F95E", slug:"photo-to-editable-layers", title:"Photo to editable layers", desc:"Upload one photo: Seedream 5.0 Flash Layerize returns it as a stack of named layers \u2014 a clean base plate, the background, and each element as its own transparent PNG with a bounding box \u2014 and a survey plus GLM guide name what separated, what resisted, and the honest edges.",
+   thumb:"examples/gallery/photo-to-editable-layers/preview.webp",
+   graph:{"v": 1, "nodes": [{"id": "note", "type": "comment", "name": "About this workflow", "fields": {"text": "PHOTO → EDITABLE LAYERS — one photo in, a stack of named layers out. Seedream 5.0 Flash Layerize pulls the picture apart: a clean base plate (everything lifted out, holes inpainted), the background, and each foreground element as its own PNG with real transparency, named, with its bounding box. Stack them back at their coordinates and the original rebuilds — or pull one element out and use it anywhere. $0.027 flat for the separation. Honest edges in the guide at the end: some photos refuse (unbilled), the model re-segments every run so names and boundaries shift, and the layers are cutouts, not vectors."}, "x": 40, "y": 24, "w": 460}, {"id": "src", "type": "upload", "name": "Photo", "fields": {"image": ""}, "x": 40, "y": 300, "w": 320}, {"id": "how", "type": "text", "name": "Layer instruction", "fields": {"text": "Separate this image into editable layers: background, main subject, and any other distinct elements, each isolated on transparency."}, "x": 40, "y": 520, "w": 340}, {"id": "survey", "type": "vision", "name": "Survey — what will separate", "fields": {"model": "google/gemini-3.1-flash-lite", "q": "List the distinct visual elements in this image that could be separated into layers: the background, the main subject, and any supporting elements (props, furniture, text). For each, one short phrase. Then one line: which element is most likely to resist clean separation, and why. 60 words maximum."}, "x": 460, "y": 300, "w": 340}, {"id": "layers", "type": "edit", "name": "Layerize — Seedream V5 Flash", "fields": {"model": "bytedance/seedream/v5/flash/layerize", "size": "auto_1K"}, "x": 880, "y": 300, "w": 340}, {"id": "guide", "type": "llm", "name": "Guide — your layer stack", "fields": {"model": "z-ai/glm-4.6", "system": "You write the guide for a workflow that separates one photo into editable layers with Seedream 5.0 Flash Layerize ($0.027 flat). You are told what a vision model saw in the photo. Write 120-180 words in three headed sections. WHAT YOU GOT: a layer stack — a clean base plate with every element lifted out and the holes inpainted, the background, and each foreground element as its own transparent PNG, named, with a bounding box; stack them at their coordinates and the original rebuilds exactly. WHAT TO DO WITH THEM: pull one element onto a new backdrop, drop the subject into a design, re-time a product shot without reshooting; name one concrete move that fits THIS photo's elements. THE HONEST EDGES: some photos refuse outright (the run errors and you are NOT charged — try a cleaner, sharper image); the alpha edges are soft photographic cutouts, not vector-crisp; text and fine hair separate worst; the base plate behind an element is regenerated inpaint, so it is plausible, not the original pixels; the model re-segments the photo on every run, so layer names and boundaries shift between runs and a rebuild lands close to the original, not pixel-perfect; if the photo arrives as a remote URL the run can refuse intermittently (never charged) — an inlined image lands first try. Refer to layers by the survey's element names — never invent file names, layer counts or bounding boxes. No hype, no exclamation marks."}, "x": 1300, "y": 300, "w": 360}], "links": [{"id": "l1", "from": {"node": "src", "port": "image"}, "to": {"node": "survey", "port": "image"}}, {"id": "l2", "from": {"node": "src", "port": "image"}, "to": {"node": "layers", "port": "image"}}, {"id": "l3", "from": {"node": "how", "port": "text"}, "to": {"node": "layers", "port": "prompt"}}, {"id": "l4", "from": {"node": "survey", "port": "text"}, "to": {"node": "guide", "port": "prompt"}}]} },
+ { em:"✂️", slug:"mesh-diet", title:"Mesh diet", desc:"Upload one photo of an object: Idol Max Turbo rebuilds it at 30,000 triangles, then Hyper3D Low Poly retopologizes it down to the face budget you set \u2014 4,000 here \u2014 with the UVs and PBR textures carried over, plus a guide with the budget table and the honest edges.",
+   thumb:"examples/gallery/mesh-diet/preview.webp",
+   graph:{ v:1,
+   nodes:[{"fields":{"color":"yellow","text":"Photo → game-budget mesh. Upload one photo of one object. Idol Max Turbo rebuilds it as a 30,000-triangle textured mesh; Hyper3D Low Poly then retopologizes it down to the face budget you set (4,000 here — mobile and web props live at a few thousand). A surveyor first notes the silhouette features that must survive the cut. Already have a heavy GLB? Wire it straight into the Low Poly node's model input and skip the rebuild."},"id":"c-intent","name":"How it works","type":"comment","w":900,"x":-40,"y":-190},{"fields":{"image":""},"id":"src","name":"Object photo","type":"upload","w":320,"x":-40,"y":0},{"fields":{"model":"google/gemini-3.8-flash","q":"You are the surveyor in a mesh-diet pipeline. Look at this photo and write an OBJECT SURVEY in this exact shape:\nObject: <what the single object is, one line>\nSilhouette: <the 3-5 outline features that must still read after the mesh is cut to a few thousand triangles — the pose, the big shapes, the profile>\nFragile details: <the fine features most likely to soften or merge at low triangle counts>\nKeep it under 90 words. Facts only, no sales language."},"id":"survey","name":"Survey the object","type":"vision","w":340,"x":-40,"y":300},{"fields":{"model":"speridlabs/idol/max/turbo","modelOpts":{"enable_pbr":true,"image_type":"real"},"prompt":""},"id":"mesh","name":"Rebuild as a mesh — Idol Max Turbo","type":"model3d","w":380,"x":380,"y":0},{"fields":{"model":"hyper3d/lowpoly","modelOpts":{"face_count":4000,"transfer_texture":true},"prompt":"","sample":"examples/gallery/mesh-diet/model.glb"},"id":"diet","name":"Mesh diet — Hyper3D Low Poly","type":"model3d","w":380,"x":820,"y":0},{"fields":{"maxTokens":"500","model":"z-ai/glm-5.3-flash","reasoningEffort":"low","system":"You write the guide that ships with a game-budget mesh produced by this workflow: a photo is rebuilt by Idol Max Turbo as a textured mesh of exactly 30,000 triangles, then Hyper3D Low Poly retopologizes it to a target face count the user sets (4,000 in the tested run; the tested output measured 3,876 triangles — automatic retopology lands NEAR its target, not on it, so quote targets as targets).\n\nThe input is the surveyor's OBJECT SURVEY of the source photo. Write in this exact shape:\n\nWHAT YOU GOT\n<the retopologized mesh: same object, a fraction of the triangles, UVs and PBR textures carried over. Name what the survey says must still read, in silhouette terms.>\n\nPICK YOUR BUDGET\n<one short paragraph tying face counts to destinations, using these published budgets: Roblox caps a single mesh at 20,000 triangles; mobile props typically run 300-3,000 triangles; WebGL/three.js props 1,000-10,000. The face-count field is the lever: lower for crowds and mobile, higher for a hero prop.>\n\nTHE HONEST EDGES\n<two or three plain sentences: (1) automatic retopology is not hand retopology — a character that must deform at the joints still wants edge loops a person designs; props, environment pieces and LODs are what this is for. (2) The diet is in triangles, not megabytes: the output file can be as large as the input because texture resolution is a separate lever. (3) Fine details named in the survey's fragile list will soften first.>\n\nPlain language. No hype, no prices beyond what is stated here, no invented measurements."},"id":"guide","name":"Guide","type":"llm","w":360,"x":820,"y":300}],
+   links:[{"id":"l1","from":{"node":"src","port":"image"},"to":{"node":"survey","port":"image"}},{"id":"l2","from":{"node":"src","port":"image"},"to":{"node":"mesh","port":"image"}},{"id":"l3","from":{"node":"mesh","port":"model"},"to":{"node":"diet","port":"model"}},{"id":"l4","from":{"node":"survey","port":"text"},"to":{"node":"guide","port":"prompt"}}] } },
+ { em:"🗿", slug:"talking-photo", title:"Talking photo", desc:"Upload one photo with a story in its face and write one short line: Algenib performs it, and LTX-2.5 Fast takes the photo and the voice as direct inputs and moves the mouth to the audio — a marble emperor wakes after two thousand years and complains about it.",
+   thumb:"examples/gallery/talking-photo/preview.webp",
+   graph:{ v:1,
+   nodes:[{fields:{"color":"yellow","text":"Talking photo. Upload one front-facing photo with a story in its face — a statue, a painting, a portrait — write one short line, and the photo performs it: a voice model reads the line, LTX-2.5 Fast takes the photo and the voice clip as direct inputs and moves the mouth to the audio. Five seconds is the discipline: the clip follows the audio, and audio-driven runs bill per second. Swap the photo and the line, then ▶ Run. Have your own voice clip instead? It can replace the speech node — wire an audio upload into the same port."},id:"c-intent",name:"How it works",type:"comment",w:900,x:-40,y:-380},{fields:{"image":""},id:"src",name:"Subject photo",type:"upload",w:320,x:-40,y:0},{fields:{"text":"Direction: an ancient marble emperor, woken after two thousand years. An old man's voice — low, gravelly, stone-dry, impatient, brisk and clipped — no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"},id:"script",name:"Script — what the photo says",type:"text",w:340,x:-40,y:300},{fields:{"model":"gemini-3.1-flash-tts-preview","voice":"Algenib","response_format":"wav"},id:"voice",name:"Voice — Algenib performs the script",type:"tts",w:340,x:380,y:300},{fields:{"start":"0","length":"5"},id:"clip",name:"Voice clip — first 5 seconds",type:"trim",w:260,x:380,y:620},{fields:{"model":"lightricks/ltx-2.5/fast","prompt":"The subject in the photo speaks the supplied audio aloud, mouth moving in sync with the words. Locked camera, same framing. Only the mouth, jaw and a slight head movement move; everything else stays exactly as it is. No cuts, no new objects, no camera motion.","resolution":"720p","modelOpts":{"generateAudio":false},"sample":"examples/gallery/talking-photo/talking-photo.mp4"},id:"talk",name:"Talking photo — LTX-2.5 Fast",type:"lipsync",w:380,x:800,y:0},{fields:{"model":"z-ai/glm-5.3-flash","maxTokens":"500","reasoningEffort":"low","system":"You write the guide that ships with a talking-photo video. The input is the script node: a Direction line plus the spoken line after 'Script:'. Write 120 to 180 words in exactly three short paragraphs:\nWHAT YOU MADE — a still photo performed one spoken line as a short video: quote the spoken line (only the words after 'Script:'), name the subject neutrally as the photo's subject, and say the mouth is driven by the voice clip, not generated speech.\nHOW IT WORKS — the script is performed by a Gemini TTS voice (Algenib), trimmed to five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs with generated audio off; the clip's length follows the audio, and audio-driven runs render at 1080p even when 720p is selected.\nTHE HONEST EDGES — this bills per second: $0.14 a second at the audio-driven 1080p rate, so a five-second clip is about $0.70 plus a few cents of speech; keep lines to about ten words. No current model reliably closes the mouth on pauses — in a frame-counted shootout LTX was best of the field and still only closed on 2 of 6 pauses — so short lines with few pauses forgive most. Front-facing faces with an unobstructed mouth work best; statues and paintings forgive more than photographs of real people.\nPlain sentences, no markdown, no hype. Do not invent details the input does not name."},id:"guide",name:"Guide — GLM writes what you made",type:"llm",w:340,x:1260,y:300}],
+   links:[{id:"l1",from:{"node":"src","port":"image"},to:{"node":"talk","port":"image"}},{id:"l2",from:{"node":"script","port":"text"},to:{"node":"voice","port":"prompt"}},{id:"l3",from:{"node":"voice","port":"audio"},to:{"node":"clip","port":"audio"}},{id:"l4",from:{"node":"clip","port":"audio"},to:{"node":"talk","port":"audio"}},{id:"l5",from:{"node":"script","port":"text"},to:{"node":"guide","port":"prompt"}}] } },
  { em:"🎮", slug:"photo-to-game-ready-mesh", title:"Photo to game-ready mesh", desc:"Upload one photo of an object: Idol Max Turbo rebuilds it as a textured 30,000-triangle mesh with UVs and PBR maps — a GLB that drops into Blender, a game engine or a slicer, with a guide that names the invented sides.",
    thumb:"examples/gallery/photo-to-game-ready-mesh/preview.webp",
    graph:{ v:1,
@@ -22413,6 +22616,7 @@ $("signout").onclick = ()=> setKey(null);
       }
     }catch(_){}
   }
+  appWorkspaceReady = true;
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   try{ renderWorkspaces(); }catch(_){}
   redraw();

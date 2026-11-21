@@ -1,5 +1,196 @@
 [
  {
+  "slug": "photo-to-editable-layers",
+  "title": "Photo to editable layers",
+  "date": "2026-11-20",
+  "review": "One photo of a marble bust returns as four named layers \u2014 base plate, background, bust, pedestal \u2014 each a transparent PNG with a bounding box; stacked at their coordinates they rebuild the photo (mean abs diff 14.26/255)",
+  "note": "Layer separation is the oldest ask in photo editing \u2014 give me the subject, the background and the props as pieces I can move \u2014 and the browser version has always been a mask you paint yourself. This workflow makes it one run: a Gemini survey names what should separate and what will resist, Seedream 5.0 Flash Layerize (bytedance/seedream/v5/flash/layerize, $0.027 flat at every size \u2014 the Seedream 5.5 decomposition route bills $0.60) returns a clean base plate plus each element as its own transparent PNG carrying a name, a z-index and a bounding box, and a GLM guide closes with what to do with the stack and the honest edges. The claim was checked by rebuilding: stacking this saved run's background, bust and pedestal at their boxes over the base plate lands at a mean absolute difference of 14.26/255 against the original photo, 82.3% of pixels within 25 \u2014 close, visibly the same photograph, not pixel-perfect. The bust cutout is genuinely clean (head, neck and drapery, pedestal excluded, edges tight); the background layer is a soft matte. Honest edges, all measured on this ship's own runs: the model RE-SEGMENTS every run \u2014 in the morning probe the bust was z3 and the pedestal z2, in this saved run they are z2 and z3 with reworded names, and recomposition across runs scored 6.65 to 27.30, so treat names and boundaries as per-run, not canonical. Some photos refuse outright with a 422 (the candle product shot from One Photo, Whole Campaign did; refusals are never charged), and identical requests flake \u2014 the route went 200/422/200 across this ship's attempts, with remote-URL inputs the flakiest and inlined images landing first try. The base plate behind a lifted element is regenerated inpaint, plausible rather than the original pixels, and fine hair and weathered edges separate worst. Why this shipped the day it did: the model's response always carried all four layers, but every nanoodle executor's edit node kept only the first returned image, so a graph received just the empty base plate \u2014 the fix (edit nodes surface every returned image plus the layer metadata) landed across JS, Py, Rust, the editor's embedded engine and nanoodle-mcp on 2026-11-20, and this example is its first proof. The saved run is assembled from two runs of this exact graph and says so in run.json: layers from the run whose layerize call landed, guide text from a second run whose layerize call refused \u2014 the guide does not read the layers, only the survey.",
+  "layout": "sequence",
+  "costUsd": 0.0273531625,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.1-flash-lite",
+   "bytedance/seedream/v5/flash/layerize",
+   "z-ai/glm-4.6"
+  ],
+  "graphSha256": "baf2ae0c332bf62bac08c9846d6979686a164714f66378f95cc8ad9b1e38745f",
+  "inputs": [
+   {
+    "label": "Photo",
+    "src": "photo-to-editable-layers/photo.webp"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "photo-to-editable-layers/layer-bust.png",
+    "kind": "image",
+    "label": "1. The bust, lifted: the saved run's z2 layer 'ancient marble bust' as a transparent PNG, pedestal excluded \u00b7 reported $0.027 (whole stack)",
+    "costUsd": 0.027,
+    "sha256": "a3c7545257e35ac45c2c283fb2eb83ac2e5a0477384658b28b8261b718ca95ec"
+   },
+   {
+    "src": "photo-to-editable-layers/base-plate.png",
+    "kind": "image",
+    "label": "2. The base plate: the same scene with bust and pedestal removed and the holes inpainted \u2014 the z0 layer every stack starts from",
+    "costUsd": 0,
+    "sha256": "0fc5c88d5dc52ea75cdb191ed79a57684f5435963ec85a9ffbca062e65438d91"
+   },
+   {
+    "src": "photo-to-editable-layers/recomposed.jpg",
+    "kind": "image",
+    "label": "3. The rebuild: background, bust and pedestal stacked at their bounding boxes over the base plate \u2014 mean abs diff 14.26/255 vs the original photo",
+    "costUsd": 0,
+    "sha256": "8794cc38ddc2fd8f8ba0021f40f43e8dbb0c4b7c5aedd882fa8cd7bc909db31c"
+   },
+   {
+    "src": "photo-to-editable-layers/layer-background.png",
+    "kind": "image",
+    "label": "4. The background layer: 'dark background', z1, a soft photographic matte at 720\u00d71359",
+    "costUsd": 0,
+    "sha256": "e964df4bed74b53c4fcd5eebe7f20657031692967574d34126c99810c065a916"
+   },
+   {
+    "src": "photo-to-editable-layers/layer-pedestal.png",
+    "kind": "image",
+    "label": "5. The pedestal layer: 'statue pedestal', z3, cropped to its bounding box [77, 1310, 645, 1440]",
+    "costUsd": 0,
+    "sha256": "9e5063f451eb1111f647afe2fc76fca1b4d18545c216d101c152101db1f0bbb2"
+   },
+   {
+    "src": "photo-to-editable-layers/survey.txt",
+    "kind": "text",
+    "label": "Layer survey \u00b7 Gemini names what will separate and what will resist \u00b7 reported $0.0004",
+    "costUsd": 0.0003531625,
+    "sha256": "c5903f10ff7b4e549cde27e6cffb2c4364ba08446a496a9011dea47abdd4b90b",
+    "collapsed": true
+   },
+   {
+    "src": "photo-to-editable-layers/guide.txt",
+    "kind": "text",
+    "label": "Layers guide \u00b7 GLM writes what you got, what to do with them, and the honest edges \u00b7 reported $0.00",
+    "costUsd": 0,
+    "sha256": "f3de9f70eb097c454d5d14b4fb88edbec8e461c16c45ce2859eb9f48f976a600",
+    "collapsed": true
+   }
+  ],
+  "preview": "photo-to-editable-layers/preview.webp",
+  "workflow": "photo-to-editable-layers/workflow.json",
+  "workflowSha256": "baf2ae0c332bf62bac08c9846d6979686a164714f66378f95cc8ad9b1e38745f"
+ },
+ {
+  "slug": "talking-photo",
+  "title": "Talking photo",
+  "date": "2026-11-19",
+  "review": "A weathered marble emperor, silent for two thousand years, performs one line \u2014 frame-checked against the audio: mouth nearly closed at the pause, wide open on the loudest word",
+  "note": "Upload one front-facing photo with a story in its face \u2014 a statue, a painting, a portrait \u2014 write one short line, and the photo performs it. The script node carries a direction line plus the line itself; a Gemini TTS voice (Algenib) performs it, a trim node caps the clip at five seconds, and LTX-2.5 Fast takes the photo and the audio as direct inputs, generated audio off, and moves the mouth to the supplied voice. A GLM guide closes with what you made, how it works, and the honest edges. The demo subject is a cracked marble emperor bust, chipped nose and all, delivering: \"Two thousand years silent... and you wake me NOW?\" The sync claim was checked in the video, not the listing: a probe run came first, and on this saved run the mouth was frame-checked against the audio \u2014 wide open mid-line (1.5s) and closed on the script's ellipsis pause (~3.0s), where the waveform itself goes quiet. The voice pairing was checked the same way: the example first shipped with Sulafat, a female voice (measured 210 Hz) on a marble emperor \u2014 caught and called out the same day \u2014 and was re-voiced with Algenib, whose performance here measures 143 Hz; the clip above is that corrected run. Two pricing facts the catalog listing does not shout, both measured: audio-driven LTX runs render at 1080p even when 720p is selected, so they bill at the 1080p rate of $0.14 a second, not the $0.10 720p rate \u2014 a 5.00s clip bills exactly $0.70 \u2014 this saved run billed $0.70, plus about $0.025 of speech and a $0 guide. The honest edges, also printed in the guide: no current model reliably closes the mouth on pauses \u2014 in a frame-counted shootout LTX was best of field and still only closed on 2 of 6 pauses \u2014 so short lines with few pauses forgive most (this demo's pause did close; do not count on it). Keep scripts near ten words, because every second bills. Front-facing faces with an unobstructed mouth work best, and statues and paintings forgive more than photographs of real people. Have your own voice clip? Replace the speech node with an audio upload wired into the same port.",
+  "layout": "sequence",
+  "costUsd": 0.725,
+  "costExact": false,
+  "models": [
+   "gemini-3.1-flash-tts-preview",
+   "lightricks/ltx-2.5/fast",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "72236d095e7e05a26c90d2a39009778afa51b41dcd1c4b8efea38425d50ce799",
+  "inputs": [
+   {
+    "label": "Subject photo",
+    "src": "talking-photo/subject-photo.webp"
+   },
+   {
+    "label": "Script \u2014 what the photo says",
+    "text": "Direction: an ancient marble emperor, woken after two thousand years. An old man's voice \u2014 low, gravelly, stone-dry, impatient, brisk and clipped \u2014 no lingering. One short pause at the ellipsis, hard emphasis on NOW. Script: Two thousand years silent... and you wake me NOW?"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "talking-photo/talking-photo.mp4",
+    "kind": "video",
+    "label": "1. The emperor speaks: LTX-2.5 Fast moves the marble mouth to the voice clip, 5s at 1080\u00d71920 \u00b7 reported $0.70",
+    "costUsd": 0.7,
+    "sha256": "4ec98d54b0a1f8609c0f7a221633d200c4b7c82c5b17f68f1ca1ce7b439419c7"
+   },
+   {
+    "src": "talking-photo/voice-clip.mp3",
+    "kind": "audio",
+    "label": "2. The driving voice clip: Algenib performs the script, trimmed to five seconds \u00b7 reported $0.025",
+    "costUsd": 0.025,
+    "sha256": "3aa84936babde0b0064d0a54b2d53d5e5ade2918894490eca477a4393c4bf110"
+   },
+   {
+    "src": "talking-photo/guide.txt",
+    "kind": "text",
+    "label": "Talking-photo guide \u00b7 GLM writes what you made and the honest edges \u00b7 reported $0.00",
+    "costUsd": 0,
+    "collapsed": true,
+    "sha256": "fd454dc6371ba8a2cec0ab88b7dde8e208d3c7358b4017ba2dcf5e00c6278a55"
+   }
+  ],
+  "preview": "talking-photo/preview.webp",
+  "workflow": "talking-photo/workflow.json",
+  "workflowSha256": "c20efcdcdb8cdb1b71ce2f39c808f1981f93168007746f6c523b8cb4cba06af6",
+  "workflowNote": "talking-photo.NOTE.txt"
+ },
+ {
+  "slug": "mesh-diet",
+  "title": "Mesh diet",
+  "date": "2026-11-19",
+  "review": "The 30,000-triangle dragon from Photo to Game-Ready Mesh, retopologized to a 4,000-face budget by Hyper3D Low Poly \u2014 the saved output parses at 3,929 triangles, silhouette intact",
+  "note": "AI mesh generators hand you a prop with a hundred thousand triangles and call it done; engines budget in thousands. This workflow closes that gap in the browser: Idol Max Turbo rebuilds one photo as a textured mesh of exactly 30,000 triangles, then Hyper3D Low Poly (landed on NanoGPT the day before this shipped) retopologizes it down to a face budget you set \u2014 4,000 here, inside its 200\u201310,000 range \u2014 carrying the UVs and PBR textures over. A Gemini surveyor first writes down the silhouette features that must survive the cut, and the GLM guide closes with the budget table (Roblox caps a mesh at 20,000 triangles; mobile props run 300\u20133,000; WebGL props 1,000\u201310,000) and the honest edges. The proof is countable, and the counts are printed: the morning probe parsed at 30,000 in, 3,876 out; this saved run parses at 30,000 in, 3,929 out. Automatic retopology lands NEAR its target, not on it \u2014 quote the target as a target. Silhouette was checked by rendering both GLBs from three angles: wings, coiled tail, antlered head and plinth all read at ~4k triangles; the chin whiskers, teeth and wing-tip points merge, exactly what the survey flagged as fragile. Flaws and limits: automatic retopology is not hand retopology \u2014 a character that must deform at the joints still wants edge loops a person designs; props, environment pieces and LODs are the claim. The diet is in triangles, not megabytes: the diet GLB is 11.8 MB against the heavy mesh's 10.0 MB, because the transferred textures are as large as the source's \u2014 texture resolution is a separate lever. Already have a heavy GLB? Wire it straight into the Low Poly node's model input and skip the rebuild. One pricing note the run exposed: Idol Max Turbo's catalog price is variant-based, and the PBR variant this graph uses bills $0.20, not the $0.10 base. The turntable and the before/after still are plain flat-shaded renders of the saved GLBs with their own base-colour textures, not beauty shots.",
+  "layout": "sequence",
+  "costUsd": 0.40342,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.8-flash",
+   "speridlabs/idol/max/turbo",
+   "hyper3d/lowpoly",
+   "z-ai/glm-5.3-flash"
+  ],
+  "graphSha256": "e24f60fa07341d336408783acabdefb3214f6574ffe956e34323f0e3fc1de744",
+  "inputs": [
+   {
+    "label": "Object photo",
+    "src": "mesh-diet/object-photo.webp"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "mesh-diet/turntable.mp4",
+    "kind": "video",
+    "label": "1. The diet mesh turning: Hyper3D Low Poly's retopologized GLB rendered one full turn, 3,929 triangles \u00b7 reported $0.20",
+    "costUsd": 0.2,
+    "sha256": "c0febf29327dd89e836965f437e33f49cac22e13253eafee9a3ee61226c42713"
+   },
+   {
+    "src": "mesh-diet/before-after.png",
+    "kind": "image",
+    "label": "2. The countable diet: 30,000 triangles (left) \u2192 3,929 (right), same angle, both parsed from the saved GLBs",
+    "costUsd": 0,
+    "sha256": "a5339c70d29b5defeebf47e6de69d20bd299a56a664f61ffca6e6bd281eae5a9"
+   },
+   {
+    "src": "mesh-diet/survey.txt",
+    "kind": "text",
+    "label": "Object survey \u00b7 Gemini names the silhouette that must survive \u00b7 reported $0.0034",
+    "costUsd": 0.0034,
+    "collapsed": true,
+    "sha256": "c931b7a6394bdc4db5fee5ae498372d7281088a6200a29ace7b4157976525d59"
+   },
+   {
+    "src": "mesh-diet/guide.txt",
+    "kind": "text",
+    "label": "Mesh-diet guide \u00b7 GLM writes the budget table and the honest edges \u00b7 reported $0.00",
+    "costUsd": 0,
+    "collapsed": true,
+    "sha256": "be57cff6c01d1210f6b94f6a2772e2ffa18eba19391e7664408b7b517f425e11"
+   }
+  ],
+  "preview": "mesh-diet/preview.webp",
+  "workflow": "mesh-diet/workflow.json",
+  "workflowSha256": "ecdae065d2147cd10ecc8e23be5bc273aa0620367d853fdfb45db556e56fed4a",
+  "workflowNote": "mesh-diet.NOTE.txt"
+ },
+ {
   "slug": "photo-to-game-ready-mesh",
   "title": "Photo to game-ready mesh",
   "date": "2026-11-18",

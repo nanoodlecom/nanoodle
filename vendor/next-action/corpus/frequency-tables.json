@@ -1,31 +1,31 @@
 {
   "unigram": {
-    "add:text": 477,
+    "add:text": 482,
     "add:image": 223,
-    "set:model": 627,
-    "wire": 1152,
+    "set:model": 641,
+    "wire": 1160,
     "add:ivideo": 55,
     "add:vedit": 19,
-    "add:comment": 179,
-    "run": 171,
-    "add:llm": 114,
+    "add:comment": 185,
+    "run": 177,
+    "add:llm": 120,
     "add:join": 104,
-    "add:edit": 132,
+    "add:edit": 134,
     "add:resize": 46,
     "add:music": 36,
-    "add:tts": 20,
-    "add:lipsync": 28
+    "add:tts": 23,
+    "add:lipsync": 31
   },
   "bigram": {
     "add:text": {
       "add:text": 227,
       "add:image": 131,
       "add:ivideo": 12,
-      "add:llm": 41,
+      "add:llm": 42,
       "add:join": 30,
-      "add:edit": 16,
+      "add:edit": 18,
       "add:music": 10,
-      "add:tts": 7,
+      "add:tts": 9,
       "add:comment": 1,
       "add:lipsync": 2
     },
@@ -33,25 +33,25 @@
       "set:model": 223
     },
     "set:model": {
-      "wire": 619,
-      "add:comment": 2,
-      "add:join": 3,
-      "add:text": 3
+      "wire": 627,
+      "add:comment": 5,
+      "add:text": 6,
+      "add:join": 3
     },
     "wire": {
       "add:ivideo": 43,
       "wire": 389,
       "add:vedit": 19,
-      "add:comment": 168,
+      "add:comment": 171,
       "add:text": 78,
       "add:image": 92,
       "add:join": 69,
-      "add:llm": 68,
+      "add:llm": 71,
       "add:edit": 115,
       "add:resize": 46,
       "add:music": 26,
-      "add:lipsync": 26,
-      "add:tts": 13
+      "add:lipsync": 27,
+      "add:tts": 14
     },
     "add:ivideo": {
       "set:model": 55
@@ -60,11 +60,11 @@
       "set:model": 19
     },
     "add:comment": {
-      "run": 171,
+      "run": 177,
       "add:comment": 8
     },
     "add:llm": {
-      "set:model": 114
+      "set:model": 120
     },
     "add:join": {
       "wire": 98,
@@ -73,7 +73,7 @@
       "add:join": 1
     },
     "add:edit": {
-      "set:model": 132
+      "set:model": 134
     },
     "add:resize": {
       "wire": 46
@@ -82,23 +82,25 @@
       "set:model": 36
     },
     "add:tts": {
-      "set:model": 20
+      "set:model": 23
     },
     "add:lipsync": {
-      "set:model": 28
+      "set:model": 31
     }
   },
   "coldStart": {
-    "add:text": 167,
-    "add:llm": 2,
+    "add:text": 169,
+    "add:llm": 4,
     "add:edit": 1,
-    "add:join": 1
+    "add:join": 1,
+    "add:lipsync": 2
   },
   "firstNode": {
-    "add:text": 167,
-    "add:llm": 2,
+    "add:text": 169,
+    "add:llm": 4,
     "add:edit": 1,
-    "add:join": 1
+    "add:join": 1,
+    "add:lipsync": 2
   },
   "firstTrio": [
     {
@@ -239,9 +241,41 @@
     },
     {
       "actions": [
+        "add:lipsync",
+        "add:text",
+        "add:llm"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:lipsync",
+        "add:text",
+        "add:tts"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:llm",
+        "add:text",
+        "add:edit"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
         "add:text",
         "add:edit",
         "add:join"
+      ],
+      "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:edit",
+        "add:llm"
       ],
       "count": 1
     },
@@ -260,7 +294,15 @@
         "add:llm"
       ],
       "count": 1
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:tts",
+        "add:llm"
+      ],
+      "count": 1
     }
   ],
-  "total": 3383
+  "total": 3436
 }
