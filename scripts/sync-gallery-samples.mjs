@@ -86,7 +86,7 @@ function renderRunDetails(s, label, inputs = s.inputs) {
 <summary>${esc(label)}</summary>
 <div class="run-detail-body">
 ${inputs.length ? `<div class="inputs">${renderInputs(inputs)}</div>` : ''}
-<div class="run-models"><h4>Models in this run</h4><ul>${models}</ul>${note}</div>
+<div class="run-models">${models ? `<h4>Models in this run</h4><ul>${models}</ul>` : '<p>All nodes run locally.</p>'}${note}</div>
 </div>
 </details>`;
 }
@@ -124,7 +124,8 @@ const sections = samples.map(s => {
   const related = copy.related && samples.find(other => other.slug === copy.related);
   const downloads = [
     `<a class="button secondary" href="${local(s.workflow)}" download>Download workflow</a>`,
-    `<a class="button quiet" href="${local(s.slug + '/graph.json')}" download>Original sampled graph</a>`,
+    s.workflow === s.slug + '/graph.json' ? '' :
+      `<a class="button quiet" href="${local(s.slug + '/graph.json')}" download>Original sampled graph</a>`,
   ].join('');
   return `<section id="${esc(s.slug)}" class="sample" aria-labelledby="${esc(s.slug)}-title" tabindex="-1">
 <div class="sample-top${featured.length > 1 ? ' sample-top-wide' : ''}">
@@ -137,7 +138,7 @@ const sections = samples.map(s => {
 ${copy.asset ? `<a class="button secondary" href="${local(copy.asset)}" download>Download GLB <span aria-hidden="true">↓</span></a>` : ''}
 
 </div>
-<p class="technical sample-cost">Saved run <strong>${cost(s)}</strong> <span>·</span> Live prices vary</p>
+<p class="technical sample-cost">Saved run <strong>${cost(s)}</strong> <span>·</span> ${s.models.length ? 'Live prices vary' : 'Local processing'}</p>
 </header>
 ${input ? `<div class="media-pair">${renderOutput(s, featured[0], { square: true, leadCaption: copy.leadCaption })}${renderInputs([{ ...input, label: 'Source photo' }])}</div>`
   : featured.length > 1 ? renderOutputGrid(s, featured, 'comparisons') : renderOutput(s, featured[0], { portrait: copy.portrait })}

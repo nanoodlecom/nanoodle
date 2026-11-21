@@ -53,7 +53,7 @@ const GRAPHS = gi >= 0 ? argv[gi + 1] : join(ROOT, "..", "awesome-noodles", "gra
 // to hide "See result" instead of linking examples/gallery/#<slug>.
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 // Saved-run examples synced from examples/gallery/<slug>/graph.json (see the header).
-const GALLERY_SAVED_EXAMPLE_SLUGS = new Set(["creator-ad"]);
+const GALLERY_SAVED_EXAMPLE_SLUGS = new Set(["creator-ad", "slice-3d"]);
 
 if (!existsSync(GRAPHS)) {
   console.log(`sync-examples: SKIP — no awesome-noodles checkout at ${GRAPHS}`);

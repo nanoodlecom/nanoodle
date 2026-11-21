@@ -37,12 +37,12 @@ export function nodeKinds(src) {
   const end = src.indexOf('\n};', begin);
   if (begin < 0 || end < 0) throw new Error('NODE_TYPES not found');
   const body = src.slice(begin, end);
-  const heads = [...body.matchAll(/^ {2}(\w+):\s*\{/gm)];
+  const heads = [...body.matchAll(/^ {2}(?:"([\w-]+)"|(\w+)):\s*\{/gm)];
   const out = {};
   for (let i = 0; i < heads.length; i++) {
     const entry = body.slice(heads[i].index, heads[i + 1]?.index ?? body.length);
     const kind = /modelKind\s*:\s*"(\w+)"/.exec(entry)?.[1];
-    out[heads[i][1]] = { kind, filter: /modelFilter\s*:\s*"(\w+)"/.exec(entry)?.[1] };
+    out[heads[i][1] || heads[i][2]] = { kind, filter: /modelFilter\s*:\s*"(\w+)"/.exec(entry)?.[1] };
   }
   if (!Object.keys(out).length) throw new Error('No model node types parsed');
   return out;

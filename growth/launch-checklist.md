@@ -82,8 +82,8 @@ self-listings get removed.
 >
 > Workflows are shared as URLs (the graph is encoded in the URL fragment, which
 > never reaches a server) or exported as a single self-contained .html file you
-> can host anywhere or open from disk. A built-in Examples panel carries 40
-> ready-made workflows, mirrored from an open gallery repository and shipped
+> can host anywhere or open from disk. A built-in Examples panel carries 41
+> ready-made workflows, drawn from the open gallery and saved runs and shipped
 > inside the page, so there is something to run on the first visit and the panel
 > itself needs no network. The same graph format also runs headlessly via the
 > `nanoodle` package on npm (0.8.0) and PyPI (0.5.0), and there's an MCP server
@@ -246,10 +246,10 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > repos, all MIT.
 >
 > If you'd rather see the format than the canvas, the 📚 Examples panel in the
-> editor holds 40 ready-made graphs, mirrored from an open gallery repo
-> (https://github.com/nanoodlecom/awesome-noodles) and shipped inline, so opening
-> the panel costs no network at all. Every entry is a plain JSON file in that
-> repo, so you can read a workflow before you run one.
+> editor holds 41 ready-made graphs, drawn from the open gallery repo
+> (https://github.com/nanoodlecom/awesome-noodles) and the reviewed runs at
+> https://nanoodle.com/examples/gallery/. They ship inline, so opening the panel
+> costs no network. You can inspect or download the graph before you run it.
 >
 > The honest tradeoff: it's bring-your-own-key. Building and browsing need no
 > signup, but running models goes through your own nano-gpt.com key, pay-per-call.

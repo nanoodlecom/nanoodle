@@ -1,5 +1,11 @@
 // Page copy for the curated gallery. samples.json holds the original run records.
 export const editorial = {
+  'slice-3d': {
+    type: 'video',
+    summary: 'Render an animated GLB as a walking pixel sprite. Download the included Fox or open the graph and supply your own character.',
+    workflow: '3D input supplies the rigged Fox. Slice 3D samples twelve poses from Walk into an animated slice sheet. Sprite stack render reads the sheet and plays the walk from one fixed camera angle.',
+    asset: 'slice-3d/Fox.glb',
+  },
   'photo-to-game-ready-mesh': {
     type: 'model3d',
     summary: 'Turn one photo into a textured 3D mesh. The saved dragon has 29,992 triangles, UVs, and embedded 2,048 px textures. Inspect it in nanoodle or import the GLB into Blender.',

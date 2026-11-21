@@ -1,0 +1,66 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "fox",
+      "type": "mupload",
+      "x": 40,
+      "y": 80,
+      "w": 320,
+      "fields": {
+        "model": "examples/gallery/slice-3d/Fox.glb"
+      }
+    },
+    {
+      "id": "slice",
+      "type": "slice-3d",
+      "x": 440,
+      "y": 80,
+      "w": 340,
+      "fields": {
+        "preset": "character",
+        "clip": "Walk",
+        "frames": 12,
+        "outline": false
+      }
+    },
+    {
+      "id": "render",
+      "type": "sprite-stack-render",
+      "x": 860,
+      "y": 80,
+      "w": 340,
+      "fields": {
+        "yaw": 70,
+        "pitch": 28,
+        "scale": 2,
+        "turntable": false,
+        "spacing": 1
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "fox",
+        "port": "model"
+      },
+      "to": {
+        "node": "slice",
+        "port": "model"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "slice",
+        "port": "sheet"
+      },
+      "to": {
+        "node": "render",
+        "port": "sheet"
+      }
+    }
+  ]
+}

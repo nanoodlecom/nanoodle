@@ -37,7 +37,7 @@ const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
 const curated = examples.filter(e => !LOCAL_ONLY.has(e.slug));
 const curatedSlugs = new Set(curated.map(e => e.slug));
-assert.deepEqual([...curatedSlugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'flux3-seedream-ideogram-arena', 'grok-heygen-minimax-video-arena', 'carve-a-pumpkin', 'song-to-music-video', 'composer-watches-your-film', 'sketch-to-svg', 'creator-ad', 'one-prompt-looping-gif', 'swap-the-character', 'radio-play', 'logo-pile', 'add-snow-to-a-clip', 'seamless-loop', 'three-references-one-clip', 'product-photo-to-hero-ad', 'bilingual-tea-poster', 'day-to-night', 'color-to-manga', 'mix-the-references', 'same-shot-three-looks', 'orbit-the-character', 'story-to-shot', 'blockout-to-shot', 'idea-to-3d-model', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel', 'subject-anywhere', 'photo-to-3d-splat', 'edit-with-references', 'one-photo-whole-campaign', 'photo-to-game-ready-mesh', 'mesh-diet', 'talking-photo', 'photo-to-editable-layers'].sort(),
+assert.deepEqual([...curatedSlugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'flux3-seedream-ideogram-arena', 'grok-heygen-minimax-video-arena', 'carve-a-pumpkin', 'song-to-music-video', 'composer-watches-your-film', 'sketch-to-svg', 'creator-ad', 'one-prompt-looping-gif', 'swap-the-character', 'radio-play', 'logo-pile', 'add-snow-to-a-clip', 'seamless-loop', 'three-references-one-clip', 'product-photo-to-hero-ad', 'bilingual-tea-poster', 'day-to-night', 'color-to-manga', 'mix-the-references', 'same-shot-three-looks', 'orbit-the-character', 'story-to-shot', 'blockout-to-shot', 'idea-to-3d-model', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel', 'subject-anywhere', 'photo-to-3d-splat', 'edit-with-references', 'one-photo-whole-campaign', 'photo-to-game-ready-mesh', 'mesh-diet', 'talking-photo', 'photo-to-editable-layers', 'slice-3d'].sort(),
   'curated shelf changed: review the workflow and its saved evidence before featuring it');
 assert.deepEqual([...bySlug.keys()].sort(), [...curatedSlugs].sort());
 assert.deepEqual([...gallery.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]).sort(), [...bySlug.keys()].sort());
@@ -108,7 +108,8 @@ for (const ex of examples) {
   }
   file(vm.runInNewContext(thumbExpr, { ex, encodeURIComponent, LOCAL_ONLY_EXAMPLE_SLUGS: LOCAL_ONLY }));
   const models = ex.graph.nodes.filter(n => kinds[n.type]?.kind);
-  assert.ok(models.length >= 2, `${ex.slug}: a single model call belongs in the editor, not the workflow shelf`);
+  const isSpriteStack = ex.slug === 'slice-3d';
+  if (!isSpriteStack) assert.ok(models.length >= 2, `${ex.slug}: a single model call belongs in the editor, not the workflow shelf`);
   const canReach = (from, target, seen = new Set()) => {
     if (from === target) return true;
     if (seen.has(from)) return false;
@@ -116,7 +117,17 @@ for (const ex of examples) {
     return ex.graph.links.filter(l => l.from.node === from).some(l => canReach(l.to.node, target, seen));
   };
   const dependent = models.some(a => models.some(b => a !== b && canReach(a.id, b.id)));
-  if (!dependent) {
+  if (isSpriteStack) {
+    assert.equal(models.length, 0, 'The bundled Fox sample must run entirely locally');
+    const [source, slice, render] = ex.graph.nodes;
+    assert.deepEqual([source.type, slice.type, render.type], ['mupload', 'slice-3d', 'sprite-stack-render']);
+    assert.ok(file(source.fields.model).subarray(0, 4).equals(Buffer.from('glTF')), 'Include the Fox GLB in the site');
+    assert.equal(slice.fields.clip, 'Walk');
+    assert.equal(slice.fields.frames, 12);
+    assert.equal(render.fields.turntable, false, 'The motion must come from the clip');
+    const wires = Array.from(ex.graph.links, l => [l.from.node, l.from.port, l.to.node, l.to.port]);
+    assert.deepEqual(wires, [[source.id, 'model', slice.id, 'model'], [slice.id, 'sheet', render.id, 'sheet']]);
+  } else if (!dependent) {
     const arenaWidth = { 'image-model-arena': 4, 'flux3-seedream-ideogram-arena': 5, 'grok-heygen-minimax-video-arena': 3 };
     assert.ok(ex.slug in arenaWidth, 'independent calls need a meaningful comparison');
     assert.equal(models.length, arenaWidth[ex.slug]);
@@ -143,7 +154,7 @@ for (const ex of examples) {
   for (const input of sample.inputs.filter(i => i.text)) {
     assert.ok(originalGraph.nodes.some(n => n.fields?.text === input.text), `${ex.slug}: displayed input does not match the sampled graph`);
   }
-  assert.deepEqual(sample.models, [...new Set(originalGraph.nodes.map(n => n.fields?.model).filter(Boolean))], `${ex.slug}: sampled models mislabeled`);
+  assert.deepEqual(sample.models, [...new Set(originalGraph.nodes.filter(n => n.type !== 'mupload').map(n => n.fields?.model).filter(Boolean))], `${ex.slug}: sampled models mislabeled`);
   assert.equal(JSON.stringify(semanticGraph(ex.graph)), JSON.stringify(semanticGraph(currentGraph)), `${ex.slug}: gallery download differs from the editor workflow`);
   if (JSON.stringify(semanticGraph(originalGraph)) !== JSON.stringify(semanticGraph(currentGraph))) {
     assert.ok(sample.workflowNote, `${ex.slug}: changed workflow must explain how it differs from the saved run`);

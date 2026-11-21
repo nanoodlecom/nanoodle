@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Slice 3D · Fox walk cycle — nanoodle</title>
+<meta name="description" content="Turn a rigged 3D character into a walking pixel sprite. Reported saved run: $0." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Slice 3D · Fox walk cycle — nanoodle" />
+<meta property="og:description" content="Turn a rigged 3D character into a walking pixel sprite. Reported saved run: $0." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/slice-3d" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Slice 3D · Fox walk cycle — nanoodle" />
+<meta name="twitter:description" content="Turn a rigged 3D character into a walking pixel sprite. Reported saved run: $0." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/slice-3d" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span><span class="nano">nano</span>odle</span></a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Slice 3D · Fox walk cycle</span></nav>
+
+  <main>
+    <h1><span class="grad">Slice 3D · Fox walk cycle</span></h1>
+    <p class="lede">Turn a rigged 3D character into a walking pixel sprite.</p>
+
+    <section>
+      <p class="meta-row">Twelve distinct frames of the Fox Walk clip from a fixed viewpoint. · 2026-11-21 · Reported saved run: $0. </p>
+      <p>The graph includes Fox, a textured GLB with three animation clips. Slice 3D samples the Walk clip at twelve evenly spaced poses. Sprite stack render plays those poses from a fixed camera. Both nodes run locally.</p>
+      <p>Connect <strong>3D input</strong> <code>model</code> → <strong>Slice 3D</strong> <code>model</code>, then <strong>Slice 3D</strong> <code>sheet</code> → <strong>Sprite stack render</strong> <code>sheet</code>. The <code>sheet</code> output holds one horizontal slice sheet per pose in an animated PNG. The renderer’s <code>image</code> output is the first view and <code>video</code> is the animated MP4.</p>
+
+      <h2>Saved result</h2>
+      <div class="media">
+          <figure><video controls playsinline loop preload="none" poster="/examples/gallery/slice-3d/preview.png" aria-label="Fox walk cycle · 12 poses, 368 × 394 px — Slice 3D · Fox walk cycle"><source src="/examples/gallery/slice-3d/walk.mp4" type="video/mp4"></video><figcaption>Fox walk cycle · 12 poses, 368 × 394 px · <a href="/examples/gallery/slice-3d/walk.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>The saved MP4 is one 0.708-second walk cycle. The head and tail stay in view while the legs change pose. The source model is by PixelMannen (CC0), with rigging and animation by tomkranis and glTF conversion by AsoboStudio and scurest (CC BY 4.0).</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>On <em>Slice 3D</em>, change the clip from <code>Walk</code> to <code>Run</code> or <code>Survey</code> to try either of Fox’s other animations. For the rest pose, clear the clip and set frames to 1. Use <em>3D input</em> to upload your own model, or wire the <code>model</code> output of a rigged <em>3D model</em> node directly to Slice 3D.</li>
+        <li>Click <strong>Run</strong> in the editor. This workflow runs on your device and needs no NanoGPT key.</li>
+        <li>The Character preset uses 128-pixel tiles, 80 slices, source colors and outlines. This Fox example switches outlines off to keep the orange coat smooth. Turn them on and compare the legs and tail. For thin parts, try a pitch of 20–30° and layer spacing of 1. As pitch approaches 0°, you see the slices edge-on and gaps can appear. Enable Record turntable to orbit the stack as the character moves.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA6WSQW7CMBBF9znFyGsoEFCLfACu0EXVhXEmYDGJLdu0iRB3r5w22KSEInWTxGP7z_uTf8oA2AfjsJiEr1oX6BiHtwwA4NQ9AZgqGAdW6oZN-pJvDYZidTSkRRE3GsZhNb8sW8ZhHZefjMMyj-tSIRWhY98LgFW6QAra2IjKELrZThChbWeOlMTpsphtdPO0oy37uXTu3ufJLeruzm_uXmoA_gf56j65sejQB3m5F1ZIj_aiD8AkKRM2XwUd0nppRdWNfZEnVX30pOoAWwpy-IBVi3WRdIxejVUep84LeZgODwXb6-d_2W5FOPUyT-CN8nLPOOTrpOikoACUuvRHW3uxpYvP9LwRUtW7MJhr9xnAe5dXUvVhNK-0iC5Lq6tr6BD1YaoDuLbdD_wOYd82jlTfVrlO2ajOnZ9H-SO0o33cHtE_zjtIwahQnHd2zr4AMqgWmC0EAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#slice-3d">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/slice-3d/graph.json" download>Download workflow</a>
+
+        · <a href="/examples/gallery/slice-3d/Fox.glb" download>Download Fox GLB</a> · <a href="/examples/gallery/slice-3d/walk.png" download>Download animated slice sheet</a> · <a href="/examples/gallery/slice-3d/layout.json" download>Download frame layout</a> · <a href="/examples/gallery/slice-3d/credits.txt">Source and credits</a> · <a href="/examples/gallery/slice-3d/LICENSE.md">Model licenses</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/photo-to-editable-layers">Photo to editable layers</a>
+        <a href="/examples/gallery/#slice-3d">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="https://branding.nanoodle.com/">Brand guidelines</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -38,6 +38,15 @@ const shareLink = (workflowBytes) =>
 // How-to copy is grounded in samples.json notes, EXAMPLES comment nodes, and
 // the awesome-noodles README / CURATION.md. Do not invent costs or model ids.
 const HOWTO = {
+  "slice-3d": {
+    headline: "Slice 3D · Fox walk cycle",
+    job: "Turn a rigged 3D character into a walking pixel sprite.",
+    purpose: "The graph includes Fox, a textured GLB with three animation clips. Slice 3D samples the Walk clip at twelve evenly spaced poses. Sprite stack render plays those poses from a fixed camera. Both nodes run locally.",
+    edit: "On <em>Slice 3D</em>, change the clip from <code>Walk</code> to <code>Run</code> or <code>Survey</code> to try either of Fox’s other animations. For the rest pose, clear the clip and set frames to 1. Use <em>3D input</em> to upload your own model, or wire the <code>model</code> output of a rigged <em>3D model</em> node directly to Slice 3D.",
+    inspect: "The Character preset uses 128-pixel tiles, 80 slices, source colors and outlines. This Fox example switches outlines off to keep the orange coat smooth. Turn them on and compare the legs and tail. For thin parts, try a pitch of 20–30° and layer spacing of 1. As pitch approaches 0°, you see the slices edge-on and gaps can appear. Enable Record turntable to orbit the stack as the character moves.",
+    wiring: "<p>Connect <strong>3D input</strong> <code>model</code> → <strong>Slice 3D</strong> <code>model</code>, then <strong>Slice 3D</strong> <code>sheet</code> → <strong>Sprite stack render</strong> <code>sheet</code>. The <code>sheet</code> output holds one horizontal slice sheet per pose in an animated PNG. The renderer’s <code>image</code> output is the first view and <code>video</code> is the animated MP4.</p>",
+    resources: '<a href="/examples/gallery/slice-3d/Fox.glb" download>Download Fox GLB</a> · <a href="/examples/gallery/slice-3d/walk.png" download>Download animated slice sheet</a> · <a href="/examples/gallery/slice-3d/layout.json" download>Download frame layout</a> · <a href="/examples/gallery/slice-3d/credits.txt">Source and credits</a> · <a href="/examples/gallery/slice-3d/LICENSE.md">Model licenses</a>',
+  },
   "character-sprites": {
     headline: "Game character kit",
     job: "Furnace knight. Reference + parts you can rig.",
@@ -385,7 +394,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo", "photo-to-editable-layers"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo", "photo-to-editable-layers", "slice-3d"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
@@ -637,7 +646,7 @@ function samplePage(s, prev, next) {
 
     <section>
       <p class="meta-row">${esc(s.review)} · ${esc(s.date)} · Reported saved run: ${esc(cost)}. ${s.models.map((m) => `<code>${esc(m)}</code>`).join(" · ")}</p>
-      <p>${esc(how.purpose)}</p>
+      <p>${esc(how.purpose)}</p>${how.wiring ? "\n      " + how.wiring : ""}
 
       <h2>Saved result</h2>
       ${renderMedia(s, how)}
@@ -649,7 +658,7 @@ function samplePage(s, prev, next) {
       <ol class="input-list">
         <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
         <li>${how.edit}</li>
-        <li>Check the editor estimate, then run with your NanoGPT key. ${esc(how.costHow)}</li>
+        <li>${s.models.length ? "Check the editor estimate, then run with your NanoGPT key. " + esc(how.costHow) : "Click <strong>Run</strong> in the editor. This workflow runs on your device and needs no NanoGPT key."}</li>
         <li>${how.inspect}</li>
       </ol>
 
@@ -659,9 +668,9 @@ function samplePage(s, prev, next) {
         <a class="secondary" href="${esc(gallery)}">See the reviewed run</a>
       </div>
       <p class="howto-note"><a href="/examples/gallery/${esc(local(s.workflow))}" download>Download workflow</a>
-        · <a href="/examples/gallery/${esc(local(s.slug + "/graph.json"))}" download>Original sampled graph</a>
-        · <a href="https://mcp.nanoodle.com/#${esc(s.slug)}">${s.slug === "sing" ? "Hosted MCP (older Sing workflow)" : "Explore MCP tools"}</a>
-        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>`;
+        ${s.workflow === s.slug + "/graph.json" ? "" : `· <a href="/examples/gallery/${esc(local(s.slug + "/graph.json"))}" download>Original sampled graph</a>`}
+        · ${how.resources || `<a href="https://mcp.nanoodle.com/#${esc(s.slug)}">${s.slug === "sing" ? "Hosted MCP (older Sing workflow)" : "Explore MCP tools"}</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a>`}</p>`;
 
   return chrome({
     title: `${title} — nanoodle`,
@@ -735,7 +744,7 @@ function hubPage() {
     <p class="lede">Continue a story. Give a tiny world its own sound. Turn a room into a mystery.</p>
 
     <section>
-      <p>Each workflow passes what one model made to the next. See the actual results, then open the graph and make it yours. Viewing saved outputs is free.</p>
+      <p>Each workflow passes the output of one node to the next. See the actual results, then open the graph and make it yours. Viewing saved outputs is free.</p>
       <div class="howto-grid featured" aria-label="Scenes, sound and stories">
       ${cards(ORDER.slice(0, 3))}
       </div>
@@ -745,7 +754,7 @@ function hubPage() {
       ${cards(ORDER.slice(3))}
       </div>
 
-      <p>Running your own version uses your NanoGPT key and balance. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary. You can also <a href="/examples/iron-verdict/">play Iron Verdict</a> for free.</p>
+      <p>Workflows with paid model nodes use your NanoGPT key and balance. The <a href="/guide/examples/slice-3d">Slice 3D walk cycle</a> runs entirely on your device. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary. You can also <a href="/examples/iron-verdict/">play Iron Verdict</a> for free.</p>
       <p>Every guide explains the stages, what to change and what the saved run cost. Use <strong>Open this noodle</strong> to edit the graph. The source graphs live in <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>. You can also <a href="/guide/run-headless">run the share link headlessly</a>.</p>`;
 
   const next = [

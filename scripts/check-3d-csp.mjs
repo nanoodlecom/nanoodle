@@ -51,9 +51,15 @@ if (!/connect-src/.test(csp) || /connect-src[^;]*\bdata:/.test(csp)) {
 }
 
 const mime = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".glb": "model/gltf-binary" };
+let exportedApp;
 const server = createServer((req, res) => {
   try {
     let pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+    if (pathname === "/rig-app.html" && exportedApp) {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(exportedApp);
+      return;
+    }
     if (pathname === "/") pathname = "/index.html";
     const file = resolve(ROOT, "." + pathname);
     if (!file.startsWith(ROOT + sep)) { res.writeHead(403); res.end(); return; }
@@ -305,6 +311,106 @@ if (!result || !result.wired || !result.mp4 || result.width !== 384 || result.he
   fail("sprite stack editor run/reopen failed: " + JSON.stringify(result || stack.result?.exceptionDetails?.text || stack.error));
 }
 console.log("✓ check-3d-csp: textured GLB slices, reopens and exports MP4 under the editor CSP" + (result.played ? " (decoded in Chromium)" : ""));
+// The downloadable Fox workflow exercises real skinning and ships with the site.
+// Use the same saved graph in the editor and the builder's standalone export.
+async function evaluate(fn) {
+  const res = await send("Runtime.evaluate", {expression:"("+fn.toString()+")()", awaitPromise:true, returnByValue:true});
+  if (res.error || res.result?.exceptionDetails) fail(res.error?.message || res.result.exceptionDetails.exception?.description || res.result.exceptionDetails.text);
+  return res.result.result.value;
+}
+const exported = await evaluate(async () => {
+  const example = await (await fetch("/examples/gallery/slice-3d/graph.json")).json();
+  applyGraphData(example);
+  const slicer = graph.nodes.find(n=>n.type==="slice-3d"), render = graph.nodes.find(n=>n.type==="sprite-stack-render");
+  function set(field,value){
+    const el = slicer.el.querySelector('[data-f="'+field+'"]');
+    el.value = value;
+    el.dispatchEvent(new Event(el.tagName==="SELECT" ? "change" : "input", {bubbles:true}));
+  }
+  set("preset","default");
+  if(slicer.fields.resolution!==48 || slicer.fields.palette!==16) throw Error("Default preset did not apply");
+  set("preset","character");
+  if(slicer.fields.resolution!==128 || slicer.fields.slices!==80 || slicer.fields.palette!==0 ||
+     !slicer.el.querySelector('[data-f="outline"]').checked) throw Error("Character preset did not apply");
+  set("slices",16); set("resolution",24); set("frames",4); set("clip","Walk");
+  const saved = serializeGraph();
+  applyGraphData(saved);
+  const restored = byId(slicer.id), renderer = byId(render.id);
+  if(restored.el.querySelector('[data-f="resolution"]').value!=="24" || restored.fields.clip!=="Walk") throw Error("Saved override or clip lost");
+  await runGroup([renderer.id]);
+  const layout = JSON.parse(restored.out.layout);
+  if(layout.animation?.frames!==4 || layout.animation.clip!=="Walk") throw Error("Missing Walk clip on the editor sheet");
+  if(!restored.el.querySelector(".result details img") || !renderer.el.querySelector(".result video")) throw Error("Missing animated sheet or video preview");
+  const downloads = [];
+  const click = HTMLAnchorElement.prototype.click;
+  try {
+    HTMLAnchorElement.prototype.click = function(){ downloads.push([this.download,this.href]); };
+    for(const [node,label] of [[restored,"Save animated sheet"],[renderer,"Save video"]]){
+      [...node.el.querySelectorAll(".result button")].find(b=>b.textContent.includes(label)).click();
+    }
+  } finally { HTMLAnchorElement.prototype.click = click; }
+  if(downloads[0][1]!==restored.out.sheet || !downloads[0][0].endsWith(".png") ||
+     downloads[1][1]!==renderer.out.video || !downloads[1][0].endsWith(".mp4")) throw Error("Editor downloads differ from graph outputs");
+
+  startAppRequest("create");
+  const frame = document.getElementById("appmodalframe");
+  for(let i=0; i<200 && (!frame.contentDocument?.getElementById("appframe")?.srcdoc || appRequest); i++){
+    await new Promise(r=>setTimeout(r,100));
+  }
+  if(appRequest || frame.hidden || !frame.contentDocument?.getElementById("appframe")?.srcdoc) throw Error("3D upload graph did not open in the app builder");
+  const win = frame.contentWindow, proto = win.HTMLAnchorElement.prototype, original = proto.click;
+  let html;
+  try {
+    proto.click = function(){ if(this.download.endsWith(".html")) html = win.fetch(this.href).then(r=>r.text()); };
+    win.document.getElementById("export").click();
+    for(let i=0;i<100 && !html;i++) await new Promise(r=>setTimeout(r,100));
+    if(!html) throw Error("Builder did not export its standalone app");
+    return await html;
+  } finally { proto.click = original; }
+});
+exportedApp = exported;
+await send("Page.navigate", {url:origin+"/rig-app.html"});
+await nextEvent("Page.loadEventFired", 10000);
+const app = await evaluate(async () => {
+  const inputs = document.getElementById("app-inputs");
+  const field = (name)=>[...inputs.querySelectorAll(".field")].find(row=>row.querySelector("label")?.textContent.trim()===name)?.querySelector("input,select");
+  const preset = field("Preset");
+  if(!preset || preset.value!=="character" || field("Tile resolution").value!=="24" || field("Animation clip").value!=="Walk") throw Error("Builder settings lost");
+  function selectPreset(name){ preset.value=name; preset.dispatchEvent(new Event("change",{bubbles:true})); }
+  selectPreset("default"); selectPreset("character");
+  if(field("Tile resolution").value!=="128" || field("Palette colors").value!=="0" || field("Slices").value!=="80" || !field("Outline").checked) throw Error("App preset controls not synchronized");
+  for(const [name,value] of [["Slices",16],["Tile resolution",24]]){
+    const el=field(name); el.value=value; el.dispatchEvent(new Event("input",{bubbles:true}));
+  }
+  const f = inputs.querySelector('input[type="file"][accept*=".glb"]');
+  const blob = await (await fetch("/examples/gallery/slice-3d/Fox.glb")).blob();
+  const dt = new DataTransfer(); dt.items.add(new File([blob],"Fox.glb",{type:"model/gltf-binary"}));
+  f.files = dt.files;
+  // Wait for the file reader used by the actual control before pressing Run.
+  await new Promise(resolve=>{
+    const reader = FileReader.prototype.readAsDataURL;
+    FileReader.prototype.readAsDataURL = function(file){ this.addEventListener("loadend",resolve,{once:true}); reader.call(this,file); };
+    try { f.dispatchEvent(new Event("change",{bubbles:true})); } finally { FileReader.prototype.readAsDataURL=reader; }
+  });
+  document.getElementById("app-run").click();
+  let player;
+  for(let i=0; i<200 && !(player=document.querySelector("#app-output .card video")); i++) await new Promise(r=>setTimeout(r,100));
+  if(!player) throw Error("App did not render the MP4: "+document.getElementById("app-status").textContent);
+  const card=player.closest(".card"), downloads=[];
+  const click=HTMLAnchorElement.prototype.click;
+  try {
+    HTMLAnchorElement.prototype.click=function(){ downloads.push([this.download,this.href]); };
+    for(const button of card.querySelectorAll(".dlrow button")) button.click();
+  } finally { HTMLAnchorElement.prototype.click=click; }
+  const playable = !!player.canPlayType('video/mp4; codecs="avc1.42001f"');
+  if(playable){
+    for(let i=0;i<100 && !player.videoWidth;i++) await new Promise(r=>setTimeout(r,50));
+    if(!player.videoWidth || !(player.duration>0)) throw Error("Exported app MP4 could not be decoded");
+  }
+  return {playable,video:downloads[0]?.[0].endsWith(".mp4") && downloads[0][1]===player.src,still:downloads[1]?.[0].endsWith(".png")};
+});
+if(!app.video || !app.still) fail("Wrong exported app downloads: "+JSON.stringify(app));
+console.log("✓ check-3d-csp: rigged Walk sheet and fixed-yaw MP4 render, reopen, download and run in a standalone app export"+(app.playable?" (decoded in Chromium)":""));
 ws.close();
 proc.kill("SIGKILL");
 server.close();

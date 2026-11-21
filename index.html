@@ -9974,6 +9974,9 @@ const mdl = (n, ctx)=>{ if(!n.fields.model) throw new Error("pick a model first"
    (downstream ref-style consumers drop empty media). Mirrors nanoodle-js optionalNode(). */
 const optNode = (n)=> n.fields.optional===true || n.fields.optional==="true";
 const optFlagHtml = (n)=>`<label class="chk optflag" title="an app or agent running this workflow may leave this input empty"><input type="checkbox" data-f="optional"${optNode(n)?" checked":""}/> optional input</label>`;
+function slicePresetValues(preset){
+  return preset==="character" ? {slices:80, resolution:128, palette:0, outline:true} : {slices:48, resolution:48, palette:16, outline:true};
+}
 function spriteNumber(n,key,label,initial,min,max,step=1){
   return `<div><label>${esc(t(label))}</label><input type="number" data-f="${key}" min="${min}" max="${max}" step="${step}" value="${esc(n.fields[key] ?? initial)}"/></div>`;
 }
@@ -10034,23 +10037,32 @@ const NODE_TYPES = {
   },
 
   "slice-3d": {
-    em:"🧩", title:"Slice 3D", desc:"Slice a mesh or Gaussian splat into a sprite sheet", group:"3D", kw:"atlas sprite stacking pixel art glb gltf ply",
+    em:"🧩", title:"Slice 3D", desc:"Cut a 3D model or animation clip into pixel slices", group:"3D", kw:"pixel slices voxel sprite stacking atlas pixel art rigged animated mesh glb gltf ply splat",
     inputs:[{name:"model",type:"model3d"},{name:"paletteImage",type:"image",label:"palette image"}],
     outputs:[{name:"sheet",type:"image"},{name:"layout",type:"text"},{name:"image",type:"image",label:"preview"}], preview:"image",
-    body:n=>`<div class="two">${spriteNumber(n,"slices","Slices",48,8,128)}${spriteNumber(n,"resolution","Tile resolution",48,16,128)}</div>
-      <div class="two">${spriteNumber(n,"palette","Palette colors",16,0,64)}
+    body:n=>{
+      const preset = n.fields.preset || "default", defaults = slicePresetValues(preset);
+      return `<div><label>Preset</label><select data-f="preset">${optsHTML([["default","Default"],["character","Character"]],preset)}</select></div>
+      <div class="two">${spriteNumber(n,"slices","Slices",defaults.slices,8,128)}${spriteNumber(n,"resolution","Tile resolution",defaults.resolution,16,128)}</div>
+      <div class="two">${spriteNumber(n,"palette","Palette colors",defaults.palette,0,64)}
       <div><label>Up axis</label><select data-f="upAxis">${optsHTML(["auto","x","y","z"].map(v=>[v,v]),n.fields.upAxis||"auto")}</select></div></div>
       <label><input type="checkbox" data-f="outline"${n.fields.outline===false || n.fields.outline==="false"?"":" checked"}/> Outline</label>
-      <div class="fhint">Set palette colors to 0 to keep source colors. Auto uses Y for meshes and Z for splats.</div>`,
+      <div class="fhint">Palette 0 keeps source colors. Auto uses Y for meshes and Z for splats.</div>
+      <div class="two"><div><label>Animation clip</label><textarea rows="1" data-f="clip">${esc(n.fields.clip||"")}</textarea></div>
+      ${spriteNumber(n,"frames","Pose frames",1,1,64)}</div>
+      <div class="fhint">One frame uses the rest pose, or the start of a named clip. For motion, choose 2–64 frames. An empty clip name plays the first animation.</div>`;
+    },
     run:runSpriteNode
   },
   "sprite-stack-render": {
-    em:"🎞️", title:"Sprite stack render", desc:"Rotate a sprite sheet into a still or turntable", group:"3D", kw:"atlas sprite stacking yaw pitch pixel art local animation",
+    em:"🎞️", title:"Sprite stack render", desc:"Render pixel slices as a still, animated clip or turntable", group:"3D", kw:"voxel sprite stacking sprite stack pixel slices atlas yaw pitch pixel art local animation walk",
     inputs:[{name:"sheet",type:"image"}], outputs:[{name:"image",type:"image"},{name:"video",type:"video"}], preview:"image",
     body:n=>`<div class="two">${spriteNumber(n,"yaw","Yaw (°)",35,-3600,3600)}${spriteNumber(n,"pitch","Pitch (°)",30,0,90)}</div>
       <div class="two">${spriteNumber(n,"spacing","Layer spacing",1,0,4,0.1)}${spriteNumber(n,"scale","Pixel scale",3,1,8,0.1)}</div>
+      <div class="fhint">Try 20–30° pitch and spacing 1 for thin parts. Edge-on surfaces can disappear. If an edge looks thick, turn off the outline in Slice 3D. Raise tile resolution for finer detail.</div>
       <label><input type="checkbox" data-f="turntable"${n.fields.turntable===true || n.fields.turntable==="true"?" checked":""}/> Record turntable</label>
-      <details><summary>Turntable settings</summary><div class="two">${spriteNumber(n,"duration","Seconds",3,0.25,30,0.25)}${spriteNumber(n,"fps","Frames per second",24,1,60)}</div>
+      <div class="fhint">An animated sheet makes an MP4 at the selected yaw. Enable turntable to rotate the camera during playback.</div>
+      <details><summary>Video settings</summary><div class="two">${spriteNumber(n,"duration","Turntable seconds",3,0.25,30,0.25)}${spriteNumber(n,"fps","Frames per second",24,1,60)}</div>
       <div class="two">${spriteNumber(n,"yawStart","Start yaw (°)",0,-3600,3600)}${spriteNumber(n,"yawEnd","End yaw (°)",360,-3600,3600)}</div></details>`,
     run:runSpriteNode
   },
@@ -10976,6 +10988,14 @@ function buildNodeEl(n){
     const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
     inp.addEventListener(ev, ()=>{
       if(n.type==="decide" && f==="mode") return; // mode changes may remove branch wires and own their undo
+      if(n.type==="slice-3d" && f==="preset"){
+        pushUndo();
+        for(const [key,value] of Object.entries(slicePresetValues(inp.value))){
+          n.fields[key] = value;
+          const control = el.querySelector('[data-f="'+key+'"]');
+          if(control.type==="checkbox") control.checked=value; else control.value=value;
+        }
+      }
       n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save();
       if(n.type==="choice"){
         refreshPortFills();
@@ -12582,13 +12602,20 @@ function showResult(n){
         r.querySelector(".acts").appendChild(b);
       };
       if(n.out.sheet){
-        addDownload("Save sheet",n.out.sheet,"noodle-"+n.id+"-sheet.png");
+        let animated = false;
+        try{ animated = JSON.parse(n.out.layout).animation?.frames > 1; }catch(_){}
+        if(animated){
+          const details = document.createElement("details"), summary = document.createElement("summary"), sheet = new Image();
+          summary.textContent = t("Animated slice sheet"); sheet.alt = t("Animated slice sheet"); sheet.src = n.out.sheet;
+          details.append(summary,sheet); r.insertBefore(details,r.querySelector(".acts"));
+        }
+        addDownload(animated ? "Save animated sheet" : "Save sheet",n.out.sheet,"noodle-"+n.id+"-sheet.png");
         addDownload("Save layout","data:application/json;charset=utf-8,"+encodeURIComponent(n.out.layout),"noodle-"+n.id+"-layout.json");
       }
       if(n.out.video){
         const v=document.createElement("video"); v.src=n.out.video; v.controls=true; v.loop=true; v.muted=true; v.playsInline=true;
         r.insertBefore(v,r.querySelector(".acts"));
-        addDownload("Save turntable",n.out.video,"noodle-"+n.id+(/^data:video\/mp4/.test(n.out.video)?".mp4":".webm"));
+        addDownload("Save video",n.out.video,"noodle-"+n.id+(/^data:video\/mp4/.test(n.out.video)?".mp4":".webm"));
       }
     }
     if(imgs) r.querySelectorAll("[data-vi]").forEach(el=> el.onclick = ()=>{
@@ -21167,7 +21194,7 @@ function startAppRequest(kind){
   }
   const usesCanvas = kind==="create" || kind==="copy" || kind==="update";
   if(usesCanvas && !graph.nodes.length){ flash(t("Add a node before creating an app.")); return; }
-  if(usesCanvas && graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
+  if(usesCanvas && graph.nodes.some(n=> n.type==="model3d")){
     showCreateAppBlock();
     return;
   }
@@ -21240,10 +21267,10 @@ $("openapps").onclick = ()=>{ closeShareMenu(); startAppRequest("library"); };
 addEventListener("storage", e=>{ if(e.key==="noodle_apps" || e.key===null) updateTitle(); });
 function showCreateAppBlock(){
   const el = $("appblock"); if(!el) return;
-  const names = graph.nodes.filter(n=> n.type==="model3d" || n.type==="mupload")
+  const names = graph.nodes.filter(n=> n.type==="model3d")
     .map(n=> (n.name && n.name.trim()) || (NODE_TYPES[n.type] && NODE_TYPES[n.type].title) || n.type);
   const msg = el.querySelector("[data-msg]");
-  if(msg) msg.textContent = t("3D nodes stay in the editor for now — Create app doesn’t run them yet")
+  if(msg) msg.textContent = t("3D generation runs in the editor. Use a 3D input to build an app with an uploaded model.")
     + (names.length ? " — " + names.join(", ") : "");
   el.hidden = false;
 }
@@ -21709,6 +21736,14 @@ refreshUpdatesBadge();
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
+ { em:"🦊", slug:"slice-3d", title:"Slice 3D · Fox walk cycle", desc:"Turn the included rigged Fox into a walking pixel sprite. Change the clip or the camera angle and run locally.",
+   thumb:"examples/gallery/slice-3d/preview.png",
+   graph:{ v:1,
+   nodes:[ {id:"fox",type:"mupload",x:40,y:80,w:320,fields:{model:"examples/gallery/slice-3d/Fox.glb"}},
+           {id:"slice",type:"slice-3d",x:440,y:80,w:340,fields:{preset:"character",clip:"Walk",frames:12,outline:false}},
+           {id:"render",type:"sprite-stack-render",x:860,y:80,w:340,fields:{yaw:70,pitch:28,scale:2,turntable:false,spacing:1}} ],
+   links:[ {id:"l1",from:{node:"fox",port:"model"},to:{node:"slice",port:"model"}},
+           {id:"l2",from:{node:"slice",port:"sheet"},to:{node:"render",port:"sheet"}} ] } },
  { em:"\U0001F95E", slug:"photo-to-editable-layers", title:"Photo to editable layers", desc:"Upload one photo: Seedream 5.0 Flash Layerize returns it as a stack of named layers \u2014 a clean base plate, the background, and each element as its own transparent PNG with a bounding box \u2014 and a survey plus GLM guide name what separated, what resisted, and the honest edges.",
    thumb:"examples/gallery/photo-to-editable-layers/preview.webp",
    graph:{"v": 1, "nodes": [{"id": "note", "type": "comment", "name": "About this workflow", "fields": {"text": "PHOTO → EDITABLE LAYERS — one photo in, a stack of named layers out. Seedream 5.0 Flash Layerize pulls the picture apart: a clean base plate (everything lifted out, holes inpainted), the background, and each foreground element as its own PNG with real transparency, named, with its bounding box. Stack them back at their coordinates and the original rebuilds — or pull one element out and use it anywhere. $0.027 flat for the separation. Honest edges in the guide at the end: some photos refuse (unbilled), the model re-segments every run so names and boundaries shift, and the layers are cutouts, not vectors."}, "x": 40, "y": 24, "w": 460}, {"id": "src", "type": "upload", "name": "Photo", "fields": {"image": ""}, "x": 40, "y": 300, "w": 320}, {"id": "how", "type": "text", "name": "Layer instruction", "fields": {"text": "Separate this image into editable layers: background, main subject, and any other distinct elements, each isolated on transparency."}, "x": 40, "y": 520, "w": 340}, {"id": "survey", "type": "vision", "name": "Survey — what will separate", "fields": {"model": "google/gemini-3.1-flash-lite", "q": "List the distinct visual elements in this image that could be separated into layers: the background, the main subject, and any supporting elements (props, furniture, text). For each, one short phrase. Then one line: which element is most likely to resist clean separation, and why. 60 words maximum."}, "x": 460, "y": 300, "w": 340}, {"id": "layers", "type": "edit", "name": "Layerize — Seedream V5 Flash", "fields": {"model": "bytedance/seedream/v5/flash/layerize", "size": "auto_1K"}, "x": 880, "y": 300, "w": 340}, {"id": "guide", "type": "llm", "name": "Guide — your layer stack", "fields": {"model": "z-ai/glm-4.6", "system": "You write the guide for a workflow that separates one photo into editable layers with Seedream 5.0 Flash Layerize ($0.027 flat). You are told what a vision model saw in the photo. Write 120-180 words in three headed sections. WHAT YOU GOT: a layer stack — a clean base plate with every element lifted out and the holes inpainted, the background, and each foreground element as its own transparent PNG, named, with a bounding box; stack them at their coordinates and the original rebuilds exactly. WHAT TO DO WITH THEM: pull one element onto a new backdrop, drop the subject into a design, re-time a product shot without reshooting; name one concrete move that fits THIS photo's elements. THE HONEST EDGES: some photos refuse outright (the run errors and you are NOT charged — try a cleaner, sharper image); the alpha edges are soft photographic cutouts, not vector-crisp; text and fine hair separate worst; the base plate behind an element is regenerated inpaint, so it is plausible, not the original pixels; the model re-segments the photo on every run, so layer names and boundaries shift between runs and a rebuild lands close to the original, not pixel-perfect; if the photo arrives as a remote URL the run can refuse intermittently (never charged) — an inlined image lands first try. Refer to layers by the survey's element names — never invent file names, layer counts or bounding boxes. No hype, no exclamation marks."}, "x": 1300, "y": 300, "w": 360}], "links": [{"id": "l1", "from": {"node": "src", "port": "image"}, "to": {"node": "survey", "port": "image"}}, {"id": "l2", "from": {"node": "src", "port": "image"}, "to": {"node": "layers", "port": "image"}}, {"id": "l3", "from": {"node": "how", "port": "text"}, "to": {"node": "layers", "port": "prompt"}}, {"id": "l4", "from": {"node": "survey", "port": "text"}, "to": {"node": "guide", "port": "prompt"}}]} },
@@ -23662,10 +23697,10 @@ $("signout").onclick = ()=> setKey(null);
       model:"inpaint model id (optional)", prompt:"what to paint in", size:"usually follows source",
       seed:"fixed seed (blank = random)", brush:"brush size when painting inline",
     }, note:"source+mask from wire OR inline upload+brush; white = repaint region" },
-    "slice-3d":{ fields:{ slices:"8–128", resolution:"16–128", palette:"0–64 colors", outline:"boolean", upAxis:"auto|x|y|z" },
-      note:"The sheet contains bottom-to-top square tiles. The image port is the 35° preview." },
+    "slice-3d":{ fields:{ preset:"default|character (80 slices, resolution 128, source colors, outline)", clip:"optional exact glTF animation name", frames:"1–64 pose samples", slices:"8–128", resolution:"16–128", palette:"0–64 colors", outline:"boolean", upAxis:"auto|x|y|z" },
+      note:"Wire a model or rigged GLB into model. One frame uses its rest pose or a named clip’s start. Multiple frames sample a named clip or the first animation and pack the bottom-to-top tile strips into an animated PNG on sheet. image is a preview." },
     "sprite-stack-render":{ fields:{ yaw:"degrees", pitch:"0–90 degrees", spacing:"0–4", scale:"1–8", turntable:"boolean",
-      duration:"0.25–30 seconds", fps:"1–60", yawStart:"degrees", yawEnd:"degrees" }, note:"Wire the sheet output of slice-3d into sheet." },
+      duration:"0.25–30 seconds", fps:"1–60", yawStart:"degrees", yawEnd:"degrees" }, note:"Wire slice-3d.sheet into sheet. An animated sheet produces a fixed-yaw MP4 by default. Enable turntable to rotate while the poses play." },
     resize:{ fields:{ mode:"fit|fill|exact", width:"target px", height:"target px (blank = derive from aspect)" } },
     tvideo:{ main:"prompt", fields:{
       model:"t2v model id (optional)", prompt:"video prompt", duration:"seconds",

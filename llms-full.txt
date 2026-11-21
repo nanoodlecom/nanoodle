@@ -235,8 +235,8 @@ The editor registers 33 node types. Titles and one-line descriptions below are t
 
 ### 3D
 
-- `slice-3d` — 🧩 Slice 3D: Slice a mesh or Gaussian splat into a sprite sheet
-- `sprite-stack-render` — 🎞️ Sprite stack render: Rotate a sprite sheet into a still or turntable
+- `slice-3d` — 🧩 Slice 3D: Cut a 3D model or animation clip into pixel slices
+- `sprite-stack-render` — 🎞️ Sprite stack render: Render pixel slices as a still, animated clip or turntable
 - `model3d` — 🧊 3D model: Image and/or text → a 3D mesh or Gaussian splat
 
 ### Text
@@ -342,6 +342,7 @@ Then run (calls NanoGPT and spends from your balance):
 export NANOGPT_API_KEY=...   # or --key K, or --env-file .env
 npx nanoodle run noodle-graph.json --input Text="a cozy ramen shop on a rainy night"
 npx nanoodle run graph.json --input n2.system=@style.txt --set n3.size=1k --out ./renders
+npx nanoodle run walk.json --input m.model=@character.glb --out ./sprites
 ```
 
 Media outputs are saved under `--out` (default `./noodle-out`, created only
@@ -385,9 +386,19 @@ unrecoverable.
 | NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, model3d‡, vedit, lipsync, music, remix, tts, transcribe, cleanvoice§ |
 | custom URL | endpoint (POST to a URL in the graph; no NanoGPT key) |
 
-`slice-3d` takes a `model` wire and an optional `paletteImage`. It reads static GLB or self-contained glTF 2 triangle meshes and uncompressed Gaussian PLY splats (ASCII or binary little-endian). Use the original Gaussian PLY for splats. Auto up is Y for meshes and Z for splats. The default is 48 layers of 48 × 48 pixels, 16 colors and an outline. Set `palette` to 0 to preserve source colors.
+`slice-3d` takes a `model` wire and an optional `paletteImage`. Connect a GLB from Idol Max Turbo’s default `model` output directly, including a rigged character. The slicer reads triangle meshes from GLB or self-contained glTF 2, and uncompressed Gaussian PLY splats (ASCII or binary little-endian). Auto up is Y for meshes and Z for splats.
 
-The `sheet` output is a transparent PNG with square tiles ordered from ground at left to top at right. The `layout` text output gives the bounds, axis and sampling dimensions. The `image` output previews the stack at 35° yaw. Wire `sheet` into `sprite-stack-render.sheet` to change yaw, pitch, layer spacing or pixel scale. Enable `turntable` to add a local `video` output with configurable duration, fps, start yaw and end yaw. The editor draws with Canvas 2D. Node.js runs the same graph headlessly. Texture, palette and sheet inputs accept PNG, APNG, JPEG, GIF, WebP, AVIF, BMP, ICO and CUR. Animated inputs use their first displayed frame. A normal npm install supplies the image decoders. Both runtimes encode H.264 MP4 turntables in-process.
+| Slice setting | Effect |
+| --- | --- |
+| `frames: 1` (default) | Slice the model in its rest pose. Set `clip` to an exact name to slice the first pose of that clip. |
+| `frames: 2` through `64` | Sample one complete animation cycle. Set `clip` to an exact name such as `"Walk"`, or leave it blank to use the first clip. The final sample falls just before the clip ends so the loop has no duplicate endpoint. |
+| `preset: "character"` | Use 80 layers of 128 × 128 pixels with source colors and an outline. Explicit `resolution`, `slices`, `palette` and `outline` fields override the preset. The general defaults are 48 layers at 48 × 48 pixels, 16 colors and an outline. |
+
+Wire `slice-3d.sheet` directly to `sprite-stack-render.sheet`. A single pose produces a transparent PNG atlas with square tiles ordered from ground at left to top at right. Multiple poses produce one animated PNG with a full atlas per pose. All poses use the same world-space bounds and ground height. The `layout` text includes the bounds, up axis, tile dimensions and, for animated sheets, the clip name, frame count, duration and sample times in seconds. The `image` output previews the first pose at 35° yaw.
+
+Sprite stack render controls yaw, pitch, layer spacing and scale. An animated sheet produces a fixed-yaw H.264 MP4 of the clip automatically. With `turntable` enabled, `duration`, `fps`, `yawStart` and `yawEnd` control the rotation while the poses loop at their recorded rate. A single-pose sheet also supports the turntable. Raising the pitch shows more of a flat object’s top surface. A higher resolution preserves more narrow details at oblique angles.
+
+Texture, palette and sheet inputs accept PNG, APNG, JPEG, GIF, WebP, AVIF, BMP, ICO and CUR. General animated images supply their first displayed frame. A normal npm install supplies the image decoders, and the browser and Node.js encode sprite videos in-process. [Open the prewired Slice 3D example](https://nanoodle.com/guide/examples/slice-3d).
 
 † `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 
@@ -654,11 +665,17 @@ is `0.0`, and the reason is in `errors[0].message`:
 
 | runs | node types |
 |---|---|
-| local | text, upload (image/audio/video/3D `.glb`), choice, join, comment, endpoint‡, slice-3d, sprite-stack-render |
+| local | text, upload (image/audio/video/3D model), choice, join, comment, endpoint‡, slice-3d, sprite-stack-render |
 | local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
 | NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, model3d, vedit, lipsync, music, remix, tts, transcribe, cleanvoice |
 
-Wire `mupload.model` to `slice-3d.model` and `slice-3d.sheet` to `sprite-stack-render.sheet`. The slicer accepts self-contained triangle glTF/GLB or uncompressed Gaussian PLY. Its horizontal PNG strip, JSON layout text and preview are separate outputs. The renderer produces an image and, with `turntable` enabled, an MP4. Python reads PNG, JPEG, GIF, WebP, BMP, ICO, CUR and AVIF images, projects the layers and encodes the H.264 turntable in-process. glTF materials can select WebP textures with `EXT_texture_webp`. Installing `nanoodle` also installs Pillow.
+Wire `mupload.model` or Idol Max Turbo’s `model` output to `slice-3d.model`, then connect `slice-3d.sheet` to `sprite-stack-render.sheet`. The slicer accepts self-contained glTF/GLB triangle meshes, including skinned characters, and uncompressed Gaussian PLY. For CLI file inputs, use `--input m.model=@knight.gltf` or `--input m.model=@cloud.ply`, replacing `m` with the model upload node’s ID. A single frame with the clip field empty slices the authored rest pose. Select `preset: "character"` for 128-pixel tiles, 80 layers, source colors and an outline. Explicit fields override individual preset values.
+
+For an animated model, set `frames` to 2–64 and optionally set `clip` to the exact animation name. For example, `{"clip":"Walk","frames":12,"preset":"character"}` samples twelve poses over one walk cycle. A blank clip selects the first animation when multiple poses are requested. All poses share bounds, scale and baseline. The sheet output is a PNG for a single pose and a looping APNG of horizontal layer strips for multiple poses. The layout output contains the world bounds plus the selected clip, duration and sample times for a sequence.
+
+Sprite stack render previews the first pose and automatically produces a fixed-yaw H.264 MP4 from an animated Slice 3D sheet. Enable `turntable` to orbit the stack during playback. A static sheet still produces a single image by default. A shallow pitch can help separate silhouettes on edge-on views.
+
+Python reads PNG, JPEG, GIF, WebP, BMP, ICO, CUR and AVIF images. It projects the layers and encodes the MP4 in-process. glTF materials can select WebP textures with `EXT_texture_webp`. Installing `nanoodle` also installs Pillow.
 
 † `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 

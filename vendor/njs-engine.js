@@ -1,5 +1,5 @@
-/* data-hash=c82c98a1055eae8f */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-66bf15b81bdb (28 modules) */
+/* data-hash=3f20b29131be8fa3 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-09f55006c6db (31 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -44,7 +44,7 @@ __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
-const { deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
+const { MEDIA_INPUT_KINDS, deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
 const { MediaRef, coerceMediaInput } = __req("media.mjs");
 const { RUNNERS } = __req("nodes.mjs");
@@ -71,7 +71,6 @@ function warnGraph(msg) {
   if (typeof console !== "undefined" && console.warn) console.warn("[nanoodle]", msg);
 }
 
-const MEDIA_KINDS = new Set(["image", "audio", "video", "inpaint"]);
 /** Ports whose value is media a later node will fetch or inline. */
 const HANDED_MEDIA_PORT = /^(?:video|audio|image|mask|endframe|model)$|^(?:img|image|vid|clip|ref|frame)\d+$/;
 const MEDIA_OUT_TYPES = new Set(["image", "audio", "video", "model3d"]);
@@ -683,13 +682,12 @@ class Workflow {
   }
 
   _coerceInput(entry, value, mediaOpts) {
-    if (MEDIA_KINDS.has(entry.kind)) {
-      // Plain image inputs skip the load-time inline cap: every image-sending node
-      // downscales an oversized image to the send budget (fitImage), so a big photo
-      // is a shrink, not a refusal. Audio/video (and inpaint, whose mask must keep
-      // the source's dimensions) can't be shrunk that way — keep their early,
-      // before-any-spend guard.
-      const opts = entry.kind === "image" ? { ...mediaOpts, enforceInlineMax: false } : mediaOpts;
+    if (MEDIA_INPUT_KINDS.has(entry.kind)) {
+      // Images may shrink before sending. A model can stay local in Slice 3D
+      // even when another branch uses NanoGPT. The client caps actual POST bodies.
+      if (entry.kind === "model3d" && (value == null || value === "")) return value;
+      const localOrResizable = entry.kind === "model3d" || entry.kind === "image";
+      const opts = localOrResizable ? { ...mediaOpts, enforceInlineMax: false } : mediaOpts;
       return coerceMediaInput(value, `input "${entry.key}"`, opts);
     }
     if (entry.kind === "choice") {
@@ -812,7 +810,7 @@ const EXT_MIME = {
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
   ".aac": "audio/aac", ".flac": "audio/flac", ".m4a": "audio/mp4",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
-  ".glb": "model/gltf-binary", ".ply": "model/ply",
+  ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".ply": "model/ply",
   ".txt": "text/plain", ".json": "application/json",
 };
 
@@ -821,7 +819,7 @@ const MIME_EXT = {
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/aac": "aac",
   "audio/flac": "flac", "audio/mp4": "m4a",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
-  "model/gltf-binary": "glb", "model/ply": "ply", "application/ply": "ply", "application/x-ply": "ply",
+  "model/gltf-binary": "glb", "model/gltf+json": "gltf", "model/ply": "ply", "application/ply": "ply", "application/x-ply": "ply",
   "text/plain": "txt", "application/json": "json",
 };
 
@@ -3010,6 +3008,7 @@ __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
+const { CHARACTER_SLICE_DEFAULTS } = __req("sprite-slices.mjs");
 
 // Allocate the final key, not just a count of the unsuffixed name: an authored
 // "Out 2" can otherwise collide with the suffix generated for a second "Out".
@@ -3021,6 +3020,8 @@ function uniqueKey(base, used, reserved = new Set()) {
 }
 
 /* ============================== INPUTS ============================== */
+
+const MEDIA_INPUT_KINDS = new Set(["image", "audio", "video", "model3d", "inpaint"]);
 
 /** Which node types contribute user inputs, and with what fields (mirrors play.html INPUT_SPECS). */
 const INPUT_SPECS = {
@@ -3294,6 +3295,9 @@ const SETTING_SPECS = {
   ],
   // local media knobs (play.html SETTING_SPECS) — shape-affecting fields for vframes/combine
   "slice-3d": [
+    { f: "preset", label: "Preset", kind: "select", options: ["default", "character"], def: "default" },
+    { f: "clip", label: "Animation clip", kind: "text", def: "" },
+    { f: "frames", label: "Pose frames", kind: "number", min: 1, max: 64, def: "1" },
     { f: "slices", label: "Slices", kind: "number", min: 8, max: 128, def: "48" },
     { f: "resolution", label: "Tile resolution", kind: "number", min: 16, max: 128, def: "48" },
     { f: "palette", label: "Palette colors", kind: "number", min: 0, max: 64, def: "16" },
@@ -3347,16 +3351,18 @@ function deriveSettings(graph) {
     if (n.unknown) continue;
     const specs = SETTING_SPECS[n.type];
     if (!specs) continue;
+    const preset = n.type === "slice-3d" && n.fields.preset === "character" ? CHARACTER_SLICE_DEFAULTS : {};
     for (const s of specs) {
       if (graph.links.some((l) => l.to.node === n.id && l.to.port === s.f)) continue; // wired knob is decided upstream
       const cur = n.fields[s.f];
+      const fallback = s.kind === "number" && preset[s.f] != null ? String(preset[s.f]) : preset[s.f] ?? s.def;
       // vframes frames is shape-affecting — never offer a floor below the highest wired frameK
       const min = (n.type === "vframes" && s.f === "frames")
         ? Math.max(s.min || 1, wiredFramesFloor(graph, n.id))
         : s.min;
       out.push({
         key: `${n.id}.${s.f}`, nodeId: n.id, field: s.f, kind: s.kind, label: s.label,
-        def: cur != null && String(cur) !== "" ? cur : s.def,
+        def: cur != null && String(cur) !== "" ? cur : fallback,
         ...(s.options ? { options: [...s.options] } : {}),
         ...(min != null ? { min } : {}),
         ...(s.max != null ? { max: s.max } : {}),
@@ -3408,7 +3414,7 @@ function resolveSettingKey(graph, settings, userKey) {
   throw new NanoodleError(`unknown setting "${userKey}" — available settings: ${avail}`);
 }
 
-__x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+__x.MEDIA_INPUT_KINDS = MEDIA_INPUT_KINDS; __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
 });
 __def("branches.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -3891,12 +3897,15 @@ function resizePlan(sw, sh, mode, tw, th) {
 
 /* ---------- pure PNG (canvas-equivalent resize for PNG sources) ------------ */
 
+const CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, i) => {
+  let c = i;
+  for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  return c;
+});
+
 function crc32(buf) {
   let c = ~0;
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i];
-    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-  }
+  for (let i = 0; i < buf.length; i++) c = (c >>> 8) ^ CRC32_TABLE[(c ^ buf[i]) & 0xff];
   return (~c) >>> 0;
 }
 
@@ -4708,7 +4717,7 @@ async function muxSoundtrack(videoUrl, audioUrl, loop = false, { fetch: fetchFn,
 __x.MAX_FRAMES = MAX_FRAMES; __x.MAX_IMAGE_DIM = MAX_IMAGE_DIM; __x.MP4CAT = MP4CAT;
 // PNG codec internals — used by the nanoodle repo's dual-engine parity harness
 // (pixel-level mask comparison + headless canvas shim). Not part of the stable API.
-__x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba;
+__x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba; __x.crc32 = crc32; __x.pngChunk = pngChunk; __x.catBytes = catBytes;
 
 __x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
 });
@@ -5792,8 +5801,10 @@ const { number, viewPlan, softwareView, flag, turntablePlan } = __req("sprite-pr
 const { encodePngRgba } = __req("local-media.mjs");
 const { encodeSpriteMp4 } = __req("sprite-video.mjs");
 const { MediaRef, bytesToDataUrl } = __req("media.mjs");
-const { gaussianModel, triangleModel } = __req("sprite-model.mjs");
-const { slicePixels } = __req("sprite-slices.mjs");
+const { gaussianModel, trianglePoses } = __req("sprite-model.mjs");
+const { CHARACTER_SLICE_DEFAULTS, expandModelBounds, slicePixels } = __req("sprite-slices.mjs");
+const { readStackApng, writeStackApng } = __req("sprite-sequence.mjs");
+const { decodePngPixels } = __req("png-decoder.mjs");
 
 function canvas(width, height) {
   if (typeof document === "undefined") throw new Error("Sprite stacking requires a browser with Canvas 2D.");
@@ -5858,58 +5869,125 @@ async function frameUrl(frame) {
   return bytesToDataUrl(await encodePngRgba(frame.width, frame.height, frame.data), "image/png");
 }
 
-async function encodeTurntable(draw, fields, signal) {
-  const { duration, from, to, count } = turntablePlan(fields);
+// Long clips can spend several frames entirely in synchronous pixel code.
+function frameCheckpoint(signal) {
+  let lastYield = performance.now();
+  return async () => {
+    if (performance.now() - lastYield >= 16) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      lastYield = performance.now();
+    }
+    signal?.throwIfAborted();
+  };
+}
+
+async function encodeViews(count, duration, drawFrame, signal) {
+  const check = frameCheckpoint(signal);
   async function* frames() {
-    let lastYield = performance.now();
     for (let i = 0; i < count; i++) {
-      // Give the editor and Node event loop time to deliver cancellation between frames.
-      if (performance.now() - lastYield >= 16) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        lastYield = performance.now();
-      }
-      signal?.throwIfAborted();
-      yield draw(from + ((to - from) * i) / (count - 1));
+      await check();
+      yield drawFrame(i);
     }
   }
   return bytesToDataUrl(await encodeSpriteMp4(frames(), duration), "video/mp4");
 }
 
+function encodeTurntable(draw, fields, signal) {
+  const { duration, from, to, count } = turntablePlan(fields);
+  return encodeViews(count, duration, (i) => draw(from + ((to - from) * i) / (count - 1)), signal);
+}
+
 async function slice3d(node, inp, ctx) {
   if (!inp.model) throw new Error("Wire a 3D model into Slice 3D.");
-  const fields = node.fields || {},
-    size = number(fields, "resolution", 48, 16, 128, true),
-    layers = number(fields, "slices", 48, 8, 128, true);
+  const fields = node.fields || {};
+  const defaults = fields.preset === "character" ? CHARACTER_SLICE_DEFAULTS : {};
+  const size = number(fields, "resolution", defaults.resolution ?? 48, 16, 128, true);
+  const layers = number(fields, "slices", defaults.slices ?? 48, 8, 128, true);
+  const palette = number(fields, "palette", defaults.palette ?? 16, 0, 64, true);
+  const frames = number(fields, "frames", 1, 1, 64, true);
+  const clip = fields.clip ?? "";
   const headless = typeof document === "undefined";
   const pixels = headless
     ? (await import("./sprite-image.mjs")).decodeSpriteBytes
     : (raw, mime) => imagePixels(new Blob([raw], { type: mime }));
   const bytes = await readMedia(inp.model, ctx);
-  const model =
-    bytes[0] === 112 && bytes[1] === 108 && bytes[2] === 121
-      ? gaussianModel(bytes)
-      : await triangleModel(bytes, pixels);
-  const palette = number(fields, "palette", 16, 0, 64, true);
+  let poses;
+  if (bytes[0] === 112 && bytes[1] === 108 && bytes[2] === 121) {
+    if (frames > 1 || clip)
+      throw new Error("Gaussian PLY has no animation clips. Clear clip and set frames to 1 for a static sheet.");
+    const model = gaussianModel(bytes);
+    poses = { pose: () => model };
+  } else {
+    poses = await trianglePoses(bytes, pixels, { clip, frames });
+  }
+  const check = frameCheckpoint(ctx?.signal);
+  const firstModel = poses.pose(0);
+  const bounds = expandModelBounds(firstModel);
+  for (let i = 1; i < frames; i++) {
+    await check();
+    expandModelBounds(poses.pose(i), bounds);
+  }
   const supplied = palette && inp.paletteImage ? await pixels(await readMedia(inp.paletteImage, ctx)) : null;
-  ctx?.signal?.throwIfAborted();
-  const sliced = slicePixels(
-    model,
-    { size, layers, axis: fields.upAxis || "auto", outline: flag(fields.outline, true), palette },
-    supplied,
-  );
+  const options = { size, layers, axis: fields.upAxis || "auto", outline: flag(fields.outline, true), palette };
+  await check();
+  const first = slicePixels(firstModel, options, supplied, bounds);
+  const sheet = { width: first.width, height: first.height, data: first.rgba };
+  if (frames > 1) {
+    async function* pngFrames() {
+      yield encodePngRgba(first.width, first.height, first.rgba);
+      for (let i = 1; i < frames; i++) {
+        await check();
+        const frame = slicePixels(poses.pose(i), options, supplied, bounds);
+        yield encodePngRgba(frame.width, frame.height, frame.rgba);
+      }
+    }
+    const animation = poses.animation;
+    const encoded = await writeStackApng(frames, animation.duration / frames, pngFrames());
+    return {
+      sheet: bytesToDataUrl(encoded, "image/png"),
+      image: await frameUrl(softwareView(sheet, {})(35)),
+      layout: JSON.stringify({ ...first.layout, animation }),
+    };
+  }
   if (headless) {
-    const sheet = { width: sliced.width, height: sliced.height, data: sliced.rgba };
     return {
       sheet: await frameUrl(sheet),
-      layout: JSON.stringify(sliced.layout),
+      layout: JSON.stringify(first.layout),
       image: await frameUrl(softwareView(sheet, {})(35)),
     };
   }
   const el = canvas(size * layers, size);
-  el.getContext("2d").putImageData(new ImageData(sliced.rgba, sliced.width, sliced.height), 0, 0);
+  el.getContext("2d").putImageData(new ImageData(first.rgba, first.width, first.height), 0, 0);
   const view = stackView(el, {});
   view.draw(35);
-  return { sheet: png(el), layout: JSON.stringify(sliced.layout), image: png(view.el) };
+  return { sheet: png(el), layout: JSON.stringify(first.layout), image: png(view.el) };
+}
+
+// Keep only the current decoded atlas. Long gait loops can reuse one pose for
+// several output frames, or skip poses when the turntable fps is lower.
+async function renderSequence(sequence, fields, yaw, signal) {
+  let previous = -1, draw;
+  async function pose(index, angle) {
+    if (previous !== index) {
+      const { w, h, rgba } = await decodePngPixels(sequence.png(index), { maxDim: 128, allowSpriteStrip: true });
+      draw = softwareView({ width: w, height: h, data: rgba }, fields);
+      previous = index;
+    }
+    return draw(angle);
+  }
+  const first = await pose(0, yaw);
+  const image = await frameUrl(first);
+  if (!flag(fields.turntable, false)) {
+    const video = await encodeViews(sequence.length, sequence.duration, i => i === 0 ? first : pose(i, yaw), signal);
+    return { image, video };
+  }
+  const { duration, from, to, count } = turntablePlan(fields);
+  const video = await encodeViews(count, duration, i => {
+    const time = i * duration / count;
+    const index = Math.floor(time * sequence.length / sequence.duration) % sequence.length;
+    return pose(index, from + (to - from) * i / (count - 1));
+  }, signal);
+  return { image, video };
 }
 
 async function renderSpriteStack(node, inp, ctx) {
@@ -5917,6 +5995,8 @@ async function renderSpriteStack(node, inp, ctx) {
   const fields = node.fields || {},
     bytes = await readMedia(inp.sheet, ctx);
   const yaw = number(fields, "yaw", 35, -3600, 3600);
+  const sequence = readStackApng(bytes);
+  if (sequence) return renderSequence(sequence, fields, yaw, ctx?.signal);
   if (typeof document === "undefined") {
     const { decodeSpriteBytes } = await import("./sprite-image.mjs");
     const sheet = await decodeSpriteBytes(bytes);
@@ -6225,6 +6305,377 @@ async function cleanVoiceRun(model, inp, f, send) {
 }
 
 __x.CLEANVOICE_DEFAULT_MODEL = CLEANVOICE_DEFAULT_MODEL; __x.CLEANVOICE_FALLBACK_SECS = CLEANVOICE_FALLBACK_SECS; __x.cleanVoiceSource = cleanVoiceSource; __x.cleanVoiceSeconds = cleanVoiceSeconds; __x.cleanVoiceExtra = cleanVoiceExtra; __x.cleanVoiceEstSeconds = cleanVoiceEstSeconds; __x.cleanVoiceError = cleanVoiceError; __x.cleanVoiceMediaSeconds = cleanVoiceMediaSeconds; __x.cleanVoiceRun = cleanVoiceRun;
+});
+__def("sprite-slices.mjs", function (__x, __req) {
+const CHARACTER_SLICE_DEFAULTS = { resolution: 128, slices: 80, palette: 0, outline: true };
+
+// A clip uses one world-space grid across its poses so feet, scale and root
+// motion stay aligned. Only the bounds need to be retained between poses.
+function expandModelBounds(model, bounds = {
+  min: [Infinity, Infinity, Infinity],
+  max: [-Infinity, -Infinity, -Infinity],
+}) {
+  const { min, max } = bounds;
+  function grow(x, y, z) {
+    min[0] = Math.min(min[0], x);
+    min[1] = Math.min(min[1], y);
+    min[2] = Math.min(min[2], z);
+    max[0] = Math.max(max[0], x);
+    max[1] = Math.max(max[1], y);
+    max[2] = Math.max(max[2], z);
+  }
+  for (const m of model.meshes || []) {
+    const p = m.positions;
+    for (let i = 0; i < p.length; i += 3) grow(p[i], p[i + 1], p[i + 2]);
+  }
+  for (const s of model.splats || []) {
+    const [x, y, z] = s.center,
+      [a, b, c] = s.extent;
+    grow(x - a, y - b, z - c);
+    grow(x + a, y + b, z + c);
+  }
+  return bounds;
+}
+
+// Grid coordinates are (column, row, layer). Each square tile has the same
+// world-to-pixel scale in both directions; layer thickness is recorded separately.
+function gridFor({ min, max }, axis, size, layers) {
+  const axes = { x: [1, 2, 0, -1], y: [0, 2, 1, 1], z: [0, 1, 2, -1] }[axis];
+  if (!axes) throw new Error("Up axis must be auto, x, y or z.");
+  const [u, v, h, sign] = axes;
+  const span = Math.max(...min.map((n, i) => max[i] - n));
+  if (!(span > 0) || !Number.isFinite(span)) throw new Error("Model bounds have no usable extent.");
+  const unit = span / (size - 2),
+    step = span / layers,
+    cu = (max[u] + min[u]) / 2,
+    cv = (max[v] + min[v]) / 2;
+  return {
+    size,
+    layers,
+    unit,
+    step,
+    axes,
+    min,
+    max,
+    project(p) {
+      return [(p[u] - cu) / unit + size / 2, (sign * (p[v] - cv)) / unit + size / 2, (p[h] - min[h]) / step];
+    },
+    world(x, y, l) {
+      const p = [];
+      p[u] = (x - size / 2) * unit + cu;
+      p[v] = sign * (y - size / 2) * unit + cv;
+      p[h] = min[h] + l * step;
+      return p;
+    },
+  };
+}
+
+function wrap(t, mode) {
+  if (mode === 33071) return Math.min(1, Math.max(0, t));
+  if (mode === 33648) return 1 - Math.abs((((t % 2) + 2) % 2) - 1);
+  return t - Math.floor(t);
+}
+function srgb(v) {
+  return v < 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+}
+function linear(v) {
+  return v < 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function sample(mesh, ids, weights) {
+  const color = mesh.factor.slice();
+  function interpolate(attr, channel) {
+    return weights.reduce((sum, w, j) => sum + w * attr.data[ids[j] * attr.n + channel], 0);
+  }
+  if (mesh.color) for (let k = 0; k < mesh.color.n; k++) color[k] *= interpolate(mesh.color, k);
+  if (mesh.texture) {
+    const { pixels, sampler } = mesh.texture;
+    const x = Math.min(
+      pixels.width - 1,
+      Math.floor(wrap(interpolate(mesh.uv, 0), sampler.wrapS) * pixels.width),
+    );
+    const y = Math.min(
+      pixels.height - 1,
+      Math.floor(wrap(interpolate(mesh.uv, 1), sampler.wrapT) * pixels.height),
+    );
+    const p = (y * pixels.width + x) * 4;
+    for (let k = 0; k < 3; k++) color[k] *= linear(pixels.data[p + k] / 255);
+    color[3] *= pixels.data[p + 3] / 255;
+  }
+  const alpha =
+    mesh.alphaMode === "OPAQUE" ? 1 : mesh.alphaMode === "MASK" ? Number(color[3] >= mesh.cutoff) : color[3];
+  return [srgb(color[0]) * 255, srgb(color[1]) * 255, srgb(color[2]) * 255, alpha * 255];
+}
+
+// Scan a triangle in an axis-aligned projection at cell centers. The dominant
+// projection catches vertical walls and flat caps. A floor projection also
+// supplies signed ray intersections for filling closed interiors.
+function scanTriangle(verts, a, b, width, height, visit) {
+  const [p, q, r] = verts;
+  const dx = q[a] - p[a],
+    dy = q[b] - p[b],
+    ex = r[a] - p[a],
+    ey = r[b] - p[b];
+  const det = dx * ey - dy * ex;
+  if (Math.abs(det) < 1e-12) return;
+  const startX = Math.max(0, Math.ceil(Math.min(p[a], q[a], r[a]) - 0.5));
+  const startY = Math.max(0, Math.ceil(Math.min(p[b], q[b], r[b]) - 0.5));
+  const endX = Math.min(width - 1, Math.floor(Math.max(p[a], q[a], r[a]) - 0.5));
+  const endY = Math.min(height - 1, Math.floor(Math.max(p[b], q[b], r[b]) - 0.5));
+  for (let y = startY; y <= endY; y++)
+    for (let x = startX; x <= endX; x++) {
+      const px = x + 0.5 - p[a],
+        py = y + 0.5 - p[b];
+      const v = (px * ey - py * ex) / det,
+        w = (dx * py - dy * px) / det,
+        u = 1 - v - w;
+      if (Math.min(u, v, w) >= -1e-8) visit(x, y, [u, v, w], Math.sign(det));
+    }
+}
+
+function paintMesh(grid, model, put) {
+  const { size, layers } = grid,
+    dims = [size, size, layers],
+    rays = new Array(size * size);
+  for (const mesh of model.meshes) {
+    const points = [];
+    for (let i = 0; i < mesh.positions.length; i += 3)
+      points.push(grid.project(mesh.positions.subarray(i, i + 3)));
+    for (let i = 0; i + 2 < mesh.length; i += mesh.mode === 4 ? 3 : 1) {
+      const corners =
+        mesh.mode === 6
+          ? [0, i + 1, i + 2]
+          : mesh.mode === 5 && i % 2
+            ? [i + 1, i, i + 2]
+            : [i, i + 1, i + 2];
+      const ids = mesh.idx ? corners.map((k) => mesh.idx[k]) : corners,
+        verts = ids.map((k) => points[k]);
+      const [p, q, r] = verts,
+        planes = [
+          [0, 1, 2],
+          [1, 2, 0],
+          [2, 0, 1],
+        ];
+      const areas = planes.map(([a, b]) =>
+        Math.abs((q[a] - p[a]) * (r[b] - p[b]) - (q[b] - p[b]) * (r[a] - p[a])),
+      );
+      const dominant = areas.indexOf(Math.max(...areas));
+      if (!areas[dominant]) continue;
+      let painted = false;
+      for (const j of dominant === 0 ? [0] : [dominant, 0]) {
+        const [a, b, c] = planes[j];
+        scanTriangle(verts, a, b, dims[a], dims[b], (x, y, weights, sign) => {
+          const depth = weights.reduce((s, w, k) => s + w * verts[k][c], 0);
+          const color = sample(mesh, ids, weights);
+          if (j === dominant) {
+            const cell = [];
+            cell[a] = x;
+            cell[b] = y;
+            cell[c] = Math.min(dims[c] - 1, Math.max(0, Math.floor(depth)));
+            put(...cell, color);
+            painted = true;
+          }
+          if (j === 0) (rays[y * size + x] ||= []).push({ depth, sign, color });
+        });
+      }
+      // A subpixel triangle may cover no cell center in any projection.
+      if (!painted) {
+        const cell = dims.map((d, k) => Math.min(d - 1, Math.max(0, Math.floor((p[k] + q[k] + r[k]) / 3))));
+        put(...cell, sample(mesh, ids, [1 / 3, 1 / 3, 1 / 3]));
+      }
+    }
+  }
+  for (let i = 0; i < rays.length; i++) {
+    const ray = rays[i];
+    if (!ray || ray.length < 2) continue;
+    ray.sort((a, b) => a.depth - b.depth);
+    // Collapse shared triangle edges before counting volume crossings.
+    const hits = [];
+    for (const hit of ray) {
+      const prev = hits.at(-1);
+      if (prev && Math.abs(prev.depth - hit.depth) < 1e-6) prev.sum += hit.sign;
+      else hits.push({ ...hit, sum: hit.sign });
+    }
+    if (hits.reduce((n, h) => n + Math.sign(h.sum), 0) !== 0) continue;
+    let winding = 0;
+    for (let k = 0; k + 1 < hits.length; k++) {
+      const a = hits[k],
+        b = hits[k + 1];
+      winding += Math.sign(a.sum);
+      if (!winding) continue;
+      for (let l = Math.max(0, Math.ceil(a.depth - 0.5)); l < layers && l + 0.5 < b.depth; l++)
+        put(i % size, Math.floor(i / size), l, l + 0.5 < (a.depth + b.depth) / 2 ? a.color : b.color, true);
+    }
+  }
+}
+
+function paintSplats(grid, model, rgba, index) {
+  const { size, layers, axes, unit, step } = grid,
+    weights = new Float32Array(rgba.length / 4);
+  const dims = [size, size, layers];
+  for (const s of model.splats) {
+    const center = grid.project(s.center);
+    const radius = [s.extent[axes[0]] / unit, s.extent[axes[1]] / unit, s.extent[axes[2]] / step];
+    const lo = center.map((n, i) => Math.max(0, Math.floor(n - radius[i])));
+    const hi = center.map((n, i) => Math.min(dims[i] - 1, Math.floor(n + radius[i])));
+    const peak = center.map((n, i) => Math.min(dims[i] - 1, Math.max(0, Math.floor(n))));
+    for (let l = lo[2]; l <= hi[2]; l++)
+      for (let y = lo[1]; y <= hi[1]; y++)
+        for (let x = lo[0]; x <= hi[0]; x++) {
+          const d = grid.world(x + 0.5, y + 0.5, l + 0.5).map((v, k) => v - s.center[k]);
+          const atCenter = x === peak[0] && y === peak[1] && l === peak[2];
+          let distance = 0;
+          for (let k = 0; k < 3; k++)
+            distance +=
+              ((d[0] * s.rotation[k * 4] + d[1] * s.rotation[k * 4 + 1] + d[2] * s.rotation[k * 4 + 2]) /
+                s.scales[k]) **
+              2;
+          if (distance > 9 && !atCenter) continue;
+          const alpha = s.alpha * Math.exp(-0.5 * (atCenter ? 0 : distance));
+          if (alpha < 0.5 / 255) continue;
+          const p = index(x, y, l),
+            old = weights[p / 4],
+            sum = old + alpha;
+          for (let k = 0; k < 3; k++) rgba[p + k] = (rgba[p + k] * old + s.color[k] * alpha) / sum;
+          rgba[p + 3] += alpha * (255 - rgba[p + 3]);
+          weights[p / 4] = sum;
+        }
+  }
+}
+
+// Weighted median-cut over 5-bit RGB bins. Small supplied palettes keep their
+// exact colors, including near-neighbors in the same histogram bin.
+function paletteOf(data, limit) {
+  const exact = new Set(),
+    hist = new Map();
+  for (let p = 0; p < data.length; p += 4) {
+    if (!data[p + 3]) continue;
+    const r = data[p],
+      g = data[p + 1],
+      b = data[p + 2],
+      key = (r >> 3) * 1024 + (g >> 3) * 32 + (b >> 3);
+    if (exact.size <= limit) exact.add(r * 65536 + g * 256 + b);
+    const bin = hist.get(key) || [0, 0, 0, 0];
+    bin[0] += r;
+    bin[1] += g;
+    bin[2] += b;
+    bin[3]++;
+    hist.set(key, bin);
+  }
+  if (!exact.size) throw new Error("Palette source has no visible pixels.");
+  if (exact.size <= limit) return [...exact].map((c) => [c >> 16, (c >> 8) & 255, c & 255]);
+  const bins = [...hist.values()].map(([r, g, b, n]) => [r / n, g / n, b / n, n]);
+  function box(colors) {
+    const low = [255, 255, 255],
+      high = [0, 0, 0];
+    let count = 0;
+    for (const c of colors) {
+      for (let k = 0; k < 3; k++) {
+        low[k] = Math.min(low[k], c[k]);
+        high[k] = Math.max(high[k], c[k]);
+      }
+      count += c[3];
+    }
+    const range = high.map((v, k) => v - low[k]),
+      span = Math.max(...range);
+    return { colors, count, axis: range.indexOf(span), score: colors.length > 1 ? span * count : 0 };
+  }
+  const boxes = [box(bins)];
+  while (boxes.length < limit) {
+    boxes.sort((a, b) => b.score - a.score);
+    if (!boxes[0].score) break;
+    const { colors, count, axis } = boxes.shift();
+    colors.sort((a, b) => a[axis] - b[axis]);
+    let cut = 0,
+      weight = 0;
+    do {
+      weight += colors[cut++][3];
+    } while (cut < colors.length - 1 && weight < count / 2);
+    boxes.push(box(colors.slice(0, cut)), box(colors.slice(cut)));
+  }
+  return boxes.map(({ colors, count }) =>
+    [0, 1, 2].map((k) => Math.round(colors.reduce((n, c) => n + c[k] * c[3], 0) / count)),
+  );
+}
+
+function slicePixels(model, { size, layers, axis, palette, outline }, supplied, bounds = expandModelBounds(model)) {
+  if (axis === "auto") axis = model.kind === "splat" ? "z" : "y";
+  const grid = gridFor(bounds, axis, size, layers),
+    width = size * layers,
+    rgba = new Uint8ClampedArray(width * size * 4);
+  const index = (x, y, l) => (y * width + l * size + x) * 4;
+  if (model.kind === "splat") paintSplats(grid, model, rgba, index);
+  else
+    paintMesh(grid, model, (x, y, l, c, onlyEmpty = false) => {
+      const p = index(x, y, l);
+      if (c[3] && (!onlyEmpty || !rgba[p + 3])) rgba.set(c, p);
+    });
+  let ink = [24, 24, 24];
+  if (palette && (supplied || rgba.some((v, i) => i % 4 === 3 && v))) {
+    // Reserve one ink color for generated palettes. An explicit reference
+    // palette supplies its own darkest color for the outline.
+    const reserveInk = outline && !supplied && palette > 1;
+    const colors = paletteOf(supplied?.data || rgba, palette - Number(reserveInk));
+    if (!reserveInk) ink = colors.reduce((a, b) => (a[0] + a[1] + a[2] <= b[0] + b[1] + b[2] ? a : b));
+    const cache = new Map();
+    for (let p = 0; p < rgba.length; p += 4) {
+      if (!rgba[p + 3]) continue;
+      const key = rgba[p] * 65536 + rgba[p + 1] * 256 + rgba[p + 2];
+      let color = cache.get(key);
+      if (!color) {
+        let best = Infinity;
+        for (const c of colors) {
+          const d = (c[0] - rgba[p]) ** 2 + (c[1] - rgba[p + 1]) ** 2 + (c[2] - rgba[p + 2]) ** 2;
+          if (d < best) {
+            best = d;
+            color = c;
+          }
+        }
+        cache.set(key, color);
+      }
+      rgba.set(color, p);
+    }
+  }
+  if (outline) {
+    const before = rgba.slice();
+    for (let l = 0; l < layers; l++)
+      for (let y = 0; y < size; y++)
+        for (let x = 0; x < size; x++) {
+          const p = index(x, y, l);
+          if (before[p + 3]) continue;
+          const alpha = Math.max(
+            x > 0 ? before[p - 4 + 3] : 0,
+            x + 1 < size ? before[p + 4 + 3] : 0,
+            y > 0 ? before[p - width * 4 + 3] : 0,
+            y + 1 < size ? before[p + width * 4 + 3] : 0,
+          );
+          if (alpha) {
+            rgba.set(ink, p);
+            rgba[p + 3] = alpha;
+          }
+        }
+  }
+  return {
+    rgba,
+    width,
+    height: size,
+    layout: {
+      version: 1,
+      order: "bottom-to-top",
+      columns: layers,
+      rows: 1,
+      tileWidth: size,
+      tileHeight: size,
+      upAxis: axis,
+      source: model.kind,
+      bounds: { min: grid.min, max: grid.max },
+      pixelSize: grid.unit,
+      layerHeight: grid.step,
+    },
+  };
+}
+
+__x.CHARACTER_SLICE_DEFAULTS = CHARACTER_SLICE_DEFAULTS; __x.expandModelBounds = expandModelBounds; __x.slicePixels = slicePixels;
 });
 __def("zlib.mjs", function (__x, __req) {
 /**
@@ -6880,7 +7331,8 @@ function muxAvc(samples, width, height, seconds, sps, pps) {
   const avc1 = box("avc1", new Uint8Array(6), u16(1), new Uint8Array(16),
     u16(width), u16(height), u32(0x00480000), u32(0x00480000), u32(0),
     u16(1), new Uint8Array(32), u16(24), u16(0xffff), avcC);
-  const timescale = 90000;
+  // Long source animations must also fit the version-0 mdhd duration field.
+  const timescale = Math.min(90000, Math.floor(0xffffffff / seconds));
   const total = Math.round(seconds * timescale);
   const buffers = samples.map(s => s.bytes);
   const entries = samples.map((s, i) => ({
@@ -7282,10 +7734,12 @@ __x.encodeSpriteMp4 = encodeSpriteMp4;
 __def("sprite-model.mjs", function (__x, __req) {
 const { dataUrlBytes, sniffMime } = __req("media.mjs");
 
-const { ident, mul, trs, xform, unpackGlb } = __req("gltf-scene.mjs");
+const { trs, unpackGlb } = __req("gltf-scene.mjs");
+const { prepareClip } = __req("gltf-animation.mjs");
+const { sceneNodes, readSkin, skinInfluences, skinMatrices, posedPositions } = __req("gltf-skin.mjs");
 
 const decodeText = (bytes) => new TextDecoder().decode(bytes);
-const components = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+const components = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 const glTypes = {
   5120: [1, "getInt8", 127],
   5121: [1, "getUint8", 255],
@@ -7314,6 +7768,10 @@ function embedded(uri) {
 }
 
 async function triangleModel(bytes, imagePixels) {
+  return (await trianglePoses(bytes, imagePixels)).pose(0);
+}
+
+async function trianglePoses(bytes, imagePixels, { clip = "", frames = 1 } = {}) {
   const { json, bin } = unpack(bytes);
   if (json?.asset?.version !== "2.0") throw new Error("Expected glTF 2.0.");
   const unsupported = (json.extensionsRequired || []).filter((name) => name !== "EXT_texture_webp");
@@ -7330,6 +7788,7 @@ async function triangleModel(bytes, imagePixels) {
     if (
       !buffer ||
       !Number.isSafeInteger(bv.byteLength) ||
+      !Number.isSafeInteger(start) ||
       start < 0 ||
       bv.byteLength < 0 ||
       start + bv.byteLength > buffer.length
@@ -7339,34 +7798,73 @@ async function triangleModel(bytes, imagePixels) {
       throw new Error("Meshopt-compressed buffers are unsupported.");
     return buffer.subarray(start, start + bv.byteLength);
   }
+  const cache = new Map();
   function accessor(index, shapes, count) {
     const a = json.accessors?.[index],
       spec = glTypes[a?.componentType];
-    if (!a || !spec || !shapes.includes(a.type) || a.sparse || a.bufferView == null)
-      throw new Error("Unsupported glTF accessor type or sparse encoding.");
+    if (!spec || !shapes.includes(a.type)) throw new Error("Unsupported glTF accessor type.");
+    if (!Number.isSafeInteger(a.count) || a.count < 1 || (count != null && a.count !== count))
+      throw new Error("Invalid glTF accessor count.");
+    if (cache.has(index)) return cache.get(index);
     const n = components[a.type],
-      [size, get, max] = spec,
-      buf = bufferView(a.bufferView);
-    const stride = json.bufferViews[a.bufferView].byteStride ?? n * size,
-      offset = a.byteOffset ?? 0;
-    if (
-      !Number.isSafeInteger(a.count) ||
-      a.count < 1 ||
-      (count != null && a.count !== count) ||
-      offset < 0 ||
-      stride < n * size ||
-      offset + (a.count - 1) * stride + n * size > buf.length
-    )
-      throw new Error("Invalid glTF accessor bounds or count.");
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength),
-      data = new Float64Array(n * a.count);
-    for (let i = 0; i < a.count; i++)
+      [size, get, max] = spec;
+    function source(viewIndex, offset, stride, length, elements, bytes) {
+      const buf = bufferView(viewIndex);
+      if (
+        !Number.isSafeInteger(offset) ||
+        offset < 0 ||
+        !Number.isSafeInteger(stride) ||
+        stride < elements * bytes ||
+        offset + (length - 1) * stride + elements * bytes > buf.length
+      )
+        throw new Error("Invalid glTF accessor bounds.");
+      return new DataView(buf.buffer, buf.byteOffset + offset, buf.byteLength - offset);
+    }
+    function row(view, offset, data, output) {
       for (let c = 0; c < n; c++) {
-        const v = view[get](offset + i * stride + c * size, true);
+        const v = view[get](offset + c * size, true);
         if (!Number.isFinite(v)) throw new Error("Non-finite glTF attribute.");
-        data[i * n + c] = a.normalized ? Math.max(-1, v / max) : v;
+        data[output + c] = a.normalized ? Math.max(-1, v / max) : v;
       }
-    return { data, n, count: a.count };
+    }
+    const stride = json.bufferViews?.[a.bufferView]?.byteStride ?? n * size;
+    const base =
+      a.bufferView == null ? null : source(a.bufferView, a.byteOffset ?? 0, stride, a.count, n, size);
+    // Sparse-only accessors can expand far beyond the size of the uploaded file.
+    if (!base && a.count * n > 16_777_216) throw new Error("glTF sparse accessor is too large.");
+    const data = new Float64Array(n * a.count);
+    if (base) for (let i = 0; i < a.count; i++) row(base, i * stride, data, i * n);
+    if (a.sparse) {
+      const { indices, values, count: length } = a.sparse;
+      if (
+        !Number.isSafeInteger(length) ||
+        length < 1 ||
+        length > a.count ||
+        ![5121, 5123, 5125].includes(indices?.componentType) ||
+        !values
+      )
+        throw new Error("Invalid glTF sparse accessor.");
+      const [indexSize, indexGet] = glTypes[indices.componentType];
+      const indicesView = source(
+        indices.bufferView,
+        indices.byteOffset ?? 0,
+        indexSize,
+        length,
+        1,
+        indexSize,
+      );
+      const valuesView = source(values.bufferView, values.byteOffset ?? 0, n * size, length, n, size);
+      let previous = -1;
+      for (let i = 0; i < length; i++) {
+        const target = indicesView[indexGet](i * indexSize, true);
+        if (target <= previous || target >= a.count) throw new Error("Invalid glTF sparse index.");
+        row(valuesView, i * n * size, data, target * n);
+        previous = target;
+      }
+    }
+    const result = { data, n, count: a.count };
+    cache.set(index, result);
+    return result;
   }
   const textures = new Map();
   async function texture(info) {
@@ -7390,8 +7888,14 @@ async function triangleModel(bytes, imagePixels) {
     if (useWebp && !cached.webp) throw new Error("EXT_texture_webp source must contain a WebP image.");
     return { pixels: cached.pixels, sampler: json.samplers?.[tex.sampler] || {} };
   }
-  const meshes = [];
-  async function emit(index, world) {
+  const meshes = [],
+    skins = new Map(),
+    scene = sceneNodes(json);
+  async function emit(index, nodeIndex) {
+    const node = json.nodes?.[nodeIndex] ?? {};
+    if (node.skin != null && !skins.has(node.skin)) {
+      skins.set(node.skin, readSkin(json, node.skin, accessor, scene));
+    }
     if (!json.meshes?.[index]) throw new Error("Missing glTF mesh.");
     for (const p of json.meshes[index].primitives) {
       const mode = p.mode ?? 4;
@@ -7399,14 +7903,16 @@ async function triangleModel(bytes, imagePixels) {
         throw new Error(
           "Slice 3D requires triangles. For a point-cloud preview, supply the original Gaussian PLY.",
         );
-      if (p.targets?.length || p.extensions?.KHR_draco_mesh_compression)
-        throw new Error("Morph targets and Draco-compressed meshes are unsupported.");
+      if (p.extensions?.KHR_draco_mesh_compression)
+        throw new Error("Draco-compressed meshes are unsupported.");
       const pos = accessor(p.attributes.POSITION, ["VEC3"]);
-      for (let i = 0; i < pos.data.length; i += 3) {
-        const point = xform(world, pos.data[i], pos.data[i + 1], pos.data[i + 2], false);
-        if (!point.every(Number.isFinite)) throw new Error("Invalid glTF scene transform.");
-        pos.data.set(point, i);
-      }
+      const targets = (p.targets || []).map((target) =>
+        target.POSITION == null ? null : accessor(target.POSITION, ["VEC3"], pos.count).data,
+      );
+      const influences =
+        node.skin == null
+          ? null
+          : skinInfluences(json, p.attributes, pos.count, skins.get(node.skin), accessor);
       if (p.indices != null) {
         const indexSpec = json.accessors?.[p.indices];
         if (!indexSpec || ![5121, 5123, 5125].includes(indexSpec.componentType) || indexSpec.normalized)
@@ -7435,43 +7941,62 @@ async function triangleModel(bytes, imagePixels) {
         ? accessor(p.attributes["TEXCOORD_" + (info.texCoord ?? 0)], ["VEC2"], pos.count)
         : null;
       meshes.push({
-        positions: pos.data,
-        idx,
-        mode,
-        length,
-        color,
-        uv,
-        texture: info && (await texture(info)),
-        factor,
-        alphaMode: mat.alphaMode || "OPAQUE",
-        cutoff: mat.alphaCutoff ?? 0.5,
+        base: pos.data,
+        targets,
+        influences,
+        nodeIndex,
+        skin: node.skin,
+        weights: node.weights ?? json.meshes[index].weights,
+        material: {
+          idx,
+          mode,
+          length,
+          color,
+          uv,
+          factor,
+          texture: info && (await texture(info)),
+          alphaMode: mat.alphaMode || "OPAQUE",
+          cutoff: mat.alphaCutoff ?? 0.5,
+        },
       });
     }
   }
-  const active = new Set(),
-    nodes = json.nodes || [];
-  async function walk(i, parent) {
-    const node = nodes[i];
-    if (!node || active.has(i)) throw new Error("Invalid or cyclic glTF node tree.");
-    if (node.skin != null) throw new Error("Skinned meshes require a static mesh export.");
-    active.add(i);
-    const world = mul(
-      parent,
-      node.matrix ||
-        trs(node.translation || [0, 0, 0], node.rotation || [0, 0, 0, 1], node.scale || [1, 1, 1]),
-    );
-    if (node.mesh != null) await emit(node.mesh, world);
-    for (const child of node.children || []) await walk(child, world);
-    active.delete(i);
-  }
-  if (nodes.length) {
-    const children = new Set(nodes.flatMap((n) => n.children || []));
-    const roots =
-      json.scenes?.[json.scene ?? 0]?.nodes ?? nodes.map((_, i) => i).filter((i) => !children.has(i));
-    for (const root of roots) await walk(root, ident());
-  } else for (let i = 0; i < (json.meshes || []).length; i++) await emit(i, ident());
+  if (json.nodes?.length) {
+    for (const i of scene.active) {
+      const node = json.nodes[i];
+      if (node.mesh != null) await emit(node.mesh, i);
+    }
+  } else for (let i = 0; i < (json.meshes || []).length; i++) await emit(i);
   if (!meshes.length) throw new Error("No triangles in the selected glTF scene.");
-  return { kind: "mesh", meshes };
+  const sampler = prepareClip(json, accessor, clip, frames);
+  const animation = sampler?.info ?? null;
+  function pose(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= frames) throw new Error("Invalid frame index.");
+    const overrides = sampler?.sample(animation.times[index]);
+    const world = scene.worldMatrices(overrides),
+      palettes = new Map();
+    for (const [id, joints] of skins) palettes.set(id, skinMatrices(joints, world));
+    return {
+      kind: "mesh",
+      meshes: meshes.map((mesh) => ({
+        ...mesh.material,
+        positions: posedPositions(
+          mesh,
+          world.get(mesh.nodeIndex),
+          overrides?.get(mesh.nodeIndex)?.weights ?? mesh.weights,
+          palettes.get(mesh.skin),
+        ),
+      })),
+    };
+  }
+  return {
+    pose,
+    animation,
+    count: frames,
+    clip: animation?.clip ?? "",
+    start: animation?.times[0] ?? 0,
+    duration: animation?.duration ?? 0,
+  };
 }
 
 const plyTypes = {
@@ -7578,368 +8103,252 @@ function gaussianModel(bytes) {
   return { kind: "splat", splats };
 }
 
-__x.triangleModel = triangleModel; __x.gaussianModel = gaussianModel;
+__x.triangleModel = triangleModel; __x.trianglePoses = trianglePoses; __x.gaussianModel = gaussianModel;
 });
-__def("sprite-slices.mjs", function (__x, __req) {
-// Grid coordinates are (column, row, layer). Each square tile has the same
-// world-to-pixel scale in both directions; layer thickness is recorded separately.
-function gridFor(model, axis, size, layers) {
-  const axes = { x: [1, 2, 0, -1], y: [0, 2, 1, 1], z: [0, 1, 2, -1] }[axis];
-  if (!axes) throw new Error("Up axis must be auto, x, y or z.");
-  const [u, v, h, sign] = axes,
-    min = [Infinity, Infinity, Infinity],
-    max = min.map(() => -Infinity);
-  function grow(x, y, z) {
-    min[0] = Math.min(min[0], x);
-    min[1] = Math.min(min[1], y);
-    min[2] = Math.min(min[2], z);
-    max[0] = Math.max(max[0], x);
-    max[1] = Math.max(max[1], y);
-    max[2] = Math.max(max[2], z);
-  }
-  for (const m of model.meshes || []) {
-    const p = m.positions;
-    for (let i = 0; i < p.length; i += 3) grow(p[i], p[i + 1], p[i + 2]);
-  }
-  for (const s of model.splats || []) {
-    const [x, y, z] = s.center,
-      [a, b, c] = s.extent;
-    grow(x - a, y - b, z - c);
-    grow(x + a, y + b, z + c);
-  }
-  const span = Math.max(...min.map((n, i) => max[i] - n));
-  if (!(span > 0) || !Number.isFinite(span)) throw new Error("Model bounds have no usable extent.");
-  const unit = span / (size - 2),
-    step = span / layers,
-    cu = (max[u] + min[u]) / 2,
-    cv = (max[v] + min[v]) / 2;
-  return {
-    size,
-    layers,
-    unit,
-    step,
-    axes,
-    min,
-    max,
-    project(p) {
-      return [(p[u] - cu) / unit + size / 2, (sign * (p[v] - cv)) / unit + size / 2, (p[h] - min[h]) / step];
-    },
-    world(x, y, l) {
-      const p = [];
-      p[u] = (x - size / 2) * unit + cu;
-      p[v] = sign * (y - size / 2) * unit + cv;
-      p[h] = min[h] + l * step;
-      return p;
-    },
-  };
+__def("sprite-sequence.mjs", function (__x, __req) {
+// A Nanoodle pose sequence is an ordinary APNG whose frames are full RGBA
+// sprite strips. Only the private nsTA marker opts a sheet into pose playback.
+const { NanoodleError } = __req("errors.mjs");
+const { catBytes, crc32, pngChunk } = __req("local-media.mjs");
+
+const SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
+const END = pngChunk("IEND", new Uint8Array());
+const MAX_FILE_BYTES = 544 * 1024 * 1024;
+const MAX_CHUNKS = 65_536;
+
+function check(ok, detail) {
+  if (!ok) throw new NanoodleError("Invalid sprite stack PNG: " + detail);
 }
 
-function wrap(t, mode) {
-  if (mode === 33071) return Math.min(1, Math.max(0, t));
-  if (mode === 33648) return 1 - Math.abs((((t % 2) + 2) % 2) - 1);
-  return t - Math.floor(t);
-}
-function srgb(v) {
-  return v < 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
-}
-function linear(v) {
-  return v < 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+function view(bytes) {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
-function sample(mesh, ids, weights) {
-  const color = mesh.factor.slice();
-  function interpolate(attr, channel) {
-    return weights.reduce((sum, w, j) => sum + w * attr.data[ids[j] * attr.n + channel], 0);
-  }
-  if (mesh.color) for (let k = 0; k < mesh.color.n; k++) color[k] *= interpolate(mesh.color, k);
-  if (mesh.texture) {
-    const { pixels, sampler } = mesh.texture;
-    const x = Math.min(
-      pixels.width - 1,
-      Math.floor(wrap(interpolate(mesh.uv, 0), sampler.wrapS) * pixels.width),
-    );
-    const y = Math.min(
-      pixels.height - 1,
-      Math.floor(wrap(interpolate(mesh.uv, 1), sampler.wrapT) * pixels.height),
-    );
-    const p = (y * pixels.width + x) * 4;
-    for (let k = 0; k < 3; k++) color[k] *= linear(pixels.data[p + k] / 255);
-    color[3] *= pixels.data[p + 3] / 255;
-  }
-  const alpha =
-    mesh.alphaMode === "OPAQUE" ? 1 : mesh.alphaMode === "MASK" ? Number(color[3] >= mesh.cutoff) : color[3];
-  return [srgb(color[0]) * 255, srgb(color[1]) * 255, srgb(color[2]) * 255, alpha * 255];
+function countValid(n) {
+  return Number.isInteger(n) && n >= 2 && n <= 64;
 }
 
-// Scan a triangle in an axis-aligned projection at cell centers. The dominant
-// projection catches vertical walls and flat caps. A floor projection also
-// supplies signed ray intersections for filling closed interiors.
-function scanTriangle(verts, a, b, width, height, visit) {
-  const [p, q, r] = verts;
-  const dx = q[a] - p[a],
-    dy = q[b] - p[b],
-    ex = r[a] - p[a],
-    ey = r[b] - p[b];
-  const det = dx * ey - dy * ex;
-  if (Math.abs(det) < 1e-12) return;
-  const startX = Math.max(0, Math.ceil(Math.min(p[a], q[a], r[a]) - 0.5));
-  const startY = Math.max(0, Math.ceil(Math.min(p[b], q[b], r[b]) - 0.5));
-  const endX = Math.min(width - 1, Math.floor(Math.max(p[a], q[a], r[a]) - 0.5));
-  const endY = Math.min(height - 1, Math.floor(Math.max(p[b], q[b], r[b]) - 0.5));
-  for (let y = startY; y <= endY; y++)
-    for (let x = startX; x <= endX; x++) {
-      const px = x + 0.5 - p[a],
-        py = y + 0.5 - p[b];
-      const v = (px * ey - py * ex) / det,
-        w = (dx * py - dy * px) / det,
-        u = 1 - v - w;
-      if (Math.min(u, v, w) >= -1e-8) visit(x, y, [u, v, w], Math.sign(det));
-    }
+// Probe just chunk headers so unmarked stills and ordinary APNGs keep their
+// existing decode path. Recognition does not depend on the marker's validity.
+function isMarked(bytes) {
+  if (!SIGNATURE.every((b, i) => bytes[i] === b)) return false;
+  const data = view(bytes);
+  for (let p = 8, count = 0; p + 8 <= bytes.length && count < MAX_CHUNKS; count++) {
+    if (data.getUint32(p + 4) === 0x6e735441) return true; // nsTA
+    if (data.getUint32(p + 4) === 0x49454e44) return false; // IEND
+    p += 12 + data.getUint32(p);
+  }
+  return false;
 }
 
-function paintMesh(grid, model, put) {
-  const { size, layers } = grid,
-    dims = [size, size, layers],
-    rays = new Array(size * size);
-  for (const mesh of model.meshes) {
-    const points = [];
-    for (let i = 0; i < mesh.positions.length; i += 3)
-      points.push(grid.project(mesh.positions.subarray(i, i + 3)));
-    for (let i = 0; i + 2 < mesh.length; i += mesh.mode === 4 ? 3 : 1) {
-      const corners =
-        mesh.mode === 6
-          ? [0, i + 1, i + 2]
-          : mesh.mode === 5 && i % 2
-            ? [i + 1, i, i + 2]
-            : [i, i + 1, i + 2];
-      const ids = mesh.idx ? corners.map((k) => mesh.idx[k]) : corners,
-        verts = ids.map((k) => points[k]);
-      const [p, q, r] = verts,
-        planes = [
-          [0, 1, 2],
-          [1, 2, 0],
-          [2, 0, 1],
-        ];
-      const areas = planes.map(([a, b]) =>
-        Math.abs((q[a] - p[a]) * (r[b] - p[b]) - (q[b] - p[b]) * (r[a] - p[a])),
-      );
-      const dominant = areas.indexOf(Math.max(...areas));
-      if (!areas[dominant]) continue;
-      let painted = false;
-      for (const j of dominant === 0 ? [0] : [dominant, 0]) {
-        const [a, b, c] = planes[j];
-        scanTriangle(verts, a, b, dims[a], dims[b], (x, y, weights, sign) => {
-          const depth = weights.reduce((s, w, k) => s + w * verts[k][c], 0);
-          const color = sample(mesh, ids, weights);
-          if (j === dominant) {
-            const cell = [];
-            cell[a] = x;
-            cell[b] = y;
-            cell[c] = Math.min(dims[c] - 1, Math.max(0, Math.floor(depth)));
-            put(...cell, color);
-            painted = true;
-          }
-          if (j === 0) (rays[y * size + x] ||= []).push({ depth, sign, color });
-        });
-      }
-      // A subpixel triangle may cover no cell center in any projection.
-      if (!painted) {
-        const cell = dims.map((d, k) => Math.min(d - 1, Math.max(0, Math.floor((p[k] + q[k] + r[k]) / 3))));
-        put(...cell, sample(mesh, ids, [1 / 3, 1 / 3, 1 / 3]));
-      }
-    }
-  }
-  for (let i = 0; i < rays.length; i++) {
-    const ray = rays[i];
-    if (!ray || ray.length < 2) continue;
-    ray.sort((a, b) => a.depth - b.depth);
-    // Collapse shared triangle edges before counting volume crossings.
-    const hits = [];
-    for (const hit of ray) {
-      const prev = hits.at(-1);
-      if (prev && Math.abs(prev.depth - hit.depth) < 1e-6) prev.sum += hit.sign;
-      else hits.push({ ...hit, sum: hit.sign });
-    }
-    if (hits.reduce((n, h) => n + Math.sign(h.sum), 0) !== 0) continue;
-    let winding = 0;
-    for (let k = 0; k + 1 < hits.length; k++) {
-      const a = hits[k],
-        b = hits[k + 1];
-      winding += Math.sign(a.sum);
-      if (!winding) continue;
-      for (let l = Math.max(0, Math.ceil(a.depth - 0.5)); l < layers && l + 0.5 < b.depth; l++)
-        put(i % size, Math.floor(i / size), l, l + 0.5 < (a.depth + b.depth) / 2 ? a.color : b.color, true);
-    }
-  }
-}
-
-function paintSplats(grid, model, rgba, index) {
-  const { size, layers, axes, unit, step } = grid,
-    weights = new Float32Array(rgba.length / 4);
-  const dims = [size, size, layers];
-  for (const s of model.splats) {
-    const center = grid.project(s.center);
-    const radius = [s.extent[axes[0]] / unit, s.extent[axes[1]] / unit, s.extent[axes[2]] / step];
-    const lo = center.map((n, i) => Math.max(0, Math.floor(n - radius[i])));
-    const hi = center.map((n, i) => Math.min(dims[i] - 1, Math.floor(n + radius[i])));
-    const peak = center.map((n, i) => Math.min(dims[i] - 1, Math.max(0, Math.floor(n))));
-    for (let l = lo[2]; l <= hi[2]; l++)
-      for (let y = lo[1]; y <= hi[1]; y++)
-        for (let x = lo[0]; x <= hi[0]; x++) {
-          const d = grid.world(x + 0.5, y + 0.5, l + 0.5).map((v, k) => v - s.center[k]);
-          const atCenter = x === peak[0] && y === peak[1] && l === peak[2];
-          let distance = 0;
-          for (let k = 0; k < 3; k++)
-            distance +=
-              ((d[0] * s.rotation[k * 4] + d[1] * s.rotation[k * 4 + 1] + d[2] * s.rotation[k * 4 + 2]) /
-                s.scales[k]) **
-              2;
-          if (distance > 9 && !atCenter) continue;
-          const alpha = s.alpha * Math.exp(-0.5 * (atCenter ? 0 : distance));
-          if (alpha < 0.5 / 255) continue;
-          const p = index(x, y, l),
-            old = weights[p / 4],
-            sum = old + alpha;
-          for (let k = 0; k < 3; k++) rgba[p + k] = (rgba[p + k] * old + s.color[k] * alpha) / sum;
-          rgba[p + 3] += alpha * (255 - rgba[p + 3]);
-          weights[p / 4] = sum;
-        }
-  }
-}
-
-// Weighted median-cut over 5-bit RGB bins. Small supplied palettes keep their
-// exact colors, including near-neighbors in the same histogram bin.
-function paletteOf(data, limit) {
-  const exact = new Set(),
-    hist = new Map();
-  for (let p = 0; p < data.length; p += 4) {
-    if (!data[p + 3]) continue;
-    const r = data[p],
-      g = data[p + 1],
-      b = data[p + 2],
-      key = (r >> 3) * 1024 + (g >> 3) * 32 + (b >> 3);
-    if (exact.size <= limit) exact.add(r * 65536 + g * 256 + b);
-    const bin = hist.get(key) || [0, 0, 0, 0];
-    bin[0] += r;
-    bin[1] += g;
-    bin[2] += b;
-    bin[3]++;
-    hist.set(key, bin);
-  }
-  if (!exact.size) throw new Error("Palette source has no visible pixels.");
-  if (exact.size <= limit) return [...exact].map((c) => [c >> 16, (c >> 8) & 255, c & 255]);
-  const bins = [...hist.values()].map(([r, g, b, n]) => [r / n, g / n, b / n, n]);
-  function box(colors) {
-    const low = [255, 255, 255],
-      high = [0, 0, 0];
-    let count = 0;
-    for (const c of colors) {
-      for (let k = 0; k < 3; k++) {
-        low[k] = Math.min(low[k], c[k]);
-        high[k] = Math.max(high[k], c[k]);
-      }
-      count += c[3];
-    }
-    const range = high.map((v, k) => v - low[k]),
-      span = Math.max(...range);
-    return { colors, count, axis: range.indexOf(span), score: colors.length > 1 ? span * count : 0 };
-  }
-  const boxes = [box(bins)];
-  while (boxes.length < limit) {
-    boxes.sort((a, b) => b.score - a.score);
-    if (!boxes[0].score) break;
-    const { colors, count, axis } = boxes.shift();
-    colors.sort((a, b) => a[axis] - b[axis]);
-    let cut = 0,
-      weight = 0;
-    do {
-      weight += colors[cut++][3];
-    } while (cut < colors.length - 1 && weight < count / 2);
-    boxes.push(box(colors.slice(0, cut)), box(colors.slice(cut)));
-  }
-  return boxes.map(({ colors, count }) =>
-    [0, 1, 2].map((k) => Math.round(colors.reduce((n, c) => n + c[k] * c[3], 0) / count)),
+function* chunks(bytes) {
+  check(
+    SIGNATURE.every((b, i) => bytes[i] === b),
+    "signature",
   );
+  check(bytes.length <= MAX_FILE_BYTES, "file too large");
+  const data = view(bytes);
+  let p = 8,
+    count = 0;
+  while (p < bytes.length) {
+    check(++count <= MAX_CHUNKS && p + 12 <= bytes.length, "excessive or truncated chunks");
+    const length = data.getUint32(p);
+    const stop = p + 8 + length;
+    check(stop + 4 <= bytes.length, "truncated chunk data");
+    const type = String.fromCharCode(...bytes.subarray(p + 4, p + 8));
+    check(/^[A-Za-z]{2}[A-Z][A-Za-z]$/.test(type), "chunk type");
+    check(crc32(bytes.subarray(p + 4, stop)) === data.getUint32(stop), "CRC of " + type);
+    check(count !== 1 || type === "IHDR", "missing IHDR");
+    check(type !== "IHDR" || count === 1, "duplicate IHDR");
+    if (type === "IEND") check(!length && stop + 4 === bytes.length, "IEND or trailing bytes");
+    yield { type, payload: bytes.subarray(p + 8, stop) };
+    if (type === "IEND") return;
+    p = stop + 4;
+  }
+  check(false, "missing IEND");
 }
 
-function slicePixels(model, { size, layers, axis, palette, outline }, supplied) {
-  if (axis === "auto") axis = model.kind === "splat" ? "z" : "y";
-  const grid = gridFor(model, axis, size, layers),
-    width = size * layers,
-    rgba = new Uint8ClampedArray(width * size * 4);
-  const index = (x, y, l) => (y * width + l * size + x) * 4;
-  if (model.kind === "splat") paintSplats(grid, model, rgba, index);
-  else
-    paintMesh(grid, model, (x, y, l, c, onlyEmpty = false) => {
-      const p = index(x, y, l);
-      if (c[3] && (!onlyEmpty || !rgba[p + 3])) rgba.set(c, p);
-    });
-  let ink = [24, 24, 24];
-  if (palette && (supplied || rgba.some((v, i) => i % 4 === 3 && v))) {
-    // Reserve one ink color for generated palettes. An explicit reference
-    // palette supplies its own darkest color for the outline.
-    const reserveInk = outline && !supplied && palette > 1;
-    const colors = paletteOf(supplied?.data || rgba, palette - Number(reserveInk));
-    if (!reserveInk) ink = colors.reduce((a, b) => (a[0] + a[1] + a[2] <= b[0] + b[1] + b[2] ? a : b));
-    const cache = new Map();
-    for (let p = 0; p < rgba.length; p += 4) {
-      if (!rgba[p + 3]) continue;
-      const key = rgba[p] * 65536 + rgba[p + 1] * 256 + rgba[p + 2];
-      let color = cache.get(key);
-      if (!color) {
-        let best = Infinity;
-        for (const c of colors) {
-          const d = (c[0] - rgba[p]) ** 2 + (c[1] - rgba[p + 1]) ** 2 + (c[2] - rgba[p + 2]) ** 2;
-          if (d < best) {
-            best = d;
-            color = c;
-          }
-        }
-        cache.set(key, color);
+function header(payload) {
+  check(payload.length === 13, "IHDR size");
+  const data = view(payload);
+  const width = data.getUint32(0),
+    height = data.getUint32(4);
+  const layers = width / height;
+  check(height >= 16 && height <= 128 && Number.isInteger(layers) && layers >= 8 && layers <= 128, "strip dimensions");
+  check(
+    payload[8] === 8 && payload[9] === 6 && !payload[10] && !payload[11] && !payload[12],
+    "expected noninterlaced RGBA8",
+  );
+  return { width, height, maxCompressed: (width * 4 + 1) * height + 65_536 };
+}
+
+function ancillary(type) {
+  // PLTE is permitted in truecolor images as a suggested palette.
+  check(type === "PLTE" || type[0] >= "a", "unsupported critical chunk " + type);
+}
+
+function appendData(frame, payload, limit) {
+  frame.size += payload.length;
+  check(frame.size <= limit, "compressed frame too large");
+  frame.parts.push(payload);
+}
+
+/** Return null for an unmarked image, or validate and index all compressed poses. */
+function readStackApng(input) {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  if (!isMarked(bytes)) return null;
+  let ihdr,
+    shape,
+    marked = false,
+    count = 0,
+    seq = 0,
+    frame;
+  let num, den, previous;
+  const frames = [];
+  for (const { type, payload } of chunks(bytes)) {
+    const data = view(payload);
+    switch (type) {
+      case "IHDR":
+        shape = header(payload);
+        ihdr = pngChunk("IHDR", payload);
+        break;
+      case "nsTA":
+        check(!marked && !count && payload.length === 1 && payload[0] === 1, "nsTA version or order");
+        marked = true;
+        break;
+      case "acTL":
+        check(marked && !count && payload.length === 8, "acTL order or size");
+        count = data.getUint32(0);
+        check(countValid(count) && !data.getUint32(4), "pose count or loop count");
+        break;
+      case "fcTL": {
+        check(
+          frames.length < count && (!frame || frame.size) && payload.length === 26,
+          "frame control or missing frame data",
+        );
+        check(data.getUint32(0) === seq++, "frame sequence number");
+        check(
+          data.getUint32(4) === shape.width &&
+            data.getUint32(8) === shape.height &&
+            !data.getUint32(12) &&
+            !data.getUint32(16) &&
+            !payload[24] &&
+            !payload[25],
+          "frame geometry or operations",
+        );
+        const n = data.getUint16(20),
+          d = data.getUint16(22);
+        check(n && d && (!frame || n * den === num * d), "nonpositive or unequal pose delays");
+        num = n;
+        den = d;
+        frame = { parts: [], size: 0 };
+        frames.push(frame);
+        break;
       }
-      rgba.set(color, p);
+      case "IDAT":
+        check(frames.length === 1 && (!frame.parts.length || previous === "IDAT"), "unexpected IDAT");
+        appendData(frame, payload, shape.maxCompressed);
+        break;
+      case "fdAT":
+        check(
+          frames.length > 1 && payload.length >= 4 && data.getUint32(0) === seq++,
+          "unexpected fdAT or sequence number",
+        );
+        appendData(frame, payload.subarray(4), shape.maxCompressed);
+        break;
+      case "IEND":
+        check(count && frames.length === count && frame.size, "missing poses or image data");
+        break;
+      default:
+        ancillary(type);
     }
+    previous = type;
   }
-  if (outline) {
-    const before = rgba.slice();
-    for (let l = 0; l < layers; l++)
-      for (let y = 0; y < size; y++)
-        for (let x = 0; x < size; x++) {
-          const p = index(x, y, l);
-          if (before[p + 3]) continue;
-          const alpha = Math.max(
-            x > 0 ? before[p - 4 + 3] : 0,
-            x + 1 < size ? before[p + 4 + 3] : 0,
-            y > 0 ? before[p - width * 4 + 3] : 0,
-            y + 1 < size ? before[p + width * 4 + 3] : 0,
-          );
-          if (alpha) {
-            rgba.set(ink, p);
-            rgba[p + 3] = alpha;
-          }
-        }
-  }
+  const delay = num / den;
   return {
-    rgba,
-    width,
-    height: size,
-    layout: {
-      version: 1,
-      order: "bottom-to-top",
-      columns: layers,
-      rows: 1,
-      tileWidth: size,
-      tileHeight: size,
-      upAxis: axis,
-      source: model.kind,
-      bounds: { min: grid.min, max: grid.max },
-      pixelSize: grid.unit,
-      layerHeight: grid.step,
+    length: count,
+    width: shape.width,
+    height: shape.height,
+    duration: delay * count,
+    delays: Array(count).fill(delay),
+    png(index) {
+      check(Number.isInteger(index) && index >= 0 && index < count, "pose index");
+      return catBytes([SIGNATURE, ihdr, ...frames[index].parts.map((part) => pngChunk("IDAT", part)), END]);
     },
   };
 }
 
-__x.slicePixels = slicePixels;
+// Slice 3D already PNG-encodes tiles. Reuse its deflate stream instead of
+// expanding it into RGBA again when all we're doing is wrapping each pose.
+function stillFrame(bytes) {
+  let ihdr, shape, previous;
+  const frame = { parts: [], size: 0 };
+  for (const { type, payload } of chunks(bytes)) {
+    if (type === "IHDR") {
+      ihdr = payload;
+      shape = header(payload);
+    } else if (type === "IDAT") {
+      check(!frame.parts.length || previous === "IDAT", "nonconsecutive IDAT");
+      appendData(frame, payload, shape.maxCompressed);
+    } else if (type === "IEND") {
+      check(frame.size, "empty pose");
+    } else {
+      check(!["nsTA", "acTL", "fcTL", "fdAT"].includes(type), "expected a still image per pose");
+      ancillary(type);
+    }
+    previous = type;
+  }
+  return { ...shape, ihdr, compressed: frame.parts.length === 1 ? frame.parts[0] : catBytes(frame.parts) };
+}
+
+function u32(number) {
+  const bytes = new Uint8Array(4);
+  view(bytes).setUint32(0, number);
+  return bytes;
+}
+
+/** Pack a sync/async iterable of independently encoded PNG strips. Delay is seconds per pose. */
+async function writeStackApng(frameCount, frameDuration, frames) {
+  check(countValid(frameCount), "expected 2 to 64 poses");
+  check(Number.isFinite(frameDuration) && frameDuration > 0 && frameDuration <= 65_535, "invalid pose duration");
+  const den = Math.max(1, Math.min(60_000, Math.floor(65_535 / frameDuration)));
+  const num = Math.max(1, Math.min(65_535, Math.round(frameDuration * den)));
+  const chunksOut = [SIGNATURE];
+  let width,
+    height,
+    seq = 0,
+    i = 0;
+  for await (const bytes of frames) {
+    check(i < frameCount && bytes instanceof Uint8Array, "unexpected pose");
+    const frame = stillFrame(bytes);
+    if (i === 0) {
+      width = frame.width;
+      height = frame.height;
+      chunksOut.push(
+        pngChunk("IHDR", frame.ihdr),
+        pngChunk("nsTA", Uint8Array.of(1)),
+        pngChunk("acTL", catBytes([u32(frameCount), u32(0)])),
+      );
+    }
+    check(frame.width === width && frame.height === height, "poses must have the same dimensions");
+    const control = new Uint8Array(26);
+    const data = view(control);
+    data.setUint32(0, seq++);
+    data.setUint32(4, width);
+    data.setUint32(8, height);
+    data.setUint16(20, num);
+    data.setUint16(22, den);
+    chunksOut.push(
+      pngChunk("fcTL", control),
+      i ? pngChunk("fdAT", catBytes([u32(seq++), frame.compressed])) : pngChunk("IDAT", frame.compressed),
+    );
+    i++;
+  }
+  check(i === frameCount, "pose count mismatch");
+  return catBytes([...chunksOut, END]);
+}
+
+__x.readStackApng = readStackApng; __x.writeStackApng = writeStackApng;
 });
 __def("gltf-scene.mjs", function (__x, __req) {
 // The editor also embeds these helpers in its standalone GLB viewer.
@@ -8025,6 +8434,271 @@ function unpackGlb(bytes) {
 
 __x.ident = ident; __x.mul = mul; __x.trs = trs; __x.xform = xform; __x.unpackGlb = unpackGlb;
 });
+__def("gltf-animation.mjs", function (__x, __req) {
+// Sample each channel on its own keyframe timeline. glTF quaternions are xyzw.
+function unitRotation(values) {
+  const length = Math.hypot(...values);
+  if (!length || !Number.isFinite(length)) throw new Error("Invalid glTF rotation quaternion.");
+  return values.map((v) => v / length);
+}
+
+function slerp(a, b, u) {
+  a = unitRotation(a);
+  b = unitRotation(b);
+  const dot = a.reduce((sum, v, i) => sum + v * b[i], 0);
+  if (dot < 0) b = b.map((v) => -v);
+  const angle = Math.acos(Math.min(1, Math.abs(dot)));
+  let left = 1 - u,
+    right = u;
+  if (angle > 0.00001) {
+    left = Math.sin(left * angle) / Math.sin(angle);
+    right = Math.sin(right * angle) / Math.sin(angle);
+  }
+  return unitRotation(a.map((v, i) => left * v + right * b[i]));
+}
+
+function sampleTrack(track, time) {
+  const { times, values, width, interpolation, path } = track;
+  const cubic = interpolation === "CUBICSPLINE";
+  const read = (key, part = cubic ? 1 : 0) => {
+    const at = (key * (cubic ? 3 : 1) + part) * width;
+    return values.slice(at, at + width);
+  };
+  let lo = 0,
+    hi = times.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (times[mid] <= time) lo = mid + 1;
+    else hi = mid;
+  }
+  const key = Math.max(0, lo - 1);
+  const a = read(key);
+  if (!lo || lo === times.length || time === times[key] || interpolation === "STEP") {
+    return path === "rotation" ? unitRotation(a) : a;
+  }
+  const b = read(lo),
+    dt = times[lo] - times[key],
+    u = (time - times[key]) / dt;
+  if (!cubic) {
+    return path === "rotation" ? slerp(a, b, u) : a.map((v, i) => v + u * (b[i] - v));
+  }
+  const u2 = u * u,
+    u3 = u2 * u;
+  const outgoing = read(key, 2),
+    incoming = read(lo, 0);
+  const value = a.map(
+    (v, i) =>
+      (2 * u3 - 3 * u2 + 1) * v +
+      (u3 - 2 * u2 + u) * dt * outgoing[i] +
+      (3 * u2 - 2 * u3) * b[i] +
+      (u3 - u2) * dt * incoming[i],
+  );
+  return path === "rotation" ? unitRotation(value) : value;
+}
+
+function prepareClip(json, accessor, clip, frames) {
+  if (!Number.isInteger(frames) || frames < 1 || frames > 64)
+    throw new Error("Slice 3D requires an integer frame count from 1 to 64.");
+  if (!clip && frames === 1) return null;
+  const clips = json.animations || [];
+  const labels = clips.map((a, i) => a.name || "Animation " + (i + 1));
+  const selected = clip ? labels.indexOf(clip) : 0;
+  if (!clips[selected]) {
+    throw new Error(
+      labels.length
+        ? "Unknown glTF clip " + clip + ". Available clips: " + labels.join(", ")
+        : "No animation clips in this model. Use one frame for the rest pose.",
+    );
+  }
+  const animation = clips[selected];
+  const tracks = [];
+  let start = Infinity,
+    end = -Infinity;
+  for (const channel of animation.channels || []) {
+    const { node, path } = channel.target;
+    if (node == null) continue; // Extension-only animation targets have no core glTF node.
+    const target = json.nodes?.[node],
+      sampler = animation.samplers?.[channel.sampler];
+    if (!target || !sampler || !["translation", "scale", "rotation", "weights"].includes(path))
+      throw new Error("Invalid glTF animation channel.");
+    if (target.matrix && path !== "weights") throw new Error("Cannot animate TRS on a glTF matrix node.");
+    const interpolation = sampler.interpolation ?? "LINEAR";
+    if (!["STEP", "LINEAR", "CUBICSPLINE"].includes(interpolation))
+      throw new Error("Unsupported glTF interpolation: " + interpolation);
+    const times = accessor(sampler.input, ["SCALAR"]).data;
+    if (times[0] < 0 || times.some((t, i) => i > 0 && t <= times[i - 1]))
+      throw new Error("glTF keyframe times must be nonnegative and strictly increasing.");
+    const morph = path === "weights",
+      rotation = path === "rotation";
+    const width = morph ? json.meshes?.[target.mesh]?.primitives?.[0]?.targets?.length : rotation ? 4 : 3;
+    if (!width) throw new Error("Animation weights require morph targets.");
+    const count = times.length * (interpolation === "CUBICSPLINE" ? 3 : 1) * (morph ? width : 1);
+    const values = accessor(sampler.output, [morph ? "SCALAR" : rotation ? "VEC4" : "VEC3"], count).data;
+    tracks.push({ node, path, times, values, width, interpolation });
+    start = Math.min(start, times[0]);
+    end = Math.max(end, times[times.length - 1]);
+  }
+  if (!tracks.length) throw new Error("Selected glTF clip has no supported node animation channels.");
+  const duration = end - start;
+  if (duration === 0 && frames > 1) throw new Error("This glTF clip has zero duration. Use one frame.");
+  const times = Array.from({ length: frames }, (_, i) => start + (duration * i) / frames);
+  return {
+    info: { clip: labels[selected], frames, duration, times },
+    sample(time) {
+      const overrides = new Map();
+      for (const track of tracks) {
+        if (!overrides.has(track.node)) overrides.set(track.node, {});
+        overrides.get(track.node)[track.path] = sampleTrack(track, time);
+      }
+      return overrides;
+    },
+  };
+}
+
+__x.prepareClip = prepareClip;
+});
+__def("gltf-skin.mjs", function (__x, __req) {
+const { ident, mul, trs, xform } = __req("gltf-scene.mjs");
+
+function sceneNodes(json) {
+  const nodes = json.nodes || [],
+    parents = new Map();
+  for (let i = 0; i < nodes.length; i++) {
+    for (const child of nodes[i].children || []) {
+      if (!nodes[child] || parents.has(child)) throw new Error("Invalid glTF node hierarchy.");
+      parents.set(child, i);
+    }
+  }
+  const roots =
+    json.scenes?.[json.scene ?? 0]?.nodes ?? nodes.map((_, i) => i).filter((i) => !parents.has(i));
+  const stack = roots.slice().reverse(),
+    active = new Set();
+  while (stack.length) {
+    const i = stack.pop();
+    if (!nodes[i] || active.has(i)) throw new Error("Invalid or cyclic glTF node tree.");
+    active.add(i);
+    const children = nodes[i].children || [];
+    for (let j = children.length - 1; j >= 0; j--) stack.push(children[j]);
+  }
+  return {
+    active,
+    worldMatrices(overrides) {
+      const world = new Map();
+      for (const i of active) {
+        const node = nodes[i],
+          pose = overrides?.get(i);
+        let local = node.matrix;
+        if (!local) {
+          const q = pose?.rotation ?? node.rotation ?? [0, 0, 0, 1];
+          const norm = Math.hypot(...q);
+          if (!norm || !Number.isFinite(norm)) throw new Error("Invalid glTF rotation.");
+          local = trs(
+            pose?.translation ?? node.translation ?? [0, 0, 0],
+            q.map((v) => v / norm),
+            pose?.scale ?? node.scale ?? [1, 1, 1],
+          );
+        }
+        const parent = world.get(parents.get(i));
+        world.set(i, parent ? mul(parent, local) : local);
+      }
+      return world;
+    },
+  };
+}
+
+function readSkin(json, skinIndex, accessor, scene) {
+  const skin = json.skins?.[skinIndex];
+  if (!skin?.joints?.length || skin.joints.some((j) => !scene.active.has(j)))
+    throw new Error("glTF skin references missing joints in the scene.");
+  const matrices = skin.inverseBindMatrices == null ? null : accessor(skin.inverseBindMatrices, ["MAT4"]);
+  if (matrices && matrices.count < skin.joints.length) throw new Error("Missing glTF inverse bind matrices.");
+  return skin.joints.map((node, i) => ({ node, bind: matrices?.data.subarray(i * 16, i * 16 + 16) }));
+}
+
+function skinInfluences(json, attributes, count, joints, accessor) {
+  const sets = [];
+  const indices = Object.keys(attributes)
+    .filter((name) => /^(JOINTS|WEIGHTS)_\d+$/.test(name))
+    .map((name) => Number(name.split("_")[1]));
+  if (!indices.includes(0)) throw new Error("A skinned glTF mesh requires JOINTS_0 and WEIGHTS_0.");
+  for (const i of new Set(indices)) {
+    const jointIndex = attributes["JOINTS_" + i],
+      weightIndex = attributes["WEIGHTS_" + i];
+    const jointType = json.accessors?.[jointIndex],
+      weightType = json.accessors?.[weightIndex];
+    if (
+      !jointType ||
+      ![5121, 5123].includes(jointType.componentType) ||
+      jointType.normalized ||
+      !weightType ||
+      !(
+        weightType.componentType === 5126 ||
+        ([5121, 5123].includes(weightType.componentType) && weightType.normalized)
+      )
+    )
+      throw new Error("Invalid glTF joint or weight attributes.");
+    const joint = accessor(jointIndex, ["VEC4"], count).data,
+      weight = accessor(weightIndex, ["VEC4"], count).data;
+    if (joint.some((v) => v >= joints.length) || weight.some((w) => w < 0))
+      throw new Error("Invalid glTF skin influence.");
+    sets.push({ joint, weight });
+  }
+  return sets;
+}
+
+function skinMatrices(joints, world) {
+  return joints.map(({ node, bind }) => (bind ? mul(world.get(node), bind) : world.get(node)));
+}
+
+function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
+  const { base, targets, influences } = mesh;
+  const positions = new Float64Array(base.length);
+  if (weights && (weights.length !== targets.length || !weights.every(Number.isFinite)))
+    throw new Error("Invalid glTF morph weights.");
+  const matrix = nodeMatrix ?? ident();
+  for (let p = 0; p < positions.length; p += 3) {
+    let x = base[p],
+      y = base[p + 1],
+      z = base[p + 2];
+    for (let m = 0; m < targets.length; m++) {
+      const w = weights?.[m],
+        delta = targets[m];
+      if (!w || !delta) continue;
+      x += w * delta[p];
+      y += w * delta[p + 1];
+      z += w * delta[p + 2];
+    }
+    if (!jointMatrices) positions.set(xform(matrix, x, y, z, false), p);
+    else {
+      // Joint matrices already contain the scene transform; the skinned mesh node's transform cancels out.
+      let dx = 0,
+        dy = 0,
+        dz = 0,
+        total = 0;
+      for (const { joint, weight } of influences) {
+        const offset = (p / 3) * 4;
+        for (let k = offset; k < offset + 4; k++) {
+          const w = weight[k];
+          if (!w) continue;
+          const j = jointMatrices[joint[k]];
+          dx += w * (j[0] * x + j[4] * y + j[8] * z + j[12]);
+          dy += w * (j[1] * x + j[5] * y + j[9] * z + j[13]);
+          dz += w * (j[2] * x + j[6] * y + j[10] * z + j[14]);
+          total += w;
+        }
+      }
+      if (!total) throw new Error("A skinned glTF vertex has zero total joint weight.");
+      positions[p] = dx / total;
+      positions[p + 1] = dy / total;
+      positions[p + 2] = dz / total;
+    }
+  }
+  if (positions.some((v) => !Number.isFinite(v))) throw new Error("Invalid glTF scene transform.");
+  return positions;
+}
+
+__x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
+});
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-66bf15b81bdb";
+  window.NanoodleEngine.version = "src-09f55006c6db";
 })();

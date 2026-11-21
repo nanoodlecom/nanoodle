@@ -72,6 +72,7 @@ const ctx = {
 vm.createContext(ctx);
 
 const bundle =
+  extractFn(SRC, "slicePresetValues") + "\n" +
   extractFn(SRC, "spriteNumber") + "\n" +
   extractObj(SRC, "const NODE_TYPES = {") + "\n" +
   "const ADD_GROUPS = ['Inputs','Text','Image','Video','Audio','3D','Notes'];\n" +
@@ -106,7 +107,7 @@ eq(keys("out", "audio"), ["cleanvoice", "endpoint", "llm", "lipsync", "remix", "
 eq(keys("out", "video"), ["cleanvoice", "combine", "endpoint", "extractaudio", "llm", "soundtrack", "vedit", "vframes"],
   "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack; Clean voice pulls the voice out + Custom endpoint; LLM watches it on video_input models)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
-eq(keys("out", "text"), ["cleanvoice", "decide", "edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "tts", "tvideo", "vedit", "vision"],
+eq(keys("out", "text"), ["cleanvoice", "decide", "edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "slice-3d", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type

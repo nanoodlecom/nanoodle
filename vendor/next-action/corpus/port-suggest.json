@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 40,
-  "edgeCount": 267,
+  "graphCount": 41,
+  "edgeCount": 269,
   "typeToType": {
     "text→image": 34,
     "image→ivideo": 10,
@@ -51,6 +51,8 @@
     "join→tts": 1,
     "llm→llm": 1,
     "join→music": 1,
+    "mupload→slice-3d": 1,
+    "slice-3d→sprite-stack-render": 1,
     "music→trim": 1,
     "image→lipsync": 2,
     "trim→lipsync": 2,
@@ -135,6 +137,8 @@
     "llm.text→llm.prompt": 1,
     "llm.text→music.lyrics": 2,
     "join.text→music.prompt": 1,
+    "mupload.model→slice-3d.model": 1,
+    "slice-3d.sheet→sprite-stack-render.sheet": 1,
     "music.audio→trim.audio": 1,
     "image.image→lipsync.image": 2,
     "trim.audio→lipsync.audio": 2,
@@ -279,6 +283,12 @@
     },
     "inpaint|image": {
       "ivideo|image": 1
+    },
+    "mupload|model": {
+      "slice-3d|model": 1
+    },
+    "slice-3d|sheet": {
+      "sprite-stack-render|sheet": 1
     },
     "trim|audio": {
       "lipsync|audio": 2
@@ -459,6 +469,26 @@
       "outputs": [
         "image"
       ]
+    },
+    "mupload": {
+      "inputs": [],
+      "outputs": [
+        "model"
+      ]
+    },
+    "slice-3d": {
+      "inputs": [
+        "model"
+      ],
+      "outputs": [
+        "sheet"
+      ]
+    },
+    "sprite-stack-render": {
+      "inputs": [
+        "sheet"
+      ],
+      "outputs": []
     },
     "trim": {
       "inputs": [

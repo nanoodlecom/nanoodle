@@ -178,7 +178,8 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
 
 const createApp = IDX.slice(IDX.indexOf("function startAppRequest(kind)"), IDX.indexOf('$("makeapp").onclick'));
 const canvasOnlyAt = createApp.indexOf("if(usesCanvas && graph.nodes.some");
-const blockAt = createApp.indexOf('n.type==="model3d" || n.type==="mupload"');
+const blockAt = createApp.indexOf('n.type==="model3d"');
+ok(!createApp.includes('n.type==="mupload"'), "3D uploads go through the app builder");
 const handoffAt = createApp.indexOf("serializeGraph()");
 ok(canvasOnlyAt > 0 && blockAt > canvasOnlyAt, "the 3D guard applies to creating or updating from the canvas");
 ok(blockAt > 0 && handoffAt > blockAt && /showCreateAppBlock\(\);\s*return;/.test(createApp.slice(blockAt, handoffAt)),

@@ -43,8 +43,8 @@ ok(SRC.includes('addEventListener("drop"') && SRC.includes('dropToast(e.clientX,
 ok(kind({ name: "cloud.ply", type: "" }) === "model3d", "Gaussian PLY routes to 3D");
 ok(SRC.includes("that's a 3D file — drop it on the canvas"),
   "Image input names a .glb instead of a bad image");
-ok(SRC.includes("3D nodes stay in the editor for now — Create app doesn’t run them yet"),
-  "Create app blocks 3D nodes with a clear message");
+ok(SRC.includes("3D generation runs in the editor. Use a 3D input to build an app with an uploaded model."),
+  "Create app explains how to use an uploaded model");
 ok(SRC.includes("“{id}” is a 3D model — add a 🧊 3D model node"), "picker hint names the 3D model and the node");
 ok(SRC.includes("showCreateAppBlock") && SRC.includes('id="appblock"'), "the Create-app block is anchored under the button");
 ok(!/NJS_TYPES\s*=\s*\{[^}]*model3d/.test(SRC), "3D stays off the nanoodle-js delegation list");
