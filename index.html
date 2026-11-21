@@ -1030,6 +1030,17 @@
           width:min(560px,92vw); max-height:74vh; flex-direction:column; background:var(--panel);
           border:1px solid var(--line); border-radius:.8rem; box-shadow:0 18px 60px #000a; overflow:hidden }
   #mpick.open{ display:flex }
+  /* Animate the entrance from display:none while keeping centered popovers'
+     own translateX transform throughout the animation. */
+  @keyframes popIn{ from{ opacity:0; translate:0 -6px } to{ opacity:1; translate:0 } }
+  @keyframes fadeIn{ from{ opacity:0 } to{ opacity:1 } }
+  #addpop.open, #quickadd.open, #selmenu.open, #langpop.open, #authpop.open, #keyrow.open, #morepop.open,
+  #mpick.open, #sharemenu:not([hidden]){ animation:popIn .16s ease }
+  #mpickback.show, #shareback:not([hidden]){ animation:fadeIn .15s ease }
+  @media (prefers-reduced-motion: reduce){
+    #addpop.open, #quickadd.open, #selmenu.open, #langpop.open, #authpop.open, #keyrow.open, #morepop.open,
+    #mpick.open, #mpickback.show, #shareback:not([hidden]), #sharemenu:not([hidden]){ animation:none }
+  }
   #mpick .mphead{ display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-bottom:1px solid var(--line) }
   #mpick .mphead .spacer{ flex:1 }
   #mpicksort{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:.5rem; padding:.25rem .4rem; font-size:.8rem; cursor:pointer }
