@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "nid": 4,
+  "lid": 3,
+  "nodes": [
+    {"id": "n1", "type": "text", "x": 40, "y": 40, "fields": {"text": "Hello"}},
+    {"id": "n2", "type": "text", "x": 40, "y": 260, "fields": {"text": "world!"}},
+    {"id": "n3", "type": "join", "name": "Greeting", "x": 400, "y": 150, "fields": {"sep": ", "}}
+  ],
+  "links": [
+    {"id": "l1", "from": {"node": "n1", "port": "text"}, "to": {"node": "n3", "port": "a"}},
+    {"id": "l2", "from": {"node": "n2", "port": "text"}, "to": {"node": "n3", "port": "b"}}
+  ]
+}

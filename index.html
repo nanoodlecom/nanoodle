@@ -5,13 +5,13 @@
 <meta name="nanoodle-build" content="dev" /><!-- stamped with the deploy commit sha7 by scripts/stamp-sw.mjs; read by scripts/smoke-live.mjs -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>nanoodle — AI workflows and MCP tools</title>
-<meta name="description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
+<meta name="description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
 <meta property="og:title" content="nanoodle — AI workflows and MCP tools" />
-<meta property="og:description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
+<meta property="og:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
 <meta property="og:url" content="https://nanoodle.com/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -21,7 +21,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="nanoodle — AI workflows and MCP tools" />
-<meta name="twitter:description" content="Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP." />
+<meta name="twitter:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -54,13 +54,14 @@
       "url": "https://nanoodle.com/",
       "name": "nanoodle",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Build visual AI workflows with NanoGPT or connect your agent to hosted workflows over MCP.",
+      "description": "Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP.",
       "sameAs": [
         "https://x.com/nanosapien1",
         "https://github.com/nanoodlecom",
         "https://github.com/nanoodlecom/nanoodle",
         "https://www.npmjs.com/package/nanoodle",
-        "https://pypi.org/project/nanoodle/"
+        "https://pypi.org/project/nanoodle/",
+        "https://crates.io/crates/nanoodle"
       ]
     },
     {
@@ -70,7 +71,7 @@
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Connect text, image, video, audio and other AI models in a visual workflow editor. Run hosted workflows from your agent over the Model Context Protocol (MCP).",
+      "description": "Connect text, image, video, audio and other AI models in a visual workflow editor. Run saved graphs from JavaScript, Python, or Rust. Call hosted workflows from your agent over the Model Context Protocol (MCP).",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "sameAs": [
         "https://x.com/nanosapien1",
@@ -623,6 +624,7 @@
   #canvashint .ht2{ flex-basis:100%; margin-top:.15rem; font-size:.74rem; line-height:1.3; opacity:.85 }   /* pay-per-use pitch wraps to its own full-width row */
   /* Inline actions reuse the existing Run and Examples flows. */
   #canvashint .link{ font-weight:600; white-space:nowrap; font-size:inherit; cursor:pointer }
+  .script-guide{ color:var(--accent); text-underline-offset:.15em }
   #canvashint .link:hover{ text-decoration:underline }
   #connecthint b{ color:var(--accent); font-weight:600 }   /* the ● reads as a port dot */
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
@@ -1572,7 +1574,7 @@
     <input id="sm-url" class="sm-url" readonly />
     <button id="sm-copy" class="sm-copy">Copy</button>
   </div>
-  <p class="sm-note">This link opens your exact workflow for anyone to run or remix.</p>
+  <p class="sm-note">This link opens your exact workflow for anyone to run or remix. <a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a>.</p>
   <div class="sm-apps">
     <p id="appcontext" hidden></p>
     <button id="makeapp" type="button" title="App builder" disabled>Loading app…</button>
@@ -1604,7 +1606,7 @@
   <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP. <a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1833,6 +1835,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
     "A live AI workflow. Press":"Un flujo de IA en vivo. Pulsa",
+    "Run a workflow in JavaScript, Python, or Rust":"Ejecuta un flujo en JavaScript, Python o Rust",
     "Build with NanoGPT. Run hosted workflows over MCP.":"Crea con NanoGPT. Ejecuta flujos alojados mediante MCP.",
     "Edit the prompt":"Edita el prompt",
     "to save and share.":"para guardar y compartir.",
@@ -2643,6 +2646,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
     "A live AI workflow. Press":"Un workflow d’IA en direct. Appuyez sur",
+    "Run a workflow in JavaScript, Python, or Rust":"Exécuter un workflow en JavaScript, Python ou Rust",
     "Build with NanoGPT. Run hosted workflows over MCP.":"Créez avec NanoGPT. Exécutez des workflows hébergés via MCP.",
     "Edit the prompt":"Modifiez le prompt",
     "to save and share.":"pour enregistrer et partager.",
@@ -3447,6 +3451,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
     "A live AI workflow. Press":"Ein live KI-Workflow. Drücke",
+    "Run a workflow in JavaScript, Python, or Rust":"Einen Workflow mit JavaScript, Python oder Rust ausführen",
     "Build with NanoGPT. Run hosted workflows over MCP.":"Erstelle Workflows mit NanoGPT. Starte gehostete Workflows per MCP.",
     "Edit the prompt":"Bearbeite den Prompt",
     "to save and share.":"zum Speichern und Teilen.",
@@ -4243,6 +4248,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
     "A live AI workflow. Press":"Um fluxo de IA ao vivo. Pressione",
+    "Run a workflow in JavaScript, Python, or Rust":"Execute um fluxo em JavaScript, Python ou Rust",
     "Build with NanoGPT. Run hosted workflows over MCP.":"Crie com NanoGPT. Execute fluxos hospedados via MCP.",
     "Edit the prompt":"Edite o prompt",
     "to save and share.":"para salvar e compartilhar.",
@@ -5042,6 +5048,7 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
     "A live AI workflow. Press":"ライブのAIワークフローです。",
+    "Run a workflow in JavaScript, Python, or Rust":"JavaScript、Python、Rust でワークフローを実行",
     "Build with NanoGPT. Run hosted workflows over MCP.":"NanoGPT で作成。MCP でホスト済みのワークフローを実行。",
     "Edit the prompt":"プロンプトを編集",
     "to save and share.":"で保存・共有できます。",

@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Run nanoodle workflows headlessly (JavaScript &amp; Python) — nanoodle guide</title>
-<meta name="description" content="Paste a nanoodle share link, npx nanoodle inspect offline, then npx nanoodle run or pip install nanoodle. Package name is nanoodle on npm 0.8.0 and PyPI 0.5.0 — not nanoodle-js." />
+<title>Run nanoodle workflows from JavaScript, Python, or Rust — nanoodle guide</title>
+<meta name="description" content="Save a graph in the nanoodle editor and run it in a script. Try a local workflow with the nanoodle package for JavaScript, Python, or Rust." />
 
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="nanoodle" />
-<meta property="og:title" content="Run nanoodle workflows headlessly (JavaScript &amp; Python)" />
-<meta property="og:description" content="Paste a share link. Inspect offline. Run it from Node or Python. Install nanoodle — not nanoodle-js." />
+<meta property="og:title" content="Run nanoodle workflows from JavaScript, Python, or Rust" />
+<meta property="og:description" content="Save a graph in the nanoodle editor and run it in a script. Try a local workflow with the nanoodle package for JavaScript, Python, or Rust." />
 <meta property="og:url" content="https://nanoodle.com/guide/run-headless" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Run nanoodle workflows headlessly (JavaScript &amp; Python)" />
-<meta name="twitter:description" content="Paste a share link → npx nanoodle inspect → npx nanoodle run / pip install nanoodle." />
+<meta name="twitter:title" content="Run nanoodle workflows from JavaScript, Python, or Rust" />
+<meta name="twitter:description" content="Save a graph in the nanoodle editor and run it in a script. Try a local workflow with the nanoodle package for JavaScript, Python, or Rust." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -38,59 +38,85 @@
     <a class="ghost" href="/">Open editor →</a>
   </header>
 
-  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Run headlessly</span></nav>
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Run from a script</span></nav>
 
   <main>
-    <h1>Run workflows <span class="grad">headlessly</span></h1>
-    <p class="lede">The URL <em>is</em> the package. Paste a share link from chat, a tweet, or
-    <a href="/guide/examples/">Steal a noodle</a>. Inspect it offline. Run it from Node or
-    Python. Same <a href="/guide/graph-format">noodle-graph.json</a>, same NanoGPT API, your
-    own key.</p>
+    <h1>Run a workflow <span class="grad">from a script</span></h1>
+    <p class="lede">Build a workflow in the editor, then run the saved graph in a batch job,
+    on a schedule, or from your own app. Choose <a href="#javascript">JavaScript</a>,
+    <a href="#python">Python</a>, or <a href="#rust">Rust</a>.</p>
 
     <section>
-      <p class="kicker">Under a minute</p>
-      <ol class="steps">
-        <li>Install <code>nanoodle</code> — that is the package name on <strong>both</strong>
-        registries. The GitHub repos are <code>nanoodle-js</code> and <code>nanoodle-py</code>.
-        Do not <code>npm install nanoodle-js</code>.</li>
-        <li><code>inspect</code> the share link. Offline. No key. Prints inputs, outputs,
-        settings.</li>
-        <li><code>run</code> it. That call spends your
-        <a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a> balance.</li>
-      </ol>
+      <h2>Try the same graph in each language</h2>
+      <p>Download <a href="/guide/greeting.json" download>greeting.json</a> into your project
+      directory. It joins two Text nodes into one output named <strong>Greeting</strong>.
+      Each example runs locally and prints <samp>Hello, world!</samp>.</p>
+      <p>To run your own workflow, choose <strong>Save</strong> in the editor, then substitute
+      its JSON filename and output name below. For graphs that call models, set
+      <code>NANOGPT_API_KEY</code> in your environment. NanoGPT bills those calls to your balance.</p>
 
+      <h3 id="javascript">JavaScript</h3>
+      <p>Install with <code>npm install nanoodle</code>. Save this as <code>run.mjs</code>
+      and run <code>node run.mjs</code>. <a href="https://www.npmjs.com/package/nanoodle">Package on npm ↗</a></p>
+<pre><code>import { Workflow } from "nanoodle";
+
+const workflow = await Workflow.load("greeting.json");
+const result = await workflow.run();
+console.log(result.get("Greeting"));</code></pre>
+
+      <h3 id="python">Python</h3>
+      <p>Install with <code>python -m pip install nanoodle</code>. Save this as <code>run.py</code>
+      and run <code>python run.py</code>. <a href="https://pypi.org/project/nanoodle/">Package on PyPI ↗</a></p>
+<pre><code>from nanoodle import Workflow
+
+workflow = Workflow.load("greeting.json")
+result = workflow.run()
+print(result["Greeting"])</code></pre>
+
+      <h3 id="rust">Rust</h3>
+      <p>In a Cargo binary project, run <code>cargo add nanoodle serde_json</code>.
+      Save this as <code>src/main.rs</code> and run <code>cargo run</code> from the
+      directory containing <code>greeting.json</code>. <a href="https://crates.io/crates/nanoodle">Package on crates.io ↗</a></p>
+<pre><code>use nanoodle::{materialize, run, Ctx};
+use std::{env, error::Error, fs};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
+    let file = fs::read_to_string("greeting.json")?;
+    let graph = materialize(&amp;serde_json::from_str(&amp;file)?)?;
+    let key = env::var("NANOGPT_API_KEY").unwrap_or_default();
+    let ctx = Ctx::new("https://nano-gpt.com", &amp;key);
+    let result = run(&amp;graph, &amp;ctx).map_err(|failure| failure.message)?;
+    println!("{}", result.outputs["Greeting"].as_str().ok_or("missing Greeting")?);
+    Ok(())
+}</code></pre>
+      <p>For shell scripts, install the Rust CLI with <code>cargo install nanoodle --locked</code>.
+      Run the example with <code>nanoodle-rs run greeting.json</code>. For a graph that
+      calls models, pass <code>--api-key "$NANOGPT_API_KEY"</code>.</p>
+    </section>
+
+    <section>
+      <h2>Run an editor share link</h2>
+      <p>JavaScript and Python also accept share links in place of a filename. Copy a
+      workflow link from the editor’s <strong>Share workflow</strong> menu and substitute it
+      for the quoted URL below. Direct <code>#g=</code>, <code>#j=</code>, and <code>#a=</code>
+      links decode offline. An app link loads the graph inside the app.</p>
       <div class="twins">
         <figure>
-          <figcaption>JavaScript · npm <code>nanoodle</code> 0.8.0</figcaption>
+          <figcaption>JavaScript CLI</figcaption>
 <pre><code>npx nanoodle inspect "https://nanoodle.com/#g=..."
-export NANOGPT_API_KEY=...
 npx nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
         </figure>
         <figure>
-          <figcaption>Python · PyPI <code>nanoodle</code> 0.5.0</figcaption>
-<pre><code>pip install nanoodle
-python -m nanoodle inspect "https://nanoodle.com/#g=..."
-export NANOGPT_API_KEY=...
+          <figcaption>Python CLI</figcaption>
+<pre><code>python -m nanoodle inspect "https://nanoodle.com/#g=..."
 python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
         </figure>
-      </div>
-      <p>Quote the URL. <code>#</code> starts a comment in most shells. Direct
-      <code>#g=</code> / <code>#j=</code> / <code>#a=</code> links decode fully offline;
-      only fragment-less short links touch the network (redirect headers, no credentials).
-      App links (<code>#a=</code>) load the graph only — the app shell stays in the
-      browser.</p>
-
-      <div class="callout">
-        <p><strong>Install <code>nanoodle</code>.</strong> The JavaScript and Python
-        packages on npm and PyPI install their image libraries automatically. Rust users
-        can install the CLI with <code>cargo install nanoodle --locked</code> and run
-        a saved graph with <code>nanoodle-rs run noodle-graph.json</code>.</p>
       </div>
     </section>
 
     <section>
       <h2>Start from a working example</h2>
-      <p>Choose from the <a href="/guide/examples/">five example workflows</a>,
+      <p>Choose from the <a href="/guide/examples/">example workflows</a>,
       inspect the saved result, and copy its <strong>Open this noodle</strong> link.
       The same graphs work in the browser and in the
       <a href="https://github.com/nanoodlecom/awesome-noodles#run-headless" target="_blank" rel="noopener">awesome-noodles Run headless</a>
@@ -100,10 +126,6 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
       <p>The <a href="/guide/examples/sing">song workflow</a> turns a theme into
       lyrics and uses your favorite bands to arrange them before singing. Override
       the idea below or keep the saved singularity/trip-hop brief.</p>
-      <p>Sing needs the latest executor from GitHub while the music-style fix awaits
-      an npm/PyPI release. Install it with <code>npm install github:nanoodlecom/nanoodle-js</code>
-      or <code>python -m pip install --force-reinstall git+https://github.com/nanoodlecom/nanoodle-py.git</code>,
-      then use the commands below. The browser example includes the fix.</p>
       <div class="twins">
         <figure>
           <figcaption>CLI</figcaption>
@@ -148,7 +170,7 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
     </section>
 
     <section>
-      <h2>Library</h2>
+      <h2>Change the brief and save an image</h2>
       <p>Using the image comparison link, load and run the graph from either library.
       <code>Workflow.load</code> accepts a share URL, a bare <code>#g=</code> /
       <code>#a=</code> fragment, or a local <code>noodle-graph.json</code>. Key from
@@ -202,7 +224,7 @@ result["Contender 1"].save("poster.png")</code></pre>
     <section>
       <h2>CLI extras</h2>
       <p>Python also installs as <code>nanoodle-py</code>; <code>python -m nanoodle</code>
-      always works. Flags match across both CLIs:</p>
+      always works. These examples use flags shared by the JavaScript and Python CLIs.</p>
 <pre><code>npx nanoodle run graph.json --input "Shared test brief=One red bicycle wheel on a cream background." --set n3.size=1:1 --out ./out --json
 npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .env</code></pre>
       <ul>
@@ -216,7 +238,7 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
 
     <section>
       <h2>Inputs, outputs, settings</h2>
-      <p>Both packages expose the workflow's interface before you run it —
+      <p>The JavaScript and Python packages expose the workflow's interface before you run it through
       <code>wf.inputs</code>, <code>wf.outputs</code>, <code>wf.settings</code>. Input keys are
       flexible (case-insensitive): the node's custom name (<code>"Still brief"</code>,
       <code>"Shared test brief"</code>), <code>nodeId.field</code> (<code>"n2.system"</code>),
@@ -230,8 +252,7 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
       for transcription) are refused locally with a clear error before any paid call.</p>
 
       <div class="callout">
-        <p><strong>Every <code>run()</code> spends real money</strong> from your NanoGPT
-        balance — NanoGPT bills per generation. Loading, validating and inspecting workflows
+        <p><strong>NanoGPT bills per generation.</strong> Local nodes run on your machine. Loading, validating and inspecting workflows
         never calls the API, and bad inputs (unknown node types, missing required inputs,
         missing API key) fail <em>before</em> anything is spent. No telemetry, no analytics;
         the key is never logged. Damaged share links (a character flipped in transit) are
@@ -272,14 +293,10 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
       are shrunk with ffmpeg. A yes/no <strong>gate</strong> that answers no is a result, not a failure:
       that node reports <code>gated</code> and everything behind it reports <code>skipped</code>
       (never run, never billed). The run succeeds and the CLI exits 0 with a <code>gated</code>
-      list in its JSON summary. Support landed on the libraries' main branches after
-      nanoodle 0.8.0 (npm) and 0.5.0 (PyPI), and those published releases still refuse a graph
-      containing <code>decide</code>, up front, before anything spends.</p>
-      <p>The 🎧 <code>cleanvoice</code> node (NanoGPT voice isolation), the 🧊 <code>model3d</code>
-      node, the 📦 <code>mupload</code> node, and the 🔌 <code>endpoint</code> node are supported
-      by the headless runners once the packages are released. npm 0.8.0 and PyPI 0.5.0 still lack
-      them, and those published releases refuse a graph that contains one, up front, before
-      anything spends.</p>
+      list in its JSON summary.</p>
+      <p>The executors also support <code>cleanvoice</code> for voice isolation,
+      <code>model3d</code> for 3D generation, <code>mupload</code> for 3D inputs,
+      and <code>endpoint</code> for custom endpoints.</p>
       <p>Only an <em>unknown</em> node type is refused up front: the libraries warn at load and
       throw at <code>run()</code> before any network call. That is how a graph saved before
       2026-07-22 with the retired <code>draw</code> node behaves. The full node table is on the
@@ -302,8 +319,8 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
 
     <section>
       <h2>No account: pay per run in Nano (x402)</h2>
-      <p>Skip the API key entirely. With <code>--pay</code> (or a library
-      <code>payment</code> callback), each paid call returns an HTTP 402 Nano (XNO)
+      <p>The JavaScript and Python packages support <code>--pay</code> (or a library
+      <code>payment</code> callback). Each paid call returns an HTTP 402 Nano (XNO)
       invoice — scan/pay from a self-custody wallet; nanoodle waits for the deposit
       and continues. The library never holds funds or keys.</p>
       <div class="twins">
