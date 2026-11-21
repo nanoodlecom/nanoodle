@@ -70,6 +70,14 @@ const HOWTO = {
     inspect: "Play the saved clip and watch the mouth against the words: in the probe and the saved run it is nearly closed at the audio pause and wide open on the loudest word. Then read the guide's honest edges \u2014 no current model reliably closes the mouth on pauses, and audio-driven runs render at 1080p even when 720p is selected.",
     costHow: "Two paid calls: the saved run reported $0.70819 in total (LTX-2.5 Fast $0.6832 for 4.875 seconds at the audio-driven 1080p rate of $0.14/s, speech $0.02499 balance-verified, GLM guide $0.00). Prices and results vary.",
   },
+  "photo-to-editable-layers": {
+    headline: "Photo to editable layers",
+    job: "One photo \u2192 a stack of named layers: base plate, background, and each element as its own transparent PNG with a bounding box.",
+    purpose: "A Gemini survey names what should separate and what will resist. Seedream 5.0 Flash Layerize returns the stack \u2014 a clean base plate, the background, and each element as a transparent PNG carrying a name, a z-index and a bounding box on the edit node's images and layers outputs. GLM writes the guide: what you got, what to do with the pieces, and the honest edges.",
+    edit: "Swap <em>Photo</em> for your own image \u2014 one clear subject on a distinguishable background separates best. Edit <em>Layer instruction</em> only to name what matters (a person, a product, a sign); the layer count itself is the model's decision, not a setting. Keep <em>Layerize \u2014 Seedream V5 Flash</em> on <code>bytedance/seedream/v5/flash/layerize</code>; wire its images output onward to use every layer in the same graph, or open the run's outputs to download the stack.",
+    inspect: "Stack the saved layers at their bounding boxes (layers.json carries each name, z-index and box) and compare with the photo: this run rebuilds at a mean absolute difference of 14.26/255. Then check the bust cutout's edges against the survey's warning \u2014 the weathered hair is where the alpha goes soft.",
+    costHow: "Two paid calls: the saved run reported $0.0274 in total (Layerize a flat $0.027 at every size, Gemini survey $0.0004, GLM guide $0.00). Refused photos are not charged. Prices and results vary.",
+  },
   "photo-to-game-ready-mesh": {
     headline: "Photo to game-ready mesh",
     job: "One photo of one object → a textured triangle mesh that drops into engines, Blender and slicers.",
@@ -377,7 +385,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo", "photo-to-editable-layers"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
