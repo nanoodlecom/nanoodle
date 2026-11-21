@@ -1,0 +1,122 @@
+{
+ "v": 1,
+ "lid": 10,
+ "nid": 10,
+ "nodes": [
+  {
+   "id": "note",
+   "type": "comment",
+   "name": "About this workflow",
+   "fields": {
+    "text": "PHOTO \u2192 EDITABLE LAYERS \u2014 one photo in, a stack of named layers out. Seedream 5.0 Flash Layerize pulls the picture apart: a clean base plate (everything lifted out, holes inpainted), the background, and each foreground element as its own PNG with real transparency, named, with its bounding box. Stack them back at their coordinates and the original rebuilds \u2014 or pull one element out and use it anywhere. $0.027 flat for the separation. Honest edges in the guide at the end: some photos refuse (unbilled), the model re-segments every run so names and boundaries shift, and the layers are cutouts, not vectors."
+   },
+   "x": 40,
+   "y": 24,
+   "w": 460
+  },
+  {
+   "id": "src",
+   "type": "upload",
+   "name": "Photo",
+   "fields": {
+    "image": ""
+   },
+   "x": 40,
+   "y": 300,
+   "w": 320
+  },
+  {
+   "id": "how",
+   "type": "text",
+   "name": "Layer instruction",
+   "fields": {
+    "text": "Separate this image into editable layers: background, main subject, and any other distinct elements, each isolated on transparency."
+   },
+   "x": 40,
+   "y": 520,
+   "w": 340
+  },
+  {
+   "id": "survey",
+   "type": "vision",
+   "name": "Survey \u2014 what will separate",
+   "fields": {
+    "model": "google/gemini-3.1-flash-lite",
+    "q": "List the distinct visual elements in this image that could be separated into layers: the background, the main subject, and any supporting elements (props, furniture, text). For each, one short phrase. Then one line: which element is most likely to resist clean separation, and why. 60 words maximum."
+   },
+   "x": 460,
+   "y": 300,
+   "w": 340
+  },
+  {
+   "id": "layers",
+   "type": "edit",
+   "name": "Layerize \u2014 Seedream V5 Flash",
+   "fields": {
+    "model": "bytedance/seedream/v5/flash/layerize",
+    "size": "auto_1K"
+   },
+   "x": 880,
+   "y": 300,
+   "w": 340
+  },
+  {
+   "id": "guide",
+   "type": "llm",
+   "name": "Guide \u2014 your layer stack",
+   "fields": {
+    "model": "z-ai/glm-4.6",
+    "system": "You write the guide for a workflow that separates one photo into editable layers with Seedream 5.0 Flash Layerize ($0.027 flat). You are told what a vision model saw in the photo. Write 120-180 words in three headed sections. WHAT YOU GOT: a layer stack \u2014 a clean base plate with every element lifted out and the holes inpainted, the background, and each foreground element as its own transparent PNG, named, with a bounding box; stack them at their coordinates and the original rebuilds exactly. WHAT TO DO WITH THEM: pull one element onto a new backdrop, drop the subject into a design, re-time a product shot without reshooting; name one concrete move that fits THIS photo's elements. THE HONEST EDGES: some photos refuse outright (the run errors and you are NOT charged \u2014 try a cleaner, sharper image); the alpha edges are soft photographic cutouts, not vector-crisp; text and fine hair separate worst; the base plate behind an element is regenerated inpaint, so it is plausible, not the original pixels; the model re-segments the photo on every run, so layer names and boundaries shift between runs and a rebuild lands close to the original, not pixel-perfect; if the photo arrives as a remote URL the run can refuse intermittently (never charged) \u2014 an inlined image lands first try. Refer to layers by the survey's element names \u2014 never invent file names, layer counts or bounding boxes. No hype, no exclamation marks."
+   },
+   "x": 1300,
+   "y": 300,
+   "w": 360
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "survey",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "layers",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "how",
+    "port": "text"
+   },
+   "to": {
+    "node": "layers",
+    "port": "prompt"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "survey",
+    "port": "text"
+   },
+   "to": {
+    "node": "guide",
+    "port": "prompt"
+   }
+  }
+ ]
+}
