@@ -1,68 +1,7 @@
 #!/usr/bin/env node
-// Verifies the "✨ Create app" handoff state machine — the editor↔builder contract
-// that decides whether clicking Create app makes a NEW app or UPDATES an existing one.
-//
-// Why a dedicated check: the binding between "the workflow on the canvas" and "the app
-// it targets" is invisible, sticky, and split across two same-origin documents
-// (index.html's pendingAppId; play.html's CUR_ID + RESUME/handoff intake). A single
-// regression there silently re-targets an OLD app, or spawns a DUPLICATE — the exact
-// "Create app opened an old app" class of bug. None of the other checkers exercise this
-// editor→builder routing.
-//
-// Technique mirrors check-login-state.mjs: pull the REAL inline <script> out of each
-// HTML, run it in a node:vm sandbox with DOM/window stubs and a localStorage/sessionStorage
-// that persists across simulated page loads, then drive the actual wiring (button clicks,
-// postMessage) and read the observable effects (page title, the hash the editor emits into
-// the modal iframe, the app the builder installs).
-//
-// INVARIANTS ENFORCED
-//   Editor (index.html):
-//    1. A workflow loaded via #ga=<id> binds to that app. The workspace shows
-//       "Update app", Share names the target, and the update action re-emits #ga=<same id>.
-//    2. That binding SURVIVES a plain reload (persisted outside noodle_graph), so the
-//       next Create app still updates — never duplicates. [the lost-on-reload bug]
-//    3. A fresh #g= workflow has NO binding: button says "Create app", "Save as a new app" is
-//       hidden, no #ga=, no persisted binding.
-//    4. "Save as a new app" detaches the binding and emits a plain #g= → a brand-new app.
-//       [the reported "built something new but it updated my old app" escape hatch]
-//    5. __editflow__ applies the graph BEFORE binding the id (never points "Update"
-//       at one app while showing another's canvas), and ignores wrong-source messages.
-//   Builder (play.html):
-//    6. An explicit handoff hash BEATS a stale OAuth resume stash (the reported bug's
-//       second mechanism), and the resume stash is consumed either way.
-//    7. The builder's resume key is namespaced away from the editor's identical-looking
-//       key, so a shared-tab editor stash can't open here as an "old app".
-//    8. A legitimate OAuth resume (no hash) still reopens the stashed app — no regression.
-//    9. #g=/#j= and #a=/#ga= consume the handoff (clear the URL hash AND the
-//       noodle_app_handoff fallback) so a reload restores the SAVED draft, not the
-//       original graph, and a later hash-less visit can't reopen a stale workflow.
-//   10. updateAppWorkflow(unknownId) installs a fresh draft without throwing.
-//   Resume / keep-alive (R*) — closing the modal must not lose your in-progress app:
-//   R0. appHandoffSig() (the change-detector) ignores canvas pan/zoom + node positions but
-//       flips on node type/fields, links, and the bound app id. [the "pan = lost work" trap]
-//   R1. Reopening on the UNCHANGED graph resumes the live builder — emits no new handoff.
-//   R2. Closing the modal keeps the iframe loaded (never about:blank). [the lost-state bug]
-//   R3. A builder→canvas graph edit (__editflow__) re-hands-off — never a stale resume —
-//       and it rides the LIVE __handoff__ postMessage (a fragment-only src write never
-//       reloads the iframe, so a src re-handoff silently drops the new graph).
-//   R4. Source guards: closeAppModal doesn't blank, openAppModal records the resume state,
-//       openCreateApp short-circuits on an unchanged graph, play.html pauses media on hide.
-//   Live handoff + bind-on-create (H*) — Create must CREATE and the editor must know:
-//   H1. A fresh handoff commits a "My apps" entry immediately; a null-appId __handoff__
-//       into the live builder mints a separate NEW app and posts __appsaved__ to the parent.
-//   H2. A bound __handoff__ (appId set) updates that app in place — never a duplicate.
-//   H3. The editor's __appsaved__ handler binds + persists the id (button flips to
-//       "✨ Update <name>") without breaking the unchanged-graph resume fast-path.
-//   H4. __editflow__ pushes an undo snapshot — the replaced canvas stays one Ctrl+Z away.
-//   H5. A #ga= boot with an existing noodle_graph opens the handoff in a NEW workspace.
-//       The previous graph is copied byte-for-byte onto that tab's noodle_ws_* key.
-//       Undo is not the recovery path — the other tab is.
-//   H6. A handoff clicked while the FIRST load is still booting is PARKED (a postMessage
-//       then would be lost, or clobbered by the in-flight boot's stale hash graph) and
-//       flushed on __appready__ under the editor's CURRENT binding.
-//   H7. Browsing an unrelated app in the builder's "My apps" drawer never posts
-//       __appsaved__ — only canvas-derived apps may rebind the editor, else the next
-//       "Update" would overwrite the browsed app's workflow with the canvas graph.
+// Drives the shipped editor and app builder in separate VM contexts. Check
+// that requests select the correct app, saves bind only their source workspace,
+// and the standalone player still accepts legacy links and OAuth resumes.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -314,39 +253,12 @@ function bytesToB64url(bytes) {
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-function b64urlToBytes(s) {
-  s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
-  const bin = atob(s); const b = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
-  return b;
-}
 async function gzipBytes(str) {
   const stream = new Blob([new TextEncoder().encode(str)]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-async function gunzipStr(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return new TextDecoder().decode(new Uint8Array(await new Response(stream).arrayBuffer()));
-}
 async function graphHash(graph) { return "#g=" + bytesToB64url(await gzipBytes(JSON.stringify(graph))); }
 async function gaHash(spec) { return "#ga=" + bytesToB64url(await gzipBytes(JSON.stringify(spec))); }
-
-// Decode the "play.html#..." string the editor's Create app emits into the iframe.
-// Returns {kind:"none"} when no hash was emitted (e.g. a missing button / early return on
-// buggy code) so callers fail as a clean assertion rather than a thrown harness error.
-async function decodeHandoff(src) {
-  const i = String(src).indexOf("#");
-  if (i < 0) return { kind: "none", emitted: String(src) };
-  const h = String(src).slice(i);
-  if (h.startsWith("#ga=")) {
-    const tag = h.slice(4);
-    const json = tag[0] === "u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1))) : await gunzipStr(b64urlToBytes(tag));
-    return { kind: "ga", spec: JSON.parse(json) };
-  }
-  if (h.startsWith("#g=")) return { kind: "g", graph: JSON.parse(await gunzipStr(b64urlToBytes(h.slice(3)))) };
-  if (h.startsWith("#j=")) return { kind: "j", graph: JSON.parse(new TextDecoder().decode(b64urlToBytes(h.slice(3)))) };
-  throw new Error("unrecognized handoff hash: " + h.slice(0, 8));
-}
 
 /* -------------------------------------------------------------------------- */
 /* fixtures                                                                    */
@@ -376,26 +288,30 @@ async function bootPlay(href, store, session, opts) {
   await ctx.__BOOT__; await drainAsync(); settleTimers(ctx); await drainAsync();
   return ctx;
 }
-// Click "Create app" (default) or another button, and decode the handoff. First loads ride
-// the iframe src hash; once the builder is live, re-handoffs arrive as a __handoff__
-// postMessage into it (a fragment-only src write would NOT reload the iframe), so capture
-// both channels and normalize to the same {kind, spec} shape.
+// Drive the editor-side request boundary without loading the actual iframe.
+function frameMessage(ctx, data){
+  const source = el(ctx, "appmodalframe").contentWindow;
+  for(const listener of ctx._listeners.message || []) listener({source, data});
+}
 async function emittedHandoff(ctx, buttonFn) {
   const frame = el(ctx, "appmodalframe");
-  frame.src = "";                             // reset so we read THIS click's value
   const posted = [];
-  frame.contentWindow.postMessage = (msg) => posted.push(msg);
+  frame.contentWindow.postMessage = msg=>posted.push(msg);
   await (buttonFn ? buttonFn() : el(ctx, "makeapp").onclick());
   await drainAsync();
-  // a real builder posts __appready__ once its boot settles — mirror that after a first
-  // load, so later clicks in the same scenario take the live __handoff__ path
-  if (/play\.html#/.test(String(frame.src))) {
-    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__appready__" } });
-    await drainAsync();
-  }
-  const ho = posted.find((m) => m && m.type === "__handoff__");
-  if (ho) return { kind: ho.appId ? "ga" : "g", spec: { appId: ho.appId, graph: ho.graph }, graph: ho.graph, live: true };
-  return decodeHandoff(frame.src);
+  if(String(frame.src)==="play.html?editor=1") frameMessage(ctx, {type:"__appready__"});
+  const action = posted.find(msg=>msg.type==="__appaction__");
+  if(!action) return {kind:"none"};
+  const kind = action.kind==="open" ? "open" : action.appId ? "ga" : "g";
+  return {kind, spec:action, graph:action.graph, live:true};
+}
+function fixtureApp(graph=OLDG, id="app_AAA", title="My App"){
+  return { id, title, graph, files:FILES, versions:[{files:FILES}], curVer:0 };
+}
+function acknowledgeSave(ctx, action, store, appId, title, graph){
+  const apps = JSON.parse(store.noodle_apps || "[]").filter(app=>app.id!==appId);
+  store.noodle_apps = JSON.stringify([...apps, fixtureApp(graph, appId, title)]);
+  frameMessage(ctx, {type:"__appactionresult__", serial:action.serial, ok:true, appId, title});
 }
 
 const results = [];
@@ -408,51 +324,54 @@ function record(name, pass, detail) { results.push({ name, pass, detail: pass ? 
 async function run() {
   /* E1: #ga=<id> binds → "Update <name>", "Save as a new app" shown, Create app re-emits #ga=<id>, binding persisted */
   {
-    const store = {}, session = {};
+    const store = { noodle_apps:JSON.stringify([fixtureApp()]) }, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
+    const workspace = txt(ctx, "wsapplabel"), share = txt(ctx, "makeapp"), newHidden = el(ctx, "newapp").hidden;
     const out = await emittedHandoff(ctx, () => el(ctx, "wsmakeapp").onclick());
     let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
-    record("E1 #ga= binds + Create app updates same app",
-      txt(ctx, "wsmakeapp") === "Update app" && txt(ctx, "makeapp") === "Update My App" && el(ctx, "newapp").hidden === false &&
+    record("E1 #ga= binds and Update app targets the same app",
+      workspace === "Update app" && share === "Update My App" && !newHidden && txt(ctx,"wsapplabel")==="Updating app…" &&
       out.kind === "ga" && out.spec.appId === "app_AAA" && (persisted && persisted.id === "app_AAA"),
-      `workspace=${txt(ctx, "wsmakeapp")} share=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
+      `workspace=${workspace} share=${share} newHidden=${newHidden} pending=${txt(ctx,"wsapplabel")} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
   }
 
   /* E2: binding SURVIVES a plain reload (no hash) → still updates, never duplicates [lost-on-reload bug] */
   {
-    const store = {}, session = {};
+    const store = { noodle_apps:JSON.stringify([fixtureApp()]) }, session = {};
     await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
     const ctx2 = await bootEditor(ORIGIN + "/editor", store, session);   // reload: same store, NO hash
+    const share = txt(ctx2, "makeapp");
     const out = await emittedHandoff(ctx2);
     record("E2 binding survives reload (no duplicate)",
-      txt(ctx2, "makeapp") === "Update My App" && out.kind === "ga" && out.spec.appId === "app_AAA",
-      `btn=${txt(ctx2, "makeapp")} kind=${out.kind} appId=${out.spec && out.spec.appId}`);
+      share === "Update My App" && out.kind === "ga" && out.spec.appId === "app_AAA",
+      `btn=${share} kind=${out.kind} appId=${out.spec && out.spec.appId}`);
   }
 
   /* E3: fresh #g= → "Create app", no binding, no #ga= */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    const share = txt(ctx, "makeapp");
     const out = await emittedHandoff(ctx);
     record("E3 fresh workflow → new app",
-      txt(ctx, "makeapp") === "Create app" && el(ctx, "openapps").hidden === true && el(ctx, "newapp").hidden === true &&
+      share === "Create app" && txt(ctx,"wsapplabel")==="Creating app…" && el(ctx, "openapps").hidden === true && el(ctx, "newapp").hidden === true &&
       (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app,
-      `btn=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
+      `btn=${share} pending=${txt(ctx,"wsapplabel")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
   }
 
-  /* E4: "Save as a new app" detaches a live binding and emits a plain #g= → brand-new app [reported-bug escape hatch] */
+  /* E4: a copy uses a new app ID while the current binding waits for a successful save. */
   {
-    const store = {}, session = {};
+    const store = { noodle_apps:JSON.stringify([fixtureApp()]) }, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
     const out = await emittedHandoff(ctx, () => el(ctx, "newapp").onclick());
-    record("E4 Save-as-new unlinks → emits #g= (new app)",
-      (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app && txt(ctx, "makeapp") === "Create app",
+    record("E4 Copy targets a new app and retains the previous binding while saving",
+      out.spec?.kind==="copy" && !out.spec.appId && JSON.parse(store.noodle_editor_app).id==="app_AAA",
       `kind=${out.kind} editorApp=${store.noodle_editor_app} btn=${txt(ctx, "makeapp")}`);
   }
 
   /* E5a: __editflow__ from the correct source applies the graph AND binds the id */
   {
-    const store = {}, session = {};
+    const store = {noodle_apps:JSON.stringify([fixtureApp(OLDG,"app_ZZZ","Z")])}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
     const src = el(ctx, "appmodalframe").contentWindow;
     for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
@@ -465,7 +384,7 @@ async function run() {
 
   /* E5b: __editflow__ from a WRONG source is ignored (no rebind) */
   {
-    const store = {}, session = {};
+    const store = { noodle_apps:JSON.stringify([fixtureApp()]) }, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
     for (const fn of (ctx._listeners.message || [])) fn({ source: { postMessage() {} }, data: { type: "__editflow__", appId: "app_EVIL", title: "x", graph: NEWG } });
     await drainAsync();
@@ -486,18 +405,17 @@ async function run() {
       `applyGraphData@${applyAt} setPendingApp@${bindAt} — apply must precede bind`);
   }
 
-  /* E6: "Save as a new app"'s unlink SURVIVES a reload (negative twin of E2). After detaching, a
-     plain hash-less reload must NOT resurrect the old binding — else the escape hatch silently
-     re-updates the very app the user meant to leave. */
+  /* E6: a successful copy binds the replacement and survives a reload. */
   {
-    const store = {}, session = {};
-    const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
-    await el(ctx, "newapp").onclick();                                   // detach the binding
-    const ctx2 = await bootEditor(ORIGIN + "/editor", store, session);   // reload: same store, NO hash
-    const out = await emittedHandoff(ctx2);
-    record("E6 Save-as-new unlink survives reload (no resurrected binding)",
-      txt(ctx2, "makeapp") === "Create app" && (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app,
-      `btn=${txt(ctx2, "makeapp")} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
+    const store = {noodle_apps:JSON.stringify([fixtureApp()])}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({v:1, graph:APP_A, appId:"app_AAA", title:"My App"})), store, session);
+    const copy = await emittedHandoff(ctx, () => el(ctx, "newapp").onclick());
+    acknowledgeSave(ctx, copy.spec, store, "app_NEW", "New app", ctx.serializeGraph());
+    const restored = await bootEditor(ORIGIN + "/editor", store, session);
+    const out = await emittedHandoff(restored);
+    record("E6 Successful copy binds the new app on reload",
+      out.kind==="open" && out.spec.appId==="app_NEW" && JSON.parse(store.noodle_apps).length===2,
+      `action=${JSON.stringify(out)} binding=${store.noodle_editor_app}`);
   }
 
   /* B1: a handoff hash BEATS a stale OAuth resume stash; the stash is consumed [reported bug, 2nd path] */
@@ -623,16 +541,16 @@ async function run() {
     record("R0b appSyncSig flips on a field edit (content flows through)", ssig(fieldEdit) !== s0, "content changes must reach the sync sig via appHandoffSig");
   }
 
-  /* R1: reopening Create app on the UNCHANGED graph resumes the live builder — it emits
-     NO new handoff hash (the fast-path returns early) and re-shows the modal. */
+  /* R1: reopening a saved, unchanged workflow asks for its exact app ID. */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
-    const first = await emittedHandoff(ctx);                    // first open → real handoff
-    const second = await emittedHandoff(ctx);                   // same graph → fast-path, no new hash
-    record("R1 unchanged reopen resumes (no re-handoff, modal reshown)",
-      first.kind === "g" && second.kind === "none" && el(ctx, "appmodal").hidden === false,
-      `first=${first.kind} second=${second.kind} shown=${el(ctx, "appmodal").hidden === false}`);
+    const first = await emittedHandoff(ctx);
+    acknowledgeSave(ctx, first.spec, store, "app_SAVED", "App", ctx.serializeGraph());
+    const second = await emittedHandoff(ctx);
+    record("R1 unchanged reopen selects the saved app by ID",
+      first.kind==="g" && second.kind==="open" && second.spec.appId==="app_SAVED" && !second.graph,
+      `first=${first.kind} second=${JSON.stringify(second)}`);
   }
 
   /* R2: closing the modal keeps the builder LOADED — it must never blank the iframe to
@@ -645,25 +563,21 @@ async function run() {
     await el(ctx, "appmodalclose").onclick(); await drainAsync();
     const closed = String(el(ctx, "appmodalframe").src);
     record("R2 close keeps the builder loaded (never about:blank)",
-      /play\.html#/.test(opened) && closed === opened && !/about:blank/.test(closed) && el(ctx, "appmodal").hidden === true,
+      opened==="play.html?editor=1" && closed === opened && !/about:blank/.test(closed) && el(ctx, "appmodal").hidden === true,
       `opened=${opened.slice(0, 18)} closed=${closed.slice(0, 18)} hidden=${el(ctx, "appmodal").hidden}`);
   }
 
-  /* R3: when the builder hands an edited graph back to the canvas (__editflow__), the next
-     Create app must RE-hand-off the new graph — never silently resume the stale builder.
-     And it must arrive over the LIVE channel (__handoff__ postMessage): re-writing the src
-     with a different fragment does not reload the iframe, so a src re-handoff is a no-op. */
+  /* R3: edits send the current graph with the existing app identity. */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
-    await emittedHandoff(ctx);                                  // open once → sig recorded for APP_B
-    const src = el(ctx, "appmodalframe").contentWindow;
-    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
-    await drainAsync();
-    const out = await emittedHandoff(ctx);                      // changed graph → must re-hand-off
-    record("R3 round-trip graph change re-hands-off live (no stale resume, no dead src write)",
-      out.kind === "ga" && out.spec.appId === "app_ZZZ" && graphMarker(out.spec.graph) === "NEW" && out.live === true,
-      `kind=${out.kind} appId=${out.spec && out.spec.appId} marker=${graphMarker(out.spec && out.spec.graph)} live=${out.live}`);
+    const first = await emittedHandoff(ctx);
+    acknowledgeSave(ctx, first.spec, store, "app_SAVED", "App", ctx.serializeGraph());
+    ctx.applyGraphData(NEWG);
+    const out = await emittedHandoff(ctx);
+    record("R3 edited workspace requests an update to its saved app",
+      out.spec?.kind==="update" && out.spec.appId==="app_SAVED" && graphMarker(out.graph)==="NEW",
+      `action=${JSON.stringify(out)}`);
   }
 
   /* ----------------------------------------------------------------------------
@@ -706,21 +620,20 @@ async function run() {
       `bootApps=${apps0.length} apps=${apps.length} id=${apps[0] && apps[0].id}→${id} marker=${graphMarker(apps[0] && apps[0].graph)}`);
   }
 
-  /* H3: the editor handles __appsaved__: binds + persists the id, flips the button, and
-     keeps the reopen-resume alive (only the binding changed — no spurious re-handoff). */
+  /* H3: only the matching successful result promotes the workspace to Open app. */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
-    await emittedHandoff(ctx);                                  // first open → builder live, sig recorded
-    const src = el(ctx, "appmodalframe").contentWindow;
-    store.noodle_apps = JSON.stringify([{ id: "app_NEW1", graph: ctx.serializeGraph() }]);
-    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__appsaved__", appId: "app_NEW1", title: "Neon Ramen" } });
-    await drainAsync();
-    let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
-    const second = await emittedHandoff(ctx);                   // unchanged graph → must resume, not re-hand-off
-    record("H3 __appsaved__ binds the editor (button flips, persists) and keeps the resume path",
-      txt(ctx, "wsmakeapp") === "Open app" && txt(ctx, "makeapp") === "Open Neon Ramen" && persisted && persisted.id === "app_NEW1" && second.kind === "none",
-      `workspace=${txt(ctx, "wsmakeapp")} share=${txt(ctx, "makeapp")} persisted=${persisted && persisted.id} second=${second.kind}`);
+    const first = await emittedHandoff(ctx);
+    frameMessage(ctx, {type:"__appactionresult__", serial:first.spec.serial+1, ok:true, appId:"wrong"});
+    const ignored = !store.noodle_editor_app;
+    acknowledgeSave(ctx, first.spec, store, "app_NEW1", "Neon Ramen", ctx.serializeGraph());
+    const persisted = JSON.parse(store.noodle_editor_app);
+    const workspace = txt(ctx,"wsapplabel"), share = txt(ctx,"makeapp");
+    const second = await emittedHandoff(ctx);
+    record("H3 matching result binds and labels both app actions",
+      ignored && workspace==="Open app" && share==="Open Neon Ramen" && txt(ctx,"wsapplabel")==="Opening app…" && persisted.id==="app_NEW1" && second.kind==="open",
+      `workspace=${workspace} share=${share} pending=${txt(ctx,"wsapplabel")} persisted=${persisted.id} second=${second.kind}`);
   }
 
   /* H4: __editflow__ must leave the replaced canvas ONE undo away (it used to destroy an
@@ -755,27 +668,30 @@ async function run() {
       `undoIdle=${undoIdle} overwrote=${overwrote} shelved=${shelved.includes(oldJson)} tabs=${idx && idx.tabs && idx.tabs.length} app=${active && active.app && active.app.id}`);
   }
 
-  /* H6: a re-handoff clicked while the FIRST load is still booting must be parked (no live
-     post — the frame can't hear it yet) and flushed once the builder posts __appready__. */
+  /* H6: queue a single request while booting and bind a closed-preview save to the origin. */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
     const frame = el(ctx, "appmodalframe");
     const posted = [];
-    frame.contentWindow.postMessage = (m) => posted.push(m);
-    await el(ctx, "makeapp").onclick(); await drainAsync();          // first load: rides the src hash, boot in flight
-    const firstLoad = /play\.html#/.test(String(frame.src));
-    // the graph changes while the boot is still in flight (round-trip edit closes the modal)
-    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
-    await drainAsync();
-    await el(ctx, "makeapp").onclick(); await drainAsync();          // reopen inside the boot window → must PARK
-    const postedEarly = posted.filter((m) => m && m.type === "__handoff__").length;
-    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__appready__" } });
-    await drainAsync();
-    const ho = posted.find((m) => m && m.type === "__handoff__");
-    record("H6 handoff during the boot window parks, then flushes on __appready__",
-      firstLoad && postedEarly === 0 && ho && ho.appId === "app_ZZZ" && graphMarker(ho.graph) === "NEW",
-      `firstLoad=${firstLoad} early=${postedEarly} flushed=${!!ho} appId=${ho && ho.appId} marker=${ho && graphMarker(ho.graph)}`);
+    frame.contentWindow.postMessage = m=>posted.push(m);
+    await el(ctx, "makeapp").onclick();
+    await el(ctx, "wsmakeapp").onclick();
+    const firstLoad = frame.src==="play.html?editor=1";
+    const postedEarly = posted.filter(m=>m.type==="__appaction__").length;
+    const original = ctx.readWorkspaces().active;
+    el(ctx, "appmodalclose").onclick();
+    ctx.openWorkspaceWithGraph(NEWG, "Other workspace");
+    frameMessage(ctx, {type:"__appready__"});
+    frameMessage(ctx, {type:"__appready__"});
+    const requests = posted.filter(m=>m.type==="__appaction__");
+    const action = requests[0];
+    acknowledgeSave(ctx, action, store, "app_BACKGROUND", "Saved app", action.graph);
+    const current = ctx.readWorkspaces();
+    record("H6 single request boots and save binds only its original workspace",
+      firstLoad && postedEarly===0 && requests.length===1 && graphMarker(action.graph)==="BBB"
+      && current.active!==original && !store.noodle_editor_app && current.tabs.find(tab=>tab.id===original)?.app?.id==="app_BACKGROUND",
+      `firstLoad=${firstLoad} early=${postedEarly} current=${JSON.stringify(current)}`);
   }
 
   /* H7: opening an UNRELATED app from the builder's "My apps" drawer must NOT post
@@ -800,24 +716,14 @@ async function run() {
       `opened=${graphMarker(playStateGraph(store))} appsavedPosts=${JSON.stringify(notes)}`);
   }
 
-  /* R4 (static): the editor's closeAppModal must not tear down the iframe, openAppModal must
-     record the resume bookkeeping, openCreateApp must carry the same-graph fast-path, and the
-     builder must pause its chrome media when hidden. Cheap source guards backing R1–R3. */
   {
     const close = extractFn(INDEX_SRC, "closeAppModal");
-    const open = extractFn(INDEX_SRC, "openAppModal");
-    const create = extractFn(INDEX_SRC, "openCreateApp");
-    record("R4 closeAppModal keeps the iframe (no about:blank)", !/about:blank/.test(close), "closeAppModal must not blank src");
-    record("R4 openAppModal records resume bookkeeping",
-      /appFrameBooting\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appSyncSig\(\)/.test(open),
-      "openAppModal must mark the frame booting + set lastHandoffSig (loaded is only set by __appready__)");
-    record("R4 openCreateApp has the same-graph resume fast-path",
-      /appFrameLoaded\s*\|\|\s*appFrameBooting\)\s*&&\s*appSyncSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
-      "openCreateApp must short-circuit on an unchanged graph (loaded OR still booting)");
-    record("R4 play.html pauses chrome media when hidden",
-      /__appmodalhidden__/.test(PLAY_SRC) && /querySelectorAll\((?:"|')audio,\s*video/.test(PLAY_SRC),
-      "play.html must pause audio/video on __appmodalhidden__");
+    record("R4 dismissing preserves the builder and pauses media",
+      !/about:blank/.test(close) && close.includes("__appmodalhidden__")
+      && /querySelectorAll\((?:"|')audio,\s*video/.test(PLAY_SRC),
+      "The editor should keep the iframe and pause hidden builder media.");
   }
+
 }
 
 run().then(() => {

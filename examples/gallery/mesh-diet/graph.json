@@ -1,0 +1,134 @@
+{
+ "v": 1,
+ "lid": 1,
+ "nid": 7,
+ "nodes": [
+  {
+   "id": "c-intent",
+   "type": "comment",
+   "name": "How it works",
+   "fields": {
+    "color": "yellow",
+    "text": "Photo \u2192 game-budget mesh. Upload one photo of one object. Idol Max Turbo rebuilds it as a 30,000-triangle textured mesh; Hyper3D Low Poly then retopologizes it down to the face budget you set (4,000 here \u2014 mobile and web props live at a few thousand). A surveyor first notes the silhouette features that must survive the cut. Already have a heavy GLB? Wire it straight into the Low Poly node's model input and skip the rebuild."
+   },
+   "w": 900,
+   "x": -40,
+   "y": -190
+  },
+  {
+   "id": "src",
+   "type": "upload",
+   "name": "Object photo",
+   "fields": {
+    "image": ""
+   },
+   "w": 320,
+   "x": -40,
+   "y": 0
+  },
+  {
+   "id": "survey",
+   "type": "vision",
+   "name": "Survey the object",
+   "fields": {
+    "model": "google/gemini-3.8-flash",
+    "q": "You are the surveyor in a mesh-diet pipeline. Look at this photo and write an OBJECT SURVEY in this exact shape:\nObject: <what the single object is, one line>\nSilhouette: <the 3-5 outline features that must still read after the mesh is cut to a few thousand triangles \u2014 the pose, the big shapes, the profile>\nFragile details: <the fine features most likely to soften or merge at low triangle counts>\nKeep it under 90 words. Facts only, no sales language."
+   },
+   "w": 340,
+   "x": -40,
+   "y": 300
+  },
+  {
+   "id": "mesh",
+   "type": "model3d",
+   "name": "Rebuild as a mesh \u2014 Idol Max Turbo",
+   "fields": {
+    "model": "speridlabs/idol/max/turbo",
+    "modelOpts": {
+     "enable_pbr": true,
+     "image_type": "real"
+    },
+    "prompt": ""
+   },
+   "w": 380,
+   "x": 380,
+   "y": 0
+  },
+  {
+   "id": "diet",
+   "type": "model3d",
+   "name": "Mesh diet \u2014 Hyper3D Low Poly",
+   "fields": {
+    "model": "hyper3d/lowpoly",
+    "modelOpts": {
+     "face_count": 4000,
+     "transfer_texture": true
+    },
+    "prompt": ""
+   },
+   "w": 380,
+   "x": 820,
+   "y": 0
+  },
+  {
+   "id": "guide",
+   "type": "llm",
+   "name": "Guide",
+   "fields": {
+    "maxTokens": "500",
+    "model": "z-ai/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "system": "You write the guide that ships with a game-budget mesh produced by this workflow: a photo is rebuilt by Idol Max Turbo as a textured mesh of exactly 30,000 triangles, then Hyper3D Low Poly retopologizes it to a target face count the user sets (4,000 in the tested run; the tested output measured 3,876 triangles \u2014 automatic retopology lands NEAR its target, not on it, so quote targets as targets).\n\nThe input is the surveyor's OBJECT SURVEY of the source photo. Write in this exact shape:\n\nWHAT YOU GOT\n<the retopologized mesh: same object, a fraction of the triangles, UVs and PBR textures carried over. Name what the survey says must still read, in silhouette terms.>\n\nPICK YOUR BUDGET\n<one short paragraph tying face counts to destinations, using these published budgets: Roblox caps a single mesh at 20,000 triangles; mobile props typically run 300-3,000 triangles; WebGL/three.js props 1,000-10,000. The face-count field is the lever: lower for crowds and mobile, higher for a hero prop.>\n\nTHE HONEST EDGES\n<two or three plain sentences: (1) automatic retopology is not hand retopology \u2014 a character that must deform at the joints still wants edge loops a person designs; props, environment pieces and LODs are what this is for. (2) The diet is in triangles, not megabytes: the output file can be as large as the input because texture resolution is a separate lever. (3) Fine details named in the survey's fragile list will soften first.>\n\nPlain language. No hype, no prices beyond what is stated here, no invented measurements."
+   },
+   "w": 360,
+   "x": 820,
+   "y": 300
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "survey",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l2",
+   "from": {
+    "node": "src",
+    "port": "image"
+   },
+   "to": {
+    "node": "mesh",
+    "port": "image"
+   }
+  },
+  {
+   "id": "l3",
+   "from": {
+    "node": "mesh",
+    "port": "model"
+   },
+   "to": {
+    "node": "diet",
+    "port": "model"
+   }
+  },
+  {
+   "id": "l4",
+   "from": {
+    "node": "survey",
+    "port": "text"
+   },
+   "to": {
+    "node": "guide",
+    "port": "prompt"
+   }
+  }
+ ]
+}

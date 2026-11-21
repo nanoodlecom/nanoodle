@@ -81,11 +81,13 @@ const CASES = [
   {
     name: "extract row 8 — share packer, card and shorteners",
     why: "some share helper lines also live outside these blocks; those surviving copies must still be reported",
-    // Surviving twins: canvas bounds, drawImage, img.src fallback, SUP languages and its return.
+    // Surviving twins: canvas bounds, drawImage, img.src fallback, SUP languages and its return,
+    // and the builder's gzip fallback in agentShareUrl. The editor now hands off graphs by message,
+    // so both remaining editor gzip calls are inside the extracted share block.
     // The noodle_lang read loses one editor copy; the player's copies are outside its share block.
     idx: [through("shrinkShareMedia", "closeShareMenu")],
     play: [through("shrinkShareMedia", "shortenWith")],
-    expect: { exit: 1, oneSided: 5, occurrence: 1 },
+    expect: { exit: 1, oneSided: 6, occurrence: 1 },
   },
   {
     name: "extract row 9 — share-menu wiring",
