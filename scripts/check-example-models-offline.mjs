@@ -27,7 +27,7 @@ const gifImage = id => ({ ...image(id, ['1k', '2k', '4k'], true), supported_para
 } });
 const catalogs = {
   chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
-    ...(['google/gemini-3.8-flash', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
+    ...(['google/gemini-3.8-flash', 'google/gemini-3.1-flash-lite', 'elorian/glimpse'].includes(id) ? { capabilities: { vision: true } } : {}) })),
   image: [
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9', '9:16'], true),
     image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9', '9:16']),
@@ -49,6 +49,7 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
+    image('bytedance/seedream/v5/flash/layerize', ['auto', 'auto_1K', 'auto_1.5K', 'auto_2K'], true),
     gifImage('gpt-image-2.6-flare'),
     gifImage('gpt-image-2.6-sunburst'),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
