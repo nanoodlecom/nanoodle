@@ -1,5 +1,83 @@
 [
  {
+  "slug": "photo-to-editable-layers",
+  "title": "Photo to editable layers",
+  "date": "2026-11-20",
+  "review": "One photo of a marble bust returns as four named layers \u2014 base plate, background, bust, pedestal \u2014 each a transparent PNG with a bounding box; stacked at their coordinates they rebuild the photo (mean abs diff 14.26/255)",
+  "note": "Layer separation is the oldest ask in photo editing \u2014 give me the subject, the background and the props as pieces I can move \u2014 and the browser version has always been a mask you paint yourself. This workflow makes it one run: a Gemini survey names what should separate and what will resist, Seedream 5.0 Flash Layerize (bytedance/seedream/v5/flash/layerize, $0.027 flat at every size \u2014 the Seedream 5.5 decomposition route bills $0.60) returns a clean base plate plus each element as its own transparent PNG carrying a name, a z-index and a bounding box, and a GLM guide closes with what to do with the stack and the honest edges. The claim was checked by rebuilding: stacking this saved run's background, bust and pedestal at their boxes over the base plate lands at a mean absolute difference of 14.26/255 against the original photo, 82.3% of pixels within 25 \u2014 close, visibly the same photograph, not pixel-perfect. The bust cutout is genuinely clean (head, neck and drapery, pedestal excluded, edges tight); the background layer is a soft matte. Honest edges, all measured on this ship's own runs: the model RE-SEGMENTS every run \u2014 in the morning probe the bust was z3 and the pedestal z2, in this saved run they are z2 and z3 with reworded names, and recomposition across runs scored 6.65 to 27.30, so treat names and boundaries as per-run, not canonical. Some photos refuse outright with a 422 (the candle product shot from One Photo, Whole Campaign did; refusals are never charged), and identical requests flake \u2014 the route went 200/422/200 across this ship's attempts, with remote-URL inputs the flakiest and inlined images landing first try. The base plate behind a lifted element is regenerated inpaint, plausible rather than the original pixels, and fine hair and weathered edges separate worst. Why this shipped the day it did: the model's response always carried all four layers, but every nanoodle executor's edit node kept only the first returned image, so a graph received just the empty base plate \u2014 the fix (edit nodes surface every returned image plus the layer metadata) landed across JS, Py, Rust, the editor's embedded engine and nanoodle-mcp on 2026-11-20, and this example is its first proof. The saved run is assembled from two runs of this exact graph and says so in run.json: layers from the run whose layerize call landed, guide text from a second run whose layerize call refused \u2014 the guide does not read the layers, only the survey.",
+  "layout": "sequence",
+  "costUsd": 0.0273531625,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.1-flash-lite",
+   "bytedance/seedream/v5/flash/layerize",
+   "z-ai/glm-4.6"
+  ],
+  "graphSha256": "baf2ae0c332bf62bac08c9846d6979686a164714f66378f95cc8ad9b1e38745f",
+  "inputs": [
+   {
+    "label": "Photo",
+    "src": "photo-to-editable-layers/photo.webp"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "photo-to-editable-layers/layer-bust.png",
+    "kind": "image",
+    "label": "1. The bust, lifted: the saved run's z2 layer 'ancient marble bust' as a transparent PNG, pedestal excluded \u00b7 reported $0.027 (whole stack)",
+    "costUsd": 0.027,
+    "sha256": "a3c7545257e35ac45c2c283fb2eb83ac2e5a0477384658b28b8261b718ca95ec"
+   },
+   {
+    "src": "photo-to-editable-layers/base-plate.png",
+    "kind": "image",
+    "label": "2. The base plate: the same scene with bust and pedestal removed and the holes inpainted \u2014 the z0 layer every stack starts from",
+    "costUsd": 0,
+    "sha256": "0fc5c88d5dc52ea75cdb191ed79a57684f5435963ec85a9ffbca062e65438d91"
+   },
+   {
+    "src": "photo-to-editable-layers/recomposed.jpg",
+    "kind": "image",
+    "label": "3. The rebuild: background, bust and pedestal stacked at their bounding boxes over the base plate \u2014 mean abs diff 14.26/255 vs the original photo",
+    "costUsd": 0,
+    "sha256": "8794cc38ddc2fd8f8ba0021f40f43e8dbb0c4b7c5aedd882fa8cd7bc909db31c"
+   },
+   {
+    "src": "photo-to-editable-layers/layer-background.png",
+    "kind": "image",
+    "label": "4. The background layer: 'dark background', z1, a soft photographic matte at 720\u00d71359",
+    "costUsd": 0,
+    "sha256": "e964df4bed74b53c4fcd5eebe7f20657031692967574d34126c99810c065a916"
+   },
+   {
+    "src": "photo-to-editable-layers/layer-pedestal.png",
+    "kind": "image",
+    "label": "5. The pedestal layer: 'statue pedestal', z3, cropped to its bounding box [77, 1310, 645, 1440]",
+    "costUsd": 0,
+    "sha256": "9e5063f451eb1111f647afe2fc76fca1b4d18545c216d101c152101db1f0bbb2"
+   },
+   {
+    "src": "photo-to-editable-layers/survey.txt",
+    "kind": "text",
+    "label": "Layer survey \u00b7 Gemini names what will separate and what will resist \u00b7 reported $0.0004",
+    "costUsd": 0.0003531625,
+    "sha256": "c5903f10ff7b4e549cde27e6cffb2c4364ba08446a496a9011dea47abdd4b90b",
+    "collapsed": true
+   },
+   {
+    "src": "photo-to-editable-layers/guide.txt",
+    "kind": "text",
+    "label": "Layers guide \u00b7 GLM writes what you got, what to do with them, and the honest edges \u00b7 reported $0.00",
+    "costUsd": 0,
+    "sha256": "f3de9f70eb097c454d5d14b4fb88edbec8e461c16c45ce2859eb9f48f976a600",
+    "collapsed": true
+   }
+  ],
+  "preview": "photo-to-editable-layers/preview.webp",
+  "workflow": "photo-to-editable-layers/workflow.json",
+  "workflowSha256": "baf2ae0c332bf62bac08c9846d6979686a164714f66378f95cc8ad9b1e38745f"
+ },
+ {
   "slug": "talking-photo",
   "title": "Talking photo",
   "date": "2026-11-19",
