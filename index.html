@@ -1529,7 +1529,7 @@
     <span class="db-label">💬 Describe changes</span>
     <input id="describegoal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="e.g. “add a node that speaks the result aloud”" />
     <button id="describemodel" class="ghost" title="Choose the model that plans your change">✨ model ▾</button>
-    <button id="describego" class="primary" title="Apply the described change (Enter)">✦ Apply</button>
+    <button id="describego" class="primary" title="Apply the described change (Enter) — planned by the ✨ model on your NanoGPT key; the cost shows as it runs">✦ Apply</button>
   </div>
   <div id="describestatus"></div>
   <div id="describedetail" data-no-i18n hidden></div>
@@ -24043,7 +24043,7 @@ RULES for the diff:
     // never leaves the bar permanently disabled (only the input + model picker lock during a run).
     busy = on; input.disabled = on; modelBtn.disabled = on; goBtn.disabled = false;
     goBtn.textContent = on ? "■ Stop" : "✦ Apply";
-    goBtn.title = on ? "Stop this change" : "";
+    goBtn.title = on ? "Stop this change" : "Apply the described change (Enter) — planned by the ✨ model on your NanoGPT key; the cost shows as it runs";
     bar.classList.toggle("db-busy", on);
     if(on) bar.classList.remove("db-done");
   }
@@ -24172,7 +24172,7 @@ RULES for the diff:
     const text = input.value.trim();
     if(!text){ input.focus(); return; }
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
-    if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
+    if(!ensureAuth()){ setStatus("Sign in above to apply your change — describing runs on your NanoGPT key, and its cost shows here as it runs."); return; }   // signed out: launch sign-in on https / open the key row on file:// — same as Run; say why at the bar too, or the click reads as dead (the key row opens at the top of the page, far from this bottom bar)
     const targetGraph = graph;
     const targetWorkspace = typeof readWorkspaces==="function" ? readWorkspaces()?.active : null;
     const prevInternal = clone(serializeGraph());
