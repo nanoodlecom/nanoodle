@@ -1230,7 +1230,10 @@
     max-width:11.5rem; height:calc(var(--ws-h) - 7px); margin:0; padding:0 .55rem 0 .7rem;
     border:1px solid transparent; border-bottom:none; border-radius:.45rem .45rem 0 0;
     background:transparent; color:var(--dim); font-size:.78rem; line-height:1; cursor:pointer; }
-  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  /* Put the ellipsis at the left edge so workspace names with the same
+     prefix remain distinguishable. The nested bdi preserves the name's direction. */
+  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    direction:rtl; text-align:left; }
   .wstab .wsx{ display:inline-flex; align-items:center; justify-content:center; flex:none;
     width:1.15rem; height:1.15rem; margin:0; padding:0; border:none; background:transparent;
     border-radius:.3rem; opacity:0; font-size:.85rem; line-height:1; color:var(--dim); }
@@ -20432,7 +20435,9 @@ function renderWorkspaces(){
       if(tab.id===workspaceFlashId) tabBtn.classList.add("wsflash");
       const label = document.createElement("span");
       label.className = "wslabel";
-      label.textContent = tab.name;
+      const name = document.createElement("bdi");
+      name.textContent = tab.name;
+      label.appendChild(name);
       tabBtn.appendChild(label);
       if(d.tabs.length>1 || tabOccupied(d, tab)){
         const x = document.createElement("button");
