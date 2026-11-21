@@ -302,6 +302,11 @@ try {
     try {
       await page.goto(origin, {waitUntil:"networkidle"});
       assert.match(await page.locator("#canvashint").innerText(), /NanoGPT.*MCP/);
+      const llm = starter.nodes.find(node => node.type === "llm");
+      const advancedSelector = `#world .node[data-id="${llm.id}"] .adv`;
+      const advanced = page.locator(advancedSelector).first();
+      await advanced.waitFor({state:"attached"});
+      assert.equal(await advanced.isVisible(), false, "starter advanced settings are folded while the welcome banner is visible");
       if (mobile) {
         const viewport = page.viewportSize();
         await page.setViewportSize({ ...viewport, width:320 });
@@ -323,6 +328,7 @@ try {
       await hosted.waitFor({state:"hidden"});
       assert.equal(await mcp.evaluate(el => el === document.activeElement), true);
       await page.locator("#run").click();
+      await advanced.waitFor({state:"visible"});
       const imageNodeId = starter.nodes.find(n => n.type === "image").id;
       await page.locator(`.node[data-id="${imageNodeId}"][data-status="done"] .result img`).waitFor();
       // The relay's later beats land after the painting (the film, then the narrated
@@ -352,6 +358,13 @@ try {
       await sharePanel.getByRole("button", {name:"Copy", exact:true}).click();
       await page.waitForFunction(() => window.workflowLinksCopied.length === 1);
       assert.deepEqual(await page.evaluate(() => window.workflowLinksCopied), [workflowLink]);
+      const shared = await (await newContext()).newPage();
+      try {
+        await shared.goto(workflowLink, {waitUntil:"networkidle"});
+        await shared.locator(advancedSelector).first().waitFor({state:"visible"});
+      } finally {
+        await shared.context().close();
+      }
       await sharePanel.getByRole("button", {name:"Close", exact:true}).click();
       await workspaceApp.click();
       // The iframe element exists before play.html wires its controls and loads

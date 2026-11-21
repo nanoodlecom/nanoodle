@@ -620,14 +620,9 @@
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
   #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
   #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
-  /* The resting frame (initial-moment Cycle 2): while the first-visit banner is up, the
-     starter rests as a story, not a settings wall — ⚙ advanced sections and field
-     microcopy stay hidden (the starter's own prompt boxes are authored short in
-     noodle-graph.json). The banner's lifecycle IS the state's lifecycle: first Run
-     (or the ×) dismisses it and the full editor is simply there. Pure CSS — no
-     graph data, no fields, no demo signature. */
-  body:has(#canvashint:not([hidden])) .node .adv{ display:none }
-  body:has(#canvashint:not([hidden])) .node .fhint{ display:none }
+  /* Keep the starter's advanced controls and field hints folded until the
+     first-visit banner is dismissed. Imported and restored graphs use the full editor. */
+  body:has(#canvashint:not([hidden])) #world.starter-resting .node :is(.adv,.fhint){ display:none }
   /* Phone widths: the right-anchored control bar and the left-hand corner pills share the bottom
      band. On narrow screens a full ↺↻⊡ + pill row could meet the pills mid-screen, so lift the whole
      bar above their row — it clears the corner pills and the Terms/Privacy link. */
@@ -17911,6 +17906,7 @@ function applyGraphData(d, opts){
   const prevById = carryResults ? new Map(graph.nodes.map(n=>[n.id+" "+n.type, n]))
                  : (opts && opts.resultStash) || null;
   world.innerHTML=""; selected=null;
+  world.classList?.toggle("starter-resting", !!opts?.restingStarter);
   if(typeof multiSel!=="undefined") multiSel.clear();
   if(typeof geoAnim!=="undefined" && geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
   graph = { nodes:[], links:[] };
@@ -18112,7 +18108,7 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
   // already owns the canvas — painting the starter now would fill that workspace.
   if(typeof freshGraphStillDue==="function" && !freshGraphStillDue(gen)) return false;
   if(!d) return false;          // e.g. opened via file:// — fall back to the built-in seed
-  applyGraphData(JSON.parse(JSON.stringify(d)));   // clone: applyGraphData shares the fields ref and edits would corrupt the cached baseline
+  applyGraphData(JSON.parse(JSON.stringify(d)), {restingStarter:true});   // clone: applyGraphData shares the fields ref and edits would corrupt the cached baseline
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
   return true;
 }
@@ -21214,6 +21210,7 @@ addEventListener("message", e=>{
   }
 });
 function seed(){
+  world.classList.add("starter-resting");
   undoMuted = true;   // the built-in starter graph must not be undoable — a new user's first Ctrl+Z must not empty it
   // The sketch-to-story starter mirrors noodle-graph.json. This fallback only fires
   // when that fetch fails, e.g. file:// — where the sketch points at the shipped
