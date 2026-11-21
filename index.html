@@ -22503,7 +22503,7 @@ $("pastebtn").onclick = async ()=>{
   // the button says "paste" — so paste: fill from the clipboard where the browser allows it
   // (denied/unsupported/DLP-blocked → say so; the focused field still takes a manual Ctrl+V / long-press)
   try{ const pk = cleanKey(await navigator.clipboard.readText()); if(pk) $("keyinput").value = pk; }
-  catch(_){ toast("couldn't read your clipboard — click the key field and press Ctrl+V to paste", "err"); }
+  catch(_){ toast("couldn't read your clipboard — click the key field and press Ctrl+V to paste"); }   // guidance, not an error: a denied/unavailable clipboard read is the normal first-click path in several browsers, so no red "err" styling for it (UX Pass Cycles 1+3 both flagged the scary red toast on an ordinary click)
 };
 $("keysignin").onclick = ()=> signIn().catch(signInErr);
 // sample-run pill (#demopop) — the two real ways in, plus a plain close
