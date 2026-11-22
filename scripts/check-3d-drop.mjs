@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import assert from "node:assert/strict";
 import vm from "node:vm";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,11 +142,64 @@ ok(SRC.includes('|| s.url') === false || !/function model3dStatusUrl[\s\S]{0,700
     "a bare s.url is not a 3D result");
 }
 ok(SRC.includes("MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5"), "a 3D job warns at about 5× the typical time");
-ok(SRC.includes("MODEL3D_DEADLINE_MS") && SRC.includes("still building after 25 minutes — ▶ Run to check the same job"),
-  "a 3D poll has a hard deadline and keeps the job resumable");
-ok(/mediaKind==="model3d" && waited >= MODEL3D_DEADLINE_MS[\s\S]{0,240}throw new Error/.test(SRC)
-  && !/MODEL3D_DEADLINE_MS[\s\S]{0,180}PENDING_VIDEO\.delete/.test(SRC),
-  "the 3D deadline does not drop the pending job id");
+{
+  const start = SRC.indexOf("async genVideo(model, prompt, opts, imageDataUrl, onProgress){");
+  const end = SRC.indexOf("\n  },", start);
+  assert.ok(start >= 0 && end > start, "editor video runner is present");
+  const source = `({${SRC.slice(start, end + 4)}}).genVideo`;
+  for(const outage of ["HTTP error", "bad JSON", "response body stall", "Stop"]){
+    let now = 0, submits = 0, timer, recovered = false;
+    const polls = [], jobs = new Map();
+    const ctl = new AbortController();
+    const nodeWork = new Map([["n1", { ctl }]]);
+    const otherRun = new AbortController();
+    const out = "https://cdn.example/model.glb";
+    const genVideo = vm.runInNewContext(source, {
+      AbortController, DOMException, URL,
+      Date: { now: () => now },
+      NANOGPT: "https://nano-gpt.example", MEDIA_INLINE_MAX: 4_000_000,
+      MODEL3D_DEADLINE_MS: 12_000, MODEL3D_STALL_MS: 10_000,
+      PENDING_VIDEO: jobs, sigHash: (value) => value, t: (value) => value,
+      sleep: async (ms) => { now += ms; },
+      setTimeout: (callback, delay) => { timer = { callback, delay }; return timer; },
+      clearTimeout: (id) => { assert.equal(id, timer); timer = undefined; },
+      nodeWork, runSignal: () => otherRun.signal,
+      authHeaders: () => ({}), accrue() {}, applyPollSettlement() {},
+      model3dStatusUrl: (status) => status.data.output.model_url,
+      deliverResolvedMedia: (map, key, _, url) => { map.delete(key); return url; },
+      fetch: async (url, init) => {
+        if(init.method === "POST"){ submits++; return Response.json({ runId: "paid-job" }); }
+        polls.push(new URL(url).searchParams.get("requestId"));
+        if(recovered) return Response.json({ data: { status: "COMPLETED", output: { model_url: out } } });
+        if(polls.length > 2) throw new DOMException("test caught a poll after the deadline", "AbortError");
+        if(outage === "HTTP error") return new Response("unavailable", { status: 503 });
+        if(outage === "bad JSON") return new Response("not JSON", { status: 200 });
+        return { ok: true, json: () => new Promise((_, reject) => {
+          if(!timer || !init.signal){ reject(new Error("test caught an unbounded response body")); return; }
+          init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+          queueMicrotask(() => {
+            if(outage === "Stop") ctl.abort();
+            else { now = timer.delay; timer.callback(); }
+          });
+        }) };
+      },
+    });
+    const run = () => genVideo("tripo", "a cup", { mediaKind: "model3d", runKey: "n1" });
+    await assert.rejects(run, outage === "Stop" ? { name: "AbortError" } : /still building after 25 minutes/, outage);
+    assert.equal(now, outage === "Stop" ? 5_000 : 12_000, `${outage}: poll exits at Stop or the deadline`);
+    assert.equal(jobs.get("n1").runId, "paid-job", `${outage}: leaving the poll preserves the paid job`);
+    assert.equal(timer, undefined, `${outage}: timer is cleaned up`);
+    assert.equal(otherRun.signal.aborted, false, "a different run is untouched");
+    recovered = true;
+    nodeWork.set("n1", { ctl: new AbortController() });
+    assert.equal(await run(), out);
+    assert.equal(submits, 1, `${outage}: retry polls the original job without a second submit`);
+    assert.ok(polls.every((id) => id === "paid-job"));
+    assert.equal(jobs.has("n1"), false, "successful delivery clears the entry");
+    const exit = outage === "Stop" ? "on Stop" : `at the deadline during ${outage}`;
+    console.log(`  ✓ 3D polling exits ${exit}, then resumes the accepted job`);
+  }
+}
 ok(SRC.includes('n.w = 440'), "a new 3D model card defaults wider than a thumbnail");
 ok(SRC.includes("optional — describe the object"), "an image-wired 3D prompt reads as optional");
 ok(SRC.includes("return { model: url }"), "a 3D run keeps the https URL instead of inlining bytes");

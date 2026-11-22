@@ -101,6 +101,10 @@ try {
   const keySendableText     = extractConstLine(src, "keySendable");
   const flagAuthText        = extractFunction(src, "flagAuth");
   const isLowFundsText      = extractFunction(src, "isLowFundsError");
+  const httpParts = ["authHeaders", "httpRunError", "throwHttp"].map(name => extractFunction(src, name));
+  const chatAt = src.indexOf("async genChat(messages, model, opts){");
+  if(chatAt < 0) throw new Error("could not find editor CTX.genChat");
+  const editorChatText = src.slice(chatAt, matchBrace(src, src.indexOf("{", chatAt)) + 1);
   const friendlyRunErrText  = extractFunction(src, "friendlyRunError");
   // friendlyRunError now routes prompt-length rejections first (PROMPT LENGTH CAPS). Lift the two
   // PURE helpers for real so this harness proves a prompt_too_long body doesn't fall through to the
@@ -121,17 +125,21 @@ try {
     `${promptCapFromErrText}\n` +
     `${friendlyRunErrText}\n` +
     `${probeKeyText}\n` +
+    `${httpParts.join("\n")}\n` +
+    `const {genChat} = {${editorChatText}};\n` +
     `const keysaveHandler = ${keysaveText};\n` +
-    `return { cleanKey, keySendable, flagAuth, isLowFundsError, friendlyRunError, probeKey, keysaveHandler };\n`;
+    `return { cleanKey, keySendable, flagAuth, isLowFundsError, friendlyRunError, probeKey, keysaveHandler, genChat };\n`;
 
   const factory = new Function(
-    "setKey", "flash", "t", "toast", "$", "fetch", "CHAT_ENDPOINT",
+    "getKey", "setKey", "flash", "t", "toast", "$", "fetch", "CHAT_ENDPOINT",
+    "withLocale", "runSignal", "endpointApiMessage", "offerRefuel",
     // prompt-cap collaborators friendlyRunError reaches for: learning a cap and repainting the
     // node chrome are someone else's invariant (scripts/check-prompt-caps.mjs), not this one's.
     "learnPromptCap", "refreshPromptCaps", "modelLabel", "NODE_TYPES", program
   );
   build = (stubs) => factory(
-    stubs.setKey, stubs.flash, stubs.t, stubs.toast, stubs.$, stubs.fetch, stubs.CHAT_ENDPOINT,
+    stubs.getKey, stubs.setKey, stubs.flash, stubs.t, stubs.toast, stubs.$, stubs.fetch, stubs.CHAT_ENDPOINT,
+    msgs => msgs, () => undefined, () => null, stubs.offerRefuel,
     () => false, () => {}, () => "the model", {}
   );
 } catch (e) {
@@ -142,6 +150,8 @@ try {
 // ---- mutable harness state shared with the extracted functions via param wrappers ----
 let setKeyCalls = [];         // every setKey(...) argument, in order
 let toastCalls = [];          // every toast(msg, kind) call
+let storedKey = null;
+let refuelCalls = 0;
 let currentFetch = async () => { throw new Error("no fetch stub installed"); };
 let dom = {};
 
@@ -155,16 +165,20 @@ function freshDom(inputVal = "") {
 }
 
 const api = build({
-  setKey: (k) => { setKeyCalls.push(k); },
+  getKey: () => storedKey,
+  setKey: (k) => { storedKey = k; setKeyCalls.push(k); },
   flash: () => {},
   t: (s) => s,                                   // identity — we only assert on branch behaviour, not copy
   toast: (msg, kind) => { toastCalls.push({ msg, kind }); },
   $: (id) => dom[id] || (dom[id] = el()),
   fetch: (...a) => currentFetch(...a),           // delegate so probeKey sees per-test responses
   CHAT_ENDPOINT: "https://nano-gpt.com/api/v1/chat/completions",
+  offerRefuel: () => { refuelCalls++; },
 });
 
-const reset = (inputVal) => { setKeyCalls = []; toastCalls = []; freshDom(inputVal); };
+const reset = (inputVal) => {
+  setKeyCalls = []; toastCalls = []; storedKey = "fixture-key"; refuelCalls = 0; freshDom(inputVal);
+};
 
 // ======================================================================
 // INVARIANT 1 — flagAuth clears the stored key ONLY on HTTP 401/403.
@@ -177,12 +191,34 @@ for (const [status, shouldClear] of [
   [undefined, false],   // non-HTTP failure surfaced as { status: undefined }
 ]) {
   reset();
-  api.flagAuth({ status });
+  api.flagAuth({ status }, storedKey);
   const cleared = setKeyCalls.length === 1 && setKeyCalls[0] === null;
   if (shouldClear && !cleared)
     fail(`flagAuth(${status}) did NOT clear the key — a rejected key stays stored and every run keeps failing`);
   if (!shouldClear && cleared)
     fail(`flagAuth(${status}) cleared the key — a benign ${status} error would log the user out mid-run`);
+}
+
+// Drive a real editor dispatch so a missing snapshot at the fetch call site also fails.
+for (const [status, replacement, want, refuels] of [
+  [401, null, null, 0],
+  [403, "next-key", "next-key", 0],
+  [402, null, "fixture-key", 1],
+  [402, "next-key", "next-key", 0],
+]) {
+  reset();
+  let answer;
+  currentFetch = (_url, init) => {
+    expect(init.headers["x-api-key"] === "fixture-key", "editor dispatch must use the original key");
+    return new Promise(resolve => { answer = resolve; });
+  };
+  const run = api.genChat([], "fixture-model").catch(e => e);
+  if (replacement) storedKey = replacement;
+  answer({ ok: false, status, text: async () => "known rejected response" });
+  const error = await run;
+  expect(error instanceof Error, `editor must surface the failed ${status} request`);
+  expect(storedKey === want, `editor ${status} after ${replacement ? "key replacement" : "same-key dispatch"} changed the wrong auth state`);
+  expect(refuelCalls === refuels, `editor ${status} top-up prompt must belong to the request account`);
 }
 
 // ======================================================================
@@ -213,14 +249,21 @@ for (const [status, body, want, why] of [
 {
   // 3a: a real header/encoding TypeError → clears the key (it can't ride an HTTP header)
   reset();
+  storedKey = "unsendable-🔑";
   api.friendlyRunError(new TypeError("Failed to set the 'value' property on 'Headers': Invalid value."));
   expect(setKeyCalls.length === 1 && setKeyCalls[0] === null,
     "friendlyRunError did NOT clear a key that throws a header TypeError (Invalid value) — every run would keep failing identically");
 
   reset();
+  storedKey = "unsendable-🔑";
   api.friendlyRunError(new TypeError("non ISO-8859-1 code point"));
   expect(setKeyCalls.length === 1 && setKeyCalls[0] === null,
     "friendlyRunError did NOT clear a key that throws an ISO-8859-1 TypeError");
+
+  reset();
+  api.friendlyRunError(new TypeError("non ISO-8859-1 code point"));
+  expect(storedKey === "fixture-key" && setKeyCalls.length === 0,
+    "a late header exception must not clear a sendable replacement key");
 
   // 3b: our own "400: Invalid value …" Error (NOT a TypeError) must leave a good key alone
   reset();
