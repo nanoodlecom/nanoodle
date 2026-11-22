@@ -12360,7 +12360,7 @@ function mp4ParamsMatch(bufs){
   }
 
   // dynamic image input ports — llm (vision): img1,img2,… ; edit (multi-reference): image,image2,…
-  const IMG_PORT_RE = /^img\d+$/;
+  const IMG_PORT_RE = /^img\d*$/;
   const EDIT_IMG_RE = /^image\d*$/;
   const portIdx = function(name){ var m = String(name).match(/(\d+)$/); return m ? +m[1] : 1; };   // trailing number → slot index (no digit = slot 1)
   function imgPortRe(t){ return (t && t.imageInputs && t.imageInputs.re) ? t.imageInputs.re : IMG_PORT_RE; }
@@ -12370,13 +12370,13 @@ function mp4ParamsMatch(bufs){
       .map(k=> inp[k]).filter(Boolean);
   }
   // dynamic clip input ports (vid1, vid2, …) on the Combine node — pulled from inp in order
-  const VID_PORT_RE = /^vid\d+$/;
+  const VID_PORT_RE = /^vid\d*$/;
   function collectVideoInputs(inp){
     return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
       .map(k=> inp[k]).filter(Boolean);
   }
   // reference-image ports (ref1, ref2, …) on the tvideo node — pulled from inp in numeric order
-  const REF_PORT_RE = /^ref\d+$/;
+  const REF_PORT_RE = /^ref\d*$/;
   function collectRefInputs(inp){
     return Object.keys(inp).filter(k=> REF_PORT_RE.test(k)).sort((a,b)=> portIdx(a) - portIdx(b))
       .map(k=> inp[k]).filter(Boolean);

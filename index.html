@@ -6544,7 +6544,7 @@ function promptCapFromError(msg){
    model (e.g. doubao-seed-2.1-pro) is picked. Unknown/offline model ids are treated as
    capable so a typed-in id is never blocked. Ports are named img1, img2, … and live as
    links (not fields), so they serialize and export for free. */
-const IMG_PORT_RE = /^img\d+$/;       // llm: img1, img2, … (vision models)
+const IMG_PORT_RE = /^img\d*$/;       // llm: img1, img2, … (vision models)
 const EDIT_IMG_RE = /^image\d*$/;     // edit: image, image2, … (multi-reference compositing)
 const portIdx = (name)=>{ const m = String(name).match(/(\d+)$/); return m ? +m[1] : 1; };   // trailing number → slot index (no digit = slot 1)
 // Does a (string/capability-gated) node's chosen model accept image inputs? Permissive for ids
@@ -6657,7 +6657,7 @@ function videoRefSpec(n){
   return { key, cap };
 }
 // pull wired ref ports (ref1, ref2, …) out of a run's inp map, in numeric port order, dropping empties
-const REF_PORT_RE = /^ref\d+$/;
+const REF_PORT_RE = /^ref\d*$/;
 function collectRefInputs(inp){
   return Object.keys(inp).filter(k=> REF_PORT_RE.test(k)).sort((a,b)=> portIdx(a)-portIdx(b)).map(k=> inp[k]).filter(Boolean);
 }
@@ -6702,7 +6702,7 @@ function collectImageInputs(inp, n){
    always shows every wired clip port plus ONE empty trailing slot, so there's always room
    to wire another clip. Ports are vid1, vid2, … and live as links, so they serialize and
    export for free. No model/capability gate — combine just concatenates whatever it's fed. */
-const VID_PORT_RE = /^vid\d+$/;
+const VID_PORT_RE = /^vid\d*$/;
 function videoInputDefs(n){
   if(!NODE_TYPES[n.type].videoInputs) return [];
   const wired = (graph.links||[]).filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
