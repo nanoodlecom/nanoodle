@@ -70,6 +70,7 @@ function page(local,session,disk){
     var undoMuted=false,window={},runningNodes=new Set();
     var location={hash:"",pathname:"/",search:""},history={replaceState(){location.hash="";}};
     function serializeGraph(){if(serializeFailure)throw new Error("synthetic serialization failure");return graph;}
+    function _stashResults(){return null;}
     ${load}
     function applyGraphData(data){graph={...data,nid:data.nid+1,lid:data.lid+1};}
     function setPendingApp(){workspaceStorage.removeItem(EDITOR_APP_KEY);}
@@ -79,7 +80,8 @@ function page(local,session,disk){
     globalThis.api={save,flushSave,initWorkspaceStorage,settleWorkspaceStorage,workspacePersistence,
       edit(text){graph.nodes[0].fields.text=text;save();},
       restore(){load();claimInitialCanvas();return graph;},
-      open:openWorkspaceWithGraph,
+      open:openWorkspaceWithGraph,switchTo:switchWorkspace,closeTab:closeWorkspace,
+      view:workspaceView,
       liveBinding(binding){pendingAppId=binding.id;pendingAppTitle=binding.title;},
       stashResult(id){workspaceResults.set(id,new Map([["n1 text",{out:{text:"PAID RESULT"}}]]));},
       read:key=>workspaceStorage.getItem(key),
@@ -132,6 +134,86 @@ await check("a failed flush keeps warning and retries the newest edit",async()=>
 await check("a flushed local edit supersedes its shared URL before reload",async()=>{
   const p=page(storage(initial()),storage({}),{});await p.boot();p.hash("#j=old-shared-graph");
   p.edit("EDITED SHARED GRAPH");p.event("beforeunload");assert.equal(p.hash(),"");p.close();
+});
+for(const event of ["timer","pagehide"]){
+  await check(`another window’s active workspace survives a stale canvas save (${event})`,async()=>{
+    const local=storage(initial()),disk={};
+    const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
+    await a.boot();await b.boot();
+    b.edit("EDIT IN THE ORIGINAL WORKSPACE");
+    a.switchTo("w2");
+    assert.equal(b.view().active,"w1");
+    if(event==="timer")b.timer();else b.event(event);
+    assert.equal(tabIndex(a).active,"w2","autosave leaves the shared selection alone");
+    assert.equal(text(local.getItem("noodle_graph")),"OTHER WORKSPACE");
+    assert.equal(text(local.getItem("noodle_ws_w1")),"EDIT IN THE ORIGINAL WORKSPACE");
+    const reload=page(local,storage({}),disk);
+    assert.equal((await reload.boot()).nodes[0].fields.text,"OTHER WORKSPACE");
+    b.switchTo("w2");
+    assert.equal(b.view().active,"w2","ordinary navigation leaves the detached canvas");
+    b.switchTo("w1");
+    assert.equal(text(local.getItem("noodle_graph")),"EDIT IN THE ORIGINAL WORKSPACE");
+    a.close();b.close();reload.close();
+  });
+}
+await check("autosave rechecks ownership if another window switches during its read",async()=>{
+  const local=storage(initial()),disk={};
+  const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
+  await a.boot();await b.boot();b.edit("EDIT DURING A WORKSPACE SWITCH");
+  const get=local.getItem;
+  local.getItem=function(key){
+    if(key==="noodle_graph"){local.getItem=get;a.switchTo("w2");}
+    return get.call(this,key);
+  };
+  b.timer();
+  assert.equal(tabIndex(a).active,"w2");
+  assert.equal(text(local.getItem("noodle_graph")),"OTHER WORKSPACE");
+  assert.equal(text(local.getItem("noodle_ws_w1")),"EDIT DURING A WORKSPACE SWITCH");
+  a.close();b.close();
+});
+await check("local storage retains both edits to the same workspace",async()=>{
+  const local=storage(initial()),disk={};
+  const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
+  await a.boot();await b.boot();
+  a.edit("FIRST WINDOW EDIT");a.timer();b.edit("SECOND WINDOW EDIT");b.timer();
+  const copy=b.view().tabs.find(t=>t.id===b.view().active);
+  assert.notEqual(copy.id,"w1");assert.match(copy.name,/Recovered visit/);
+  assert.equal(tabIndex(a).active,"w1");
+  assert.equal(text(local.getItem("noodle_graph")),"FIRST WINDOW EDIT");
+  assert.equal(text(local.getItem("noodle_ws_"+copy.id)),"SECOND WINDOW EDIT");
+  b.edit("FOLLOWUP EDIT");b.timer();
+  assert.equal(b.view().tabs.length,3,"follow-up edits continue in the same recovered workspace");
+  assert.equal(text(local.getItem("noodle_ws_"+copy.id)),"FOLLOWUP EDIT");
+  a.close();b.close();
+});
+await check("a stale canvas save preserves edits after its workspace was closed elsewhere",async()=>{
+  const local=storage(initial()),disk={};
+  const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
+  await a.boot();await b.boot();
+  a.closeTab("w1");b.edit("UNSAVED EDIT AFTER CLOSE");b.timer();
+  const copy=b.view().tabs.find(t=>t.id===b.view().active);
+  assert.notEqual(copy.id,"w1");assert.match(copy.name,/Recovered visit/);
+  assert.equal(tabIndex(a).active,"w2");
+  assert.equal(text(local.getItem("noodle_graph")),"OTHER WORKSPACE");
+  assert.equal(text(local.getItem("noodle_ws_"+copy.id)),"UNSAVED EDIT AFTER CLOSE");
+  a.close();b.close();
+});
+await check("a detached save that exhausts localStorage keeps both workspaces in IndexedDB",async()=>{
+  const local=storage(initial()),disk={};
+  const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
+  await a.boot();await b.boot();a.switchTo("w2");
+  local.deny=true;
+  b.edit("EDIT THROUGH OVERFLOW");b.timer();
+  await b.settleWorkspaceStorage();
+  assert.equal(tabIndex(b).active,"w1","the promoted snapshot follows the window that wrote it");
+  assert.equal(text(disk.record.values.noodle_graph),"EDIT THROUGH OVERFLOW");
+  assert.equal(text(disk.record.values.noodle_ws_w2),"OTHER WORKSPACE");
+  assert.equal(text(local.getItem("noodle_graph")),"OTHER WORKSPACE","the existing local copy survives promotion");
+  b.edit("FOLLOWUP THROUGH INDEXEDDB");b.timer();
+  await b.settleWorkspaceStorage();
+  assert.equal(text(disk.record.values.noodle_graph),"FOLLOWUP THROUGH INDEXEDDB");
+  assert.equal(text(disk.record.values.noodle_ws_w2),"OTHER WORKSPACE");
+  a.close();b.close();
 });
 for(const failure of ["hold","fail"]){
   await check(`IndexedDB: ${failure} → edit → immediate refresh → replay once`,async()=>{

@@ -522,24 +522,41 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   console.log("✓ vetoes: gallery clamp / wired video refs / foreign pending jobs fall back to built-in (blob: media and lipsync delegate)");
 }
 
-// keep-pending-on-abort: Stop must NOT delete a submitted (charged) job's pending entry — only a
-// genuine failure may. Drives the real njsCtx wrappers with a fake NanoClient.
 {
   const on = makeCtx({ flagOn: true });
-  const fail = (err) => ({ NanoClient: class { constructor() {} video(m, p, o, i, io2) { io2.onRunId("job-1"); return Promise.reject(err); } } });
-  for (const [label, err, expectKept] of [
-    ["abort (NanoodleError code aborted)", Object.assign(new Error("run aborted"), { code: "aborted" }), true],
-    ["abort (DOMException AbortError)", Object.assign(new Error("Aborted"), { name: "AbortError" }), true],
-    ["poll timeout", Object.assign(new Error("timed out"), { code: "timeout" }), true],
-    ["genuine job failure", new Error("video failed: content policy"), false],
-  ]) {
-    on.PENDING_VIDEO.clear();
-    const ctx = on.njsCtx(fail(err), { id: "n1" });
-    await ctx.video("m", "p", {}, undefined).catch(() => {});
-    const kept = on.PENDING_VIDEO.has("n1");
-    assert.equal(kept, expectKept, `${label}: pending entry ${expectKept ? "must survive" : "must be deleted"} (got kept=${kept})`);
+  delete on.NanoodleEngine.runResumableMedia;
+  for (const type of ["ivideo", "music", "llm"]) {
+    const node = { id: "n1", type, fields: { model: "x" } };
+    const run = on.njsRunFor(type, node, {}, node);
+    assert.equal(typeof run === "function", type === "llm", `older cached bundle delegation for ${type}`);
   }
-  console.log("✓ pending jobs survive Stop/timeout and are deleted only on genuine failure");
+  console.log("✓ older cached bundle falls back for resumable media and still delegates text");
+}
+
+// A poll failure leaves the accepted job resumable unless the provider says the job itself failed.
+// Drive the real njsCtx wrappers with a fake NanoClient.
+{
+  const on = makeCtx({ flagOn: true });
+  on.assertGenerateSongLyrics = () => {};
+  for(const [kind, jobs] of [["video", on.PENDING_VIDEO], ["audio", on.PENDING_AUDIO]]){
+    for (const [label, err, expectKept] of [
+      ["abort", Object.assign(new Error("run aborted"), { code: "aborted" }), true],
+      ["DOM abort", Object.assign(new Error("Aborted"), { name: "AbortError" }), true],
+      ["poll timeout", Object.assign(new Error("timed out"), { code: "timeout" }), true],
+      ["poll auth failure", Object.assign(new Error("unauthorized"), { code: "auth", status: 401 }), true],
+      ["poll transport failure", new TypeError("Failed to fetch"), true],
+      ["genuine job failure", Object.assign(new Error("content policy"), { code: "job-failed" }), false],
+    ]) {
+      jobs.clear();
+      const ctx = on.njsCtx({ ...ENGINE, NanoClient: class {
+        video(m, p, o, i, io) { io.onRunId("job-1"); return Promise.reject(err); }
+        audio(m, input, extra, io) { io.onRunId({ runId: "job-1", cost: 0.25 }); return Promise.reject(err); }
+      } }, { id: "n1" });
+      await assert.rejects(() => ctx[kind]("m", "p", {}), (e) => e === err);
+      assert.equal(jobs.has("n1"), expectKept, `${kind} ${label}: expected pending entry=${expectKept}`);
+    }
+  }
+  console.log("✓ editor video/audio pending jobs survive auth, transport, Stop and timeout errors");
 }
 
 // Browser fetch with redirect:manual is opaque. The editor shim must not POST the
@@ -593,6 +610,7 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
   let submits = 0;
   const ctx = on.njsCtx({
+    ...ENGINE,
     NanoClient: class {
       constructor() {}
       video() {
@@ -608,6 +626,7 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   assert.equal(on.PENDING_VIDEO.get("n1").resultUrl, "/api/generate-video/content?runId=grok1");
   let imagePosts = 0;
   const img = on.njsCtx({
+    ...ENGINE,
     NanoClient: class {
       constructor() {}
       image() {

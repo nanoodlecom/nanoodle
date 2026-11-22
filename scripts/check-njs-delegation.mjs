@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
-import { loadEngine, calls, catalog } from "./play-engine.mjs";
+import { loadEngine, calls, catalog, recordingFetch } from "./play-engine.mjs";
 
 // Seed audio ids before any fetch caches a non-empty catalog. "x" is the remix
 // placeholder already in GRAPHS — once audio is non-empty it must be listed too.
@@ -247,6 +247,62 @@ function flaggedEngine(on, spy) {
     captured.NanoodleEngine = wrapped;
   }
   return app;
+}
+
+// Use the real bundled client with a mock provider. Only an explicit terminal
+// status lets the same input submit another paid job.
+for (const [type, kind, statusPath, idParam] of [
+  ["tvideo", "video", "/api/video/status", "requestId"],
+  ["music", "audio", "/api/tts/status", "runId"],
+]) {
+  let phase = "auth", submits = 0;
+  const polls = [];
+  const media = `https://cdn.example/fixture.${kind === "video" ? "mp4" : "mp3"}`;
+  const app = loadEngine(ctx => {
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.NanoodleEngine = { ...ENGINE, NanoClient: class extends ENGINE.NanoClient {
+      constructor(opts) { super({ ...opts, pollIntervals: { [kind]: 1 } }); }
+    } };
+    ctx.fetch = (rawUrl, options = {}) => {
+      const url = new URL(rawUrl);
+      if (url.pathname === "/api/generate-video" || url.pathname === "/api/v1/audio/speech") {
+        assert.equal(options.method, "POST");
+        return Response.json({ runId: `job-${++submits}`, cost: 0.25, paymentSource: "balance", isApiRequest: true });
+      }
+      if (url.pathname !== statusPath) return recordingFetch(rawUrl, options);
+      polls.push(url.searchParams.get(idParam));
+      if (kind === "audio") assert.equal(url.searchParams.get("paymentSource"), "balance");
+      if (phase === "auth") return Response.json({ error: "no access to job status" }, { status: 401 });
+      if (phase === "missing URL") return Response.json({ status: "COMPLETED" });
+      if (phase === "terminal") return Response.json({ status: "FAILED", error: "job is finished" });
+      return Response.json({ status: "COMPLETED", audioUrl: media, output: { url: media } });
+    };
+  });
+  const pending = kind === "video" ? app.__njs.PENDING_VIDEO : app.__njs.PENDING_AUDIO;
+  const run = (prompt = "a trial") => {
+    const n = node("job-node", type, { model: "x", prompt });
+    const runFor = app.__njs.runFor(type, n, {}, n.id);
+    assert.ok(runFor, `${type} takes the delegated path`);
+    return runFor(n, {}, () => {}, n.id);
+  };
+  await assert.rejects(() => run(), err => err.code === "auth");
+  phase = "missing URL";
+  await assert.rejects(() => run(), /completed but no (audio|video) url/);
+  phase = "complete";
+  assert.equal((await run())[kind], media);
+  assert.equal(submits, 1, `${type}: neither poll error charges again`);
+  assert.deepEqual(polls, ["job-1", "job-1", "job-1"]);
+  assert.equal(pending.size, 0, "successful delivery clears the entry");
+  phase = "terminal";
+  await assert.rejects(() => run(), err => err.code === "job-failed");
+  assert.equal(pending.size, 0, "confirmed provider failure clears the entry");
+  phase = "auth";
+  await assert.rejects(() => run(), err => err.code === "auth");
+  phase = "complete";
+  assert.equal((await run("edited request"))[kind], media);
+  assert.equal(submits, 4, `${type}: a confirmed failure or edited request can submit a fresh job`);
+  assert.deepEqual(polls.slice(-3), ["job-2", "job-3", "job-4"]);
+  console.log(`✓ ${type} polls the accepted job on retry and renews it after a terminal failure or edit`);
 }
 
 const paid = (c) => /\/(chat\/completions|images\/generations|generate-video|audio\/speech|transcriptions)/.test(c.url);

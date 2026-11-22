@@ -1,5 +1,5 @@
-/* data-hash=8749ae217a99b5a3 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-8d084c796372 (31 modules) */
+/* data-hash=c2eb303c713fae76 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-4f7552323757 (33 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -29,6 +29,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("errors.mjs"); __x.NanoodleError = __m.NanoodleError; __x.UnsupportedNodeError = __m.UnsupportedNodeError; __x.RunError = __m.RunError; }
 { const __m = __req("media.mjs"); __x.MediaRef = __m.MediaRef; __x.MEDIA_INLINE_MAX = __m.MEDIA_INLINE_MAX; __x.coerceMediaInput = __m.coerceMediaInput; __x.assertInlineMediaSize = __m.assertInlineMediaSize; __x.bytesToDataUrl = __m.bytesToDataUrl; __x.dataUrlBytes = __m.dataUrlBytes; __x.bytesToBase64 = __m.bytesToBase64; __x.base64ToBytes = __m.base64ToBytes; __x.sniffMime = __m.sniffMime; __x.b64ImageMime = __m.b64ImageMime; __x.extForMime = __m.extForMime; }
 { const __m = __req("client.mjs"); __x.NanoClient = __m.NanoClient; __x.httpError = __m.httpError; __x.costFromJson = __m.costFromJson; __x.costFromHeaders = __m.costFromHeaders; __x.costWithHeaders = __m.costWithHeaders; __x.sleep = __m.sleep; }
+{ const __m = __req("resumable-media.mjs"); __x.runResumableMedia = __m.runResumableMedia; }
 { const __m = __req("graph.mjs"); __x.NODE_TYPES = __m.NODE_TYPES; __x.displayName = __m.displayName; __x.materialize = __m.materialize; __x.topoSort = __m.topoSort; __x.wiredFramesFloor = __m.wiredFramesFloor; __x.MAX_FRAMES = __m.MAX_FRAMES; }
 { const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
@@ -42,6 +43,7 @@ __def("browser.mjs", function (__x, __req) {
 });
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
+const { abortReason, enforceDeadline, startDeadline, throwIfAborted } = __req("deadline.mjs");
 const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 const { MEDIA_INPUT_KINDS, deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
@@ -107,6 +109,7 @@ async function publishNodeMedia(client, node, out, signal) {
     if (typeof value === "string") {
       if (!value) return value;
       if (cache.has(value)) return cache.get(value);
+      throwIfAborted(signal);
       const resolved = await client.resolveContentUrl(value, { signal });
       cache.set(value, resolved);
       return resolved;
@@ -134,24 +137,16 @@ async function publishNodeMedia(client, node, out, signal) {
   return copy || out;
 }
 
-function abortReason(signal) {
-  const r = signal && signal.reason;
-  if (r instanceof Error) return r;
-  return new NanoodleError(r != null ? String(r) : "run aborted", { code: "aborted" });
-}
-
-function throwIfAborted(signal) {
-  if (signal && signal.aborted) throw abortReason(signal);
-}
-
 /** Bound an async stage even when injected I/O ignores AbortSignal. Always observe late rejection. */
 function withSignal(work, signal) {
   return new Promise((resolve, reject) => {
     const onAbort = () => reject(abortReason(signal));
     signal.addEventListener("abort", onAbort, { once: true });
-    Promise.resolve().then(() => {
+    Promise.resolve().then(async () => {
       throwIfAborted(signal);
-      return work();
+      const value = await work();
+      throwIfAborted(signal);
+      return value;
     }).then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
 }
@@ -390,7 +385,7 @@ class Workflow {
       else signal.addEventListener("abort", onOuterAbort, { once: true });
     }
     if (timeoutMs) {
-      timer = setTimeout(() => ac.abort(new NanoodleError(`run timed out after ${timeoutMs}ms`, { code: "timeout" })), timeoutMs);
+      timer = startDeadline(ac, timeoutMs, `run timed out after ${timeoutMs}ms`);
     }
 
     const emit = (evt) => { if (onProgress) { try { onProgress(evt); } catch { /* listener errors never kill the run */ } } };
@@ -406,19 +401,24 @@ class Workflow {
     let runSettled = false;
     const frozen = (rec) => runSettled || rec.final === true;
     const ctxFor = (node, rec, nodeSignal = ac.signal) => {
+      const report = (evt) => {
+        if (frozen(rec)) return;
+        emit(evt);
+        throwIfAborted(nodeSignal);
+      };
       const onCost = (c) => {
         if (!c || frozen(rec)) return;
         if (c.usd != null) { rec.costUsd = (rec.costUsd || 0) + c.usd; cost.total += c.usd; }
         else cost.exact = false;
         if (c.balance != null) cost.balance = c.balance;
       };
-      const onPoll = (info) => frozen(rec) ? undefined : emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
+      const onPoll = (info) => report({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
       const onRunId = (job) => {
         if (frozen(rec)) return;
         const runId = job && typeof job === "object" ? (job.runId || job.id) : job;
         if (runId == null) return;
         rec.runId = runId;
-        emit({ type: "node-run-id", nodeId: node.id, name: displayName(node), runId });
+        report({ type: "node-run-id", nodeId: node.id, name: displayName(node), runId });
       };
       const io = { onCost, onPoll, onRunId, signal: nodeSignal };
       return {
@@ -433,7 +433,7 @@ class Workflow {
         fetch: mediaFetch,
         signal: nodeSignal,
         catalog: this.catalog,
-        progress: (msg) => frozen(rec) ? undefined : emit({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
+        progress: (msg) => report({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
       };
     };
 
@@ -449,6 +449,7 @@ class Workflow {
     const execNode = async (n) => {
       const rec = nodesRec[n.id];
       let nodeTimer = null, unlinkNode = null;
+      let nodeSignal = ac.signal;
       try {
         throwIfAborted(ac.signal);
         let inbound = graph.links.filter((l) => l.to.node === n.id);
@@ -519,29 +520,28 @@ class Workflow {
         if (n.type === "decide" && fields.branch !== n.fields.branch) fields = { ...fields, branch: n.fields.branch };
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
-        rec.started = true;
-        emit({ type: "node-start", nodeId: n.id, name: displayName(n) });
-        // A fitted prompt changed what this run pays for — never silent, even headless.
-        if (fit.trimmed) {
-          emit({ type: "prompt-trimmed", nodeId: n.id, name: displayName(n), ...fit.trimmed });
-          warnGraph(`node ${n.id}: prompt trimmed ${fit.trimmed.from} → ${fit.trimmed.to} characters — ` +
-            `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
-        }
         throwIfAborted(ac.signal);
         const t0 = Date.now();
-        // The node deadline covers the runner AND publication of provider media.
-        // Race every active stage with cancellation so an injected fetch cannot hold the run open.
+        // The node deadline covers progress callbacks, the runner and media publication.
         const timeoutMs = Number(fields.timeoutMs);
-        let nodeSignal = ac.signal;
         if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
           const nac = new AbortController();
           const onRunAbort = () => nac.abort(ac.signal.reason);
           ac.signal.addEventListener("abort", onRunAbort, { once: true });
           unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
           nodeSignal = nac.signal;
-          nodeTimer = setTimeout(() => nac.abort(new NanoodleError(
-            `node timed out after ${timeoutMs}ms`, { code: "timeout" })), timeoutMs);
+          nodeTimer = startDeadline(nac, timeoutMs, `node timed out after ${timeoutMs}ms`, ac.signal);
         }
+        rec.started = true;
+        emit({ type: "node-start", nodeId: n.id, name: displayName(n) });
+        throwIfAborted(nodeSignal);
+        // A fitted prompt changed what this run pays for — never silent, even headless.
+        if (fit.trimmed) {
+          emit({ type: "prompt-trimmed", nodeId: n.id, name: displayName(n), ...fit.trimmed });
+          warnGraph(`node ${n.id}: prompt trimmed ${fit.trimmed.from} → ${fit.trimmed.to} characters — ` +
+            `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
+        }
+        throwIfAborted(nodeSignal);
         const nodeForRun = { ...n, fields };
         const out = await withSignal(async () => {
           const rawOut = await RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
@@ -549,7 +549,6 @@ class Workflow {
           return publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
         }, nodeSignal);
         throwIfAborted(nodeSignal);
-        throwIfAborted(ac.signal);
         rec.final = true;
         rec.status = "done";
         rec.out = out;
@@ -559,6 +558,9 @@ class Workflow {
       } catch (e) {
         rec.final = true;
         if (e instanceof GateSkip) throw e;
+        enforceDeadline(nodeSignal);
+        if (ac.signal.aborted) e = abortReason(ac.signal);
+        else if (nodeSignal.aborted) e = abortReason(nodeSignal);
         // ⚖️ Decide gate answered no: a settled, billed decision — not an error. Downstream skips.
         if (e && e.gate === true && !ac.signal.aborted) {
           rec.status = "gated";
@@ -641,9 +643,12 @@ class Workflow {
       value: this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].gatedBy)
         .map((o) => ({ key: o.key, nodeId: o.nodeId, gateName: displayName(byId.get(nodesRec[o.nodeId].gatedBy)) })),
     });
+    const failedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].status === "error");
+    const skippedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].skippedOnError);
 
     // timeout/abort must fail the run even when local media finished after the deadline
     // (or nodes never observed the signal). Prefer the abort reason when present.
+    enforceDeadline(ac.signal);
     if (ac.signal.aborted) {
       const reason = abortReason(ac.signal);
       const msg = reason.message || "run aborted";
@@ -661,7 +666,6 @@ class Workflow {
       throw new RunError(msg, result, reason.code ? { code: reason.code } : {});
     }
 
-    const failedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].status === "error");
     if (failedSinks.length) {
       let detail = failedSinks.map((o) => `"${o.key}": ${nodesRec[o.nodeId].error}`).join("; ");
       // "upstream failed: X" only names the sink's neighbor — name the node(s) that actually broke
@@ -673,7 +677,6 @@ class Workflow {
       throw new RunError("run failed — " + detail, result);
     }
     // onError:"skip" never makes a run succeed with nothing: if every output skipped, fail.
-    const skippedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].skippedOnError);
     if (this.outputs.length && skippedSinks.length === this.outputs.length) {
       throw new RunError("run failed — every output was skipped after failing: " +
         skippedSinks.map((o) => `"${o.key}": ${nodesRec[o.nodeId].error}`).join("; "), result);
@@ -761,6 +764,7 @@ __x.NanoodleError = NanoodleError; __x.UnsupportedNodeError = UnsupportedNodeErr
 });
 __def("media.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
+const { enforceDeadline } = __req("deadline.mjs");
 
 /** NanoGPT's edge rejects request bodies over ~4.5 MB; media rides inline as base64 (no upload endpoint). */
 const MEDIA_INLINE_MAX = 4.4 * 1024 * 1024;
@@ -897,6 +901,7 @@ function dataUrlBytes(url) {
  */
 async function downloadMedia(url, { fetch: fetchFn = globalThis.fetch, signal, what = "media" } = {}) {
   const checkAbort = () => {
+    enforceDeadline(signal);
     if (signal && signal.aborted) throw signal.reason || new NanoodleError("download aborted", { code: "aborted" });
   };
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -1053,6 +1058,7 @@ __x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.
 __def("client.mjs", function (__x, __req) {
 const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
+const { throwIfAborted } = __req("deadline.mjs");
 const { b64ImageMime, bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.mjs");
 
@@ -1198,12 +1204,12 @@ class NanoClient {
    * at most once; a second 402 after settling is an error, never a second send.
    */
   async _paidFetch(url, init, signal) {
-    if (signal && signal.aborted) throw abortError(signal.reason);
+    throwIfAborted(signal);
     const r = await this.fetch(url, init);
     if (r.status !== 402 || !this.payment || this.apiKey) return r;
     const settled = await this._settle402(r, signal);
     if (settled.response) return settled.response; // complete replayed the stored request
-    if (signal && signal.aborted) throw abortError(signal.reason);
+    throwIfAborted(signal);
     const r2 = await this.fetch(url, { ...init, headers: { ...init.headers, "x-x402-payment-id": settled.paymentId } });
     if (!r2.ok) throw await paidResponseError(r2, settled.paymentId, "replay");
     return r2;
@@ -1218,7 +1224,7 @@ class NanoClient {
         "payment required, but the 402 response offered no usable Nano option" +
         (body ? " — " + JSON.stringify(body).slice(0, 200) : ""), { code: "x402", status: 402 });
     }
-    if (signal && signal.aborted) throw abortError(signal.reason);
+    throwIfAborted(signal);
     if (invoice.expiresAt && invoice.expiresAt <= Date.now()) {
       throw new NanoodleError("payment window expired before payment (" + invoice.paymentId + ", to " + invoice.payTo + ") — request a fresh invoice", { code: "x402-expired", paymentId: invoice.paymentId });
     }
@@ -1226,7 +1232,7 @@ class NanoClient {
     // The complete endpoint doubles as the poll: 402 = not seen on-chain yet.
     const deadline = invoice.expiresAt || Date.now() + 15 * 60 * 1000;
     while (true) {
-      if (signal && signal.aborted) throw abortError(signal.reason);
+      throwIfAborted(signal);
       const cr = await this.fetch(invoice.completeUrl, {
         method: "POST", headers: { "Content-Type": "application/json", "x-x402": "true" }, body: "{}", signal,
       });
@@ -1309,6 +1315,7 @@ class NanoClient {
       if (ac.signal.aborted) rejectAbort();
     });
     const work = Promise.resolve().then(async () => {
+      throwIfAborted(signal);
       if (ac.signal.aborted) throw ac.signal.reason;
       const r = await this._get(path, ac.signal);
       if (!r.ok) throw httpError(r.status, await r.text(), r.headers);
@@ -1476,7 +1483,7 @@ class NanoClient {
         }
         if (["FAILED", "ERROR", "CANCELED", "CANCELLED", "CONTENT_POLICY_VIOLATION"].includes(st)) {
           const why = (s.data && s.data.error) || st;
-          throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
+          throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why, { code: "job-failed" });
         }
       }
       const label = is3d ? "3D" : "video";
@@ -1562,7 +1569,7 @@ class NanoClient {
         return url;
       }
       if (["error", "failed", "canceled", "cancelled", "content_policy_violation"].includes(st)) {
-        throw new NanoodleError("audio failed: " + (s.error || s.message || st));
+        throw new NanoodleError("audio failed: " + (s.error || s.message || st), { code: "job-failed" });
       }
     }
     throw new NanoodleError(`audio timed out (${Math.round(this.timeouts.audio / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
@@ -1755,6 +1762,7 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
   if (!doFetch) throw new NanoodleError("couldn't fetch provider media: no fetch available");
   let current = start.href;
   for (let hop = 0; hop < 5; hop++) {
+    throwIfAborted(signal);
     let r;
     try {
       r = await doFetch(current, {
@@ -1811,6 +1819,70 @@ async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHea
 }
 
 __x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient; __x.resolveProviderMediaUrl = resolveProviderMediaUrl;
+});
+__def("resumable-media.mjs", function (__x, __req) {
+// Track the newest attempt separately from accepted jobs. A new attempt cannot
+// discard a paid job merely by starting, but older callbacks lose write authority.
+const attemptsByRegistry = new WeakMap();
+
+/**
+ * Run or resume a provider media job using the browser host's job registry.
+ * `idField` is "runId" for video or "job" for audio's full submission record.
+ * Retain accepted work through poll failures and finished URLs through delivery
+ * failures. Only a terminal provider job failure or successful delivery retires it.
+ */
+async function runResumableMedia({
+  jobs, key, sig, idField, signal, run, resolve, onTerminalFailure,
+}) {
+  let attempts;
+  let owner;
+  const attempt = {};
+  if (key) {
+    attempts = attemptsByRegistry.get(jobs);
+    if (!attempts) {
+      attempts = new Map();
+      attemptsByRegistry.set(jobs, attempts);
+    }
+    attempts.set(key, attempt);
+    owner = jobs.get(key);
+  }
+  const ownsSlot = () => attempts?.get(key) === attempt && jobs.get(key) === owner;
+  let accepted = owner?.njs && owner.sig === sig ? owner : undefined;
+  function remember(entry) {
+    accepted = entry;
+    if (ownsSlot()) {
+      jobs.set(key, entry);
+      owner = entry;
+    }
+  }
+
+  try {
+    let url = accepted?.resultUrl;
+    if (!url) {
+      try {
+        url = await run({
+          resume: accepted?.[idField],
+          onRunId: id => remember({ sig, njs: true, [idField]: id }),
+        });
+      } catch (error) {
+        if (accepted && error?.code === "job-failed" && !signal?.aborted && ownsSlot()) {
+          jobs.delete(key);
+          onTerminalFailure?.();
+        }
+        throw error;
+      }
+    }
+    remember({ ...accepted, sig, njs: true, resultUrl: url });
+    const result = await resolve(url);
+    // The host may drop a result that finishes after Stop. Keep it resumable.
+    if (!signal?.aborted && ownsSlot()) jobs.delete(key);
+    return result;
+  } finally {
+    if (attempts?.get(key) === attempt) attempts.delete(key);
+  }
+}
+
+__x.runResumableMedia = runResumableMedia;
 });
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -3723,6 +3795,7 @@ __def("local-media.mjs", function (__x, __req) {
 const { deflate } = __req("zlib.mjs");
 const { decodePngPixels } = __req("png-decoder.mjs");
 const { NanoodleError } = __req("errors.mjs");
+const { abortReason, throwIfAborted } = __req("deadline.mjs");
 const { bytesToDataUrl, dataUrlBytes, downloadMedia, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { MP4CAT } = __req("mp4cat.mjs");
 
@@ -3751,20 +3824,12 @@ async function ensureNodeDeps() {
   tmpdir = os.tmpdir; join = path.join;
 }
 
-function abortError(signal) {
-  const r = signal && signal.reason;
-  if (r instanceof Error) return r;
-  return new NanoodleError(r != null ? String(r) : "run aborted", { code: "aborted" });
-}
-
-function throwIfAborted(signal) {
-  if (signal && signal.aborted) throw abortError(signal);
-}
+__x.throwIfAborted = throwIfAborted;
 
 async function runProc(bin, args, { timeoutMs = 120000, signal } = {}) {
   await ensureNodeDeps();
+  throwIfAborted(signal);
   return new Promise((resolve, reject) => {
-    if (signal && signal.aborted) return reject(abortError(signal));
     const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0);
     let settled = false;
@@ -3781,7 +3846,7 @@ async function runProc(bin, args, { timeoutMs = 120000, signal } = {}) {
     }, timeoutMs);
     const onAbort = () => {
       child.kill("SIGKILL");
-      finish(() => reject(abortError(signal)));
+      finish(() => reject(abortReason(signal)));
     };
     if (signal) signal.addEventListener("abort", onAbort, { once: true });
     child.stdout.on("data", (d) => {
@@ -4472,7 +4537,7 @@ async function trimAudioToWavFfmpeg(url, start, len, rate = 16000, { fetch: fetc
       dur = parseFloat(String(pr.stdout).trim());
     } catch (e) {
       if (e instanceof NanoodleError && (e.code === "aborted" || e.code === "timeout" || /timed out|aborted/i.test(e.message || ""))) throw e;
-      if (signal && signal.aborted) throw abortError(signal);
+      throwIfAborted(signal);
       /* some containers lack duration; ffmpeg -t still works */
     }
 
@@ -4684,7 +4749,7 @@ async function muxSoundtrack(videoUrl, audioUrl, loop = false, { fetch: fetchFn,
       vdur = parseFloat(String(pr.stdout).trim());
     } catch (e) {
       if (e instanceof NanoodleError && (e.code === "aborted" || e.code === "timeout" || /timed out|aborted/i.test(e.message || ""))) throw e;
-      if (signal && signal.aborted) throw abortError(signal);
+      throwIfAborted(signal);
       /* optional */
     }
 
@@ -4719,7 +4784,7 @@ __x.MAX_FRAMES = MAX_FRAMES; __x.MAX_IMAGE_DIM = MAX_IMAGE_DIM; __x.MP4CAT = MP4
 // (pixel-level mask comparison + headless canvas shim). Not part of the stable API.
 __x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba; __x.crc32 = crc32; __x.pngChunk = pngChunk; __x.catBytes = catBytes;
 
-__x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
+__x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
 });
 __def("x402.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -5198,6 +5263,42 @@ function qrTerminal(text) {
 
 __x.qrModules = qrModules; __x.qrTerminal = qrTerminal;
 });
+__def("deadline.mjs", function (__x, __req) {
+const { NanoodleError } = __req("errors.mjs");
+
+// Keep the absolute deadline alongside the real signal. The timer wakes idle
+// work, while I/O and completion checks also catch an overdue timer when
+// synchronous code or a chain of microtasks keeps the event loop busy.
+const checks = new WeakMap();
+
+function startDeadline(controller, timeoutMs, message, parentSignal) {
+  const until = performance.now() + Number(timeoutMs);
+  const expire = () => controller.abort(new NanoodleError(message, { code: "timeout" }));
+  const signal = controller.signal;
+  checks.set(signal, () => {
+    enforceDeadline(parentSignal);
+    if (!signal.aborted && performance.now() >= until) expire();
+  });
+  return setTimeout(expire, timeoutMs);
+}
+
+function enforceDeadline(signal) {
+  checks.get(signal)?.();
+}
+
+function abortReason(signal) {
+  const reason = signal.reason;
+  if (reason instanceof Error) return reason;
+  return new NanoodleError(reason != null ? String(reason) : "run aborted", { code: "aborted" });
+}
+
+function throwIfAborted(signal) {
+  enforceDeadline(signal);
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+__x.startDeadline = startDeadline; __x.enforceDeadline = enforceDeadline; __x.abortReason = abortReason; __x.throwIfAborted = throwIfAborted;
+});
 __def("endpoint.mjs", function (__x, __req) {
 /**
  * 🔌 Custom endpoint — POST a NanoGPT-shaped body to a URL the graph names.
@@ -5207,6 +5308,7 @@ __def("endpoint.mjs", function (__x, __req) {
  * a public host must be https.
  */
 const { NanoodleError } = __req("errors.mjs");
+const { throwIfAborted } = __req("deadline.mjs");
 const { b64ImageMime, bytesToDataUrl } = __req("media.mjs");
 
 const ENDPOINT_DEF_URL = "http://127.0.0.1:8787/v1/chat/completions";
@@ -5593,9 +5695,11 @@ async function runEndpoint(n, inp, io = {}) {
   const doFetch = io.fetch || globalThis.fetch;
   let r;
   try {
-    r = await doFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: io.signal });
+    const payload = JSON.stringify(body);
+    throwIfAborted(io.signal);
+    r = await doFetch(url, { method: "POST", headers, body: payload, signal: io.signal });
   } catch (e) {
-    if (e && e.name === "AbortError") throw e;
+    if (io.signal?.aborted || e?.name === "AbortError") throw e;
     throw new NanoodleError(endpointFetchError(e, url));
   }
   if (!r.ok) {
@@ -8700,5 +8804,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-8d084c796372";
+  window.NanoodleEngine.version = "src-4f7552323757";
 })();

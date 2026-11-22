@@ -10046,7 +10046,7 @@ function mountSliceOutput(n){
   mode.addEventListener("pointerdown", e=>e.stopPropagation());
   mode.addEventListener("change", ()=>{
     const isRestPose = mode.value==="rest";
-    if(panel.hidden===isRestPose) return;
+    if(mode.disabled || panel.hidden===isRestPose) return;
     pushUndo();
     if(isRestPose){
       previous = {clip:clip.value, frames:frames.value || "1"};
@@ -14487,11 +14487,11 @@ function njsCtx(E, n){
     const meta = (info && info.runId) ? { runId: info.runId, polledAt: Date.now() } : undefined;
     setNodeProgress(n, fmtPollHeadline("polling…", st, ms) + q, meta);
   }, signal: (n && n._runCtl && n._runCtl.signal) || runSignal() };
-  // A pending entry must SURVIVE Stop and the poll timeout — the job is already submitted and
-  // charged, and the next unchanged run resumes it (built-in twin: genVideo/pollAudio keep the
-  // entry on abort). Only a genuine job failure may delete it. The library's abort rejection is
-  // a DOMException named AbortError or a NanoodleError code "aborted" — never code "timeout".
-  const keepPending = (e)=> !!(e && (e.code==="timeout" || e.code==="aborted" || e.name==="AbortError")) || !!(io.signal && io.signal.aborted);
+  const runMedia = (jobs, sig, idField, run)=> E.runResumableMedia({
+    jobs, key:n.id, sig, idField, signal:io.signal, run,
+    resolve: url=> client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); }),
+    onTerminalFailure: ()=>{ if(typeof refreshBalance==="function") refreshBalance(true); },
+  });
   return {
     // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
     // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
@@ -14499,25 +14499,8 @@ function njsCtx(E, n){
     image: (args)=> client.image(args, io).catch(function(e){ throw opaqueContentError(e, false); }),
     video: (model, prompt, opts, imageDataUrl)=>{
       const sig = sigHash(JSON.stringify([model, prompt, opts, imageDataUrl]));
-      const prev = PENDING_VIDEO.get(n.id);
-      // resultUrl is the raw provider URL. Resolving it is not a new job: a failed
-      // fetch must leave the entry so the next run does not submit again.
-      const finish = (url)=>{
-        const cur = PENDING_VIDEO.get(n.id) || {};
-        PENDING_VIDEO.set(n.id, { ...cur, sig, resultUrl:url, njs:true, runId: cur.runId || (prev && prev.runId) });
-        return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
-          PENDING_VIDEO.delete(n.id);
-          return resolved;
-        }, (e)=>{ throw opaqueContentError(e, true); });
-      };
-      if(prev && prev.sig===sig && prev.resultUrl) return finish(prev.resultUrl);
-      const io2 = { ...io,
-        resume: (prev && prev.sig===sig) ? prev.runId : undefined,
-        onRunId: (id)=> PENDING_VIDEO.set(n.id, {sig, runId:id, njs:true}),
-      };
-      return client.video(model, prompt, opts, imageDataUrl, io2).then(
-        finish,
-        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); const kept = PENDING_VIDEO.get(n.id); if(kept && kept.resultUrl) throw e; if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } throw e; });
+      return runMedia(PENDING_VIDEO, sig, "runId", resumeIo=>
+        client.video(model, prompt, opts, imageDataUrl, { ...io, ...resumeIo }));
     },
     audio: (model, input, extra)=>{
       // Estimate BEFORE the prompt/style rewrite clears `input`. The library's binary
@@ -14529,32 +14512,20 @@ function njsCtx(E, n){
       if(/(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{prompt:((extra||{}).prompt!=null&&String((extra||{}).prompt).trim()!==""?(extra||{}).prompt:input)}); input=undefined; }
       else if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{style:((extra||{}).style!=null&&String((extra||{}).style).trim()!==""?(extra||{}).style:input)}); input=undefined; }
       const sig = sigHash(JSON.stringify([model, input, extra]));
-      const pend = PENDING_AUDIO.get(n.id);
-      const finish = (url)=>{
-        const cur = PENDING_AUDIO.get(n.id) || {};
-        PENDING_AUDIO.set(n.id, { ...cur, sig, resultUrl:url, njs:true, job: cur.job || (pend && pend.job) });
-        return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
-          PENDING_AUDIO.delete(n.id);
-          return resolved;
-        }, (e)=>{ throw opaqueContentError(e, true); });
+      const accountForAudio = (c)=>{
+        if(c && c.usd==null && est!=null){
+          const j = {};
+          if(c.balance!=null) j.remainingBalance = c.balance;
+          accrue(j, est);
+          return;
+        }
+        onCost(c);
       };
-      if(pend && pend.sig===sig && pend.resultUrl) return finish(pend.resultUrl);
-      const io2 = { ...io,
-        onCost: (c)=>{
-          if(c && c.usd==null && est!=null){
-            const j = {};
-            if(c.balance!=null) j.remainingBalance = c.balance;
-            accrue(j, est);
-            return;
-          }
-          onCost(c);
-        },
-        resume: (pend && pend.sig===sig && pend.job) ? pend.job : undefined,
-        onRunId: (job)=> PENDING_AUDIO.set(n.id, {sig, job, njs:true}),
-      };
-      return client.audio(model, input, extra, io2).then(
-        finish,
-        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); const kept = PENDING_AUDIO.get(n.id); if(kept && kept.resultUrl) throw e; if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+      return runMedia(PENDING_AUDIO, sig, "job", resumeIo=>
+        client.audio(model, input, extra, { ...io, ...resumeIo, onCost:accountForAudio }).catch(e=>{
+          const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message);
+          throw apiMsg ? new Error(apiMsg) : e;
+        }));
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -14580,6 +14551,12 @@ function njsRunFor(type, rn, inp, n){
   if(!NJS_TYPES[type] || !njsOn() || !getKey()) return null;
   const E = window.NanoodleEngine;
   if(!E || !E.RUNNERS || !E.RUNNERS[type]) return null;
+  // The editor bundle loads separately, so an older cached copy may lack the
+  // job lifecycle adapter. Keep its unrelated runners usable.
+  if(typeof E.runResumableMedia!=="function"){
+    const outputKind = E.NODE_TYPES?.[type]?.outputs?.[0]?.type;
+    if(outputKind==="audio" || outputKind==="video") return null;
+  }
   // Gallery clamp: on a raw-catalog miss the library sends n=variations UNCLAMPED where the
   // editor clamps to 1 — a silent over-bill. Until the library adopts the conservative default,
   // multi-variation requests stay on the built-in path.
@@ -15170,8 +15147,9 @@ const CTX = {
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
-    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ await throwHttp(r); }
+    const headers = authHeaders();
+    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
     const rawPairs = (j.data||[]).map(d=> { const u = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url; return u ? { url: u, layer: (d && typeof d.layer === "object" && d.layer) ? d.layer : null } : null; }).filter(Boolean);
     const rawUrls = rawPairs.map(p2=> p2.url);
@@ -15207,8 +15185,9 @@ const CTX = {
     if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ await throwHttp(r); }
+    const headers = authHeaders();
+    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
     accrue(j, undefined, r);
     const msg = j.choices?.[0]?.message || {};
@@ -15222,14 +15201,15 @@ const CTX = {
   // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The real
   // price rides usage.cost (input tokens only — decision models generate nothing), so accrue that.
   async genDecision(body){
-    const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ await throwHttp(r); }
+    const headers = authHeaders();
+    const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
     const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
     accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r);
     return j;
   },
-  // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
+  // Submit, then poll /api/video/status for the accepted job.
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
@@ -15262,6 +15242,7 @@ const CTX = {
     // Resume an earlier job that timed out on this node (opts.runKey = node id) — the work is still
     // running server-side, so skip submit (and the second charge) and go straight back to polling.
     const runKey = opts.runKey;
+    const runAbortSignal = (typeof nodeWork!=="undefined" && nodeWork.get(runKey)?.ctl?.signal) || runSignal();
     // Only resume a pending job when the request is UNCHANGED. The stored entry is keyed by node id,
     // and a timeout leaves it in place, so without matching the request signature an edited re-run
     // (new prompt/seed/inputs → new body) would resume the previous request and return the OLD video.
@@ -15281,50 +15262,71 @@ const CTX = {
           throw new Error("This 3D photo is a bit large (~4 MB max). nanoodle sends it inline rather than uploading it, so NanoGPT's edge won't accept it. Use a smaller photo.");
         throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
       }
+      const headers = authHeaders();
       let r;
-      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
+      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers, body:payload, signal:runAbortSignal}); }
       catch(e){ if(e?.name==="AbortError") throw e;
         if(opts.mediaKind==="model3d") throw new Error(`couldn't reach the 3D API (${e.message||e})`);
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (${e.message||e})`); }
-      if(!r.ok){ await throwHttp(r); }
+      if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
       const j = await r.json(); accrue(j, undefined, r);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
       if(runKey) PENDING_VIDEO.set(runKey, {sig:bodySig, runId});   // remember it (with its request sig) the moment it exists, so a timeout is recoverable
     }
-    // Capture THIS run's abort signal up front. A new run started during our post-Stop drain
-    // repurposes the global runSignal(), so re-reading it each loop could make a Stopped poll see a
-    // fresh, un-aborted signal and resurrect. Our own controller stays aborted → we exit as intended
-    // (runId stays in PENDING_VIDEO so the user can re-run to resume — never auto-resumed).
-    const sig = runSignal();
-    const t0 = Date.now();                           // kept for elapsed-time progress; no deadline — the job runs server-side, so we wait as long as it takes
+    const t0 = Date.now();
+    const is3d = opts.mediaKind==="model3d";
+    const deadline = is3d ? t0 + MODEL3D_DEADLINE_MS : Infinity;
     // Surface job id immediately (before the first 5s sleep) so a long queue still shows a probeable URL.
     onProgress && onProgress("SUBMITTED", 0, { runId, polledAt: Date.now() });
-    while(true){
-      await sleep(5000);
-      if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
-      let pr, s; try{ pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()}); s = await pr.json(); }
-      catch(e){ if(e?.name==="AbortError") throw e; continue; }
-      const st = String(s.data?.status || s.status || "").toUpperCase();
-      const waited = Date.now()-t0;
-      if(opts.mediaKind==="model3d" && waited >= MODEL3D_DEADLINE_MS)
-        throw new Error(t("still building after 25 minutes — ▶ Run to check the same job"));   // leave PENDING_VIDEO so ▶ Run resumes this job
-      onProgress && onProgress(st, waited, { runId, polledAt: Date.now(), stall: opts.mediaKind==="model3d" && waited >= MODEL3D_STALL_MS });
-      if(st==="COMPLETED" || st==="SUCCEEDED"){
-        const out = s.data?.output || s.output || {};
-        const url = opts.mediaKind==="model3d"
-          ? model3dStatusUrl(s, model)
-          : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
-        if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
-        applyPollSettlement(s, pr, false);
-        const vEntry = { sig:bodySig, runId, resultUrl:url };
-        if(pend && pend.njs) vEntry.njs = true;
-        return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
+    // One timer covers slow status headers and response bodies. The loop also checks
+    // the clock so failed polls cannot skip the deadline or start another request at it.
+    const pollCtl = is3d ? new AbortController() : null;
+    const pollSignal = pollCtl?.signal || runAbortSignal;
+    const abortPoll = ()=> pollCtl.abort();
+    const pollTimer = pollCtl ? setTimeout(abortPoll, Math.max(0, deadline-Date.now())) : null;
+    if(pollCtl) runAbortSignal?.addEventListener("abort", abortPoll, {once:true});
+    const remainingPollTime = ()=>{
+      if(runAbortSignal?.aborted) throw new DOMException("aborted","AbortError");
+      const remaining = deadline-Date.now();
+      if(remaining <= 0 || pollCtl?.signal.aborted)
+        throw new Error(t("still building after 25 minutes — ▶ Run to check the same job"));
+      return remaining;
+    };
+    try{
+      while(true){
+        await sleep(Math.min(5000, remainingPollTime()));
+        remainingPollTime();
+        let pr, s;
+        try{
+          pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:pollSignal});
+          if(!pr.ok) continue;
+          s = await pr.json();
+        }catch(e){ remainingPollTime(); if(e?.name==="AbortError") throw e; continue; }
+        remainingPollTime();
+        const st = String(s?.data?.status || s?.status || "").toUpperCase();
+        const waited = Date.now()-t0;
+        onProgress && onProgress(st, waited, { runId, polledAt: Date.now(), stall: is3d && waited >= MODEL3D_STALL_MS });
+        if(st==="COMPLETED" || st==="SUCCEEDED"){
+          const out = s.data?.output || s.output || {};
+          const url = is3d ? model3dStatusUrl(s, model)
+            : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
+          if(!url) throw new Error(is3d ? "completed but no model url" : "completed but no video url");
+          applyPollSettlement(s, pr, false);
+          const vEntry = { sig:bodySig, runId, resultUrl:url };
+          if(pend && pend.njs) vEntry.njs = true;
+          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
+        }
+        if(["FAILED","ERROR","CANCELED","CANCELLED","CONTENT_POLICY_VIOLATION"].includes(st)){
+          if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
+          applyPollSettlement(s, pr, true);
+          throw new Error((is3d ? "3D failed: " : "video failed: ") + videoFailText(s, st));
+        }
       }
-      if(["FAILED","ERROR","CANCELED"].includes(st)){
-        if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
-        applyPollSettlement(s, pr, true);
-        throw new Error((opts.mediaKind==="model3d" ? "3D failed: " : "video failed: ") + videoFailText(s, st));
+    }finally{
+      if(pollCtl){
+        clearTimeout(pollTimer);
+        runAbortSignal?.removeEventListener("abort", abortPoll);
       }
     }
   },
@@ -15361,9 +15363,10 @@ const CTX = {
       return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url);
     }
     if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
-    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
+    const headers = authHeaders();
+    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){
-      flagAuth(r);
+      flagAuth(r, headers["x-api-key"]);
       const t = (await r.text()).slice(0,220);
       const apiMsg = audioApiMessage(t);
       if(r.status===400 && apiMsg) throw new Error(apiMsg);
@@ -15373,7 +15376,7 @@ const CTX = {
       const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
       const field = req && (req[1]||req[2]);
       if(field) throw new Error(`This model requires "${field}" — set it in the node, or add it under advanced params.`);
-      throw httpRunError(r.status, t);
+      throw httpRunError(r.status, t, headers["x-api-key"]);
     }
     const ct = r.headers.get("content-type") || "";
     if(ct.includes("application/json")){
@@ -15425,7 +15428,7 @@ const CTX = {
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
-    if(!r.ok){ await throwHttp(r); }
+    if(!r.ok){ await throwHttp(r, k); }
     const j = await r.json();
     // The transcription endpoint carries no top-level cost (live: {text, language, duration}); a few
     // providers tuck it in j.metadata.cost. When neither is present, estimate from duration (seconds)
@@ -16589,10 +16592,12 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
     : "audio timed out (5 min)");
 }
 function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
-// A 401/403 from a generation call means the stored key is dead (revoked, or an expired OAuth token the
-// user won't re-paste). Clear it so the chrome flips back to signed-out + signposts the fix; the caller
-// still throws so the run loop surfaces the error. (Generation endpoints are CORS-enabled → status readable.)
-function flagAuth(r){ if(r.status===401||r.status===403){ setKey(null); flash("your key was rejected — sign in or paste a valid nano-gpt.com key"); } }
+// A rejection belongs to the key sent on the wire. The caller still surfaces the failed run
+// after a key change, but only the current key can sign out the editor.
+function flagAuth(r, key){
+  if(!key || key!==getKey() || (r.status!==401 && r.status!==403)) return;
+  setKey(null); flash("your key was rejected — sign in or paste a valid nano-gpt.com key");
+}
 // A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
 // mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
 // instead of a raw "402: {…}" snippet — the run loop shows the Error's message text verbatim.
@@ -16601,9 +16606,9 @@ function isLowFundsError(status, body){
   // "insufficient permissions" masquerade as a funds problem and hand out conflicting guidance.
   return status===402 || (status!==401 && status!==403 && /insufficient|balance|funds|not enough|payment required/i.test(String(body||"")));
 }
-function httpRunError(status, body){
+function httpRunError(status, body, key){
   if(isLowFundsError(status, body)){
-    offerRefuel();   // fire-and-forget: the scan-to-refuel panel opens when the account has a deposit address
+    if(key && key===getKey()) offerRefuel();   // a stale failure must not open the replacement account's top-up panel
     return new Error(t("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again."));
   }
   const extracted = endpointApiMessage(body);
@@ -16611,7 +16616,7 @@ function httpRunError(status, body){
   return new Error(`${status}: ${detail.slice(0,160)}`);
 }
 // Read a failed generation Response and throw the clearest Error (auth flagged first, then low-funds → raw).
-async function throwHttp(r){ flagAuth(r); throw httpRunError(r.status, await r.text()); }
+async function throwHttp(r, key){ flagAuth(r, key); throw httpRunError(r.status, await r.text(), key); }
 // The failures a first-timer actually hits surface as browser-internal messages ("Failed to
 // fetch", "non ISO-8859-1 code point") that read like nanoodle bugs — translate them at the one
 // place every run error lands. Only the BARE browser messages are mapped (anchored), so curated
@@ -16632,8 +16637,11 @@ function friendlyRunError(err, n){
   // verbatim, and a body saying "Invalid value" must NOT wipe a perfectly good key —
   // browser-internal header/network failures are always TypeErrors, ours never are.
   if((err instanceof TypeError) && /ISO-8859-1|invalid header|Invalid value/i.test(m)){
-    setKey(null);   // that key physically can't be sent in a header — keeping it fails every run the same way
-    return t("your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again");
+    const key = getKey();
+    if(key && !keySendable(key)){
+      setKey(null);
+      return t("your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again");
+    }
   }
   if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
     return t("couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again");
@@ -17147,15 +17155,17 @@ async function offerRefuel(manual){
   if(!m || !m.hidden || !key) return;
   if(!manual && Date.now() - _refuelClosedAt < 60000) return;   // parallel groups fail together — closing once means closed
   let info; try{ info = await fetchBalanceInfo(); }catch(e){
+    if(getKey()!==key) return;
     // A readable 401/403 means the stored key is dead — not a missing deposit address.
     // Clear it (auth chrome flips back to signed-out) instead of blaming the address / opening top-up.
     if(e && (e.status===401 || e.status===403)){
-      flagAuth(e);
+      flagAuth(e, key);
       if(manual) toast("your key was rejected — sign in or paste a valid nano-gpt.com key", "err");
       return;
     }
     info = null;
   }
+  if(getKey()!==key) return;
   if(!info || !info.addr){
     // Manual chip click must never feel like a dead control: surface the failure and
     // open the account top-up page (Nano QR still needs an address from NanoGPT).
@@ -17165,7 +17175,7 @@ async function offerRefuel(manual){
     }
     return;
   }
-  if(!m.hidden || getKey()!==key) return;
+  if(!m.hidden) return;
   refuelSawBalance(info.usd);
   $("refueltitle").textContent = t(manual ? "Add credit with Nano" : "Top up to keep running");
   $("refuelhint").textContent = t(manual
@@ -17194,14 +17204,17 @@ function refuelPoll(baseline, key){
       }
       if(document.hidden) continue;                                 // background tab → skip this tick
       let info; try{ info = await fetchBalanceInfo(); }catch(e){
+        if(token!==_refuelToken || $("refuelmodal").hidden) return;
+        if(getKey()!==key){ $("refuelmodal").hidden = true; _refuelToken++; return; }
         if(e && (e.status===401 || e.status===403)){   // key died while the panel was open — the QR on
-          flagAuth(e);                                 // screen belongs to a dead account: drop the panel, don't retry
+          flagAuth(e, key);                            // screen belongs to a dead account: drop the panel, don't retry
           $("refuelmodal").hidden = true; _refuelToken++;
           return;
         }
         continue;   // transient failure → try again next tick
       }
       if(token!==_refuelToken || $("refuelmodal").hidden) return;
+      if(getKey()!==key){ $("refuelmodal").hidden = true; _refuelToken++; return; }
       if(isNaN(info.usd)) continue;
       refuelSawBalance(info.usd);
       if(baseline==null){ baseline = info.usd; continue; }          // no opening figure — this tick becomes it
@@ -18307,7 +18320,11 @@ function save(){
   if(typeof markWorkspaceDirty==="function") markWorkspaceDirty();
   saveT = setTimeout(()=>{
     try{ stashModel3dOuts(); }catch(_){}
-    try{ (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).setItem("noodle_graph", JSON.stringify(serializeGraph())); }
+    try{
+      const json = JSON.stringify(serializeGraph());
+      if(typeof wsSaveCanvas==="function") wsSaveCanvas(json);
+      else (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).setItem("noodle_graph", json);
+    }
     catch(e){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
     saveT = null;
     if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
@@ -18424,10 +18441,12 @@ function restoreModel3dOuts(opts){
   if(any) for(const n of graph.nodes) if(n.type==="model3d" && n.out && n.out.model){ showResult(n); setStatus(n, "done"); }
 }
 function load(){
+  const owner = typeof readWorkspaces==="function" ? readWorkspaces()?.active : null;
   const raw = (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).getItem("noodle_graph");
   if(!raw) return false;
   try{
     applyGraphData(JSON.parse(raw));
+    try{ if(typeof wsRememberCanvas==="function") wsRememberCanvas(owner, raw, JSON.stringify(serializeGraph())); }catch(_){}
     try{ restoreModel3dOuts({legacy:true}); }catch(_){}
     if(typeof wsRememberRecoveryCanvas==="function") wsRememberRecoveryCanvas(raw);
     return true;
@@ -18466,6 +18485,7 @@ function loadFile(file){
   if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
   r.onload = ()=>{
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     let parsed = null;
     try{ parsed = JSON.parse(r.result); }
     catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); return; }
@@ -18877,8 +18897,10 @@ function setPendingApp(id, title){
   // Storage first, then memory. A quota miss throws so a workspace switch or
   // import can put the previous binding back instead of keeping a half-written one.
   const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
-  if(nextId) storage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
-  else storage.removeItem(EDITOR_APP_KEY);
+  if(typeof wsCanvasDetached!=="function" || !wsCanvasDetached()){
+    if(nextId) storage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
+    else storage.removeItem(EDITOR_APP_KEY);
+  }
   pendingAppId = nextId;
   pendingAppTitle = nextTitle;
   if(typeof stampActiveApp==="function") stampActiveApp();
@@ -19470,7 +19492,11 @@ function wsQueuePersist(){
       // Unreadable runtime state must not prevent the underlying save.
       try{
         const reconciled = wsReconcileRecovery(wsValues,{live:true});
-        if(reconciled){ wsValues=reconciled; renderWorkspaces(); }
+        if(reconciled){
+          wsValues=reconciled;
+          wsRememberCanvas(readWorkspaces()?.active, wsValues.noodle_graph);
+          renderWorkspaces();
+        }
       }catch(_){}
     }
     const revision = wsRevision, values = Object.assign({}, wsValues), authority = wsAuthorityEpoch;
@@ -19696,6 +19722,7 @@ async function restoreWorkspaceStorage(){
       wsValues = resume ? wsReconcileRecovery(visit,{legacy:true}) || wsCopyValues(visit) : wsMergeRecovery(restored,visit,liveCanvas);
       if(!wasLive && recovery) wsRecoveryId=recovery.id;
       wsRecoveryActive=!resume; wsRestoreFailed=false; wsSavedRevision=-1;
+      if(liveCanvas) wsRememberCanvas(readWorkspaces()?.active, wsValues.noodle_graph);
       if(wasLive){ try{ renderWorkspaces(); }catch(_){} }
       wsQueuePersist();
     }else if(!wsValues && Object.keys(restored).length){
@@ -19709,6 +19736,7 @@ async function restoreWorkspaceStorage(){
       // tab, and carry the visit's work over as recovered tabs if it has any.
       const live = wsValues;
       wsValues = wsVisitHasWork(live) ? wsMergeRecovery(restored,live,liveCanvas) : wsReconcileRecovery(restored,{legacy:true}) || restored;
+      if(liveCanvas) wsRememberCanvas(readWorkspaces()?.active, wsValues.noodle_graph);
       wsRecoveryId=record.recoveryId || null; wsSavedRevision=-1;
       try{ renderWorkspaces(); }catch(_){}
       wsQueuePersist();
@@ -19806,7 +19834,7 @@ function workspaceLabelForGraph(json, ga){
 function workspaceDownloadName(){
   let name = "noodle-graph";
   try{
-    const d = readWorkspaces();
+    const d = workspaceView();
     const cur = d && d.tabs.find(t => t.id===d.active);
     if(cur && String(cur.name||"").trim()) name = String(cur.name).trim();
   }catch(_){}
@@ -19817,7 +19845,7 @@ function workspaceDownloadName(){
 function stampActiveExample(slug){
   const d = readWorkspaces();
   if(!d) return;
-  const cur = d.tabs.find(t => t.id===d.active);
+  const cur = d.tabs.find(t => t.id===(wsCanvasOwner?.id || d.active));
   if(!cur) return;
   if(slug) cur.example = String(slug);
   else delete cur.example;
@@ -19826,6 +19854,14 @@ function stampActiveExample(slug){
 // Set when the first index write cannot land. Storage stays untouched; the
 // strip reads this so the page still has a tab for the rest of the visit.
 let workspaceMemory = null;
+// The shared index's active tab may change in another browser window while
+// this canvas (and its debounce) still belongs to the original workspace.
+let wsCanvasOwner = null;
+function wsRememberCanvas(id, source, loaded = source){
+  if(!id) return;
+  const tab = readWorkspaces()?.tabs.find(t => t.id===id);
+  wsCanvasOwner = { id, source, loaded, tab:tab && copyWorkspaces(tab) };
+}
 // True while boot waits for IndexedDB to hand back the saved workspaces. Any
 // tab change in that window would write a partial index that the restore
 // never merges, and the next save would overwrite the saved tabs. So every
@@ -19833,7 +19869,11 @@ let workspaceMemory = null;
 let wsRestorePending = false;
 let wsHashHeld = false;
 function wsMutationBlocked(){
-  if(!wsRestorePending) return false;
+  if(!wsRestorePending){
+    if(wsAttachCanvas()) return false;
+    try{ flash(wsT("Couldn’t save that workspace change.")); }catch(_){}
+    return true;
+  }
   try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
   return true;
@@ -19859,9 +19899,106 @@ function readWorkspaces(){
   }
   return null;
 }
+function workspaceView(){
+  const index = readWorkspaces();
+  if(index && wsCanvasOwner){
+    const {id,tab} = wsCanvasOwner;
+    if(tab && !index.tabs.some(t=>t.id===id)) index.tabs.push(copyWorkspaces(tab));
+    index.active = id;
+  }
+  return index;
+}
+function wsCanvasDetached(index = readWorkspaces()){
+  return !!(index && wsCanvasOwner && wsCanvasOwner.id!==index.active);
+}
 function writeWorkspaces(d){
+  const previous = readWorkspaces()?.active;
   workspaceStorage.setItem(WS_INDEX_KEY, JSON.stringify(d));
   workspaceMemory = null;
+  if(d.active!==previous) wsRememberCanvas(d.active, undefined);
+}
+function wsCanvasKey(index, id){
+  return !id || id===index?.active ? "noodle_graph" : wsGraphKey(id);
+}
+function wsSaveCanvas(json, retried=false){
+  const index = readWorkspaces(), owner = wsCanvasOwner;
+  // IndexedDB already compares the saved generation against this visit's
+  // snapshot and preserves both branches on conflict.
+  const id = owner?.id || index?.active;
+  const key = wsCanvasKey(index, id);
+  if(!wsValues && owner && index){
+    const tab = index.tabs.find(t=>t.id===id);
+    const current = workspaceStorage.getItem(key);
+    // Reading graph bytes can race a peer switching tabs. Rebase once before
+    // acting on a snapshot whose active pointer or tab membership has changed.
+    if(JSON.stringify(index)!==JSON.stringify(readWorkspaces())){
+      if(retried) throw wsStorageException("WorkspaceConflict");
+      return wsSaveCanvas(json,true);
+    }
+    if(!tab || (current!==json && owner.source!==undefined && current!==owner.source && current!==owner.loaded)){
+      // Another window changed or closed this exact workspace. Save this
+      // canvas under its own ID and leave the other window's version intact.
+      const original = tab || owner.tab;
+      const name = original?.name || wsT("Workflow");
+      do{ index.seq=(index.seq|0)+1; }while(index.tabs.some(t=>t.id==="w"+index.seq));
+      const recoveredId = "w"+index.seq;
+      const label = uniqueWorkspaceName(wsT("Recovered visit")+": "+name, index.tabs);
+      const app = pendingAppId ? {id:pendingAppId,title:pendingAppTitle || null} : null;
+      index.tabs.push({...original,id:recoveredId,name:label,app,recovery:{name,label}});
+      const recoveredKey = wsGraphKey(recoveredId), before = wsSnapshotKey(recoveredKey);
+      workspaceStorage.setItem(recoveredKey, json);
+      try{ writeWorkspaces(index); }
+      catch(error){ wsRestoreKey(recoveredKey, before); throw error; }
+      wsRememberCanvas(recoveredId, json);
+      if(wsValues && !wsAttachSavedCanvas(json)) throw wsStorageException("WorkspaceCheckpointFailed");
+      try{ renderWorkspaces(); }catch(_){}
+      return;
+    }
+  }
+  workspaceStorage.setItem(key, json);
+  wsRememberCanvas(id, json);
+  if(wsValues && wsCanvasDetached(index) && !wsAttachSavedCanvas(json))
+    throw wsStorageException("WorkspaceCheckpointFailed");
+}
+// Workspace commands still use the legacy active-slot transaction. When a
+// different window moved that slot, park its graph before making this canvas
+// active again. Ordinary autosave never changes the shared active pointer.
+function wsAttachCanvas(){
+  if(wsValues || !wsCanvasOwner) return true;
+  let index = readWorkspaces();
+  if(!index) return true;
+  const owner = wsCanvasOwner;
+  const current = wsReadKey(wsCanvasKey(index, owner.id));
+  if(index.active===owner.id && (owner.source===undefined || current===owner.source || current===owner.loaded)) return true;
+  if(workspaceBusy()) return false;
+  const json = flushSave();
+  if(json===null) return false;
+  return wsAttachSavedCanvas(json);
+}
+function wsAttachSavedCanvas(json){
+  const index = readWorkspaces();
+  const ownId = wsCanvasOwner?.id;
+  if(!index || index.active===ownId) return true;
+  const activeKey = wsGraphKey(index.active);
+  const shot = { graph:wsSnapshotKey("noodle_graph"), index:wsSnapshotKey(WS_INDEX_KEY),
+    editor:wsSnapshotKey(EDITOR_APP_KEY), parked:wsSnapshotKey(activeKey), owner:wsCanvasOwner };
+  try{
+    if(shot.graph.present) workspaceStorage.setItem(activeKey, shot.graph.value);
+    else workspaceStorage.removeItem(activeKey);
+    index.active = ownId;
+    writeWorkspaces(index);
+    workspaceStorage.setItem("noodle_graph", json);
+    if(pendingAppId) workspaceStorage.setItem(EDITOR_APP_KEY, JSON.stringify({id:pendingAppId,title:pendingAppTitle || null}));
+    else workspaceStorage.removeItem(EDITOR_APP_KEY);
+    wsRememberCanvas(ownId, json);
+    return true;
+  }catch(_){
+    if(wsRestoreKey("noodle_graph", shot.graph)) wsRestoreKey(WS_INDEX_KEY, shot.index);
+    wsRestoreKey(EDITOR_APP_KEY, shot.editor);
+    wsRestoreKey(activeKey, shot.parked);
+    wsCanvasOwner = shot.owner;
+    return false;
+  }
 }
 function wsStorageError(kind){
   if(wsRestorePending){ try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){} return; }
@@ -19946,7 +20083,7 @@ function workspaceShot(activeId){
   try{ canvas = JSON.stringify(serializeGraph()); }catch(_){}
   try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
   return {
-    id,
+    id, owner:wsCanvasOwner,
     graph: wsSnapshotKey("noodle_graph"),
     index: wsSnapshotKey(WS_INDEX_KEY),
     editor: wsSnapshotKey(EDITOR_APP_KEY),
@@ -20049,6 +20186,7 @@ function workspaceRollback(shot, extra){
   // in-memory tab list, a failed write left Blank active while disk — and the
   // canvas — still had the original workspace. Put the snapshot back.
   workspaceMemory = shot.memory ? copyWorkspaces(shot.memory) : null;
+  wsCanvasOwner = onSource ? shot.owner : null;
   try{ renderWorkspaces(); }catch(_){}
   if(!onSource && sourceBytes!=null && activeNow===shot.id && liveNow!==sourceBytes) wsStorageError("switch");
   return !!(onSource && leaveOk && editorOk);
@@ -20080,6 +20218,7 @@ function graphPayloadOk(g){
 function ensureWorkspaces(opts){
   const existing = readWorkspaces();
   if(existing){
+    if(!wsCanvasOwner) wsRememberCanvas(existing.active, wsReadKey("noodle_graph"));
     // A boot-time index kept only in memory (localStorage full before the IDB
     // overflow was armed) gets written now that workspaceStorage can overflow.
     if(workspaceMemory && wsStorageEnabled){ try{ writeWorkspaces(existing); }catch(_){} }
@@ -20104,6 +20243,7 @@ function ensureWorkspaces(opts){
     if(!(opts && opts.quiet)){ try{ wsStorageError("index"); }catch(_){} }
     return d;
   }
+  wsRememberCanvas(d.active, raw);
   return d;
 }
 function uniqueWorkspaceName(base, tabs){
@@ -20121,7 +20261,7 @@ function uniqueWorkspaceName(base, tabs){
 function stampActiveApp(){
   const d = readWorkspaces();
   if(!d) return;
-  const cur = d.tabs.find(t => t.id===d.active);
+  const cur = d.tabs.find(t => t.id===(wsCanvasOwner?.id || d.active));
   if(!cur) return;
   cur.app = (typeof pendingAppId!=="undefined" && pendingAppId)
     ? { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null }
@@ -20139,7 +20279,7 @@ function flushSave(){
   let json = null;
   try{ json = JSON.stringify(serializeGraph()); }
   catch(_){ return null; }
-  try{ workspaceStorage.setItem("noodle_graph", json); }
+  try{ wsSaveCanvas(json); }
   catch(_){ return null; }
   saveT = null;
   return json;
@@ -20558,7 +20698,7 @@ function workspaceOverlayOpen(){
   return false;
 }
 function stepWorkspace(dir){
-  const d = readWorkspaces();
+  const d = workspaceView();
   if(!d || !d.tabs.length) return;
   const i = Math.max(0, d.tabs.findIndex(t => t.id===d.active));
   const n = d.tabs[(i + (dir==="next" ? 1 : -1) + d.tabs.length) % d.tabs.length];
@@ -20599,7 +20739,7 @@ function toggleChooser(){
   }
 }
 function acknowledgeCurrentWorkspace(msg){
-  const d = readWorkspaces();
+  const d = workspaceView();
   const id = d && d.active;
   workspaceFlashId = id || null;
   try{ clearTimeout(workspaceFlashT); }catch(_){}
@@ -20736,7 +20876,7 @@ function renderWorkspaces(){
     if(typeof document==="undefined" || typeof $!=="function") return;
     const tabsEl = $("wstabs");
     if(!tabsEl) return;
-    const d = readWorkspaces();
+    const d = workspaceView();
     if(!d) return;
     let focusId = null;
     try{
@@ -20871,7 +21011,7 @@ function bindWorkspaceChrome(){
         switchWorkspace(e.target.dataset.id);
         return;
       }
-      const d = readWorkspaces(); if(!d) return;
+      const d = workspaceView(); if(!d) return;
       const i = d.tabs.findIndex(t => t.id===d.active);
       if(e.key==="ArrowRight" || e.key==="ArrowLeft" || e.key==="Home" || e.key==="End"){
         e.preventDefault();
@@ -20997,7 +21137,7 @@ function bindWorkspaceChrome(){
       const open = menu.hidden;
       closeWorkspaceMenus();
       if(open){
-        const d = readWorkspaces();
+        const d = workspaceView();
         if(d) fillDropMenu(d);
         menu.hidden = false;
         drop.setAttribute("aria-expanded", "true");
@@ -21015,7 +21155,7 @@ function bindWorkspaceChrome(){
         e.preventDefault();
         const menu = $("wsdropmenu");
         if(menu && menu.hidden){
-          const d = readWorkspaces();
+          const d = workspaceView();
           if(d) fillDropMenu(d);
           menu.hidden = false;
           e.target.setAttribute("aria-expanded", "true");
@@ -21084,6 +21224,9 @@ function onWorkspaceHash(){
   return loadFromHash();
 }
 try{ addEventListener("hashchange", ()=>{ try{ onWorkspaceHash(); }catch(_){} }); }catch(_){}
+try{ addEventListener("storage", e=>{
+  if(e.key===WS_INDEX_KEY && !wsValues && !wsRestorePending) renderWorkspaces();
+}); }catch(_){}
 function noteFreshWorkspaceName(){
   const d = readWorkspaces();
   if(!d) return;
@@ -21163,6 +21306,8 @@ async function loadFromHash(){
     return true;
   };
   if(!payloadOk(graphData)) return false;
+  if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed() &&
+      typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
   const keepTitle = (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null;
   const undoBefore = (typeof undoStack!=="undefined") ? undoStack.slice() : null;
@@ -21425,7 +21570,7 @@ function finishAppRequest(result){
   appRequest = null;
   unsavedAppRequest = result.error==="storage" ? request : null;
   const d = readWorkspaces();
-  const active = d?.active ?? null;
+  const active = (typeof workspaceView==="function" ? workspaceView()?.active : d?.active) ?? null;
   if(result.ok && result.appId && ["create","copy","update"].includes(request.kind)){
     try{
       if(active===request.workspace && pendingAppId===request.binding){
@@ -24417,8 +24562,9 @@ RULES for the diff:
         const paint = ()=>{ if(isCurrent()) setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`); };
         paint();
         const body = { model, messages, ...(model!=="google/gemini-4-carbon"?{temperature}:{}), stream:true, ...(model!=="google/gemini-4-carbon" && re?{reasoning_effort:re}:{}) };
-        const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
-        if(!r.ok){ await throwHttp(r); }
+        const headers = authHeaders();
+        const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers, body:JSON.stringify(body), signal: dbAbort?.signal });
+        if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
         const reader = r.body.getReader(), dec = new TextDecoder();
         let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null, finish=null;
         for(;;){
