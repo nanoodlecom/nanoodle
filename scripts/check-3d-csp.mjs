@@ -439,6 +439,61 @@ const app = await evaluate(async () => {
 });
 if(!app.video || !app.still) fail("Wrong exported app downloads: "+JSON.stringify(app));
 console.log("✓ check-3d-csp: rigged Walk sheet and fixed-yaw MP4 render, reopen, download and run in a standalone app export"+(app.playable?" (decoded in Chromium)":""));
+await send("Page.navigate", {url:origin+"/?product=off&na=0"});
+if(!(await waitReady())) fail("Editor did not reopen for the Idol request check");
+await evaluate(async () => {
+  const model = "speridlabs/idol/max/turbo";
+  catalogs.model3d = [norm3d({
+    id:model, architecture:{input_modalities:["image"]},
+    supported_parameters:{parameters:{
+      rig:{type:"switch",default:false,label:"Rig character"},
+      animations:{type:"array",items:{type:"string",enum:["walk","run","jump","idle"]},maxItems:4,uniqueItems:true,default:[],requires:"rig"},
+    }},
+  })];
+  catalogFetchedAt.model3d = Date.now();
+  applyGraphData({nodes:[
+    {id:"photo",type:"upload",x:0,y:0,fields:{image:"examples/gallery/slice-3d/preview.png"}},
+    {id:"idol",type:"model3d",x:380,y:0,fields:{model}},
+    {id:"slice",type:"slice-3d",x:780,y:0,fields:{clip:"Walk",frames:4,slices:16,resolution:24}},
+  ],links:[
+    {id:"photo-idol",from:{node:"photo",port:"image"},to:{node:"idol",port:"image"}},
+    {id:"idol-slice",from:{node:"idol",port:"model"},to:{node:"slice",port:"model"}},
+  ]});
+  const rig = () => byId("idol").el.querySelector('[data-of="rig"]');
+  const choice = name => byId("idol").el.querySelector('[data-of="animations"][data-of-value="'+name+'"]');
+  if(choice("walk")) throw Error("Animation clips should start hidden when rigging is off");
+  rig().click();
+  choice("walk").click();
+  choice("idle").click();
+  choice("idle").click();
+  choice("idle").click();
+  const saved = serializeGraph();
+  applyGraphData(saved);
+  if(!rig().checked || !choice("walk").checked || !choice("idle").checked || choice("run").checked)
+    throw Error("Saved Idol clip selections did not reopen");
+  const fetchOriginal = window.fetch;
+  let request;
+  window.fetch = (url, options)=>{
+    if(String(url)===NANOGPT+"/api/generate-video"){
+      request = JSON.parse(options.body);
+      return Promise.resolve(Response.json({runId:"idol-test"}));
+    }
+    if(String(url)===NANOGPT+"/api/video/status?requestId=idol-test")
+      return Promise.resolve(Response.json({data:{status:"COMPLETED",output:{
+        kind:"3d",format:"glb",model_url:"examples/gallery/slice-3d/Fox.glb",
+      }}}));
+    return fetchOriginal(url,options);
+  };
+  try{ await runGroup(["slice"], CTX); }
+  finally{ window.fetch = fetchOriginal; }
+  if(request?.model!==model || request.rig!==true || JSON.stringify(request.animations)!=='["walk","idle"]')
+    throw Error("The generation request did not include the chosen animation clips");
+  if(JSON.parse(byId("slice").out.layout).animation?.clip!=="Walk") throw Error("The returned model did not reach Slice 3D");
+  rig().click();
+  if(choice("walk") || Object.hasOwn(byId("idol").fields.modelOpts,"animations"))
+    throw Error("Disabling rigging should clear the animation request");
+});
+console.log("✓ check-3d-csp: Idol clip choices reopen, reach the generation request, and return a GLB to Slice 3D (mock provider)");
 ws.close();
 proc.kill("SIGKILL");
 server.close();

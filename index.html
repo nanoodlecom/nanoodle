@@ -887,7 +887,12 @@
   .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
   .body [data-slice-hint]:empty, .body [data-slice-source-hint]:empty{ display:none }
   .body .two > [data-slice-clip]{ flex:2 }
+  .body [data-slice-clip] textarea{ min-width:0; min-height:0; max-width:100% }
   .body [data-slice-clip].has-clips textarea{ display:none }
+  .body .modelchoices{ border:0; margin:.3rem 0; padding:0; min-width:0 }
+  .body .modelchoices legend{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; padding:0; margin-bottom:.2rem }
+  .body .modelchoices > div{ display:flex; flex-wrap:wrap; gap:.2rem .7rem }
+  .body .modelchoices .setbool{ margin:0 }
   /* an inline hint inside an uppercased <label> opts out of the SHOUTING (reads as a sentence) */
   .body label .lblhint{ text-transform:none; letter-spacing:0; font-weight:400; font-size:.92em }
   .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
@@ -7903,7 +7908,7 @@ async function cleanVoiceRun(model, inp, f, send){
 }
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
    Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
-   in supported_parameters.parameters. Surface every CHOICE param (select ≥2 opts, or switch)
+   in supported_parameters.parameters. Surface choice params (selects, switches and sets of choices)
    the node doesn't already drive, so each model's knobs light up automatically — no model names.
    Chosen values live in n.fields.modelOpts and pass straight through to the API; play.html just
    forwards that object, so exports need no catalog. This surfaces only CREATIVE/behavioral knobs:
@@ -7974,6 +7979,17 @@ function videoOptDefs(model, nodeType){
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description, sw:d.showWhen });
     } else if(d.type==="switch" || d.type==="boolean"){
       defs.push({ key, label:d.label||key, type:"bool", def, desc:d.description, sw:d.showWhen });
+    } else if(kind==="model3d" && d.type==="array" && d.uniqueItems===true &&
+              d.items?.type==="string" && Array.isArray(d.items.enum) && d.items.enum.length &&
+              d.items.enum.every(v=>typeof v==="string" && v) &&
+              (d.maxItems==null || d.maxItems>=d.items.enum.length)){
+      // A set of independent choices, such as Idol's animation clips. Ordered
+      // per-input arrays (for example, one label per image) need their own UI.
+      const requires = typeof d.requires==="string" ? {[d.requires]:true} : {};
+      defs.push({ key, type:"multiselect", options:d.items.enum, def,
+        label:d.label || (key==="animations" ? t("Animation clips") : key),
+        desc:key==="animations" ? t("Choose which clips to generate. Some rigs may support only a subset.") : d.description,
+        sw:{...requires,...d.showWhen} });
     } else if((d.type==="text" || d.type==="string" || d.type==="number" || d.type==="integer") && !videoFreetextSkip(key,d)){
       // free-text/number knobs (negative_prompt, seed, cfg_scale, num_inference_steps…) — sent
       // only-when-nonempty (see refreshModelOpts), so the model's own default applies when blank.
@@ -8025,8 +8041,12 @@ function refreshModelOpts(n){
   const cur = n.fields.modelOpts || {};
   for(const k of Object.keys(cur)) if(!allDefs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
   for(const d of allDefs){            // quality / mode / similar selects: same clamp as duration/size
-    if(d.type!=="select") continue;
     const v = cur[d.key];
+    if(d.type==="multiselect" && v!=null){
+      const choices = Array.isArray(v) ? [...new Set(v.filter(x=>d.options.includes(x)))] : [];
+      if(!Array.isArray(v) || choices.length!==v.length) cur[d.key] = choices;
+    }
+    if(d.type!=="select") continue;
     if(v==null || v==="") continue;
     const pairs = d.options.map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
     if(!pairs.some(o=> o[0]===String(v))){
@@ -8048,6 +8068,12 @@ function refreshModelOpts(n){
   const ctl = (d)=>{
     const v = cur[d.key];
     const hint = d.desc ? `<div class="fhint">${esc(d.desc)}</div>` : "";   // the catalog's own explanation
+    if(d.type==="multiselect"){
+      const selected = v ?? (Array.isArray(d.def) ? d.def : []);
+      const choices = d.options.map(value=>`<label class="setbool"><input type="checkbox" data-of="${esc(d.key)}"
+        data-of-value="${esc(value)}"${selected.includes(value)?" checked":""}/> ${esc(t(value[0].toUpperCase()+value.slice(1)))}</label>`).join("");
+      return `<fieldset class="modelchoices"><legend>${esc(d.label)}</legend><div>${choices}</div>${hint}</fieldset>`;
+    }
     if(d.type==="bool"){
       // Untouched (v==null) paints the catalog default — the value NanoGPT bills when the
       // key is omitted — and does not write modelOpts until the user flips the box.
@@ -8082,7 +8108,13 @@ function refreshModelOpts(n){
       // First real edit materializes fields.modelOpts; clearing a knob on a node
       // that never stored options must not leave an empty object behind either.
       const store = ()=> n.fields.modelOpts || (n.fields.modelOpts = cur);
-      if(el.type==="checkbox") store()[key] = el.checked;
+      if(el.dataset.ofValue!=null){
+        const value = el.dataset.ofValue;
+        const fallback = defs.find(d=>d.key===key).def;
+        const selected = (cur[key] ?? (Array.isArray(fallback) ? fallback : [])).filter(v=>v!==value);
+        store()[key] = el.checked ? [...selected,value] : selected;
+      }
+      else if(el.type==="checkbox") store()[key] = el.checked;
       else if(el.value===""){ if(n.fields.modelOpts) delete n.fields.modelOpts[key]; }   // omit empty → the model's own default applies (send-only-when-nonempty)
       else if(el.type==="number"){
         const num=Number(el.value), dd=defs.find(x=>x.key===key);
@@ -10084,11 +10116,15 @@ function refreshSliceOutput(n){
   }
   picker.value = clip;
   const noClips = clips?.length===0;
+  const canChooseUpstream = noClips && src?.type==="model3d" && !src.fields.modelOpts?.animations?.length &&
+    catItem("model3d", src.fields.model)?.params?.animations?.requires==="rig";
   mode.options[1].disabled = noClips && !useClip;
   const sourceHint = el.querySelector("[data-slice-source-hint]");
   const message =
     !src ? t("Connect a 3D model.") :
-    noClips && useClip && !clipWired ? t("This model has no animation clips. Choose Still PNG · rest pose.") :
+    noClips && useClip && !clipWired ? t(canChooseUpstream
+      ? "This model has no clips. Choose Animation clips on the 3D model node and run it again, or use the rest pose."
+      : "This model has no animation clips. Choose Still PNG · rest pose.") :
     noClips ? t("This model has no animation clips.") :
     clipWired ? t("The clip comes from the connected input.") :
     !useClip ? "" :
