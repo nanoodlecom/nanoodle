@@ -483,6 +483,7 @@ function chrome({ title, description, path, crumbs, wide, body, next, share }) {
     <a class="ghost" href="/">Open editor →</a>
   </header>
 
+<p class="langrow" style="font-size:.85em;opacity:.75">Nanoodle in your language: <a href="/es/">Español</a> · <a href="/fr/">Français</a> · <a href="/de/">Deutsch</a> · <a href="/pt/">Português</a> · <a href="/ja/">日本語</a> — the landing pages and the editor are localized in all five; this guide is English for now.</p>
   <nav class="crumbs">${crumbs}</nav>
 
   <main>
