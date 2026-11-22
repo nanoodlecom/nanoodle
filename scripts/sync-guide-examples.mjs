@@ -87,6 +87,14 @@ const HOWTO = {
     inspect: "Stack the saved layers at their bounding boxes (layers.json carries each name, z-index and box) and compare with the photo: this run rebuilds at a mean absolute difference of 14.26/255. Then check the bust cutout's edges against the survey's warning \u2014 the weathered hair is where the alpha goes soft.",
     costHow: "Two paid calls: the saved run reported $0.0274 in total (Layerize a flat $0.027 at every size, Gemini survey $0.0004, GLM guide $0.00). Refused photos are not charged. Prices and results vary.",
   },
+  "restore-the-photo": {
+    headline: "Restore the Photo",
+    job: "One damaged photo \u2192 a restored print, an identity check, and a repair ledger.",
+    purpose: "A Gemini vision survey inventories the damage first \u2014 scratches, tears, stains, fading, dust, and what touches each face. Seedream 5.5 repairs it under a hard no-inventions rule, Pruna upscales the result back to print size, and a Gemini identity guard compares the restored print against your original and prints a repair ledger \u2014 repaired, rebuilt, left alone \u2014 with a RESTORE: HELD or DRIFTED verdict. GLM writes the guide from the survey and the ledger.",
+    edit: "Swap <em>Damaged photo</em> for your own damaged photograph \u2014 the worse the damage, the more the survey and ledger matter. Keep <em>Restore \u2014 Seedream 5.5</em> on <code>bytedance/seedream-v5.5/edit</code> and its no-inventions clause intact; it is what stops the restorer adding jewelry, glasses or objects that were never there. The guard's instructions live in its system field and the survey reaches it as its prompt \u2014 that wiring is deliberate; do not re-route the survey to the text port.",
+    inspect: "Put the restored print beside your original and check the guard's work: every face the same person, the neck, ears and wrists free of invented jewelry, and the ledger's REBUILT list naming anything that had to be reconstructed. On this saved run the ledger keys to the survey item by item and the verdict is RESTORE: HELD.",
+    costHow: "Four paid calls: the saved run reported $0.0394 in total (Seedream restore $0.028, Pruna upscale $0.01, Gemini survey and guard about $0.0014 together, GLM guide $0.00). Prices and results vary.",
+  },
   "photo-to-game-ready-mesh": {
     headline: "Photo to game-ready mesh",
     job: "One photo of one object → a textured triangle mesh that drops into engines, Blender and slicers.",
@@ -394,7 +402,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo", "photo-to-editable-layers", "slice-3d"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "carve-a-pumpkin", "song-to-music-video", "composer-watches-your-film", "sketch-to-svg", "creator-ad", "one-prompt-looping-gif", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel", "subject-anywhere", "photo-to-3d-splat", "edit-with-references", "one-photo-whole-campaign", "photo-to-game-ready-mesh", "mesh-diet", "talking-photo", "photo-to-editable-layers", "slice-3d", "restore-the-photo"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

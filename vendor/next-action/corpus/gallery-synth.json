@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "product": "next-action",
   "label": "Product · 4",
-  "bakedAt": "2026-11-21T22:03:53.180Z",
-  "graphCount": 47,
-  "exampleCount": 3436,
+  "bakedAt": "2026-11-22T18:07:35.373Z",
+  "graphCount": 48,
+  "exampleCount": 3449,
   "examples": [
     {
       "source": "examples/gallery/add-snow-to-a-clip/graph.json",
@@ -68685,6 +68685,450 @@
       "nextAction": "run",
       "intentFork": "none",
       "exampleId": "examples/gallery/radio-play/graph.json#run"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 0,
+        "numLinks": 0,
+        "danglingOut": 0,
+        "danglingIn": 0,
+        "selectedType": null
+      },
+      "nextAction": "add:edit",
+      "intentFork": "cold-start",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#restore-upscale-guard-guide-note@0"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 1,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 1,
+        "numLinks": 0,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#set:restore"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 1,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 1,
+        "numLinks": 0,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:edit",
+      "intentFork": "revise-vs-extend",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#restore-upscale-guard-guide-note@1"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 0,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#set:upscale"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 0,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "wire",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#wire:l3"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit",
+        "set:model",
+        "wire"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 1,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:llm",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#restore-upscale-guard-guide-note@2"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit",
+        "set:model",
+        "wire",
+        "add:llm"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 1,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#set:guard"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 1,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "wire",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#wire:l5"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "add:edit",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 1,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 2,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:llm",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#restore-upscale-guard-guide-note@3"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "set:model",
+        "add:edit",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:llm"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 2,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 4,
+        "numLinks": 2,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#set:guide"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "add:edit",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 2,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 4,
+        "numLinks": 2,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "wire",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#wire:l7"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 2,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 4,
+        "numLinks": 3,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:comment",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#restore-upscale-guard-guide-note@4"
+    },
+    {
+      "source": "examples/gallery/restore-the-photo/graph.json",
+      "history": [
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:comment"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 2,
+          "image": 0,
+          "edit": 2,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 1
+        },
+        "numNodes": 4,
+        "numLinks": 7,
+        "danglingOut": 1,
+        "danglingIn": 0,
+        "selectedType": null
+      },
+      "nextAction": "run",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/restore-the-photo/graph.json#run"
     },
     {
       "source": "examples/gallery/same-shot-three-looks/graph.json",

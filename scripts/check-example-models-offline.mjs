@@ -50,6 +50,7 @@ const catalogs = {
     image('moss-image', ['1024x1024', '512x512', '1536x1024', '1024x1536', '1920x1072', '2048x2048']),
     image('bytedance/seedream-v5.0-flash/edit', ['2k','1.5k','1k'], true),
     image('bytedance/seedream/v5/flash/layerize', ['auto', 'auto_1K', 'auto_1.5K', 'auto_2K'], true),
+    image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
     gifImage('gpt-image-2.6-flare'),
     gifImage('gpt-image-2.6-sunburst'),
     image('ideogram/vector', ['auto','1:1','1:4','1:3','1:2','9:16','10:16','2:3','3:4','4:5','5:4','4:3','3:2','16:10','16:9','2:1','3:1','4:1'], true),
