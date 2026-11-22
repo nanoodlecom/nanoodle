@@ -1,5 +1,5 @@
-/* data-hash=3f20b29131be8fa3 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-09f55006c6db (31 modules) */
+/* data-hash=8749ae217a99b5a3 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-8d084c796372 (31 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1818,11 +1818,11 @@ const { NanoodleError } = __req("errors.mjs");
 /* Dynamic input-port families (mirrors the nanoodle app's runGraph). A wire landing on one of
    these ports — or on a port declared in NODE_TYPES[type].inputs — is a data input; a wire
    landing on ANY other port is a field override (wired prompt/system/lyrics/q/...). */
-const IMG_PORT_RE = /^img\d+$/;      // llm vision references, decide candidates
+const IMG_PORT_RE = /^img\d*$/;      // llm vision references, decide candidates
 const EDIT_IMG_RE = /^image\d*$/;    // edit multi-reference: image, image2, ...
-const VID_PORT_RE = /^vid\d+$/;
-const CLIP_PORT_RE = /^clip\d+$/;    // combine clips
-const REF_PORT_RE = /^ref\d+$/;      // tvideo reference images
+const VID_PORT_RE = /^vid\d*$/;
+const CLIP_PORT_RE = /^clip\d*$/;    // combine clips
+const REF_PORT_RE = /^ref\d*$/;      // tvideo reference images
 const FRAME_PORT_RE = /^frame\d+$/;  // vframes outputs
 const MAX_FRAMES = 12;
 
@@ -6031,7 +6031,7 @@ __def("decide.mjs", function (__x, __req) {
 // uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
 const { NanoodleError } = __req("errors.mjs");
 
-const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
+const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.2";
 const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
 /** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
 const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
@@ -8700,5 +8700,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-09f55006c6db";
+  window.NanoodleEngine.version = "src-8d084c796372";
 })();
