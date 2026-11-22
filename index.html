@@ -10045,9 +10045,10 @@ function mountSliceOutput(n){
   let previous;
   mode.addEventListener("pointerdown", e=>e.stopPropagation());
   mode.addEventListener("change", ()=>{
-    if(panel.hidden===(mode.value==="rest")) return;
+    const isRestPose = mode.value==="rest";
+    if(panel.hidden===isRestPose) return;
     pushUndo();
-    if(mode.value==="rest"){
+    if(isRestPose){
       previous = {clip:clip.value, frames:frames.value || "1"};
       clip.value = n.fields.clip = "";
       frames.value = n.fields.frames = 1;
@@ -10231,7 +10232,7 @@ const NODE_TYPES = {
         <div class="fhint" id="${esc(id)}-source" data-slice-source-hint aria-live="polite"></div></div>
       <div data-slice-animation hidden>
         <div class="two"><div data-slice-clip><label>Animation clip</label>
-          <select data-slice-picker aria-label="Animation clip" data-no-i18n hidden></select>
+          <select data-slice-picker aria-label="${esc(t("Animation clip"))}" data-no-i18n hidden></select>
           <textarea rows="1" data-f="clip" aria-label="Animation clip" placeholder="First clip">${esc(n.fields.clip||"")}</textarea></div>
         ${spriteNumber(n,"frames","Pose frames",1,1,64)}</div>
         <div class="fhint">Use 2–64 poses for motion. One pose gives a still.</div>
