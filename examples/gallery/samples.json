@@ -1,5 +1,56 @@
 [
  {
+  "slug": "restore-the-photo",
+  "title": "Restore the Photo",
+  "date": "2026-11-22",
+  "review": "A torn, scratched, sepia-faded portrait comes back as a clean print \u2014 and an identity guard prints the repair ledger to prove nothing was invented.",
+  "note": "Restoration is the oldest paid chore in photo editing \u2014 human studios charge $20\u201385 a photo \u2014 and its AI failure mode is famous: the tool 'fixes' grandma into a stranger. This workflow is built around that fear. A vision survey inventories the damage before anything is touched; Seedream 5.5 repairs under a hard no-inventions rule; a Pruna upscale returns the print at 2896\u00d72896; then an identity guard compares the result against the original face by face and object by object and prints a repair ledger \u2014 repaired, rebuilt, left alone \u2014 ending in a HELD or DRIFTED verdict. The demo portrait is a generated 1940s photograph with synthetic damage applied locally (three vertical scratches, one crossing the face; a torn bottom-left corner; a stain; a crease; sepia fade; dust), so the survey and ledger could be graded against known ground truth: the survey found every planted defect and the saved run's ledger keys to it item by item, verdict RESTORE: HELD. The honesty matters because the first probe run failed exactly the way users fear: the restorer invented a necklace the guard initially waved through. The prompts on both sides were hardened (no-additions clause for the restorer, adversarial neck/ears/wrists/background checks for the guard), and the shipped guide keeps the warning in plain sight: the guard is a check, not a guarantee \u2014 eyeball jewelry, hands and background yourself. A black-and-white original stays black-and-white; this workflow does not colorize.",
+  "layout": "sequence",
+  "costUsd": 0.0394326,
+  "costExact": true,
+  "models": [
+   "google/gemini-3.1-flash-lite",
+   "bytedance/seedream-v5.5/edit",
+   "pruna-ai/p-image/upscale",
+   "z-ai/glm-4.6"
+  ],
+  "graphSha256": "ab1f33018816426a5d41968e203cf3e3876ea0750ad35231eddeed771de98cab",
+  "inputs": [
+   {
+    "label": "Damaged photo",
+    "src": "restore-the-photo/damaged.jpg"
+   }
+  ],
+  "outputs": [
+   {
+    "src": "restore-the-photo/restored.jpg",
+    "kind": "image",
+    "label": "Restored print \u00b7 2896\u00d72896, verdict RESTORE: HELD \u00b7 reported $0.038",
+    "costUsd": 0.038,
+    "sha256": "b1832c14dc961a7c4816e3b4786d3ea1c1d405283de2ef0573086c47947f22e6"
+   },
+   {
+    "src": "restore-the-photo/survey.txt",
+    "kind": "text",
+    "label": "Damage survey \u00b7 Gemini inventories every defect before anything is touched \u00b7 reported $0.0004",
+    "costUsd": 0.00042845,
+    "sha256": "c669dba1bc66dc3f6a78e0127454ec7132503d7fb8339b96a2ec5deec5143043",
+    "collapsed": true
+   },
+   {
+    "src": "restore-the-photo/guard.txt",
+    "kind": "text",
+    "label": "Identity guard + repair ledger \u00b7 every face and object checked against the original \u00b7 reported $0.001",
+    "costUsd": 0.00100415,
+    "sha256": "440ee3444470d92f41d4bafe82bafd2bf897531ee04c2c395022f350197da145",
+    "collapsed": true
+   }
+  ],
+  "preview": "restore-the-photo/preview.webp",
+  "workflow": "restore-the-photo/workflow.json",
+  "workflowSha256": "ab1f33018816426a5d41968e203cf3e3876ea0750ad35231eddeed771de98cab"
+ },
+ {
   "slug": "slice-3d",
   "title": "Slice 3D \u00b7 Fox walk cycle",
   "date": "2026-11-21",
