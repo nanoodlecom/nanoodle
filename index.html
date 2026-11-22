@@ -885,6 +885,9 @@
   .body .chk{ display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--ink); text-transform:none; letter-spacing:0 }
   .body .optflag{ margin-top:.35rem; font-size:.72rem; color:var(--dim) }
   .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
+  .body [data-slice-hint]:empty, .body [data-slice-source-hint]:empty{ display:none }
+  .body .two > [data-slice-clip]{ flex:2 }
+  .body [data-slice-clip].has-clips textarea{ display:none }
   /* an inline hint inside an uppercased <label> opts out of the SHOUTING (reads as a sentence) */
   .body label .lblhint{ text-transform:none; letter-spacing:0; font-weight:400; font-size:.92em }
   .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
@@ -9978,7 +9981,129 @@ function slicePresetValues(preset){
   return preset==="character" ? {slices:80, resolution:128, palette:0, outline:true} : {slices:48, resolution:48, palette:16, outline:true};
 }
 function spriteNumber(n,key,label,initial,min,max,step=1){
-  return `<div><label>${esc(t(label))}</label><input type="number" data-f="${key}" min="${min}" max="${max}" step="${step}" value="${esc(n.fields[key] ?? initial)}"/></div>`;
+  const id = esc("sprite-"+n.id+"-"+key);
+  return `<div><label for="${id}">${esc(t(label))}</label><input id="${id}" type="number" data-f="${key}" min="${min}" max="${max}" step="${step}" value="${esc(n.fields[key] ?? initial)}"/></div>`;
+}
+function mountSliceOutput(n){
+  const mode = n.el.querySelector("[data-slice-output]");
+  const panel = n.el.querySelector("[data-slice-animation]");
+  const clip = n.el.querySelector('[data-f="clip"]');
+  const frames = n.el.querySelector('[data-f="frames"]');
+  let previous;
+  mode.addEventListener("pointerdown", e=>e.stopPropagation());
+  mode.addEventListener("change", ()=>{
+    if(panel.hidden===(mode.value==="rest")) return;
+    pushUndo();
+    if(mode.value==="rest"){
+      previous = {clip:clip.value, frames:frames.value || "1"};
+      clip.value = n.fields.clip = "";
+      frames.value = n.fields.frames = 1;
+    }else{
+      clip.value = n.fields.clip = previous?.clip || "";
+      frames.value = n.fields.frames = previous?.frames || 12;
+    }
+    refreshSliceOutput(n);
+    save();
+  });
+  const picker = n.el.querySelector("[data-slice-picker]");
+  picker.addEventListener("pointerdown", e=>e.stopPropagation());
+  picker.addEventListener("change", ()=>{
+    clip.value = picker.value;
+    clip.dispatchEvent(new Event("input", {bubbles:true}));
+    refreshSliceOutput(n);
+  });
+  clip.addEventListener("change", ()=>refreshSliceOutput(n));
+  frames.addEventListener("change", ()=>{
+    const first = n._sliceModel?.clips?.[0];
+    if(Number(frames.value)===1 && !clip.value && !clip.disabled && first){
+      clip.value = n.fields.clip = first;
+      save();
+    }
+    refreshSliceOutput(n);
+  });
+}
+
+function refreshSliceOutput(n){
+  const el = n.el, mode = el?.querySelector("[data-slice-output]");
+  if(!mode) return;
+  const links = graph.links.filter(l=>l.to.node===n.id);
+  const clipWired = links.some(l=>l.to.port==="clip");
+  const count = Number(n.fields.frames || 1);
+  const useClip = clipWired || !!n.fields.clip || count > 1;
+  mode.value = useClip ? "clip" : "rest";
+  mode.disabled = clipWired;
+  el.querySelector("[data-slice-animation]").hidden = !useClip;
+  el.querySelector("[data-slice-hint]").textContent = count > 1
+    ? t("Animated PNG with one slice sheet per frame.")
+    : useClip ? t("One PNG sheet from the start of the clip.") : "";
+
+  const link = links.find(l=>l.to.port==="model");
+  const src = link && byId(link.from.node);
+  // Uploads may still have a previous result on the canvas after a replacement.
+  const source = src?.type==="mupload" ? src._glbBytes || src.fields.model : src?.out?.[link.from.port];
+  const readable = glbPreviewUrl(source, {allowRemote:useClip});
+  if(n._sliceModel?.source!==readable){
+    n._sliceModel?.controller?.abort();
+    n._sliceModel = {source:readable};
+    if(readable){
+      const request = n._sliceModel;
+      request.controller = new AbortController();
+      request.state = "loading";
+      (async ()=>{
+        const bytes = typeof readable!=="string" ? readable
+          : readable.startsWith("data:") ? dataUrlToBytes(readable)
+          : await fetch(readable, {signal:request.controller.signal}).then(r=>{
+              if(!r.ok) throw new Error("Could not read model");
+              return r.arrayBuffer();
+            });
+        request.clips = (await loadGlbViewer()).animationClips(bytes);
+        request.state = "ready";
+      })().catch(()=>{ request.state = "unavailable"; }).finally(()=>{
+        if(n.el===el && el.isConnected && n._sliceModel===request){
+          refreshSliceOutput(n);
+          redraw();
+        }
+      });
+    }
+  }
+  const {clips, state} = n._sliceModel;
+  const clip = String(n.fields.clip || "");
+  const picker = el.querySelector("[data-slice-picker]");
+  const clipWrap = el.querySelector("[data-slice-clip]");
+  const known = !!clips?.length, missing = known && clip && !clips.includes(clip);
+  clipWrap.classList.toggle("has-clips", known);
+  picker.hidden = !known || clipWired;
+  const values = known ? [[clips[0], clips[0]+ " "+t("(first clip)")], ...clips.slice(1).map(name=>[name,name])] : [];
+  // Keep the empty value used by existing graphs to select the first clip.
+  if(known && !clip && count>1) values[0][0] = "";
+  if(missing) values.push([clip,clip+" "+t("(unavailable)")]);
+  const options = optsHTML(values, clip);
+  if(picker.dataset.options!==options){
+    picker.dataset.options = options;
+    picker.innerHTML = options;
+  }
+  picker.value = clip;
+  const noClips = clips?.length===0;
+  mode.options[1].disabled = noClips && !useClip;
+  const sourceHint = el.querySelector("[data-slice-source-hint]");
+  const message =
+    !src ? t("Connect a 3D model.") :
+    noClips && useClip && !clipWired ? t("This model has no animation clips. Choose Still PNG · rest pose.") :
+    noClips ? t("This model has no animation clips.") :
+    clipWired ? t("The clip comes from the connected input.") :
+    !useClip ? "" :
+    state==="loading" ? t("Reading clips from the model…") :
+    missing ? t("Choose a clip available in this model.") :
+    !known ? t("Enter the exact clip name, or use 2–64 frames with the name blank for the first clip.") :
+    "";
+  if(sourceHint.textContent!==message) sourceHint.textContent = message;
+}
+
+function refreshSliceOutputs(source){
+  for(const n of graph.nodes){
+    if(n.type==="slice-3d" && (!source || graph.links.some(l=>l.from.node===source.id && l.to.node===n.id && l.to.port==="model")))
+      refreshSliceOutput(n);
+  }
 }
 async function runSpriteNode(n,inp){
   const engine = await loadNjsEngine();
@@ -10037,21 +10162,31 @@ const NODE_TYPES = {
   },
 
   "slice-3d": {
-    em:"🧩", title:"Slice 3D", desc:"Cut a 3D model or animation clip into pixel slices", group:"3D", kw:"pixel slices voxel sprite stacking atlas pixel art rigged animated mesh glb gltf ply splat",
+    em:"🧩", title:"Slice 3D", desc:"Turn a 3D model into still or animated pixel slices", group:"3D", kw:"pixel slices voxel sprite stacking atlas pixel art rigged animated mesh glb gltf ply splat",
     inputs:[{name:"model",type:"model3d"},{name:"paletteImage",type:"image",label:"palette image"}],
     outputs:[{name:"sheet",type:"image"},{name:"layout",type:"text"},{name:"image",type:"image",label:"preview"}], preview:"image",
     body:n=>{
       const preset = n.fields.preset || "default", defaults = slicePresetValues(preset);
-      return `<div><label>Preset</label><select data-f="preset">${optsHTML([["default","Default"],["character","Character"]],preset)}</select></div>
+      const id = "slice-output-"+n.id;
+      return `<div><label for="${esc(id)}">Output</label><select id="${esc(id)}" data-slice-output aria-describedby="${esc(id)}-hint ${esc(id)}-source">
+        <option value="rest">Still PNG · rest pose</option><option value="clip">Use model animation</option></select>
+        <div class="fhint" id="${esc(id)}-hint" data-slice-hint></div>
+        <div class="fhint" id="${esc(id)}-source" data-slice-source-hint aria-live="polite"></div></div>
+      <div data-slice-animation hidden>
+        <div class="two"><div data-slice-clip><label>Animation clip</label>
+          <select data-slice-picker aria-label="Animation clip" data-no-i18n hidden></select>
+          <textarea rows="1" data-f="clip" aria-label="Animation clip" placeholder="First clip">${esc(n.fields.clip||"")}</textarea></div>
+        ${spriteNumber(n,"frames","Pose frames",1,1,64)}</div>
+        <div class="fhint">Use 2–64 poses for motion. One pose gives a still.</div>
+      </div>
+      <div><label>Preset</label><select data-f="preset">${optsHTML([["default","Default"],["character","Character"]],preset)}</select></div>
       <div class="two">${spriteNumber(n,"slices","Slices",defaults.slices,8,128)}${spriteNumber(n,"resolution","Tile resolution",defaults.resolution,16,128)}</div>
       <div class="two">${spriteNumber(n,"palette","Palette colors",defaults.palette,0,64)}
       <div><label>Up axis</label><select data-f="upAxis">${optsHTML(["auto","x","y","z"].map(v=>[v,v]),n.fields.upAxis||"auto")}</select></div></div>
       <label><input type="checkbox" data-f="outline"${n.fields.outline===false || n.fields.outline==="false"?"":" checked"}/> Outline</label>
-      <div class="fhint">Palette 0 keeps source colors. Auto uses Y for meshes and Z for splats.</div>
-      <div class="two"><div><label>Animation clip</label><textarea rows="1" data-f="clip">${esc(n.fields.clip||"")}</textarea></div>
-      ${spriteNumber(n,"frames","Pose frames",1,1,64)}</div>
-      <div class="fhint">One frame uses the rest pose, or the start of a named clip. For motion, choose 2–64 frames. An empty clip name plays the first animation.</div>`;
+      <div class="fhint">Palette 0 keeps source colors. Auto uses Y for meshes and Z for splats.</div>`;
     },
+    mount:n=>mountSliceOutput(n),
     run:runSpriteNode
   },
   "sprite-stack-render": {
@@ -12077,6 +12212,7 @@ function putGlbBytes(n, bytes, name){
   const acts = n.el && n.el.querySelector("[data-macts]");
   if(acts) acts.hidden = false;
   idbPutGlb(n.id, { name:n._glbName, bytes:buf });
+  if(typeof refreshSliceOutputs==="function") refreshSliceOutputs(n);
   save();
 }
 async function restoreUploadedModel(n){
@@ -12088,6 +12224,7 @@ async function restoreUploadedModel(n){
   n._glbBytes = rec.bytes;
   n._glbName = rec.name || stub.name;
   n._glbSize = rec.bytes.byteLength;
+  if(typeof refreshSliceOutputs==="function") refreshSliceOutputs(n);
 }
 function showMupload(n){
   const host = n.el && n.el.querySelector("[data-glb-in]");
@@ -12564,6 +12701,7 @@ function decideCardHTML(d){
 }
 function showResult(n){
   const ty = NODE_TYPES[n.type], r = n.el.querySelector(".result");
+  if(n.type==="model3d") refreshSliceOutputs(n);
   const preview = typeof ty.preview==="function" ? ty.preview(n) : ty.preview;
   r.classList.remove("ghost"); delete r.dataset.ghost;   // a real result supersedes the demo teaser (and stops refreshDemoGhosts from wiping it)
   if(preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
@@ -12841,6 +12979,7 @@ function refreshPortFills(){
     }
   }
   refreshPromptCaps();   // wiring a prompt is exactly when "a longer wired prompt is trimmed to fit" has to appear
+  if(typeof refreshSliceOutputs==="function") refreshSliceOutputs();
   try{ syncRunFailPort(); }catch(_){}
 }
 

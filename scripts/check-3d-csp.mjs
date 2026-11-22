@@ -244,6 +244,12 @@ const stack = await send("Runtime.evaluate", { awaitPromise: true, returnByValue
     return graph.nodes[graph.nodes.length - 1];
   }
   const slicer = addConnected("slice-3d", input, "out", "model", 400);
+  const mode = slicer.el.querySelector("[data-slice-output]");
+  const animation = slicer.el.querySelector("[data-slice-animation]");
+  if(mode.value!=="rest" || !animation.hidden || animation.offsetHeight) throw Error("A new Slice 3D node should show a still output");
+  for(let i=0;i<100 && !mode.options[1].disabled;i++) await new Promise(r=>setTimeout(r,50));
+  if(!mode.options[1].disabled || !slicer.el.querySelector("[data-slice-source-hint]").textContent.includes("no animation clips"))
+    throw Error("Static model should explain why animation is unavailable");
   Object.assign(slicer.fields, {slices:16, resolution:24});
   const render = addConnected("sprite-stack-render", slicer, "out", "sheet", 720);
   await runGroup([render.id]);
@@ -322,6 +328,21 @@ const exported = await evaluate(async () => {
   const example = await (await fetch("/examples/gallery/slice-3d/graph.json")).json();
   applyGraphData(example);
   const slicer = graph.nodes.find(n=>n.type==="slice-3d"), render = graph.nodes.find(n=>n.type==="sprite-stack-render");
+  const mode = slicer.el.querySelector("[data-slice-output]");
+  const animation = slicer.el.querySelector("[data-slice-animation]");
+  const picker = slicer.el.querySelector("[data-slice-picker]");
+  const select = (el,value)=>{ el.value = value; el.dispatchEvent(new Event("change",{bubbles:true})); };
+  for(let i=0;i<100 && picker.hidden;i++) await new Promise(r=>setTimeout(r,50));
+  if(picker.hidden || mode.value!=="clip" || animation.hidden || picker.value!=="Walk" ||
+      ["Walk","Run","Survey"].some(name=>![...picker.options].some(o=>o.value===name)))
+    throw Error("Saved Fox workflow should list its model clips and select Walk");
+  select(mode,"rest");
+  if(!animation.hidden || slicer.fields.clip || slicer.fields.frames!==1) throw Error("Still output should clear the active clip and use one pose");
+  select(mode,"clip");
+  if(animation.hidden || picker.value!=="Walk" || Number(slicer.fields.frames)!==12) throw Error("Switching back should restore the clip and frame count");
+  select(picker,"Run");
+  if(slicer.fields.clip!=="Run") throw Error("Choosing a model clip should update the graph");
+  select(picker,"Walk");
   function set(field,value){
     const el = slicer.el.querySelector('[data-f="'+field+'"]');
     el.value = value;
@@ -376,6 +397,13 @@ const app = await evaluate(async () => {
   const field = (name)=>[...inputs.querySelectorAll(".field")].find(row=>row.querySelector("label")?.textContent.trim()===name)?.querySelector("input,select");
   const preset = field("Preset");
   if(!preset || preset.value!=="character" || field("Tile resolution").value!=="24" || field("Animation clip").value!=="Walk") throw Error("Builder settings lost");
+  const mode = field("Output"), animation = mode?.closest("[data-slice-output]").querySelector("[data-slice-animation]");
+  if(mode?.value!=="clip" || animation.hidden) throw Error("App should start on the saved animation");
+  for(const value of ["rest","clip"]){
+    mode.value=value; mode.dispatchEvent(new Event("change",{bubbles:true}));
+    if(animation.hidden!==(value==="rest")) throw Error("App visibility should follow the output mode");
+  }
+  if(field("Animation clip").value!=="Walk" || Number(field("Pose frames").value)!==4) throw Error("App should restore saved clip settings after switching back");
   function selectPreset(name){ preset.value=name; preset.dispatchEvent(new Event("change",{bubbles:true})); }
   selectPreset("default"); selectPreset("character");
   if(field("Tile resolution").value!=="128" || field("Palette colors").value!=="0" || field("Slices").value!=="80" || !field("Outline").checked) throw Error("App preset controls not synchronized");

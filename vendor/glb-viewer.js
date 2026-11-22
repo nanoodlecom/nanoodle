@@ -692,5 +692,14 @@
     };
   }
 
-  root.NanoodleGlbViewer = { mount: mount, parseGlb: parseGlb };
+  function animationClips(input) {
+    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+    if (bytes[0] === 112 && bytes[1] === 108 && bytes[2] === 121) return [];
+    const isGlb = bytes[0] === 103 && bytes[1] === 108 && bytes[2] === 84 && bytes[3] === 70;
+    const json = isGlb ? unpackGlb(bytes).json : JSON.parse(new TextDecoder().decode(bytes));
+    if (!json?.asset) throw new Error("Expected a glTF model");
+    return (json.animations || []).map((clip, i) => clip.name || "Animation " + (i + 1));
+  }
+
+  root.NanoodleGlbViewer = { mount: mount, parseGlb: parseGlb, animationClips: animationClips };
 })(typeof globalThis !== "undefined" ? globalThis : this);

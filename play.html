@@ -15384,6 +15384,44 @@ const PROMPT_CAPS = {
     return '<div class="app-note" style="border-color:'+hex+'">'
          + '<div class="app-note-b" style="color:'+hex+';font-weight:'+weight+';font-size:'+size+'px">'+body+'</div></div>';
   }
+  function sliceOutputHtml(group){
+    const clip = group.find(e=>e.ns==="set" && e.it.field==="clip");
+    const frames = group.find(e=>e.ns==="set" && e.it.field==="frames");
+    if(!clip || !frames) return group.map(e=>fieldHtml(e.it,e.idx,e.ns,true)).join("");
+    const id = "slice_output_"+clip.idx;
+    const output = '<div data-slice-output><div class="field"><label for="'+id+'">'+esc(t("Output"))+'</label>'
+      + '<select id="'+id+'" aria-describedby="'+id+'_hint"><option value="rest">'+esc(t("Still PNG · rest pose"))+'</option>'
+      + '<option value="clip">'+esc(t("Use model animation"))+'</option></select>'
+      + '<div id="'+id+'_hint" class="muted" data-slice-hint></div></div>'
+      + '<div data-slice-animation hidden>'+fieldHtml(clip.it,clip.idx,clip.ns,true)+fieldHtml(frames.it,frames.idx,frames.ns,true)
+      + '<div class="muted">'+esc(t("Use 2–64 poses for motion. Leave the clip name blank to use the first clip. Name a clip and choose one pose for a still."))+'</div></div></div>';
+    return output+group.filter(e=>e!==clip && e!==frames).map(e=>fieldHtml(e.it,e.idx,e.ns,true)).join("");
+  }
+  function wireSliceOutput(section){
+    const mode = section.querySelector("select");
+    const [clip,frames] = section.querySelectorAll("[data-ns]");
+    const panel = section.querySelector("[data-slice-animation]");
+    const hint = section.querySelector("[data-slice-hint]");
+    let previous;
+    function refresh(){
+      const animate = Number(frames.value)>1;
+      panel.hidden = !animate && !clip.value;
+      mode.value = panel.hidden ? "rest" : "clip";
+      hint.textContent = animate ? t("Animated PNG with one slice sheet per frame.")
+        : panel.hidden ? "" : t("One PNG sheet from the start of the clip.");
+    }
+    mode.addEventListener("change", ()=>{
+      if(panel.hidden===(mode.value==="rest")) return;
+      if(mode.value==="rest") previous = {clip:clip.value, frames:frames.value || "1"};
+      clip.value = mode.value==="clip" ? previous?.clip || "" : "";
+      frames.value = mode.value==="clip" ? previous?.frames || 12 : 1;
+      for(const el of [clip,frames]) el.dispatchEvent(new Event("input",{bubbles:true}));
+      refresh();
+    });
+    for(const el of [clip,frames]) el.addEventListener("change",refresh);
+    clip.placeholder = t("First clip");
+    refresh();
+  }
   function renderInputs(){
     const box = $("app-inputs"); if(!box) return;
     const inputs = STATE.inputs, settings = STATE.settings || [];
@@ -15423,7 +15461,7 @@ const PROMPT_CAPS = {
         const g = byNode.get(n.id); if(!g) continue;
         const h = g[0].it;
         groups += '<div class="setgroup"><div class="setgroup-h">'+(h.em?esc(h.em)+' ':'')+esc(h.title||"step")+'</div>'
-                + g.map(e=> fieldHtml(e.it, e.idx, e.ns, true)).join("")
+                + (n.type==="slice-3d" ? sliceOutputHtml(g) : g.map(e=>fieldHtml(e.it,e.idx,e.ns,true)).join(""))
                 + '</div>';
       }
       html += '<details class="opt">'
@@ -15485,6 +15523,7 @@ const PROMPT_CAPS = {
         if(el.tagName==="SELECT") el.addEventListener("change", sync);
       }
     });
+    box.querySelectorAll("[data-slice-output]").forEach(wireSliceOutput);
     fillModelLists();
     fillDimLists();   // rewrite size/resolution/aspect/duration options from each model's live catalog
     fillLangLists();  // swap the Transcribe language box for a <select> when the model lists supported languages
