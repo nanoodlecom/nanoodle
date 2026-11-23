@@ -93,6 +93,8 @@ try {
     declaresWireOutput: extractFn(html, "declaresWireOutput"),
     declaresWireInput: extractFn(html, "declaresWireInput"),
     invalidWireMessage: extractFn(html, "invalidWireMessage"),
+    inputConflict: ["competingInputMessage", "guaranteedWireOutput", "unconditionalInputConflict"]
+      .map(name => extractFn(html, name)).join("\n"),
     wireInputFields: extractConst(html, /^  const WIRE_INPUT_FIELDS = \{[\s\S]*?^  };/m, "const WIRE_INPUT_FIELDS"),
     RUN_CHOICES: extractConst(html, /const\s+RUN_CHOICES\s*=\s*\[[^\]]*\]\s*;/, "const RUN_CHOICES"),
     RUN_RESUME_KEY: extractConst(html, /const\s+RUN_RESUME_KEY\s*=\s*"[^"]*"\s*;/, "const RUN_RESUME_KEY"),
@@ -169,6 +171,7 @@ const program =
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
   lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" + lift.unsupportedGraphMessage + "\n" +
   lift.wireInputFields + "\n" + lift.declaresWireOutput + "\n" + lift.declaresWireInput + "\n" + lift.invalidWireMessage + "\n" +
+  lift.inputConflict + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };

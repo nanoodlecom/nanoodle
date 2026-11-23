@@ -38,6 +38,8 @@ const runGroupSrc = extractAsyncFn(SRC, "runGroup");
 const declaresWireOutputSrc = extractFn(SRC, "declaresWireOutput");
 const declaresWireInputSrc = extractFn(SRC, "declaresWireInput");
 const invalidWireMessageSrc = extractFn(SRC, "invalidWireMessage");
+const inputConflictSrc = ["competingInputMessage", "guaranteedWireOutput", "unconditionalInputConflict"]
+  .map(name => extractFn(SRC, name)).join("\n");
 const wireInputFieldsSrc = SRC.match(/^const WIRE_INPUT_FIELDS = \{[\s\S]*?^};/m)[0];
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
 const ancestorsSrc = extractFn(SRC, "ancestors");
@@ -168,6 +170,7 @@ function bindWorld(world, opts = {}) {
   vm.createContext(ctx);
   new vm.Script(
     wireInputFieldsSrc + "\n" + declaresWireOutputSrc + "\n" + declaresWireInputSrc + "\n" + invalidWireMessageSrc + "\n" +
+    inputConflictSrc + "\n" +
     isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
@@ -197,6 +200,15 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "an undeclared output stops the editor before either node runs");
   ok(w.nodes.n1._st === "error" && w.nodes.n1._message.includes('Node "n0" has no output port "obsoletePort"'),
     "the editor identifies the bad source port on the selected node");
+}
+
+{
+  const w = makeWorld(3, false);
+  w.links[0].to.node = "n2";
+  await run(w, "n2");
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "competing wires stop the editor before any source or consumer runs");
+  ok(w.nodes.n2._st === "error" && w.nodes.n2._message.includes('competing wires for input "image"'),
+    "the editor identifies the competing input on the selected node");
 }
 
 for (const [endpoint, edit, expected] of [

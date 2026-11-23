@@ -14662,6 +14662,63 @@ const PROMPT_CAPS = {
     }
     return null;
   }
+  function competingInputMessage(links, include){
+    const destinations = new Map();
+    for(const link of links){
+      if(!include(link)) continue;
+      const {from, to} = link;
+      let ports = destinations.get(to.node);
+      if(!ports) destinations.set(to.node, ports = new Map());
+      const first = ports.get(to.port);
+      if(!first){ ports.set(to.port, from); continue; }
+      if(first.node===from.node && first.port===from.port) continue;
+      const sources = [first.node + "." + first.port, from.node + "." + from.port].sort().join(" and ");
+      return 'Node "' + to.node + '" has competing wires for input "' + to.port + '" (' + sources + '). Leave one active wire for this input.';
+    }
+    return null;
+  }
+  function guaranteedWireOutput(link, byId){
+    const source = byId(link.from.node);
+    if(!source || !Object.hasOwn(NODE_TYPES, source.type)) return false;
+    const port = link.from.port;
+    if(/^(endpoint|render3d|vframes)$/.test(source.type)) return false;
+    if(source.type==="sprite-stack-render") return port==="image";
+    if(source.type==="decide") return port==="text" || port==="decision";
+    const outputs = NODE_TYPES[source.type].outputs;
+    return Array.isArray(outputs) && outputs.some(p=>p.name===port);
+  }
+  function unconditionalInputConflict(links, byId, ids){
+    if(!links?.length) return null;
+    const inScope = l=> (!ids || ids.has(l.to.node)) && guaranteedWireOutput(l, byId);
+    const conflict = competingInputMessage(links, inScope);
+    if(!conflict) return null;
+    // A routed or gated consumer may not run, even with ordinary inbound wires.
+    const wiredModes = new Set(), wiredGates = new Set(), outgoing = new Map();
+    for(const {from,to} of links){
+      if(to.port==="mode") wiredModes.add(to.node);
+      if(to.port==="gate") wiredGates.add(to.node);
+      if(!outgoing.has(from.node)) outgoing.set(from.node, []);
+      outgoing.get(from.node).push(to.node);
+    }
+    const pending = [];
+    for(const {from,to} of links){
+      const node = byId(from.node);
+      if(node?.type!=="decide") continue;
+      const f = node.fields || {};
+      const controls = f.branch===true ? (from.port==="yes" || from.port==="no")
+        : (f.gate===true || f.gate==="true" || wiredGates.has(node.id)) && (f.mode==="yesno" || wiredModes.has(node.id));
+      if(controls) pending.push(to.node);
+    }
+    if(!pending.length) return conflict;
+    const conditional = new Set();
+    while(pending.length){
+      const id = pending.pop();
+      if(conditional.has(id)) continue;
+      conditional.add(id);
+      for(const target of outgoing.get(id) || []) pending.push(target);
+    }
+    return competingInputMessage(links, l=> !conditional.has(l.to.node) && inScope(l));
+  }
   function isPaidNanoType(type){
     return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
   }
@@ -14689,7 +14746,8 @@ const PROMPT_CAPS = {
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
     const unsupported = unsupportedGraphMessage(graph, ids);
     if(unsupported) throw new Error(unsupported);
-    const invalidWire = invalidWireMessage(graph.links, graph.byId, opts.seeds?.length ? ids : undefined);
+    const scope = opts.seeds?.length ? ids : undefined;
+    const invalidWire = invalidWireMessage(graph.links, graph.byId, scope) || unconditionalInputConflict(graph.links, graph.byId, scope);
     if(invalidWire) throw new Error(invalidWire);
     if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
@@ -14740,7 +14798,7 @@ const PROMPT_CAPS = {
         const n = byId(id); if(!n) return;
         const t = NODE_TYPES[n.type], inp = {};
         if(t.note) return;   // annotation node — nothing to run, no cost, no status
-        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : runOutputs.get(src)) : graph.links;
+        let activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : runOutputs.get(src)) : graph.links;
         if(activeLinks===null){
           onStatus && onStatus(id, "skip", "skipped — branch not selected");
           return;
@@ -14751,6 +14809,13 @@ const PROMPT_CAPS = {
           const byGate = activeDeps.some(d=> gated.has(d)) && activeDeps.every(d=> !failed.has(d) || gated.has(d));
           failed.add(id); if(byGate) gated.add(id);
           onStatus && onStatus(id, "skip", byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"); return; }
+        activeLinks = activeLinks.filter(l=> l.to.node===id && wireValue(l)!=null);
+        const conflict = competingInputMessage(activeLinks, ()=>true);
+        if(conflict){
+          failed.add(id); nodeErrors++;
+          onStatus && onStatus(id, "error", conflict);
+          return;
+        }
         for(const port of t.inputs){
           const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
           if(l) inp[port.name] = wireValue(l);
@@ -17620,7 +17685,8 @@ const PROMPT_CAPS = {
     if(running) return;
     const unsupported = unsupportedGraphMessage(STATE && STATE.graph);
     if(unsupported){ statusLine("__unsupported__", "error", unsupported); return; }
-    const invalidWire = invalidWireMessage(STATE?.graph?.links, STATE?.graph?.byId);
+    const invalidWire = invalidWireMessage(STATE?.graph?.links, STATE?.graph?.byId) ||
+      unconditionalInputConflict(STATE?.graph?.links, STATE?.graph?.byId);
     if(invalidWire){ statusLine("__invalidwire__", "error", invalidWire); return; }
     if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:

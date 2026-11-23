@@ -11345,15 +11345,24 @@ function buildNodeEl(n){
 // Keep a node's image ports contiguous (img1, img2, …) after one is unwired — without this,
 // removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
 // links in place, preserving order. Safe no-op for nodes without image inputs.
+function compactInputSlots(links, name){
+  const ports = new Map();
+  for(const link of links){
+    const port = link.to.port;
+    // Routed alternatives and malformed overlaps both retain their shared slot.
+    if(!ports.has(port)) ports.set(port, name(ports.size+1));
+    link.to.port = ports.get(port);
+  }
+}
 function recompactImageLinks(n){
   const s = imgSpec(n); if(!s) return;
   // NOT for role-ordered models: there the slot IS the meaning (image = person, image2 = garment),
   // so re-packing after unwiring slot 1 would silently promote the garment into the person slot and
   // ship a wrong-but-plausible paid render. Leave the hole; edit.run() refuses to send with one.
   if(s.roles) return;
-  graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
-    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port))
-    .forEach((l,i)=>{ l.to.port = s.name(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
+    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port));
+  compactInputSlots(links, s.name);
 }
 
 // Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
@@ -11381,16 +11390,16 @@ function refreshImageInputs(n){
 // Re-pack vid1..vidN after a disconnect so there's never a hole (mirror of recompactImageLinks).
 function recompactVideoLinks(n){
   if(!n || !NODE_TYPES[n.type]?.videoInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "vid"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"vid"+i);
 }
 // Re-pack ref1..refN after a disconnect so there's never a hole (mirror of recompactVideoLinks).
 function recompactRefLinks(n){
   if(!n || !NODE_TYPES[n.type]?.refInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "ref"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"ref"+i);
 }
 // Render the Combine node's dynamic clip input ports. Idempotent — safe after connect,
 // disconnect, or graph load. Shows every wired clip plus one empty trailing slot.
@@ -14801,6 +14810,63 @@ function invalidWireMessage(links, byId, ids){
   }
   return null;
 }
+function competingInputMessage(links, include){
+  const destinations = new Map();
+  for(const link of links){
+    if(!include(link)) continue;
+    const {from, to} = link;
+    let ports = destinations.get(to.node);
+    if(!ports) destinations.set(to.node, ports = new Map());
+    const first = ports.get(to.port);
+    if(!first){ ports.set(to.port, from); continue; }
+    if(first.node===from.node && first.port===from.port) continue;
+    const sources = [first.node + "." + first.port, from.node + "." + from.port].sort().join(" and ");
+    return 'Node "' + to.node + '" has competing wires for input "' + to.port + '" (' + sources + '). Leave one active wire for this input.';
+  }
+  return null;
+}
+function guaranteedWireOutput(link, byId){
+  const source = byId(link.from.node);
+  if(!source || !Object.hasOwn(NODE_TYPES, source.type)) return false;
+  const port = link.from.port;
+  if(/^(endpoint|render3d|vframes)$/.test(source.type)) return false;
+  if(source.type==="sprite-stack-render") return port==="image";
+  if(source.type==="decide") return port==="text" || port==="decision";
+  const outputs = NODE_TYPES[source.type].outputs;
+  return Array.isArray(outputs) && outputs.some(p=>p.name===port);
+}
+function unconditionalInputConflict(links, byId, ids){
+  if(!links?.length) return null;
+  const inScope = l=> (!ids || ids.has(l.to.node)) && guaranteedWireOutput(l, byId);
+  const conflict = competingInputMessage(links, inScope);
+  if(!conflict) return null;
+  // A routed or gated consumer may not run, even with ordinary inbound wires.
+  const wiredModes = new Set(), wiredGates = new Set(), outgoing = new Map();
+  for(const {from,to} of links){
+    if(to.port==="mode") wiredModes.add(to.node);
+    if(to.port==="gate") wiredGates.add(to.node);
+    if(!outgoing.has(from.node)) outgoing.set(from.node, []);
+    outgoing.get(from.node).push(to.node);
+  }
+  const pending = [];
+  for(const {from,to} of links){
+    const node = byId(from.node);
+    if(node?.type!=="decide") continue;
+    const f = node.fields || {};
+    const controls = f.branch===true ? (from.port==="yes" || from.port==="no")
+      : (f.gate===true || f.gate==="true" || wiredGates.has(node.id)) && (f.mode==="yesno" || wiredModes.has(node.id));
+    if(controls) pending.push(to.node);
+  }
+  if(!pending.length) return conflict;
+  const conditional = new Set();
+  while(pending.length){
+    const id = pending.pop();
+    if(conditional.has(id)) continue;
+    conditional.add(id);
+    for(const target of outgoing.get(id) || []) pending.push(target);
+  }
+  return competingInputMessage(links, l=> !conditional.has(l.to.node) && inScope(l));
+}
 function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
@@ -14834,7 +14900,7 @@ async function runGroup(seedIds, ctx){
   if([...seedSet].some(id=> seedRuns.has(id))) return;
   const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
   if(!ids.size) return;
-  const invalidWire = invalidWireMessage(graph.links, byId, ids);
+  const invalidWire = invalidWireMessage(graph.links, byId, ids) || unconditionalInputConflict(graph.links, byId, ids);
   if(invalidWire){ seedSet.forEach(id=> setStatus(byId(id), "error", invalidWire)); return; }
   // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
   const lock = ids;
@@ -14892,12 +14958,15 @@ async function runGroup(seedIds, ctx){
         // Stop on this Play's seed: don't start (or re-roll) the seed itself.
         // Shared ancestors keep going when another Play still holds them.
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
-        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        let activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
         if(activeLinks===null){ setSkipped(n, false, true); return; }
         const activeDeps = branches ? activeLinks.map(l=> l.from.node) : deps;
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
         if(activeDeps.some(d=> failed.has(d))){ failed.add(id); const byGate = activeDeps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
+        activeLinks = activeLinks.filter(l=> l.to.node===id && byId(l.from.node)?.out?.[l.from.port]!=null);
+        const conflict = competingInputMessage(activeLinks, ()=>true);
+        if(conflict){ failed.add(id); setStatus(n, "error", conflict); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
@@ -15110,7 +15179,7 @@ function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
   const unsupported = graph.nodes.find(n=>n._unsupportedNode);
   if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
-  const invalidWire = invalidWireMessage(graph.links, byId);
+  const invalidWire = invalidWireMessage(graph.links, byId) || unconditionalInputConflict(graph.links, byId);
   if(invalidWire){ flash(invalidWire); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
