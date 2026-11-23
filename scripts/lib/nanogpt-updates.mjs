@@ -332,7 +332,10 @@ export function classifyCard(card) {
 
   let skip = false;
   let kind = linkKind;
-  if (!linkKind) {
+  if (/^\d+ new image templates$/i.test(title) && /image templates.{0,100}\bin Studio\b/i.test(description)) {
+    // The linked model is already available. These presets are in NanoGPT Studio.
+    skip = true;
+  } else if (!linkKind) {
     if (intent === "retired") kind = "retired";
     else if (intent === "pricing") kind = "pricing";
     else skip = true;
@@ -341,8 +344,15 @@ export function classifyCard(card) {
   const idKey = seenKeyForId(card && card.id);
   const keys = [];
   if (idKey) keys.push(idKey);
-  for (const m of models) keys.push(seenKeyForSlug(date || "", m.slug));
-  if (!models.length && !skip && date) keys.push(fallbackTitleKey(date, intent, title));
+  if (!skip && date) {
+    // A launch and a price or retirement event can link the same model on the
+    // same day. Keep ID-free fallback keys specific to the event in those cases.
+    if (!models.length || intent === "pricing" || intent === "retired") {
+      keys.push(fallbackTitleKey(date, intent, title));
+    } else {
+      for (const m of models) keys.push(seenKeyForSlug(date, m.slug));
+    }
+  }
 
   return {
     id: card && card.id != null ? String(card.id) : null,
@@ -412,7 +422,8 @@ export function selectPending(cards, seen, opts = {}) {
 
     if (info.skip) continue;
 
-    if (info.keys.some(k => seenSet.has(k))) {
+    const eventHasId = idKey && (info.intent === "pricing" || info.intent === "retired");
+    if (!eventHasId && info.keys.some(k => seenSet.has(k))) {
       if (isChatPath(info)) hitSeenChat = true;
       continue;
     }
@@ -489,7 +500,8 @@ export function groupPending(pending) {
   const groups = [];
   for (const info of pending) {
     const titles = displayTitles(info, info.models, info.intent);
-    const g = groups.find(g => g.date === info.date && g.description === info.description);
+    const g = groups.find(g => g.date === info.date && g.description === info.description &&
+      g.intent === info.intent && g.kind === info.kind);
     if (g) {
       g.titles.push(...titles);
       g.keys.push(...info.keys);
@@ -590,10 +602,12 @@ export async function fetchApiUpdates(fetchImpl, opts = {}) {
   return all;
 }
 
-export function shouldStopFetching(cards, seen) {
+export function shouldStopFetching(cards, seen, batch) {
   const seenSet = new Set(seen || []);
   if (hasSeenApiIds(seen || [])) {
-    return cards.some(c => seenSet.has(seenKeyForId(c && c.id)));
+    // A known card on page one can come from a hand-written update. Check at
+    // least the next page and look for an anchor on that page or a later one.
+    return cards.length > batch.length && batch.some(c => seenSet.has(seenKeyForId(c && c.id)));
   }
   if (!cards.length) return false;
   const last = cards[cards.length - 1];
