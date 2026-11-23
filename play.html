@@ -10149,7 +10149,17 @@ window.NoodleApp = (function () {
      HTML can use NanoGPT while open but can never read or exfiltrate the key.
      STANDALONE (exported/hosted top-level) = call directly with our own pasted/OAuth key. */
   const EMBEDDED = !!(window.parent && window.parent !== window);
-  let parentAuthed = false;                                   // set by the parent's __auth__ message
+  let parentAuthed = false;
+  let parentCredential = null;
+  const currentCredential = ()=> EMBEDDED ? parentCredential : getKey();
+  function credentialChangedError(){
+    const error = new Error("The NanoGPT account changed while this request was running. Run again with the intended account.");
+    // The delegated client treats a 4xx poll error as a nonterminal exit.
+    return Object.assign(error, { code:"credential-changed", status:409 });
+  }
+  function checkCredential(credential){
+    if(credential!==currentCredential()) throw credentialChangedError();
+  }
   // Cancellation — one AbortController per run(); Stop aborts it, which cancels
   // in-flight fetches, wakes pending poll-sleeps, and halts every dependent step.
   let ABORT = null;
@@ -10187,11 +10197,12 @@ window.NoodleApp = (function () {
   function authHeaders(){ return { "Content-Type":"application/json" }; }
 
   // every NanoGPT data call goes through here
-  async function apiFetch(url, opts){
+  async function apiFetch(url, opts, credential = currentCredential()){
     opts = opts || {};
-    const signal = ABORT ? ABORT.signal : undefined;
-    if(EMBEDDED) return proxyFetch(url, opts, signal);
-    const k = getKey();
+    const signal = opts.signal ?? ABORT?.signal;
+    checkCredential(credential);
+    if(EMBEDDED) return proxyFetch(url, opts, signal, credential);
+    const k = credential;
     // Content reads are redirect:manual and must not carry x-api-key. A followed
     // cross-origin redirect would keep that custom header and drop Authorization.
     const headers = Object.assign({}, opts.headers, { Authorization:"Bearer "+k });
@@ -10203,16 +10214,16 @@ window.NoodleApp = (function () {
   // ask the parent to make the call; get back a minimal fetch-Response shim.
   // the signal arg lets Stop reject the pending call locally so the lane halts at once
   // (the parent's in-flight request may finish, but we ignore its result).
-  function proxyFetch(url, opts, signal){
+  function proxyFetch(url, opts, signal, credential){
     const id = (proxyFetch._n = (proxyFetch._n||0)+1);
     return new Promise((resolve, reject)=>{
       if(signal && signal.aborted){ reject(abortError()); return; }
       function cleanup(){ window.removeEventListener("message", onMsg); if(signal) signal.removeEventListener("abort", onAbort); }
       function onAbort(){ cleanup(); reject(abortError()); }
       function onMsg(e){
-        const d = e.data; if(!d || d.type!=="__api_result__" || d.id!==id) return;
+        const d = e.data; if(e.source!==window.parent || !d || d.type!=="__api_result__" || d.id!==id) return;
         cleanup();
-        if(d.error){ reject(new Error(d.error)); return; }
+        if(d.error){ reject(d.accountChanged ? credentialChangedError() : new Error(d.error)); return; }
         const headers = d.headers || {}, buf = d.body || new ArrayBuffer(0);
         resolve({
           ok:d.ok, status:d.status,
@@ -10227,7 +10238,7 @@ window.NoodleApp = (function () {
       window.addEventListener("message", onMsg);
       if(signal) signal.addEventListener("abort", onAbort);
       const h = Object.assign({}, opts.headers); delete h.Authorization; delete h["x-api-key"];   // parent owns auth
-      window.parent.postMessage({ type:"__api__", mount:window.NOODLE_PREVIEW_MOUNT, id, url, method:opts.method||"GET", headers:h,
+      window.parent.postMessage({ type:"__api__", mount:window.NOODLE_PREVIEW_MOUNT, credential, id, url, method:opts.method||"GET", headers:h,
                                   body: (opts.body!=null ? String(opts.body) : null),
                                   redirect: opts.redirect || null }, "*");
     });
@@ -10313,12 +10324,13 @@ window.NoodleApp = (function () {
     if(bal == null || !isFinite(Number(bal))) return "";
     return Number(bal).toFixed(2);
   }
-  function bumpCost(c){
+  function bumpCost(c, credential){
+    const current = credential===undefined || credential===currentCredential();
     var prevBal = COST.balance;
     COST.count++;
     if(c && c.usd!=null){ COST.total += c.usd; if(c.estimate) COST.exact = false; }   // estimate counts toward the total but keeps the meter honest (~)
     else COST.exact = false;                                                           // unknown price → total is a lower bound
-    if(c && c.balance!=null){ COST.balance = c.balance; COST.balStale = false; _playBalSeq++; }
+    if(current && c && c.balance!=null){ COST.balance = c.balance; COST.balStale = false; _playBalSeq++; }
     var stepUsd = (c && c.usd!=null) ? c.usd : null;
     if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
     paintCost();
@@ -10328,13 +10340,14 @@ window.NoodleApp = (function () {
     // or catalog estimate) then needs one check-balance so the chip is exact,
     // not a locally subtracted approximation. Known-free $0 does not refresh.
     var gotBal = !!(c && c.balance!=null);
-    if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshPlayBalance==="function") refreshPlayBalance(true);
+    if(current && stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshPlayBalance==="function") refreshPlayBalance(true);
     return (c && c.usd!=null) ? c.usd : 0;
   }
   function notifyParentCost(){
     try{ if(window.parent && window.parent!==window) window.parent.postMessage({ type:"__cost__", total:COST.total, exact:COST.exact, balance:COST.balance, count:COST.count }, "*"); }catch(e){}
   }
-  function applyPollBalance(s, r, _refunded){
+  function applyPollBalance(s, r, _refunded, credential){
+    if(credential!==undefined && credential!==currentCredential()) return false;
     var h = costFromHeaders(r);
     var bodyBal = (s && typeof s.remainingBalance==="number") ? s.remainingBalance
       : (s && s.data && typeof s.data.remainingBalance==="number") ? s.data.remainingBalance : null;
@@ -11212,7 +11225,17 @@ function imgExtra(n){
   // until the content fetch succeeds, so a failed fetch retries only that fetch. A genuine
   // FAILED/ERROR/CANCELED deletes the entry. Module-level, so it survives re-runs in both
   // the exported file and the builder preview iframe.
-  const PENDING_VIDEO = new Map();   // runKey (nodeId:lane) -> {runId, sig, resultUrl?} of an in-flight or finished-but-unfetched video job
+  // Keep jobs, fixed-seed outputs and in-flight work in the credential scope that owns them.
+  const accountRuns = new Map();
+  const outputOwners = new WeakMap();
+  function accountRunState(credential = currentCredential()){
+    let state = accountRuns.get(credential);
+    if(!state){
+      state = { video:new Map(), audio:new Map(), cache:new Map(), work:new Map() };
+      accountRuns.set(credential, state);
+    }
+    return state;
+  }
   // Async music/TTS: submit charges + returns runId, then we poll /api/tts/status. Dropping the
   // runId on ANY early exit (Stop's abort, the 5-min timeout) meant a re-run re-submitted and
   // double-charged. PENDING_AUDIO registers the job the moment it exists. A genuine failure
@@ -11221,7 +11244,6 @@ function imgExtra(n){
   // Keys carry the lane index (nodeId:lane) — a multi-count Run executes N cloned graphs with
   // IDENTICAL node ids at once, and bare-nodeId keys made concurrent lanes clobber each other's
   // pending entry (one paid job became unrecoverable). Lane-keying applies to PENDING_VIDEO too.
-  const PENDING_AUDIO = new Map();   // runKey (nodeId:lane) -> {sig, job:{runId,cost,paymentSource,isApiRequest,model}}
   function videoSig(s){              // djb2, tiny + backtick-free; detects input edits so we never resume a stale job
     let h = 5381;
     for(let i=0;i<s.length;i++) h = ((h<<5)+h+s.charCodeAt(i))|0;
@@ -11245,7 +11267,12 @@ function imgExtra(n){
   }
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
-  function makeCtx(onCost, runKey){ return {
+  function makeCtx(onCost, runKey, credential = currentCredential()){
+    const { video:PENDING_VIDEO, audio:PENDING_AUDIO } = accountRunState(credential);
+    const signal = ABORT?.signal;
+    const send = (url, opts)=> apiFetch(url, {...opts, signal}, credential);
+    return {
+    resolveMedia: url=> resolveContentMedia(url, signal, credential),
     // opts.n = images to request (default 1); opts.multi=true returns ALL of them as an array (the gen
     // node's pick-one gallery). Every other caller omits opts and gets one url back, unchanged. Some
     // models always return 4 regardless of n — multi callers surface them all instead of discarding 3.
@@ -11256,7 +11283,7 @@ function imgExtra(n){
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
-      const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      const r = await send(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw httpRunError(r.status, await r.text());
       const j = await r.json();
       const rawPairs = (j.data||[]).map(function(d){ const u = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; return u ? { url: u, layer: (d && typeof d.layer === "object" && d.layer) ? d.layer : null } : null; }).filter(Boolean);
@@ -11270,7 +11297,7 @@ function imgExtra(n){
       onCost(c);
       const urls = [];
       for(const u of rawUrls){
-        try{ urls.push(await resolveContentMedia(u)); }
+        try{ urls.push(await resolveContentMedia(u, undefined, credential)); }
         catch(e){ throw opaqueContentError(e, false); }
       }
       if(opts.items){
@@ -11285,7 +11312,7 @@ function imgExtra(n){
     // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The
     // real price rides usage.cost (input tokens only), so bill that (twin of the editor's genDecision).
     async genDecision(body){
-      const r = await apiFetch(DECIDE_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      const r = await send(DECIDE_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw httpRunError(r.status, await r.text());
       const j = await r.json();
       const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
@@ -11302,7 +11329,7 @@ function imgExtra(n){
       if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
       if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-      const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      const r = await send(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw httpRunError(r.status, await r.text());
       const j = await r.json();
       onCost(costWithHeaders(j, r));
@@ -11349,7 +11376,7 @@ function imgExtra(n){
       const prev = runKey ? PENDING_VIDEO.get(runKey) : null;
       // Provider already finished. Retry only the content fetch — submitting again would charge twice.
       if(prev && prev.sig===sig && prev.resultUrl){
-        return await deliverResolvedMedia(PENDING_VIDEO, runKey, {runId:prev.runId, sig:sig, resultUrl:prev.resultUrl, njs:prev.njs}, prev.resultUrl);
+        return await deliverResolvedMedia(PENDING_VIDEO, runKey, {runId:prev.runId, sig:sig, resultUrl:prev.resultUrl, njs:prev.njs}, prev.resultUrl, undefined, credential);
       }
       const runAbortSignal = ABORT?.signal;
       let accepted = (prev && prev.sig===sig) ? prev : null;
@@ -11358,8 +11385,10 @@ function imgExtra(n){
         if(payload.length > MEDIA_INLINE_MAX)
           throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
         let r;
-        try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
-        catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (" + (e.message||e) + ")"); }
+        try{ r = await send(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
+        catch(e){
+          if(e?.code==="credential-changed" || e?.name==="AbortError") throw e;
+          throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (" + (e.message||e) + ")"); }
         if(!r.ok) throw httpRunError(r.status, await r.text());
         const j = await r.json(); onCost(costWithHeaders(j, r));
         runId = j.runId || j.id;
@@ -11382,11 +11411,11 @@ function imgExtra(n){
         runAbortSignal?.throwIfAborted();
         let pr, s;
         try{
-          pr = await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()});
+          pr = await send(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()});
           if(pr.ok) s = await pr.json();
         }catch(e){
           runAbortSignal?.throwIfAborted();
-          if(e?.name==="AbortError") throw e;
+          if(e?.name==="AbortError" || e?.code==="credential-changed") throw e;
           continue;
         }
         runAbortSignal?.throwIfAborted();
@@ -11409,19 +11438,19 @@ function imgExtra(n){
           const out = (s.data && s.data.output) || s.output || {};
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
           if(!url) throw new Error("completed but no video url");
-          applyPollBalance(s, pr, false);
+          applyPollBalance(s, pr, false, credential);
           const vEntry = {runId:runId, sig:sig, resultUrl:url};
           if(accepted.njs) vEntry.njs = true;
           return await deliverResolvedMedia(
             PENDING_VIDEO, ownsJob ? runKey : null,
-            vEntry, url, runAbortSignal
+            vEntry, url, runAbortSignal, credential
           );
         }
         if(failedStatuses.includes(st)){
           if(ownsJob){
             PENDING_VIDEO.delete(runKey);
           }
-          applyPollBalance(s, pr, true);
+          applyPollBalance(s, pr, true, credential);
           throw new Error("video failed: " + videoFailText(s, st));
         }
       }
@@ -11447,16 +11476,16 @@ function imgExtra(n){
       const bodySig = videoSig(JSON.stringify(body));
       const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
       if(pend && pend.sig===bodySig && pend.resultUrl){
-        return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl);
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl, undefined, credential);
       }
       if(pend && pend.sig===bodySig && pend.job){
-        const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
+        const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig, signal, PENDING_AUDIO, credential);
         if(!url) throw new Error("no audio url in response");
         const kept = (runKey && PENDING_AUDIO.get(runKey)) || { sig:bodySig, job:pend.job, resultUrl:url };
-        return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url);
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url, undefined, credential);
       }
       if(pend && runKey) PENDING_AUDIO.delete(runKey);
-      const r = await apiFetch(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      const r = await send(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){
         const t = (await r.text()).slice(0,220);
         const apiMsg = audioApiMessage(t);
@@ -11473,7 +11502,7 @@ function imgExtra(n){
       if(ct.includes("application/json")){
         const j = await r.json(); onCost(costWithHeaders(j, r));
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
-        if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
+        if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig, signal, PENDING_AUDIO, credential);   // async model → poll (resume-aware)
         if(!url) throw new Error("no audio url in response");
         // The speech POST already charged. Store the raw URL before resolving, even when
         // the JSON body had no runId and no earlier pending job, so a failed fetch is not a second charge.
@@ -11481,7 +11510,7 @@ function imgExtra(n){
         const audEntry = { sig:bodySig, resultUrl:url };
         if(prevAud.job) audEntry.job = prevAud.job;
         if(prevAud.njs) audEntry.njs = true;
-        return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url);
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url, undefined, credential);
       }
       const cAud = costFromHeaders(r);   // binary audio: price rides on x-cost / x-remaining-balance (absent live)
       if(cAud.usd==null){ const est = await estSpeechUsd(model, input, extra); if(est!=null){ cAud.usd = est; cAud.estimate = true; } }
@@ -11514,10 +11543,8 @@ function imgExtra(n){
       fd.append("file", blob, "audio." + ext);    // OpenAI-compatible endpoint: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
       fd.append("model", model);
       if(language) fd.append("language", language);
-      const k = getKey();
-      const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
-        headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
-      if(!r.ok){ flagAuth(r.status, k); throw httpRunError(r.status, await r.text()); }
+      const r = await send(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST", body:fd});
+      if(!r.ok) throw httpRunError(r.status, await r.text());
       const j = await r.json();
       const c = costFromJson(j);   // endpoint returns {text, language, duration} with no cost → estimate from duration × catalog per_minute
       if(c.usd==null){ const est = await estTranscribeUsd(model, +j.duration); if(est!=null){ c.usd = est; c.estimate = true; } }
@@ -11710,14 +11737,15 @@ function imgExtra(n){
     if(kept) return new Error(msg + " The finished job is saved - Run again retries only this download, not a new generation.");
     return new Error(msg + " Running again is a new paid request.");
   }
-  async function deliverResolvedMedia(map, runKey, entry, url, signal){
+  async function deliverResolvedMedia(map, runKey, entry, url, signal, credential){
     signal ??= ABORT?.signal;
     if(runKey && map) map.set(runKey, entry);
     var resolved;
     signal?.throwIfAborted();
-    try{ resolved = await resolveContentMedia(url, signal); }
+    try{ resolved = await resolveContentMedia(url, signal, credential); }
     catch(e){ throw opaqueContentError(e, true); }
     signal?.throwIfAborted();
+    checkCredential(credential);
     if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
     return resolved;
   }
@@ -11804,9 +11832,8 @@ function imgExtra(n){
     }
     throw new Error("provider media redirect did not resolve to a fetchable file");
   }
-  async function resolveContentMedia(url, signal){
-    var key = "";
-    if(typeof getKey==="function") key = getKey() || "";
+  async function resolveContentMedia(url, signal, credential = currentCredential()){
+    var key = EMBEDDED ? "" : credential || "";
     if(signal===undefined){
       if(typeof runSignal==="function") signal = runSignal();
       else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
@@ -11817,21 +11844,21 @@ function imgExtra(n){
       authHeaders: key ? { Authorization:"Bearer " + key } : {},
       signal: signal,
       fetch: function(u, init){
-        if(typeof apiFetch==="function") return apiFetch(u, init);
+        if(typeof apiFetch==="function") return apiFetch(u, init, credential);
         return fetch(u, init);
       }
     });
   }
   // source-video payload for /api/generate-video: a public https link rides as videoUrl (a resolved
   // content redirect is already absolute); anything local is inlined as videoDataUrl.
-  async function videoSourceOpts(url){
-    var resolved = await resolveContentMedia(url);
+  async function videoSourceOpts(url, resolveMedia = resolveContentMedia){
+    var resolved = await resolveMedia(url);
     return /^https?:/.test(resolved) ? { videoUrl:resolved } : { videoDataUrl: await urlToDataUrl(resolved) };
   }
   // source-audio payload for lipsync: a remote song/TTS url rides as audioUrl (no inlining — a long
   // song base64'd would blow past the edge's ~4 MB body limit); only blob/data urls get inlined.
-  async function audioSourceOpts(url){
-    var resolved = await resolveContentMedia(url);
+  async function audioSourceOpts(url, resolveMedia = resolveContentMedia){
+    var resolved = await resolveMedia(url);
     return /^https?:/.test(resolved) ? { audioUrl:resolved } : { audioDataUrl: await urlToDataUrl(resolved) };
   }
   // audio trimming (no libraries — Web Audio decode + manual RIFF encoder, same spirit as the
@@ -12463,7 +12490,7 @@ function mp4ParamsMatch(bufs){
   }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed.
   // runKey + bodySig: the job is stashed in PENDING_AUDIO so a re-run resumes without re-charging.
-  async function pollAudio(model, j, onProgress, runKey, bodySig){
+  async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUDIO, credential){
     const runId = j.runId || j.id;
     const job = { runId:runId, model:model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
     // Remember the job (with its request sig) the moment it exists, so EVERY early exit is recoverable
@@ -12476,17 +12503,16 @@ function mp4ParamsMatch(bufs){
     if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
     if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
     if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
-    const sig = ABORT?.signal;
     const t0 = Date.now();
     while(Date.now()-t0 < 300000){
       await sleep(3000);
       if(sig?.aborted) throw abortError();
       let pr, s;
       try{
-        pr = await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()});
+        pr = await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()}, credential);
         if(pr.ok) s = await pr.json();
       }catch(e){
-        if(e?.name==="AbortError") throw e;
+        if(e?.name==="AbortError" || e?.code==="credential-changed") throw e;
         if(sig?.aborted) throw abortError();
         continue;
       }
@@ -12503,7 +12529,7 @@ function mp4ParamsMatch(bufs){
       if(!s) continue;
       const st = String(s.status || s.data?.status || "").toLowerCase();
       if(st==="completed" || st==="succeeded"){
-        applyPollBalance(s, pr, false);
+        applyPollBalance(s, pr, false, credential);
         const au = s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url);
         if(!au) throw new Error("completed but no audio url");
         // Keep the job + raw URL until the caller’s content fetch succeeds. Deleting
@@ -12519,7 +12545,7 @@ function mp4ParamsMatch(bufs){
         if(slot?.job===job){
           PENDING_AUDIO.delete(runKey);
         }
-        applyPollBalance(s, pr, true);
+        applyPollBalance(s, pr, true, credential);
         throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
       }
       onProgress && onProgress(s.queuePosition, Date.now()-t0);
@@ -12689,9 +12715,9 @@ function mp4ParamsMatch(bufs){
   // Source track for the Remix node's "audio" param (verbatim twin of the editor's remixSourceAudio):
   // a chained https output rides as-is — every provider takes a hosted URL; anything local (upload
   // data:, Trim/Speech blob:) is inlined as a data URL under the ~4.4MB edge body cap.
-  async function remixSourceAudio(url){
+  async function remixSourceAudio(url, resolveMedia = resolveContentMedia){
     if(typeof url!=="string" || !url) throw new Error("no audio — wire a source track into the audio port");
-    var resolved = await resolveContentMedia(url);
+    var resolved = await resolveMedia(url);
     if(/^https?:/.test(resolved)) return resolved;
     const du = await urlToDataUrl(resolved);
     if(du.length > MEDIA_INLINE_MAX)
@@ -12703,7 +12729,7 @@ function mp4ParamsMatch(bufs){
     const text = (inp.text != null ? inp.text : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
     if(!text) throw new Error("no prompt — describe the cover / extension first");
     const extra = await collectAudioParams(n);
-    extra.audio = await remixSourceAudio(inp.audio);
+    extra.audio = await remixSourceAudio(inp.audio, ctx.resolveMedia);
     return { audio: await ctx.genAudio(mdl(n), text, extra,
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
@@ -13810,7 +13836,7 @@ return "image/png";
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
+        const vopts = await videoSourceOpts(inp.video, ctx.resolveMedia); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
         vopts.dims = await videoDimParams(n);   // resolution/aspect/duration under the model's real wire names (seconds/orientation for Sora/WAN)
         const refs = collectRefInputs(inp);
         if(refs.length){   // honor authored ref wires unless a runtime model swap dropped ref support — say so, never silently discard
@@ -13924,7 +13950,7 @@ return "image/png";
               throw e;
             }
             try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }
-          } else opts = await audioSourceOpts(inp.audio);
+          } else opts = await audioSourceOpts(inp.audio, ctx.resolveMedia);
           opts.dims = await videoDimParams(n);      // resolution the avatar model supports (+ any duration/aspect it lists), under its real wire names
           opts.extra = (n.fields.modelOpts||{});    // per-model knobs baked in from the editor (seed/guidance_scale/…)
           try{
@@ -14017,7 +14043,7 @@ return "image/png";
   // "empty inputs": Image / LLM / Music also have inputs:[] but they generate.
   const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, mupload:1, choice:1, comment:1 };
   function isInputKind(type){
-    if(INPUT_KINDS[type]) return true;
+    if(Object.hasOwn(INPUT_KINDS, type)) return true;
     const t = NODE_TYPES[type];
     return !!(t && t.note);
   }
@@ -14039,7 +14065,7 @@ return "image/png";
     return keep;
   }
   function topoOrder(graph, ids){
-    const indeg={}, adj={};
+    const indeg=Object.create(null), adj=Object.create(null);
     ids.forEach(id=>{ indeg[id]=0; adj[id]=[]; });
     for(const l of graph.links) if(ids.has(l.from.node) && ids.has(l.to.node)){ adj[l.from.node].push(l.to.node); indeg[l.to.node]++; }
     const q=[...ids].filter(id=>indeg[id]===0), order=[];
@@ -14049,9 +14075,8 @@ return "image/png";
 
   /* =====================================================================
      MATERIALIZE window.NOODLE_GRAPH into a runnable graph.
-     Mirrors applyGraphData(): audio→tts alias, drop unknown node types,
-     keep only links with surviving endpoints, migrate music/tts header
-     "text" port → inline "prompt" field port.
+     Migrate legacy node types and ports. Preserve unsupported nodes and
+     their dependencies so preflight can stop the run before any API call.
      ===================================================================== */
   // A node's display label: the user's custom name if set, else the node-type title. One source
   // of truth for every place the played app shows a step's name (steps list, settings group
@@ -14061,14 +14086,16 @@ return "image/png";
     const ALIAS = { audio:"tts", "decide-branch":"decide" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
-      const type = ALIAS[sn.type] || sn.type;
-      if(!NODE_TYPES[type]) continue;
+      const rawType = typeof sn.type==="string" ? sn.type : "";
+      const type = Object.hasOwn(ALIAS, rawType) ? ALIAS[rawType] : rawType;
       const fields = { ...(sn.fields||{}) };
       if(type==="decide"){
         fields.model = decideModelId(fields.model) || DECIDE_DEFAULT_MODEL;
         if(sn.type==="decide-branch") fields.branch = true;
       }
-      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields, out:{} });
+      const node = { id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields, out:{} };
+      if(!Object.hasOwn(NODE_TYPES, type)) node.unknown = true;
+      nodes.push(node);
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
     const ids = new Set(nodes.map(n=>n.id));
@@ -14234,8 +14261,6 @@ const PROMPT_CAPS = {
   function isSeeded(n){ var s = nodeSeed(n); return s!=null && String(s).trim()!==""; }
   function sigHash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
   function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; delete f.model3dOutKey; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
-  var RUN_CACHE = new Map();   // id -> {sig, out} (resolved) | {sig, pending} (in-flight, shared across concurrent lanes)
-  var NODE_WORK = new Map();   // id -> Promise<out> — sibling targeted runs await a shared ancestor instead of re-charging
   /* =====================================================================
      nanoodle-js DELEGATION (default ON) — replace-prep Phase E.
      window.NanoodleEngine is the embedded nanoodle-js bundle (the njs-engine
@@ -14273,21 +14298,25 @@ const PROMPT_CAPS = {
   // Library-shaped ctx bridging to THIS runtime's auth, abort signal, pending-job
   // registries and canvas media. Plain fetch + apiKey (never apiFetch): the client
   // adds auth to API calls only, so media CDN downloads never see the key.
-  function njsCtx(E, onCost, runKey, note){
-    const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
+  function njsCtx(E, onCost, runKey, note, credential){
+    const { video:PENDING_VIDEO, audio:PENDING_AUDIO } = accountRunState(credential);
+    const send = (url, opts)=>{
+      checkCredential(credential);
+      return contentFetchForEngine(url, opts);
+    };
+    const client = new E.NanoClient({ apiKey: credential, baseUrl: NANOGPT, fetch: send });
     // The bundled resolver follows redirect:manual and reads Location. Browsers hide
     // that header. A readable Location becomes the file URL. An opaque redirect
     // throws without saying the job was saved; video and audio add that only
     // after they have stored the result.
     client.resolveContentUrl = function(url, opts){
-      var key = "";
-      try{ key = (typeof getKey==="function" && getKey()) || ""; }catch(e){ key = ""; }
+      const key = credential;
       return resolveProviderMediaUrl(url, {
         baseUrl: NANOGPT,
         apiKey: key,
         authHeaders: key ? { Authorization:"Bearer " + key } : {},
         signal: opts && opts.signal,
-        fetch: function(u, init){ return contentFetchForEngine(u, init); }
+        fetch: send
       });
     };
     const io = { onCost: onCost, onPoll: (info)=>{
@@ -14300,8 +14329,15 @@ const PROMPT_CAPS = {
     }, signal: ABORT ? ABORT.signal : undefined };
     const runMedia = (jobs, sig, idField, run)=> E.runResumableMedia({
       jobs, key:runKey, sig, idField, signal:io.signal, run,
-      resolve: url=> client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); }),
-      onTerminalFailure: ()=> refreshPlayBalance(true),
+      resolve: async url=>{
+        try{
+          checkCredential(credential);
+          const result = await client.resolveContentUrl(url, {signal:io.signal});
+          checkCredential(credential);
+          return result;
+        }catch(error){ throw opaqueContentError(error, true); }
+      },
+      onTerminalFailure: ()=>{ if(credential===currentCredential()) refreshPlayBalance(true); },
     });
     return {
       // built-in genChat twin: inject the "respond in <app language>" directive (the library is
@@ -14336,7 +14372,7 @@ const PROMPT_CAPS = {
       transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
       fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
       resolveContentUrl: (url)=> client.resolveContentUrl(url, { signal: io.signal }),
-      fetch: (u,o)=> contentFetchForEngine(u, o),
+      fetch: send,
       signal: io.signal,
       catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
       maskToSource: (mask, source)=> maskToSource(mask, source),   // canvas compositor — handles JPEG/WebP sources
@@ -14354,9 +14390,9 @@ const PROMPT_CAPS = {
   // (rn, inp, runKey) so it can veto per-run shapes the library doesn't yet handle like the
   // built-in does — delegation must NEVER change what a paid request sends or costs (twin of
   // the editor's njsRunFor vetoes; keep the two in lockstep).
-  function njsRunFor(type, rn, inp, runKey){
+  function njsRunFor(type, rn, inp, runKey, credential = currentCredential()){
     if(!NJS_TYPES[type] || !njsOn() || EMBEDDED) return null;
-    if(!getKey()) return null;
+    if(!credential) return null;
     const E = window.NanoodleEngine;
     if(!E || !E.RUNNERS || !E.RUNNERS[type]) return null;
     // Gallery clamp: on a raw-catalog miss the library sends n=variations UNCLAMPED. This runtime's
@@ -14382,6 +14418,7 @@ const PROMPT_CAPS = {
     // ?engine=play in another tab flipping njs_engine, or a veto that no longer applies) uses a
     // body-shaped signature this shim can't match — delegating now would orphan that paid job and
     // re-submit. Let the engine that owns it resume it.
+    const { video:PENDING_VIDEO, audio:PENDING_AUDIO } = accountRunState(credential);
     const pv = runKey ? PENDING_VIDEO.get(runKey) : null, pa = runKey ? PENDING_AUDIO.get(runKey) : null;
     if((pv && !pv.njs) || (pa && !pa.njs)) return null;
     return async function(rn, inp, onCost, runKey, note){
@@ -14396,7 +14433,7 @@ const PROMPT_CAPS = {
           inp2[k] = await urlToDataUrl(inp[k]);
         }
       }
-      const ctx = njsCtx(E, onCost, runKey, note);
+      const ctx = njsCtx(E, onCost, runKey, note, credential);
       ctx.catalog = await njsCatalogs();
       // leftover size snap — njs is the default send path; library posts fields.size raw
       if(type==="image" || type==="edit" || type==="inpaint") snapImageSize(rn, await rawCatItem("image", mdl(rn)));
@@ -14430,6 +14467,13 @@ const PROMPT_CAPS = {
   function graphNeedsNanoKey(graph){
     return ((graph && graph.nodes) || []).some(function(n){ return n && isPaidNanoType(n.type); });
   }
+  function unsupportedGraphMessage(graph, ids){
+    const node = (graph?.nodes || []).find(n=> (!ids || ids.has(n.id)) &&
+      (typeof n.type!=="string" || !Object.hasOwn(NODE_TYPES, n.type)));
+    if(!node) return null;
+    const type = typeof node.type==="string" && node.type ? node.type : "(missing type)";
+    return 'Unsupported node type "' + type + '" (node ' + node.id + '). Open the workflow in a version of nanoodle that supports it.';
+  }
   async function runGraph(graph, opts){
     opts = opts || {};
     const signal = ABORT?.signal;
@@ -14438,12 +14482,20 @@ const PROMPT_CAPS = {
     const onStatus = statusCallback && ((...args)=>{ if(!signal?.aborted) statusCallback(...args); });
     const onResult = resultCallback && ((n)=>{ if(!signal?.aborted) resultCallback(n); });
     checkStopped();
-    if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
-    const byId = graph.byId;
     const seedList = (opts.seeds && opts.seeds.length) ? opts.seeds : graph.nodes.map(n=>n.id);
     const seedSet = new Set(seedList);
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
+    const unsupported = unsupportedGraphMessage(graph, ids);
+    if(unsupported) throw new Error(unsupported);
+    if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
+    const byId = graph.byId;
+    const wireValue = (l)=>{
+      const out = byId(l.from.node)?.out;
+      return out && Object.hasOwn(out, l.from.port) ? out[l.from.port] : undefined;
+    };
     const r = topoOrder(graph, ids);
+    const credential = currentCredential();
+    const {cache:RUN_CACHE, work:NODE_WORK} = accountRunState(credential);
     let branches = null;
     if(graph.nodes.some(n=> n.type==="decide" && n.fields.branch===true) ||
        graph.links.some(l=> (l.from.port==="yes" || l.from.port==="no") && byId(l.from.node)?.type==="decide")){
@@ -14451,7 +14503,7 @@ const PROMPT_CAPS = {
       if(!engine?.planBranches) throw new Error("Branch routing is unavailable in this app export.");
       branches = engine.planBranches(graph, r.order);
     }
-    if(opts.onStart) opts.onStart(r.order.slice());
+    if(opts.onStart) opts.onStart(r.order.slice(), r.cyclic.slice());
     r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
     checkStopped();
     // A targeted Play re-rolls only its seed(s); succeeded ancestors keep .out so the
@@ -14460,8 +14512,8 @@ const PROMPT_CAPS = {
     else graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
     // Each node runs as soon as its OWN inputs are ready — siblings that share a
     // parent (a→b, a→c) run concurrently instead of serializing down topo order.
-    const done = {};                                   // id → promise, keyed so dependents can await their inputs
-    let nodeErrors = 0;                                // per-node failures (isolated, not thrown) — reported for keep-mode backoff
+    const done = Object.create(null);                   // id → promise, keyed so dependents can await their inputs
+    let nodeErrors = r.cyclic.length;                   // per-node failures (isolated, not thrown) — reported for keep-mode backoff
     const failed = new Set(r.cyclic);                   // errored/cyclic ids → dependents must not run (no leftover-field charge)
     const gated = new Set();                            // ⚖️ Decide gates that said no (+ everything they skipped) — a settled "no", not an error
     let generated = 0;                                 // model calls made this pass (not cache reuses, not instant local nodes) — keep mode stops when 0
@@ -14491,45 +14543,45 @@ const PROMPT_CAPS = {
           onStatus && onStatus(id, "skip", byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"); return; }
         for(const port of t.inputs){
           const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
-          if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l) inp[port.name] = wireValue(l);
         }
         // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
         const imgRe = t.imageInputs ? imgPortRe(t) : null;
         if(imgRe) for(const l of activeLinks){
-          if(l.to.node===id && imgRe.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && imgRe.test(l.to.port)) inp[l.to.port] = wireValue(l);
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
         if(t.videoInputs) for(const l of activeLinks){
-          if(l.to.node===id && VID_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && VID_PORT_RE.test(l.to.port)) inp[l.to.port] = wireValue(l);
         }
         // the single audio port on audio-input chat models → read by run() as inp.audio
         if(t.audioInput) for(const l of activeLinks){
-          if(l.to.node===id && l.to.port==="audio"){ const src = byId(l.from.node); inp.audio = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && l.to.port==="audio") inp.audio = wireValue(l);
         }
         // the single video port on video-input chat models → read by run() as inp.video
         if(t.videoInput) for(const l of activeLinks){
-          if(l.to.node===id && l.to.port==="video"){ const src = byId(l.from.node); inp.video = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && l.to.port==="video") inp.video = wireValue(l);
         }
         // the optional end-frame port on the ivideo node → read by run() as inp.endframe (twin of the editor).
         // The exported graph only carries an endframe wire the editor authored against a last_image model;
         // run() re-checks the model (in case of a runtime swap) before sending it.
         if(t.endFrame) for(const l of activeLinks){
-          if(l.to.node===id && l.to.port==="endframe"){ const src = byId(l.from.node); inp.endframe = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && l.to.port==="endframe") inp.endframe = wireValue(l);
         }
         // the character port on the vedit node → read by run() as inp.image (twin of the editor); run() re-checks the model.
         if(t.charInput) for(const l of activeLinks){
-          if(l.to.node===id && l.to.port==="image"){ const src = byId(l.from.node); inp.image = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && l.to.port==="image") inp.image = wireValue(l);
         }
         // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs() (twin of the
         // editor). The exported graph only carries ref wires the editor authored against a ref-image model; run()
         // re-checks the model (in case of a runtime swap) before sending them.
         if(t.refInputs) for(const l of activeLinks){
-          if(l.to.node===id && REF_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+          if(l.to.node===id && REF_PORT_RE.test(l.to.port)) inp[l.to.port] = wireValue(l);
         }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above.
         // Custom endpoint url/mode: path segments (/post) must ride inp for endpointResolveTarget
         // to join onto the typed host — twin of index.html runGroup (gallery $0 httpbingo echo).
-        const fieldOverrides = {};
+        const fieldOverrides = Object.create(null);
         for(const l of activeLinks){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
           if(n.type==="decide" && l.to.port==="branch") continue;
@@ -14539,8 +14591,7 @@ const PROMPT_CAPS = {
           if(t.videoInput && l.to.port==="video") continue;            // the video port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           if(t.charInput && l.to.port==="image") continue;             // the character port isn't a text-field override
-          const src = byId(l.from.node);
-          const v = src && src.out ? src.out[l.from.port] : undefined;
+          const v = wireValue(l);
           if(v==null) continue;
           if(n.type==="endpoint" && (l.to.port==="url" || l.to.port==="mode")){
             inp[l.to.port] = v;
@@ -14568,6 +14619,7 @@ const PROMPT_CAPS = {
           try{
             const out = await sharedWork;
             checkStopped();
+            if(isPaidNanoType(n.type)) checkCredential(credential);
             if(out && Object.keys(out).length){
               n.out = out;   // owner keeps costUsd — joiner lane gets a reused view below
               onStatus && onStatus(id, "done", "done");
@@ -14593,7 +14645,7 @@ const PROMPT_CAPS = {
           const seeded = isSeeded(rn);
           const sig = nodeSig(rn, inp), cached = RUN_CACHE.get(id);
           // A succeeded ancestor with the same signature can be reused by a targeted Play.
-          if(!seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){
+          if(!seedSet.has(id) && outputOwners.get(n)===credential && n._sig===sig && n.out && Object.keys(n.out).length){
             onStatus && onStatus(id, "done", "done");
             onResult && onResult(n);
             resultForWaiters = n.out;
@@ -14603,6 +14655,7 @@ const PROMPT_CAPS = {
             // Wait for an identical fixed-seed generation or reuse its cached output.
             const out = cached.out !== undefined ? cached.out : (await cached.pending || {});
             checkStopped();
+            if(isPaidNanoType(n.type)) checkCredential(credential);
             n.out = out; n.costUsd = 0; n.cached = true;
             onStatus && onStatus(id, "done", "done");
             onResult && onResult(n);
@@ -14613,8 +14666,8 @@ const PROMPT_CAPS = {
           if(fitted.trimmed) onStatus && onStatus(id, "run", "prompt trimmed to " + fitted.trimmed.cap + " characters to fit this model (was " + fitted.trimmed.from + ")");
           checkStopped();
           // The lane-scoped work key also distinguishes accepted jobs for cloned graphs.
-          const onCostCb = (c)=>{ didGen = true; nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; };
-          const ctx = makeCtx(onCostCb, workKey);
+          const onCostCb = (c)=>{ didGen = true; nodeCost += bumpCost(c, credential); if(c && c.usd!=null) nodeKnown = true; };
+          const ctx = makeCtx(onCostCb, workKey, credential);
           // Fixed seed: register the IN-FLIGHT generation BEFORE awaiting so a concurrent multi-count
           // lane finds {sig,pending} and awaits THIS call rather than issuing a byte-identical paid
           // one. Read→register is synchronous (no await between), so exactly one lane ever generates.
@@ -14623,14 +14676,17 @@ const PROMPT_CAPS = {
           p = (async ()=>{
             await assertModelAvailable(rn);   // no paid request before model preflight
             checkStopped();
+            if(isPaidNanoType(n.type)) checkCredential(credential);
             const noteCb = (msg)=> onStatus && onStatus(id, "run", msg);
-            const njsR = njsRunFor(n.type, rn, inp, workKey);
+            const njsR = njsRunFor(n.type, rn, inp, workKey, credential);
             return njsR ? njsR(rn, inp, onCostCb, workKey, noteCb) : t.run(rn, inp, ctx, noteCb);
           })();
           if(seeded) RUN_CACHE.set(id, { sig, pending: p });
           const out = await p || {};
           checkStopped();
+          if(isPaidNanoType(n.type)) checkCredential(credential);
           n.out = out;
+          outputOwners.set(n, credential);
           n._sig = sig;   // so a later sibling Play can reuse this ancestor (PR #391) without a second charge
           if(seeded && RUN_CACHE.get(id)?.pending===p) RUN_CACHE.set(id, { sig, out });
           if(didGen) generated++;                          // a real model call happened — NOT a cache reuse or an instant local node (so keep mode keeps pacing only on real generations)
@@ -14721,6 +14777,7 @@ const PROMPT_CAPS = {
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
+      if(n.unknown) continue;
       // Inpaint is special: source + mask each come from a wire OR from the user. Surface the easiest
       // controls for whatever isn't wired — an upload+brush widget for the common case, a B/W mask
       // upload when the source is wired (so "generate → repaint" apps still expose the mask).
@@ -14758,7 +14815,7 @@ const PROMPT_CAPS = {
   function deriveOutputs(graph){
     return graph.nodes.filter(n=>{
       const t = NODE_TYPES[n.type];
-      if(!t.outputs || !t.outputs.length) return false;
+      if(n.unknown || !t?.outputs || !t.outputs.length) return false;
       return !graph.links.some(l=> l.from.node===n.id);
     });
   }
@@ -14889,6 +14946,7 @@ const PROMPT_CAPS = {
   function deriveSettings(graph){
     const out = [];
     for(const n of graph.nodes){
+      if(n.unknown) continue;
       const specs = SETTING_SPECS[n.type]; if(!specs) continue;
       const preset = n.type==="slice-3d" ? slicePresetValues(n.fields.preset) : {};
       for(const s of specs){
@@ -15899,7 +15957,7 @@ const PROMPT_CAPS = {
     // I18N_SKIP in index.html). Only substitute when the node contributes a single
     // required input, so a node with several distinct fields (e.g. inpaint) doesn't
     // collapse them all to one name; un-renamed nodes keep their generic label as before.
-    const reqByNode = {};
+    const reqByNode = Object.create(null);
     req.forEach(i=>{ const k = inputs[i].nodeId; reqByNode[k] = (reqByNode[k]||0)+1; });
     let html = notes + req.map(i=>{
       const it = inputs[i], nm = it.node && it.node.name && String(it.node.name).trim();
@@ -16139,7 +16197,7 @@ const PROMPT_CAPS = {
   function startRun(n){
     closeDetail();   // a steps sheet left open from a prior run must not point at a stale lane
     RUN = { n:n, t0:Date.now(), lanes:[] };
-    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
+    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:Object.create(null), res:Object.create(null), curId:null, curT0:0, t0:Date.now(), endAt:0 });
     ensureStatus(); const p = $("app-prog"); if(p) p.hidden = false;
     clearInterval(runTimer); runTimer = setInterval(paintRuns, 1000);
     paintRuns();
@@ -16149,7 +16207,7 @@ const PROMPT_CAPS = {
   // bar and timer start fresh instead of showing the previous pass as "done".
   function resetLane(i){
     if(!RUN || !RUN.lanes[i]) return;
-    RUN.lanes[i] = { idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
+    RUN.lanes[i] = { idx:i, order:[], state:Object.create(null), res:Object.create(null), curId:null, curT0:0, t0:Date.now(), endAt:0 };
     paintRuns();
   }
   function laneStart(i, order){ if(RUN && RUN.lanes[i]){ RUN.lanes[i].order = order; paintRuns(); } }
@@ -16159,7 +16217,7 @@ const PROMPT_CAPS = {
   // own graph clone owns these node objects, so lanes never clobber each other.
   function laneCapture(i, n){
     const L = RUN && RUN.lanes[i]; if(!L) return;
-    (L.res || (L.res = {}))[n.id] = n;
+    L.res[n.id] = n;
     if(detailOpen === i) paintDetail();
   }
   function laneStep(i, id, kind, msg){
@@ -16879,7 +16937,7 @@ const PROMPT_CAPS = {
       var s = samples[i];
       var gn = STATE.graph && STATE.graph.byId ? STATE.graph.byId(s.id) : null;
       var nodeType = (gn && gn.type) || s.type;
-      if(!NODE_TYPES[nodeType]) continue;
+      if(!Object.hasOwn(NODE_TYPES, nodeType)) continue;
       var port = ((NODE_TYPES[nodeType].outputs)||[])[0] || {};
       var out = {};
       out[s.port || port.name || "text"] = s.v;
@@ -17180,9 +17238,9 @@ const PROMPT_CAPS = {
         body.querySelectorAll("audio,video").forEach(function(m){ if(!m.paused && !m.ended) playing = true; });
         if(playing) return;
       }
-      detailLaneRef = L; body.innerHTML = ""; body._steps = {};
+      detailLaneRef = L; body.innerHTML = ""; body._steps = Object.create(null);
     }
-    const steps = body._steps || (body._steps = {});
+    const steps = body._steps || (body._steps = Object.create(null));
     const st = laneStats(L);
     root.querySelector(".nd-title").textContent = RUN.n>1 ? ("Run " + (L.idx+1) + " · steps") : "Run steps";
     root.querySelector(".nd-sub").textContent = st.done + "/" + st.total + " steps"
@@ -17351,6 +17409,8 @@ const PROMPT_CAPS = {
 
   async function run(){
     if(running) return;
+    const unsupported = unsupportedGraphMessage(STATE && STATE.graph);
+    if(unsupported){ statusLine("__unsupported__", "error", unsupported); return; }
     if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
       // a status line right under the Run button plus a brief pulse on the header auth block, so the
@@ -17367,6 +17427,8 @@ const PROMPT_CAPS = {
       }
       return;
     }
+    const runCredential = currentCredential();
+    const paidGraph = graphNeedsNanoKey(STATE.graph);
     const N = RUNS_N;
     running = true;
     ABORT = new AbortController();
@@ -17408,7 +17470,7 @@ const PROMPT_CAPS = {
         try {
           const res = await runGraph(cloneGraph(), {
             lane: i,   // pending-job keys (PENDING_AUDIO/PENDING_VIDEO) are lane-scoped so concurrent lanes can't clobber each other's resumable runId
-            onStart: (order)=> laneStart(i, order),
+            onStart: (order, cyclic)=> laneStart(i, order.concat(cyclic)),
             onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
             onResult: (n)=>{ laneCapture(i, n); if(outIds.has(n.id)){ renderResult(n, N>1 ? i+1 : 0); persistOut(n); } },
           });
@@ -17445,7 +17507,7 @@ const PROMPT_CAPS = {
         // Back off after a failure in keep mode so a fast, persistent error
         // (bad input, auth) can't spin into a hot retry loop. Abort wakes it.
         if(failed && KEEP && running){ try { await sleep(1200); } catch(e){ break; } }
-      } while(KEEP && running && !(ABORT && ABORT.signal.aborted));
+      } while(KEEP && running && !runAborted() && (!paidGraph || runCredential===currentCredential()));
     }
     await Promise.all(Array.from({ length:N }, (_, i)=> worker(i)));
     running = false;
@@ -17811,7 +17873,10 @@ const PROMPT_CAPS = {
   function wireParentBridge(){
     window.addEventListener("message", (e)=>{
       const m = e.data || {};
-      if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
+      if(e.source===window.parent && m.type==="__auth__"){
+        const was=parentAuthed;
+        parentCredential = m.signedIn && typeof m.credential==="string" ? m.credential : null;
+        parentAuthed = !!parentCredential; renderAuth();
         refreshOutputPlaceholder();   // pre-run empty card baked "needs a key" at mount — retell it truthfully
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
       if(m && m.type==="__bal__"){
@@ -17917,7 +17982,9 @@ const PROMPT_CAPS = {
   }
 
   // __njs: internals for scripts/check-njs-delegation.mjs's veto matrix — not app API
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, primaryOutputPort, NODE_TYPES, isInputKind, INPUT_KINDS, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, primaryOutputPort, NODE_TYPES, isInputKind, INPUT_KINDS, get CTX(){ return makeCtx(function(){}); }, __njs:{ runFor:njsRunFor,
+    get PENDING_VIDEO(){ return accountRunState().video; },
+    get PENDING_AUDIO(){ return accountRunState().audio; } } };
 })();
 `;
 
@@ -18608,6 +18675,7 @@ function setShareDirty(on){
 function renderApp(){
   const frame = $("appframe");
   const mount = ++previewMount;   // the iframe's WindowProxy survives a new srcdoc
+  previewCredentialIds.clear();
   // Playback continuity: snapshot the listening session BEFORE the teardown below. If the outgoing
   // document was mid-track (a customize apply / version switch used to just cut the song off), the
   // fresh mount is asked to seek that card and keep playing once its stored results are restored.
@@ -18632,8 +18700,22 @@ function renderApp(){
   }else show();
 }
 function postToApp(msg){ try{ $("appframe").contentWindow.postMessage(msg, "*"); }catch(_){} }
-// tell the app whether WE (the parent) are signed in — never the key itself
-function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); }
+// An opaque, preview-local ID lets the app retain same-account jobs across sign-ins.
+// The credential stays in the trusted parent and each new mount gets fresh IDs.
+const previewCredentialIds = new Map();
+function previewCredentialFor(key){
+  if(!key) return null;
+  let id = previewCredentialIds.get(key);
+  if(!id){
+    id = bytesToB64url(crypto.getRandomValues(new Uint8Array(18)));
+    previewCredentialIds.set(key, id);
+  }
+  return id;
+}
+function pushAuthToApp(){
+  const credential = previewCredentialFor(getKey());
+  postToApp({ type:"__auth__", signedIn:!!credential, credential });
+}
 // What the app's output funnel is playing right now (__media__ reports). RAM only — never stored,
 // never sent anywhere — and pinned to the app it was heard in so an app switch can't mis-resume.
 let NOW_MEDIA = null;
@@ -18819,6 +18901,26 @@ async function readBridgeBody(response, kind){
     throw new Error("provider media is over the inline cap, so the preview bridge stopped reading");
   return buf;
 }
+// A switched account never receives the prior response body. Preserve only the
+// accepted async job receipt that its original credential will need on retry.
+function bridgeMediaReceipt(path, response, body, key){
+  const audio = path==="/api/v1/audio/speech";
+  if(!audio && path!=="/api/generate-video") return null;
+  if(!response.ok || !bridgeMime(response).includes("json") || !body || body.byteLength>8192) return null;
+  let job;
+  try{ job = JSON.parse(new TextDecoder().decode(body)); }catch(_){ return null; }
+  if(audio && (job?.url || job?.audioUrl || job?.data?.url || job?.data?.audioUrl)) return null;
+  const runId = job?.runId || job?.id;
+  if((typeof runId!=="string" && typeof runId!=="number") || !runId || String(runId).length>256) return null;
+  const receipt = {runId};
+  if(Number.isFinite(job.cost)) receipt.cost = job.cost;
+  if(audio && typeof job.isApiRequest==="boolean") receipt.isApiRequest = job.isApiRequest;
+  if(audio && typeof job.paymentSource==="string" && /^[a-z0-9_-]{1,32}$/i.test(job.paymentSource))
+    receipt.paymentSource = job.paymentSource;
+  const safe = JSON.stringify(receipt);
+  if(key && safe.includes(key)) return null;
+  return {ok:true, status:response.status, headers:{"content-type":"application/json"}, body:new TextEncoder().encode(safe).buffer};
+}
 // ----- parent <- iframe bridge -----
 addEventListener("message", async (e) => {
   const frame = $("appframe");
@@ -18866,9 +18968,10 @@ addEventListener("message", async (e) => {
     const samePreview = ()=> mount===previewMount && e.source===$("appframe").contentWindow;
     const appId = CUR_ID, imported = curImported;
     let requestKey = null;
-    const reply = (m)=>{
+    const accountChanged = { error:"The NanoGPT account changed while this request was running.", accountChanged:true };
+    const reply = (m, receipt)=>{
       if(!samePreview()) return;   // request ids restart on remount, even with the same WindowProxy
-      if(requestKey && requestKey!==getKey()) m = { error:"The NanoGPT account changed while this request was running." };
+      if(requestKey && requestKey!==getKey()) m = receipt || accountChanged;
       try{ e.source.postMessage(Object.assign({ type:"__api_result__", id:d.id }, m), "*"); }catch(_){}
     };
     try{
@@ -18887,7 +18990,11 @@ addEventListener("message", async (e) => {
         if(mth !== "GET" && mth !== "HEAD") return reply({ error:"blocked: this app endpoint is not permitted" });
       }
       const isCatalog = kind === "catalog";
-      const k = getKey(); if(!k && !isCatalog) return reply({ error:"sign in to run this app" });
+      const k = getKey();
+      if(!isCatalog){
+        if(!k && !d.credential) return reply({ error:"sign in to run this app" });
+        if(!k || d.credential!==previewCredentialFor(k)) return reply(accountChanged);
+      }
       requestKey = publicDecisionCatalog ? null : k;
       // Meter only spend-initiating calls, and only for imported apps (own/preview apps run unmetered).
       // Polling and catalog reads always pass, and pass BEFORE either check below, so a job keeps polling
@@ -18921,7 +19028,9 @@ addEventListener("message", async (e) => {
       try{ r.headers.forEach((v,kk)=> hdrs[kk.toLowerCase()]=v); }catch(_){}
       // respType, not type: Object.assign would let the fetch response type overwrite
       // the message type, and the iframe would ignore the reply.
-      reply({ ok:!!r.ok, status:r.status||0, respType:r.type||"", headers:hdrs, body });
+      const receipt = requestKey && requestKey!==getKey() && String(init.method).toUpperCase()==="POST"
+        ? bridgeMediaReceipt(u.pathname, r, body, requestKey) : null;
+      reply({ ok:!!r.ok, status:r.status||0, respType:r.type||"", headers:hdrs, body }, receipt);
       // A completed paid request = the recipient actually ran the shared app → unlock Export + Customize.
       if(kind === "charge" && r.ok && imported && (appId || samePreview()))
         markRanOnce({ appId, toast:samePreview() });
@@ -19635,7 +19744,7 @@ async function persistNodeOut(appId, d){
 async function trimOuts(db, appId){
   const recs = await oreq(otx(db, "readonly").index("app").getAll(appId));
   recs.sort((a, b)=> (b.updated||0) - (a.updated||0));   // newest first
-  const perNode = {}, drop = [];
+  const perNode = Object.create(null), drop = [];
   let bytes = 0;
   for(const r of recs){
     const nth = perNode[r.node] = (perNode[r.node]||0) + 1;

@@ -170,9 +170,9 @@ function structuralChecks(t, failures) {
   if (t.compat(render3d("image"), render3d("video")))
     failures.push("changing Render 3D from image to video changes the app's output shape");
 
-  // unknown node types are dropped by materialize → must not affect the signature
+  // A retained unsupported node alone contributes no controls or outputs.
   const withUnknown = { nodes: [node("z1", "frobnicate", {}), node("i1", "image", { prompt: "a cat" })], links: [] };
-  if (!t.compat(loneImage(), withUnknown)) failures.push("an unknown/dropped node changed the signature — materialize drop not honored");
+  if (!t.compat(loneImage(), withUnknown)) failures.push("an unsupported standalone node changed the signature");
 
   // the base signature shape is the documented contract; lock it so a refactor can't silently change it
   const got = t.sig(loneImage());

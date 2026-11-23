@@ -48,7 +48,7 @@ async function standalone(status, replaceKey) {
   assert(errors.some(msg => msg.includes(String(status))), "the run still surfaces a rejected request");
 }
 
-function preview() {
+function preview({path = chatPath, responseBody} = {}) {
   const appsKey = "noodle_apps";
   const storage = new Map([
     ["ngpt_key", originalKey],
@@ -73,7 +73,7 @@ function preview() {
       if (type === "message" && String(fn).includes('d.type === "__api__"')) onMessage = fn;
     };
     ctx.fetch = async (url, opts) => {
-      assert(String(url).endsWith(chatPath));
+      assert(String(url).endsWith(path));
       assert.equal(opts.headers["x-api-key"], originalKey);
       fetches++;
       return {
@@ -94,20 +94,29 @@ function preview() {
     CUR_ID = "first-app"; curImported = true; curArmed = true; BAL = 10;
     renderApp();
   `);
+  const auth = () => {
+    run("pushAuthToApp()");
+    return replies.at(-1);
+  };
+  const original = auth();
   const event = {
     source: frame.contentWindow,
-    data: { type: "__api__", mount: run("previewMount"), id: 1, url: chatPath, method: "POST", body: "{}" },
+    data: { type: "__api__", mount: run("previewMount"), credential: original.credential,
+      id: 1, url: path, method: "POST", body: "{}" },
   };
   assert(frame.srcdoc.includes(`window.NOODLE_PREVIEW_MOUNT=${event.data.mount}`), "the iframe receives its own render identity");
   const request = onMessage(event);
   return {
     async finish() {
-      const body = JSON.stringify({ x_nanogpt_pricing: { remainingBalance: 9 }, fixture: "dispatched result" });
+      const body = JSON.stringify(responseBody || { x_nanogpt_pricing: { remainingBalance: 9 }, fixture: "dispatched result" });
       releaseBody.resolve(new TextEncoder().encode(body).buffer);
       await request;
     },
     started: started.promise,
+    auth,
+    original,
     replaceKey() { storage.set("ngpt_key", replacementKey); run("BAL = 25"); },
+    restoreKey() { storage.set("ngpt_key", originalKey); },
     remount(newApp) {
       if (newApp) run('CUR_ID = "second-app"; curRanOnce = false;');
       run("renderApp()");
@@ -150,6 +159,51 @@ await standalone(403, true);
   await app.sendStaleCost();
   assert.equal(app.balance(), 25, "the iframe cannot republish its previous account balance");
   assert.equal(app.sessionCost(), 1, "session costs still reach the builder");
+}
+
+{
+  const app = preview();
+  await app.started;
+  await app.finish();
+  assert.equal(app.original.signedIn, true);
+  assert.notEqual(app.original.credential, originalKey);
+  assert.ok(!JSON.stringify(app.original).includes(originalKey), "the sandbox gets only the opaque ID");
+  app.replaceKey();
+  const replacement = app.auth();
+  assert.notEqual(replacement.credential, app.original.credential);
+  assert.ok(!JSON.stringify(replacement).includes(replacementKey));
+  await app.sendOldRequest();
+  assert.equal(app.fetches(), 1, "a stale credential ID must be rejected before network");
+  assert.equal(app.replies().at(-1).accountChanged, true);
+  app.restoreKey();
+  assert.equal(app.auth().credential, app.original.credential, "returning to the exact key restores its scope");
+}
+
+for (const [path, audio] of [["/api/generate-video", false], ["/api/v1/audio/speech", true]]) {
+  const receipt = {runId:"fixture-paid-job", cost:0.25};
+  const audioMeta = {paymentSource:"balance", isApiRequest:true};
+  const app = preview({path, responseBody:{
+    ...receipt, ...audioMeta, resultUrl:"https://private.example/should-not-leave", credential:originalKey, remainingBalance:8,
+  }});
+  await app.started;
+  app.replaceKey();
+  await app.finish();
+  const reply = app.replies()[0];
+  assert.equal(reply.ok, true, "an accepted async submit remains recoverable");
+  const body = new TextDecoder().decode(reply.body);
+  assert.deepEqual(JSON.parse(body), audio ? {...receipt, ...audioMeta} : receipt);
+  assert.equal(app.balance(), 25);
+}
+
+{
+  const app = preview({path:"/api/v1/audio/speech", responseBody:{
+    id:"a-receipt-is-not-a-job", audioUrl:"https://private.example/audio.mp3",
+  }});
+  await app.started;
+  app.replaceKey();
+  await app.finish();
+  assert.equal(app.replies()[0]?.accountChanged, true);
+  assert.equal(app.replies()[0]?.body, undefined, "a finished response cannot masquerade as a resumable job");
 }
 
 for (const newApp of [false, true]) {

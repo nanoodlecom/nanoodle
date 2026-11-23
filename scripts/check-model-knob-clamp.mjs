@@ -772,7 +772,7 @@ vm.runInContext([
     fail("editor: njsRunFor no longer snaps leftover image/edit/inpaint size before the library send");
   } else ok("editor: njsRunFor snaps leftover size on the default (njs) paid path");
 
-  const njsPlay = block(PLAY, "function njsRunFor(type, rn, inp, runKey){");
+  const njsPlay = block(PLAY, "function njsRunFor(type, rn, inp, runKey");
   if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(njsPlay) || !/snapImageSize\(rn, await rawCatItem\("image", mdl\(rn\)\)\)/.test(njsPlay)) {
     fail("play: njsRunFor no longer snaps leftover image/edit/inpaint size before the library send");
   } else ok("play: njsRunFor snaps leftover size on the default (njs) paid path");
