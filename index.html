@@ -14854,14 +14854,13 @@ async function runGroup(seedIds, ctx){
           }
           fieldOverrides[l.to.port] = v;
         }
-        let rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
-        if(n.type==="vframes") rn0 = withWiredFrameCount(rn0, graph.links);
+        const rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is
         // trimmed to fit rather than sent to a certain 400. Lands before nodeSig so the signature
         // describes what actually goes out — switch the Image node to a tighter model and the run
         // correctly re-rolls instead of reusing a result the new model would have rejected.
         const fitted = withFittedPrompt(rn0, n);
-        const rn = fitted.rn;
+        const rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
