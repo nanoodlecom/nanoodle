@@ -1,5 +1,5 @@
-/* data-hash=ca5d280095ed2314 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-c1146232b692 (34 modules) */
+/* data-hash=8d55b7641eced843 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-bf41854ad295 (35 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -45,6 +45,7 @@ __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
 const { abortReason, enforceDeadline, normalizeTimeoutMs, startDeadline, throwIfAborted } = __req("deadline.mjs");
 const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wireIssue, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { COMPETING_INPUT_WIRES, competingInputIssues, staticCompetingInputIssues } = __req("input-wires.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 const { MEDIA_INPUT_KINDS, deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
@@ -349,6 +350,8 @@ class Workflow {
     for (const { entry, value } of settingAssignments) {
       effFields.get(entry.nodeId)[entry.field] = this._coerceSetting(entry, value);
     }
+    const inputConflict = staticCompetingInputIssues(graph, order, branches, node => effFields.get(node.id))[0];
+    if (inputConflict) throw new NanoodleError(inputConflict, { code: COMPETING_INPUT_WIRES });
     const explicit = new Set();
     for (const { entry, value } of inputAssignments) {
       effFields.get(entry.nodeId)[entry.field] = this._coerceInput(entry, value, mediaCoerceOpts);
@@ -486,8 +489,7 @@ class Workflow {
             return {};
           }
         }
-        const inp = {};
-        let fields = effFields.get(n.id);
+        const supplied = [];
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
         for (const l of inbound) {
           let srcOut;
@@ -501,22 +503,7 @@ class Workflow {
             continue;
           }
           const v = srcOut[l.from.port];
-          if (isInputPort(n, l.to.port)) {
-            // Node boundary: a relative content URL from the upstream provider is
-            // resolved (authed redirect → absolute file URL, or inlined bytes)
-            // before this node builds videoUrl / videoDataUrl / audio / image.
-            inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
-              ? await withSignal(() => this.client.resolveContentUrl(v, { signal: ac.signal }), ac.signal)
-              : v;
-          }
-          // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
-          // endpointResolveTarget can join it onto the typed host. Overwriting
-          // fields.url with "/post" rejects the joined URL.
-          else if (n.type === "endpoint" && (l.to.port === "url" || l.to.port === "mode")) {
-            if (v != null) inp[l.to.port] = v;
-          }
-          // A wire overrides a typed field when the declared source port emits a value.
-          else if (v != null) fields = { ...fields, [l.to.port]: v };
+          if (v != null) supplied.push({ link: l, value: v });
         }
         // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
@@ -533,6 +520,26 @@ class Workflow {
           if (gr) gr.skipped.push(n.id);
           emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "gated", gatedBy });
           throw new GateSkip(gatedBy);
+        }
+        throwIfAborted(ac.signal);
+        const conflict = competingInputIssues(supplied.map(({ link }) => link))[0];
+        if (conflict) throw new NanoodleError(conflict, { code: COMPETING_INPUT_WIRES });
+        const inp = {};
+        let fields = effFields.get(n.id);
+        for (const { link, value } of supplied) {
+          const port = link.to.port;
+          if (isInputPort(n, port)) {
+            // Resolve an upstream provider's content URL before the consumer builds its payload.
+            inp[port] = (typeof value === "string" && value && HANDED_MEDIA_PORT.test(port))
+              ? await withSignal(() => this.client.resolveContentUrl(value, { signal: ac.signal }), ac.signal)
+              : value;
+          }
+          // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
+          // endpointResolveTarget can join it onto the typed host.
+          else if (n.type === "endpoint" && (port === "url" || port === "mode")) {
+            inp[port] = value;
+          }
+          else fields = { ...fields, [port]: value };
         }
         throwIfAborted(ac.signal);
         // Prompt length caps (see prompt-caps.mjs). Many image/video models reject an over-long
@@ -2005,6 +2012,8 @@ __x.runResumableMedia = runResumableMedia;
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
 const { INPUT_SPECS, SETTING_SPECS } = __req("io-specs.mjs");
+const { planBranches } = __req("branches.mjs");
+const { competingInputIssues, staticCompetingInputIssues } = __req("input-wires.mjs");
 
 /* Dynamic input-port families also used by the runners to collect their values. */
 const IMG_PORT_RE = /^img\d*$/;      // llm vision references, decide candidates
@@ -2248,6 +2257,7 @@ function materialize(data) {
   }
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const links = [];
+  const validLinks = [];
   for (const l of data.links || []) {
     const from = normalizeEndpoint(l?.from);
     const to = normalizeEndpoint(l?.to);
@@ -2256,7 +2266,19 @@ function materialize(data) {
     const link = { id: l?.id, from, to };
     const issue = wireIssue(link, byId);
     if (issue) warnings.push(issue.message);
+    else validLinks.push(link);
     links.push(link);
+  }
+  if (competingInputIssues(validLinks).length) {
+    const validGraph = { nodes, links: validLinks };
+    try {
+      const order = topoSort(validGraph);
+      const branches = planBranches(validGraph, order.map(node => node.id));
+      warnings.push(...staticCompetingInputIssues(validGraph, order, branches));
+    } catch (error) {
+      if (!(error instanceof NanoodleError)) throw error;
+      // Invalid routing or cycles will be reported by run's graph preflight.
+    }
   }
   return { nodes, links, warnings };
 }
@@ -3575,6 +3597,7 @@ function planBranches(graph, order) {
   }
   const skipped = new Set();
   return {
+    isRouted: id => selectors.has(id),
     // Call after this node's upstreams have settled. A failed router is left
     // to the usual upstream-error handling, which must also prevent execution.
     activeLinks(id, outFor) {
@@ -5439,6 +5462,66 @@ function throwIfAborted(signal) {
 }
 
 __x.normalizeTimeoutMs = normalizeTimeoutMs; __x.startDeadline = startDeadline; __x.enforceDeadline = enforceDeadline; __x.abortReason = abortReason; __x.throwIfAborted = throwIfAborted;
+});
+__def("input-wires.mjs", function (__x, __req) {
+const { isBranchDecider } = __req("branches.mjs");
+
+const COMPETING_INPUT_WIRES = "competing-input-wires";
+
+/** One logical input can receive one value. Repeated copies of a wire share a supplier. */
+function competingInputIssues(links) {
+  const inputs = new Map();
+  for (const { from, to } of links) {
+    const inputKey = JSON.stringify([to.node, to.port]);
+    if (!inputs.has(inputKey)) inputs.set(inputKey, { to, sources: new Set() });
+    inputs.get(inputKey).sources.add(`${from.node}.${from.port}`);
+  }
+  const issues = [];
+  for (const { to, sources } of inputs.values()) {
+    if (sources.size < 2) continue;
+    const suppliers = [...sources].sort().join(", ");
+    issues.push(`input ${to.node}.${to.port} has competing wires from ${suppliers}. Leave one active wire for this input.`);
+  }
+  return issues.sort();
+}
+
+function canOmitOutput(node, port) {
+  if (node.type === "endpoint" || node.type === "render3d" || node.type === "vframes") return true;
+  if (node.type === "sprite-stack-render") return port === "video";
+  return port === "layers" && (node.type === "edit" || node.type === "inpaint");
+}
+
+/** Defer to the run when an upstream output or the consumer can be inactive. */
+function staticCompetingInputIssues(graph, order, branches, fieldsFor = node => node.fields) {
+  const inbound = new Map(order.map(node => [node.id, []]));
+  const byId = new Map(order.map(node => [node.id, node]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+
+  const mayGate = new Set();
+  const steady = [];
+  for (const node of order) {
+    const links = inbound.get(node.id);
+    if (links.some(link => mayGate.has(link.from.node))) {
+      mayGate.add(node.id);
+      continue;
+    }
+    if (node.type === "decide" && !isBranchDecider(node)) {
+      const fields = fieldsFor(node);
+      const canEnable = fields.gate === true || fields.gate === "true" || links.some(link => link.to.port === "gate");
+      const canBeYesNo = fields.mode === "yesno" || links.some(link => link.to.port === "mode");
+      if (canEnable && canBeYesNo) mayGate.add(node.id);
+    }
+    if (branches?.isRouted(node.id)) continue;
+    for (const link of links) {
+      const supplier = byId.get(link.from.node);
+      if (!supplier || supplier.unknown || fieldsFor(supplier).onError === "skip" || canOmitOutput(supplier, link.from.port)) continue;
+      steady.push(link);
+    }
+  }
+  return competingInputIssues(steady);
+}
+
+__x.COMPETING_INPUT_WIRES = COMPETING_INPUT_WIRES; __x.competingInputIssues = competingInputIssues; __x.staticCompetingInputIssues = staticCompetingInputIssues;
 });
 __def("endpoint.mjs", function (__x, __req) {
 /**
@@ -9136,5 +9219,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-c1146232b692";
+  window.NanoodleEngine.version = "src-bf41854ad295";
 })();
