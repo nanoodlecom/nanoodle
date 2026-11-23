@@ -182,7 +182,7 @@ const bundle = [
   "  chooseWorkspace, initialCanvasUnclaimed, claimInitialCanvas, finishInitialCanvas,",
   "  bootGeneration, freshGraphStillDue, bindWorkspaceChrome, noteFreshWorkspaceName,",
   "  initWorkspaceStorage, settleWorkspaceStorage, workspacePersistence,",
-  "  wsMergeRecovery,",
+  "  wsMergeRecovery, pendingMediaJobs,",
   "  restoreClosedWorkspace,",
   "  redoClosedWorkspace: () => handleWorkspaceCloseHistory(redoStack),",
   "  closedCounts: () => ({undo:wsClosedUndo.length,redo:wsClosedRedo.length}),",
@@ -441,9 +441,14 @@ const photoOf = (g) => {
   const W=boot(); W.ensureWorkspaces(); W.load();
   W.seedUndo("last history"); W.setOut("n1",{text:"LAST PAID RESULT"});
   W.setPendingApp("last-app","Last app");
+  const jobs=W.pendingMediaJobs();
+  jobs.audio.set("n1",{job:{runId:"paid-audio"}});
+  jobs.video.set("n1",{runId:"paid-video"});
   W.closeWorkspace("w1");
   ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1 && !W.serializeGraph().nodes.length,"last close resets same tab ID");
+  ok(!W.pendingMediaJobs().audio.size && !W.pendingMediaJobs().video.size,"blank workspace cannot inherit jobs from its reused ID");
   ok(W.restoreClosedWorkspace(),"last-tab Undo succeeds");
+  ok(W.pendingMediaJobs()===jobs,"last-tab Undo restores the closed workspace's paid job registry");
   ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1,"last Undo never adds a duplicate tab");
   ok(W.readWorkspaces().tabs[0].name==="Night desk" && W.pending().id==="last-app","last Undo restores tab metadata and app binding");
   ok(W.stacks().undo[0]?.s==="last history" && W.outOf("n1")?.text==="LAST PAID RESULT","last Undo restores canvas history and results");
@@ -452,6 +457,7 @@ const photoOf = (g) => {
   const R=boot();R.ensureWorkspaces();R.load();
   ok(photoOf(R.serializeGraph())===photoOf(JSON.parse(FIXTURE)),"Undo then refresh retains uploaded input");
   ok(!R.closedCounts().undo && !R.restoreClosedWorkspace(),"refresh does not resurrect visit-only tombstones");
+  ok(!R.pendingMediaJobs().audio.size && !R.pendingMediaJobs().video.size,"refresh does not persist provider jobs");
   R.applyGraphData(JSON.parse(exported));
   ok(textOf(R.serializeGraph())===textOf(JSON.parse(FIXTURE)),"Save JSON from restored tab loads its workflow");
 }

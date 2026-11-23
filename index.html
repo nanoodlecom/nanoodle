@@ -14193,10 +14193,12 @@ const nodeWork = new Map();       // node id → in-flight exec promise (sibling
 const runLockCount = new Map();   // node id → # of in-flight groups holding it (shared ancestor A)
 const liveAborts = new Set();     // every group's controller; toolbar Stop aborts them all
 let runAbort = null;              // last-started controller (runSignal fallback when only one group is live)
-const runSignal = ()=>{
+const runSignal = (nodeId)=>{
   // Prefer the single in-flight nodeWork controller (join-aware: Stop on B
   // does not abort A if C has already joined that work).
   if(typeof nodeWork!=="undefined"){
+    const work = nodeWork.get(nodeId);
+    if(work?.ctl) return work.ctl.signal;
     const lives = [];
     for(const w of nodeWork.values()) if(w && w.ctl && !w.ctl.signal.aborted) lives.push(w);
     if(lives.length===1) return lives[0].ctl.signal;
@@ -14460,10 +14462,11 @@ function njsCatalogs(){
   })();
 }
 // Library-shaped ctx bridging to THIS runtime's auth, abort signal, pending-job
-// registries (keyed by node id, same as the built-in senders), spend meter and
+// registries for the owning workspace, spend meter and
 // canvas media. Plain fetch + apiKey (never authHeaders on media): the client
 // adds auth to API calls only, so media CDN downloads never see the key.
-function njsCtx(E, n){
+function njsCtx(E, n, jobs = pendingMediaJobs()){
+  const {video:PENDING_VIDEO, audio:PENDING_AUDIO} = jobs;
   const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
@@ -14597,7 +14600,8 @@ function njsRunFor(type, rn, inp, n){
   // A pending video/audio job submitted by the BUILT-IN engine (lazy bundle load race: first run
   // fires before vendor/njs-engine.js arrives) uses a body-shaped signature this shim can't match —
   // delegating now would orphan that paid job and re-submit. Let the engine that owns it resume it.
-  const pv = PENDING_VIDEO.get(n.id), pa = PENDING_AUDIO.get(n.id);
+  const jobs = pendingMediaJobs();
+  const pv = jobs.video.get(n.id), pa = jobs.audio.get(n.id);
   if((pv && !pv.njs) || (pa && !pa.njs)) return null;
   return async function(){
     mdl(rn);   // run preflight: a missing model AND a drifted (renamed/retired) id both block BEFORE any paid request — the library can't know what NanoGPT renamed
@@ -14612,7 +14616,7 @@ function njsRunFor(type, rn, inp, n){
         inp2[k] = await urlToDataUrl(inp[k]);
       }
     }
-    const ctx = njsCtx(E, n);
+    const ctx = njsCtx(E, n, jobs);
     ctx.catalog = await njsCatalogs();
     // leftover size snap — njs is the default send path; library posts fields.size raw
     if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
@@ -14863,10 +14867,11 @@ async function runGroup(seedIds, ctx){
         n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
         try{
           const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
-          try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
+          try{ const out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
             if(workCancelled || seedAlone){ failed.add(id); setStopped(n); return; }   // Stop invalidates this output for dependents too
+            n.out = out;
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
             if(ctx.demo) delete n._sig; else n._sig = sig;
@@ -15136,13 +15141,11 @@ const LORA_EXAMPLES = {
 // re-submit. Once the provider finishes, resultUrl (the raw content URL) stays until that
 // fetch succeeds — a failed fetch retries only the fetch, never a second paid submit.
 // In-memory only; a transient runId has no business in a saved or shared graph.
-const PENDING_VIDEO = new Map();   // nodeId → {sig, runId, resultUrl?} of an in-flight or finished-but-unfetched video job
 // Same idea for async music/TTS: submit returns runId + charges immediately, then we poll
 // /api/tts/status. Dropping the runId on ANY early exit (Stop's abort, the 5-min timeout) meant a
 // re-run re-submitted and double-charged. PENDING_AUDIO registers the job the moment it exists
 // (mirror PENDING_VIDEO). A genuine failure deletes it. A completed job keeps resultUrl until
 // the content fetch succeeds, so an unchanged re-run retries only that fetch.
-const PENDING_AUDIO = new Map();   // nodeId → {sig, job, resultUrl?}
 const CTX = {
   // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
   // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
@@ -15221,6 +15224,7 @@ const CTX = {
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
+    const PENDING_VIDEO = pendingMediaJobs().video;
     const body = { model };
     if(!(opts.mediaKind==="model3d" && !String(prompt||"").trim())) body.prompt = prompt;
     if(opts.duration) body.duration = opts.duration;
@@ -15250,7 +15254,8 @@ const CTX = {
     // Resume an earlier job that timed out on this node (opts.runKey = node id) — the work is still
     // running server-side, so skip submit (and the second charge) and go straight back to polling.
     const runKey = opts.runKey;
-    const runAbortSignal = (typeof nodeWork!=="undefined" && nodeWork.get(runKey)?.ctl?.signal) || runSignal();
+    const runAbortSignal = runSignal(runKey);
+    runAbortSignal?.throwIfAborted();
     // Only resume a pending job when the request is UNCHANGED. The stored entry is keyed by node id,
     // and a timeout leaves it in place, so without matching the request signature an edited re-run
     // (new prompt/seed/inputs → new body) would resume the previous request and return the OLD video.
@@ -15259,7 +15264,7 @@ const CTX = {
     // Provider already finished. The content fetch failed (or was aborted). Retry
     // only that fetch — a new generate-video would charge again.
     if(pend && pend.sig===bodySig && pend.resultUrl){
-      return await deliverResolvedMedia(PENDING_VIDEO, runKey, { sig:bodySig, runId:pend.runId, resultUrl:pend.resultUrl, njs:pend.njs }, pend.resultUrl);
+      return await deliverResolvedMedia(PENDING_VIDEO, runKey, pend, pend.resultUrl, runAbortSignal);
     }
     let runId = (pend && pend.sig===bodySig) ? pend.runId : null;
     if(pend && !runId && runKey) PENDING_VIDEO.delete(runKey);   // stale (request changed) — drop it and submit fresh
@@ -15323,7 +15328,7 @@ const CTX = {
           applyPollSettlement(s, pr, false);
           const vEntry = { sig:bodySig, runId, resultUrl:url };
           if(pend && pend.njs) vEntry.njs = true;
-          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
+          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url, runAbortSignal);
         }
         if(["FAILED","ERROR","CANCELED","CANCELLED","CONTENT_POLICY_VIOLATION"].includes(st)){
           if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
@@ -15342,6 +15347,9 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
+    const PENDING_AUDIO = pendingMediaJobs().audio;
+    const signal = runSignal(runKey);
+    signal?.throwIfAborted();
     const mid = String(model||"").trim();
     let body;
     if(/(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(mid)){
@@ -15362,17 +15370,17 @@ const CTX = {
     // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
     const pend = runKey && PENDING_AUDIO.get(runKey);
     if(pend && pend.sig===bodySig && pend.resultUrl){
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl, signal);
     }
     if(pend && pend.sig===bodySig && pend.job){
-      const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
+      const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig, signal, PENDING_AUDIO);
       if(!url) throw new Error("no audio url in response");
       const kept = (runKey && PENDING_AUDIO.get(runKey)) || { sig:bodySig, job:pend.job, resultUrl:url };
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url, signal);
     }
     if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
     const headers = authHeaders();
-    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
+    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers, body:JSON.stringify(body), signal});
     if(!r.ok){
       flagAuth(r, headers["x-api-key"]);
       const t = (await r.text()).slice(0,220);
@@ -15390,7 +15398,7 @@ const CTX = {
     if(ct.includes("application/json")){
       const j = await r.json(); accrue(j, undefined, r);
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
-      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
+      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig, signal, PENDING_AUDIO);
       if(!url) throw new Error("no audio url in response");
       // The speech POST already charged. Store the raw URL before resolving, even when
       // the JSON body had no runId and no earlier pending job, so a failed fetch is not a second charge.
@@ -15398,7 +15406,7 @@ const CTX = {
       const audEntry = { sig:bodySig, resultUrl:url };
       if(prevAud.job) audEntry.job = prevAud.job;
       if(prevAud.njs) audEntry.njs = true;
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url, signal);
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
@@ -15408,6 +15416,7 @@ const CTX = {
       est = it ? speechEstUsd(it.pricing, it.params, input, extra) : null;
     }
     accrue(isNaN(hc) ? {} : { cost:hc }, est, r);                               // real header cost (x-cost 0 = known-free / subscription)
+    signal?.throwIfAborted();
     // Some providers hand back the audio with a blank/generic content-type. An
     // <audio> element won't play a blob whose MIME it can't recognise (shows
     // 0:00, dead play button) even though the bytes download/open fine — so pin
@@ -15874,12 +15883,14 @@ function opaqueContentError(err, kept){
   if(kept) return new Error(msg + " The finished job is saved - Run again retries only this download, not a new generation.");
   return new Error(msg + " Running again is a new paid request.");
 }
-async function deliverResolvedMedia(map, runKey, entry, url){
+async function deliverResolvedMedia(map, runKey, entry, url, signal){
   if(runKey && map) map.set(runKey, entry);
   var resolved;
-  try{ resolved = await resolveContentMedia(url); }
+  signal?.throwIfAborted();
+  try{ resolved = await resolveContentMedia(url, signal); }
   catch(e){ throw opaqueContentError(e, true); }
-  if(runKey && map) map.delete(runKey);
+  signal?.throwIfAborted();
+  if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
   return resolved;
 }
 async function resolveProviderMediaUrl(url, opts){
@@ -15965,12 +15976,13 @@ async function resolveProviderMediaUrl(url, opts){
   }
   throw new Error("provider media redirect did not resolve to a fetchable file");
 }
-async function resolveContentMedia(url){
+async function resolveContentMedia(url, signal){
   var key = "";
   if(typeof getKey==="function") key = getKey() || "";
-  var signal;
-  if(typeof runSignal==="function") signal = runSignal();
-  else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
+  if(signal===undefined){
+    if(typeof runSignal==="function") signal = runSignal();
+    else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
+  }
   return resolveProviderMediaUrl(url, {
     baseUrl: NANOGPT,
     apiKey: key,
@@ -16556,7 +16568,7 @@ async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed.
 // runKey + bodySig: the job is stashed in PENDING_AUDIO so a re-run resumes without re-charging.
-async function pollAudio(model, j, onProgress, runKey, bodySig){
+async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUDIO){
   const runId = j.runId || j.id;
   const job = { runId, model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
   // Remember the job (with its request sig) the moment it exists, so EVERY early exit is recoverable
@@ -16568,13 +16580,13 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
   if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
   if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
   if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
-  const sig = runSignal();   // capture this run's signal — a run started during our drain repurposes the global one (see genVideo)
   const t0 = Date.now();
   while(Date.now()-t0 < 300000){
     await sleep(3000);
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
-    let pr, s; try{ pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()}); s = await pr.json(); }
-    catch(e){ if(e?.name==="AbortError") throw e; continue; }
+    let pr, s; try{ pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:sig}); s = await pr.json(); }
+    catch(e){ sig?.throwIfAborted(); if(e?.name==="AbortError") throw e; continue; }
+    sig?.throwIfAborted();
     const st = String(s.status||"").toLowerCase();
     if(st==="completed" || st==="succeeded"){
       applyPollSettlement(s, pr, false);
@@ -19016,6 +19028,15 @@ function updateTitle(){
    noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
+// Node IDs are local to a workflow. Keep accepted jobs with the canvas that
+// submitted them, including when that canvas is parked or recovered.
+const workspaceMediaJobs = new Map();
+function pendingMediaJobs(){
+  const id = wsCanvasOwner?.id ?? readWorkspaces()?.active ?? null;
+  let jobs = workspaceMediaJobs.get(id);
+  if(!jobs) workspaceMediaJobs.set(id, jobs = {video:new Map(), audio:new Map()});
+  return jobs;
+}
 // Closed tabs are reversible for the visible notice, in this visit only. Keep
 // them outside per-workspace graph history: switching tabs swaps those stacks.
 var wsClosedUndo=[], wsClosedRedo=[], wsCloseHistoryMute=0, wsCloseSerial=0;
@@ -19084,9 +19105,11 @@ function captureClosedWorkspace(d,tab,raw){
   const stored=active?{undo:undoStack.slice(),redo:redoStack.slice(),describe:window.captureDescribeVersions?.()}:workspaceHist.get(tab.id);
   return {tab:copyWorkspaces(tab),index:d.tabs.indexOf(tab),active,last:d.tabs.length===1,
     graph:raw || JSON.stringify(blankGraph()),results:active?_stashResults():workspaceResults.get(tab.id) || null,
+    mediaJobs:workspaceMediaJobs.get(tab.id),
     history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice(),describe:stored.describe}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
 }
 function recordClosedWorkspace(entry,opts){
+  workspaceMediaJobs.delete(entry.tab.id);
   if(!opts || !opts.redo)wsClosedRedo.length=0;
   wsClosedUndo.push(entry);if(wsClosedUndo.length>25)wsClosedUndo.shift();
   showWorkspaceCloseNotice();
@@ -19105,6 +19128,7 @@ function restoreClosedWorkspace(){
   if(!flushSave()){wsStorageError("save");return false;}
   const shot=workspaceShot(), oldKey=wsSnapshotKey(wsGraphKey(entry.tab.id));
   const oldResults=captureResults(entry.tab.id),oldHistory=workspaceHist.get(entry.tab.id);
+  const oldMediaJobs=workspaceMediaJobs.get(entry.tab.id);
   let canvasTouched=false;
   wsCloseHistoryMute++;
   try{
@@ -19130,6 +19154,8 @@ function restoreClosedWorkspace(){
       restoreWorkspaceHistory(entry.tab.id);
       if(!flushSave())throw new Error("store");
     }else writeWorkspaces(d);
+    if(entry.mediaJobs) workspaceMediaJobs.set(entry.tab.id,entry.mediaJobs);
+    else workspaceMediaJobs.delete(entry.tab.id);
     wsClosedUndo.pop();wsClosedRedo.push(entry);
     renderWorkspaces();showWorkspaceCloseNotice();syncUndoBtn();
     return true;
@@ -19137,6 +19163,7 @@ function restoreClosedWorkspace(){
     wsRestoreKey(wsGraphKey(entry.tab.id),oldKey);
     restoreResults(entry.tab.id,oldResults);
     if(oldHistory)workspaceHist.set(entry.tab.id,oldHistory);else workspaceHist.delete(entry.tab.id);
+    if(oldMediaJobs)workspaceMediaJobs.set(entry.tab.id,oldMediaJobs);else workspaceMediaJobs.delete(entry.tab.id);
     workspaceRollback(shot,{canvas:canvasTouched});wsStorageError("save");return false;
   }finally{wsCloseHistoryMute--;}
 }
@@ -19312,7 +19339,8 @@ function wsRecoveryHasRuntime(values, d, tab){
     ? {undo:undoStack, redo:redoStack, describe:window.captureDescribeVersions?.()}
     : workspaceHist.get(tab.id);
   const describe = history?.describe;
-  return !!(history?.undo?.length || history?.redo?.length || describe?.versions?.length || describe?.draft
+  const jobs = workspaceMediaJobs.get(tab.id);
+  return !!(jobs?.video.size || jobs?.audio.size || history?.undo?.length || history?.redo?.length || describe?.versions?.length || describe?.draft
     || (active ? graph.nodes.some(n=>Object.keys(n.out||{}).length || n._sig!=null || n._glbBytes)
                : workspaceResults.get(tab.id)?.size));
 }
@@ -19364,7 +19392,7 @@ function wsReconcileRecovery(values, {live=false,legacy=false}={}){
   d.tabs = d.tabs.filter(tab=>!removed.has(tab.id));
   for(const id of removed.keys()){
     delete result[wsGraphKey(id)];
-    if(live){ workspaceResults.delete(id); workspaceHist.delete(id); }
+    if(live){ workspaceResults.delete(id); workspaceHist.delete(id); workspaceMediaJobs.delete(id); }
   }
   result[WS_INDEX_KEY]=JSON.stringify(d);
   return result;
@@ -19404,11 +19432,12 @@ function wsMergeRecovery(saved, visit, liveCanvas){
   if(!live) return result;
   if(saved.noodle_graph!=null) result[wsGraphKey(d.active)]=saved.noodle_graph;
   const histories = new Map(workspaceHist), results = new Map(workspaceResults);
+  const mediaJobs = new Map(workspaceMediaJobs);
   const options = new Map(live.tabs.map(tab=>[tab,d.tabs.filter(other=>wsSameRecoveryTab(visit,live,tab,saved,d,other))]));
   const matches = wsPairRecoveryTabs(liveCanvas
     ? new Map([...options].filter(([tab])=>!wsRecoveryHasRuntime(visit,live,tab))) : options);
   // In a retry, these maps describe the visit, not the durable tab IDs.
-  workspaceHist.clear(); workspaceResults.clear();
+  workspaceHist.clear(); workspaceResults.clear(); workspaceMediaJobs.clear();
   for(const tab of live.tabs){
     let id = matches.get(tab)?.id;
     const json = wsRecoveryGraph(visit,live,tab);
@@ -19429,6 +19458,7 @@ function wsMergeRecovery(saved, visit, liveCanvas){
     }
     if(results.has(tab.id)) workspaceResults.set(id,results.get(tab.id));
     if(histories.has(tab.id)) workspaceHist.set(id,histories.get(tab.id));
+    if(mediaJobs.has(tab.id)) workspaceMediaJobs.set(id,mediaJobs.get(tab.id));
     if(tab.id===live.active){ d.active=id; result.noodle_graph=json || JSON.stringify(blankGraph()); }
   }
   if(visit[EDITOR_APP_KEY]!=null) result[EDITOR_APP_KEY]=visit[EDITOR_APP_KEY];
@@ -19958,6 +19988,8 @@ function wsSaveCanvas(json, retried=false){
       workspaceStorage.setItem(recoveredKey, json);
       try{ writeWorkspaces(index); }
       catch(error){ wsRestoreKey(recoveredKey, before); throw error; }
+      const mediaJobs = workspaceMediaJobs.get(id);
+      if(mediaJobs){ workspaceMediaJobs.set(recoveredId, mediaJobs); workspaceMediaJobs.delete(id); }
       wsRememberCanvas(recoveredId, json);
       if(wsValues && !wsAttachSavedCanvas(json)) throw wsStorageException("WorkspaceCheckpointFailed");
       try{ renderWorkspaces(); }catch(_){}

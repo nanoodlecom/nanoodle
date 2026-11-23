@@ -555,6 +555,7 @@ for (const resolvesAfterStop of [false, true]) {
   release();
   await pending;
   ok(w.nodes.n0._st === "stopped", "ancestor stays stopped after its work aborts");
+  ok(w.nodes.n0.out.image === "STALE_PRIOR_RUN", "a late cancelled result cannot replace the prior output");
   ok(w.paid.length === 0, `cancelled upstream never starts a paid dependent (late success=${resolvesAfterStop}, paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.n1._st === "skip" && w.nodes.n2._st === "skip", "cancellation skips dependents transitively");
   ok(!w.nodeWork.size && !w.runningNodes.size && !w.seedRuns.size, "cancelled work releases promises and run locks");

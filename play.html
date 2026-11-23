@@ -11434,12 +11434,14 @@ function imgExtra(n){
     if(kept) return new Error(msg + " The finished job is saved - Run again retries only this download, not a new generation.");
     return new Error(msg + " Running again is a new paid request.");
   }
-  async function deliverResolvedMedia(map, runKey, entry, url){
+  async function deliverResolvedMedia(map, runKey, entry, url, signal){
     if(runKey && map) map.set(runKey, entry);
     var resolved;
-    try{ resolved = await resolveContentMedia(url); }
+    signal?.throwIfAborted();
+    try{ resolved = await resolveContentMedia(url, signal); }
     catch(e){ throw opaqueContentError(e, true); }
-    if(runKey && map) map.delete(runKey);
+    signal?.throwIfAborted();
+    if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
     return resolved;
   }
   async function resolveProviderMediaUrl(url, opts){
@@ -11525,12 +11527,13 @@ function imgExtra(n){
     }
     throw new Error("provider media redirect did not resolve to a fetchable file");
   }
-  async function resolveContentMedia(url){
+  async function resolveContentMedia(url, signal){
     var key = "";
     if(typeof getKey==="function") key = getKey() || "";
-    var signal;
-    if(typeof runSignal==="function") signal = runSignal();
-    else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
+    if(signal===undefined){
+      if(typeof runSignal==="function") signal = runSignal();
+      else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
+    }
     return resolveProviderMediaUrl(url, {
       baseUrl: NANOGPT,
       apiKey: key,

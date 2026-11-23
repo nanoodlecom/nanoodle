@@ -82,6 +82,7 @@ function page(local,session,disk){
       restore(){load();claimInitialCanvas();return graph;},
       open:openWorkspaceWithGraph,switchTo:switchWorkspace,closeTab:closeWorkspace,
       view:workspaceView,
+      pendingMediaJobs,
       liveBinding(binding){pendingAppId=binding.id;pendingAppTitle=binding.title;},
       stashResult(id){workspaceResults.set(id,new Map([["n1 text",{out:{text:"PAID RESULT"}}]]));},
       read:key=>workspaceStorage.getItem(key),
@@ -175,6 +176,8 @@ await check("local storage retains both edits to the same workspace",async()=>{
   const local=storage(initial()),disk={};
   const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
   await a.boot();await b.boot();
+  const jobs=b.pendingMediaJobs();
+  jobs.video.set("n1",{runId:"paid-video"});
   a.edit("FIRST WINDOW EDIT");a.timer();b.edit("SECOND WINDOW EDIT");b.timer();
   const copy=b.view().tabs.find(t=>t.id===b.view().active);
   assert.notEqual(copy.id,"w1");assert.match(copy.name,/Recovered visit/);
@@ -184,6 +187,11 @@ await check("local storage retains both edits to the same workspace",async()=>{
   b.edit("FOLLOWUP EDIT");b.timer();
   assert.equal(b.view().tabs.length,3,"follow-up edits continue in the same recovered workspace");
   assert.equal(text(local.getItem("noodle_ws_"+copy.id)),"FOLLOWUP EDIT");
+  assert.equal(b.pendingMediaJobs(),jobs,"the recovered canvas retains its accepted jobs");
+  b.switchTo("w1");
+  assert.equal(b.pendingMediaJobs().video.size,0,"the other canvas cannot resume the recovered canvas's job");
+  b.switchTo(copy.id);
+  assert.equal(b.pendingMediaJobs().video.get("n1").runId,"paid-video");
   a.close();b.close();
 });
 await check("a stale canvas save preserves edits after its workspace was closed elsewhere",async()=>{
@@ -422,14 +430,15 @@ await check("matching standalone graph bytes cannot prove separately stored uplo
   const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});
   await p.boot();assert.deepEqual(tabIndex(p).tabs,tabs);p.close();
 });
-await check("live reconciliation waits for a pending edit and keeps a copy with unique results",async()=>{
-  for(const state of ["pending edit","paid result"]){
+await check("live reconciliation preserves a copy with pending edits, results or jobs",async()=>{
+  for(const state of ["pending edit","paid result","pending job"]){
     const workflow=graph("SAME ON DISK"),different=graph("DIFFERENT ON DISK");
     const tabs=[tab("w1","Editing"),recovered("w2","Editing")];
     const values=workspaceValues(tabs,"w2",{w1:different,w2:workflow});
     const p=page(storage({}),storage({}),{record:{v:1,values,generation:"base"}});await p.boot();
     if(state==="pending edit")p.edit("UNSAVED IN CANVAS");
-    else p.stashResult("w1");
+    else if(state==="paid result")p.stashResult("w1");
+    else p.pendingMediaJobs().audio.set("n1",{job:{runId:"paid-audio"}});
     p.set("noodle_ws_w1",JSON.stringify(workflow));await turns();
     assert.deepEqual(tabIndex(p).tabs,tabs);
     p.timer();await p.settleWorkspaceStorage();
