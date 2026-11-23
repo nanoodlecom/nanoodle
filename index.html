@@ -10292,7 +10292,7 @@ const NODE_TYPES = {
       </details>`,
     async run(n, inp){
       const [local, engine] = await Promise.all([import("./vendor/rotoscope-local.mjs"), loadNjsEngine()]);
-      return local.render3d(inp.model, n.fields, { decodeData:engine?.dataUrlBytes, muxAvc:MP4CAT.muxAvc,
+      return local.render3d(inp.model, n.fields, { decodeData:engine?.dataUrlBytes, mp4Writer:MP4CAT.writer,
         signal:runSignal(n.id), progress:message=>setNodeProgress(n,message) });
     }
   },
@@ -16467,15 +16467,7 @@ function mp4ParamsMatch(bufs){
     return true;
   }catch(e){ return false; }
 }
-function muxAvc(samples, width, height, fps, description){
-  const avc1 = box("avc1", new Uint8Array(6), u16(1), new Uint8Array(16),
-    u16(width), u16(height), u32(0x00480000), u32(0x00480000), u32(0),
-    u16(1), new Uint8Array(32), u16(24), u16(0xffff), box("avcC", description));
-  return writeMp4(samples.map(s=>s.bytes), [{ kind:"video", width, height, timescale:fps,
-    stsdRaw:fullbox("stsd",0,0,u32(1),avc1),
-    samples:samples.map((s,i)=>({ bufIdx:i,offset:0,size:s.bytes.length,dur:1,cts:0,sync:s.sync })) }]);
-}
-  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4, muxAvc };
+  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4, writer:{box, fullbox, u16, u32, writeMp4} };
 })();
 
 function pickVideoMime(){

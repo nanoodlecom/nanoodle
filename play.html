@@ -12172,6 +12172,10 @@ function concatMp4(buffers, opts){
     outTracks.push(merged);
   }
 
+  return writeMp4(buffers, outTracks);
+}
+
+function writeMp4(buffers, outTracks){
   // Build mdat first so chunk offsets are known. Layout: ftyp + mdat + moov.
   const ftyp = box("ftyp", enc("isom"), u32(0x200), enc("isomiso2avc1mp41"));
   // assemble mdat data, recording each sample's absolute offset
@@ -12277,7 +12281,7 @@ function mp4ParamsMatch(bufs){
     return true;
   }catch(e){ return false; }
 }
-  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4 };
+  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4, writer:{box, fullbox, u16, u32, writeMp4} };
 })();
   // Decode a clip to its first frame WITHOUT playing it, so every clip is lined up before the
   // recorder starts. Loading inside the record loop instead froze each seam while the next clip
@@ -13512,6 +13516,19 @@ return "image/png";
      NODE_TYPES run map (verbatim behavior, index.html).
      setNodeProgress() calls are redirected to the per-run onProgress cb.
      ===================================================================== */
+  let rotoscopeModule;
+  function loadRotoscopeLocal(){
+    if(window.NoodleRotoscopeLocal) return Promise.resolve(window.NoodleRotoscopeLocal);
+    if(location.protocol!=="http:" && location.protocol!=="https:"){
+      return Promise.reject(new Error("Local media tools are unavailable here. Reopen the app online or export it again."));
+    }
+    if(!rotoscopeModule) rotoscopeModule = import("./vendor/rotoscope-local.mjs").catch(() => {
+      rotoscopeModule = null;
+      throw new Error("Could not load the local media tools. Reload the app and retry.");
+    });
+    return rotoscopeModule;
+  }
+
   const NODE_TYPES = {
     text: {
       em:"📝", title:"Text", inputs:[], outputs:[{name:"text", type:"text"}],
@@ -13685,6 +13702,22 @@ return "image/png";
       inputs:[{name:"model",type:"model3d"},{name:"paletteImage",type:"image"}],
       outputs:[{name:"sheet",type:"image"},{name:"layout",type:"text"},{name:"image",type:"image"}],
       run:(n,inp)=>window.NanoodleEngine.RUNNERS["slice-3d"](n,inp,{signal:ABORT?.signal})
+    },
+    render3d: {
+      em:"🧊", title:"Render 3D",
+      inputs:[{name:"model",type:"model3d"}],
+      outputs:[{name:"image",type:"image"},{name:"video",type:"video"}],
+      async run(n, inp, _ctx, onProgress){
+        if(!inp.model) throw new Error("Connect a 3D model first");
+        const signal = ABORT?.signal;
+        const local = await loadRotoscopeLocal();
+        const createScene = window.NoodleRender3dScene?.createRender3dScene;
+        if(window.NoodleRotoscopeLocal && !createScene){
+          throw new Error("Could not load the Render 3D scene. Reopen the app online or export it again.");
+        }
+        return local.render3d(inp.model, n.fields, {decodeData:window.NanoodleEngine?.dataUrlBytes,
+          mp4Writer:MP4CAT.writer, signal, progress:onProgress || (()=>{}), createScene});
+      }
     },
     "sprite-stack-render": {
       em:"🎞️", title:"Sprite stack render",
@@ -14729,6 +14762,14 @@ const PROMPT_CAPS = {
       return !graph.links.some(l=> l.from.node===n.id);
     });
   }
+  function primaryOutputPort(n){
+    const spec = NODE_TYPES[n.type]?.outputs;
+    const ports = (typeof spec==="function" ? spec(n) : spec) || [];
+    if(n.type==="render3d" && (n.out?.video || (!n.out?.image && n.fields?.mode==="video"))){
+      return ports.find(p=>p.name==="video") || {};
+    }
+    return ports[0] || {};
+  }
 
   /* =====================================================================
      SETTINGS — the per-node knobs (model, size, duration, …). Unlike inputs
@@ -14746,6 +14787,7 @@ const PROMPT_CAPS = {
   const SETTING_SPECS = {
     "slice-3d": globalThis.NanoodleEngine?.SETTING_SPECS?.["slice-3d"] || [],
     "sprite-stack-render": globalThis.NanoodleEngine?.SETTING_SPECS?.["sprite-stack-render"] || [],
+    render3d: globalThis.NanoodleEngine?.SETTING_SPECS?.render3d || [],
     llm:     [{ f:"model", label:"Model", kind:"model" },
               { f:"temperature",     label:"Temperature",       kind:"number", min:0, max:2, step:"0.1", def:"0.8" },
               { f:"format",          label:"Output format",     kind:"select", options:[["Text","Text"],["JSON","JSON"]], def:"Text" },
@@ -15625,10 +15667,7 @@ const PROMPT_CAPS = {
 
     const outs = deriveOutputs(graph);
     if(outs.length){
-      const kinds = [...new Set(outs.map(n=>{
-        const t = NODE_TYPES[n.type] || {};
-        return (t.outputs && t.outputs[0] && t.outputs[0].type) || "result";
-      }))];
+      const kinds = [...new Set(outs.map(n=>primaryOutputPort(n).type || "result"))];
       lines.push("");
       lines.push("The result it shows the user: " + kinds.join(", ") + ".");
     }
@@ -16401,9 +16440,7 @@ const PROMPT_CAPS = {
   function resultCard(n, badge){
     if(n.type==="vframes") return vframesCard(n, badge);
     const out = n.out || {};
-    var outs = NODE_TYPES[n.type].outputs;
-    if(typeof outs==="function") outs = outs(n);
-    let port = (outs||[])[0] || {};
+    let port = primaryOutputPort(n);
     // ⚖️ Decide pick: the winning image IS the result; its "image N" answer rides as a caption below.
     const decidePick = n.type==="decide" && out.decision && out.decision.mode==="pick" && !!out.image;
     if(decidePick) port = { name:"image", type:"image" };
@@ -16663,7 +16700,10 @@ const PROMPT_CAPS = {
     const KIND = { image:"image", tvideo:"video", ivideo:"video", music:"music", remix:"music",
                    tts:"speech", llm:"text", vision:"descriptions" };
     const set = [];
-    for(const n of (STATE.outputs || [])){ const k = KIND[n.type]; if(k && set.indexOf(k)<0) set.push(k); }
+    for(const n of (STATE.outputs || [])){
+      const k = n.type==="render3d" ? primaryOutputPort(n).type : KIND[n.type];
+      if(k && set.indexOf(k)<0) set.push(k);
+    }
     return set;
   }
   function renderOutputPlaceholder(){
@@ -16686,7 +16726,7 @@ const PROMPT_CAPS = {
     injectOutputPlaceholderStyles();
     // Signed-out recipients (no baked sample) need the auth story here — empty card alone reads
     // as broken. One soft line; the full sign-in control still lives in authIntro / the top bar.
-    const needsKey = EMBEDDED ? !parentAuthed : !getKey();
+    const needsKey = graphNeedsNanoKey(STATE.graph) && (EMBEDDED ? !parentAuthed : !getKey());
     const sub = needsKey
       ? '<div class="oe-sub">'+esc(t("Needs a NanoGPT key to run — pay-per-use, sign in above, then hit Run."))+'</div>'
       : '';
@@ -16718,7 +16758,7 @@ const PROMPT_CAPS = {
   var SAMPLE_IMG_Q = 0.72;
   function rememberLiveOut(n){
     if(!n || !n.id) return;
-    var port = ((NODE_TYPES[n.type]||{}).outputs||[])[0] || {};
+    var port = primaryOutputPort(n);
     var val = n.out && n.out[port.name];
     if(val==null) return;
     var entry = { id:n.id, type:n.type, port:port.name||"out", ptype:port.type||"text", v:null };
@@ -17877,7 +17917,7 @@ const PROMPT_CAPS = {
   }
 
   // __njs: internals for scripts/check-njs-delegation.mjs's veto matrix — not app API
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, isInputKind, INPUT_KINDS, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, primaryOutputPort, NODE_TYPES, isInputKind, INPUT_KINDS, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
 })();
 `;
 
@@ -18341,14 +18381,15 @@ const ENGINE = {
   // widget (or a customize diff may have dropped its rules), and prepending keeps the author's
   // own equal-specificity rules winning. Duplicating it for fresh apps is harmless.
   css:     ()=> "<style>" + RUNTIME_WIDGET_CSS + "\n" + (APP_STATE.files["app.css"] || "") + "</style>",
-  runtime: ()=> {
+  runtime: (localMediaScript)=> {
     // the nanoodle-js engine bundle rides along so exported apps can honor the same
     // ?engine=js / njs_engine flag as play. Read from this page's own script block;
     // absent (or a non-string under the test harness's inert DOM) → runtime-only, unchanged.
     const eng = document.getElementById("njs-engine");
     const engText = eng && typeof eng.textContent === "string" ? eng.textContent : "";
     const engTag = engText ? '<script id="njs-engine">\n' + engText.replace(/<\/script/gi, "<\\/script") + "\n<\/script>\n" : "";
-    return engTag + "<script>\n" + RUNTIME_JS.replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
+    const localTag = localMediaScript ? "<script>\n" + localMediaScript.replace(/<\/script/gi, "<\\/script") + "\n<\/script>\n" : "";
+    return engTag + localTag + "<script>\n" + RUNTIME_JS.replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
   },
   mount:   '<script>NoodleApp.mount();<\/script>',
   graph:   ()=> {
@@ -18368,11 +18409,33 @@ const ENGINE = {
     return "<script>window.NOODLE_SAMPLES = " + json + ";<\/script>";
   },
 };
-const injectInHead = (html, s)=> /<\/head>/i.test(html) ? html.replace(/<\/head>/i, s + "</head>")
+const injectInHead = (html, s)=> /<\/head>/i.test(html) ? html.replace(/<\/head>/i, m=> s + m)
                                : /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m=> m + s) : s + html;
 const injectInBody = (html, s)=> /<\/body>/i.test(html) ? html.replace(/<\/body>/i, s + "</body>") : html + s;
 
-function bundle(files){
+const rotoscopePlayerScripts = new Map();
+function loadRotoscopePlayerScript(path){
+  if(!rotoscopePlayerScripts.has(path)){
+    rotoscopePlayerScripts.set(path, fetch(path, {credentials:"omit", redirect:"error"}).then(res=>{
+      if(!res.ok) throw new Error("Local media tools could not be downloaded");
+      return res.text();
+    }).catch(error=>{
+      rotoscopePlayerScripts.delete(path);
+      throw error;
+    }));
+  }
+  return rotoscopePlayerScripts.get(path);
+}
+function packRotoscopePlayer(graph){
+  const nodes = graph?.nodes || [];
+  const render3d = nodes.some(n=>n?.type==="render3d");
+  if(!render3d && !nodes.some(n=>n?.type==="vframes")) return null;
+  const parts = [loadRotoscopePlayerScript("./vendor/rotoscope-player.js")];
+  if(render3d) parts.push(loadRotoscopePlayerScript("./vendor/rotoscope-player-scene.js"));
+  return Promise.all(parts).then(scripts=>scripts.join("\n"));
+}
+
+function bundle(files, localMediaScript){
   let html = files["index.html"];
   if(html == null)
     return '<!doctype html><meta charset=utf-8><body style="font:14px system-ui;color:#888;padding:2rem">No <code>index.html</code> — reopen this app from the editor.</body>';
@@ -18382,7 +18445,7 @@ function bundle(files){
   // <!-- include: app.css --> -> css text ; <!-- include: runtime.js --> -> the fixed engine
   html = html.replace(/<!--\s*include:\s*([^>]+?)\s*-->/g, (_, p) => {
     const name = p.trim();
-    if(name === "runtime.js"){ runtimeDone = true; return ENGINE.runtime(); }
+    if(name === "runtime.js"){ runtimeDone = true; return ENGINE.runtime(localMediaScript); }
     if(name === "app.css"){    cssDone = true;     return RUNTIME_WIDGET_CSS + "\n" + (APP_STATE.files["app.css"] || ""); }
     const raw = files[name];
     return raw != null ? raw : "<!-- missing: " + name + " -->";
@@ -18432,7 +18495,7 @@ function bundle(files){
   // re-inject (not marker-driven): a customize that dropped a prior script must not keep a
   // stale sample, and a share that just packed fresh samples must land in the preview.
   { const s = ENGINE.samples(); if(s) html = injectInHead(html, s); }
-  if(!runtimeDone) html = injectInHead(html, ENGINE.runtime());
+  if(!runtimeDone) html = injectInHead(html, ENGINE.runtime(localMediaScript));
   // 3) the mount call runs dead-last: strip any existing one, re-add at end of body
   //    so the DOM (incl. any shimmed mount points) and the engine are fully ready.
   //    mount() is idempotent, so a stray hand-written call is harmless anyway.
@@ -18553,11 +18616,20 @@ function renderApp(){
   setShareDirty(false);   // a fresh mount starts clean and won't re-post until it diverges, so clear our flag
   paceReset();            // every mount reboots the app's JS from scratch, so hand it a full request budget
   frame.sandbox = "allow-scripts allow-downloads";   // allow-downloads: the output cards' ⭳ Download button
-  frame.onload = () => {
+  const show = (localMediaScript) => {
     if(mount!==previewMount) return;
-    pushAuthToApp(); pushOutputsToApp(resume);   // auth state + last visit's stored results
+    frame.onload = () => {
+      if(mount!==previewMount) return;
+      pushAuthToApp(); pushOutputsToApp(resume);   // auth state + last visit's stored results
+    };
+    frame.srcdoc = withPreamble(bundle(APP_STATE.files, localMediaScript), mount);
   };
-  frame.srcdoc = withPreamble(bundle(APP_STATE.files), mount);
+  const packed = packRotoscopePlayer(APP_STATE.graph);
+  if(packed){
+    frame.onload = null;
+    frame.srcdoc = "";
+    packed.then(show, ()=>show());
+  }else show();
 }
 function postToApp(msg){ try{ $("appframe").contentWindow.postMessage(msg, "*"); }catch(_){} }
 // tell the app whether WE (the parent) are signed in — never the key itself
@@ -19860,13 +19932,13 @@ const IO_CHIP = { text:{em:"📝",label:"Text"}, image:{em:"🖼",label:"Image"}
 // the workflow's user-facing input types and final output types, for the list rows
 function workflowIO(graph){
   try{
-    const m = NoodleApp.materialize(graph), NT = NoodleApp.NODE_TYPES, inT=[], outT=[];
+    const m = NoodleApp.materialize(graph), inT=[], outT=[];
     for(const it of NoodleApp.deriveInputs(m)){
       const t = it.kind==="image" ? "image" : "text";
       if(!inT.includes(t)) inT.push(t);
     }
     for(const o of NoodleApp.deriveOutputs(m)){
-      const t = (((NT[o.type]||{}).outputs||[])[0]||{}).type;
+      const t = NoodleApp.primaryOutputPort(o).type;
       if(t && !outT.includes(t)) outT.push(t);
     }
     return { inputs:inT, outputs:outT };
@@ -19885,10 +19957,10 @@ function workflowIO(graph){
    ====================================================================== */
 function ioSignature(graph){
   try{
-    const m = NoodleApp.materialize(graph), NT = NoodleApp.NODE_TYPES;
+    const m = NoodleApp.materialize(graph);
     const ins  = NoodleApp.deriveInputs(m).map(i=> i.kind).sort();
     const outs = NoodleApp.deriveOutputs(m)
-      .map(o=> (((NT[o.type]||{}).outputs||[])[0]||{}).type || o.type).sort();
+      .map(o=> NoodleApp.primaryOutputPort(o).type || o.type).sort();
     return JSON.stringify({ ins, outs });
   }catch{ return null; }
 }
@@ -20689,8 +20761,15 @@ async function doExport(){
   // Switching apps mid-ask means APP_STATE/bar-title now belong to a different app — bundling
   // them would silently download the WRONG app. Discard; the button works again immediately.
   if(CUR_ID !== _id){ toast("app changed while packing the export — press Export again", "err"); return; }
+  let localMediaScript;
+  try{ localMediaScript = await packRotoscopePlayer(APP_STATE.graph); }
+  catch(_){
+    if(CUR_ID === _id) toast("Could not download the local media tools. Reopen the app online and try Export again.", "err");
+    return;
+  }
+  if(CUR_ID !== _id){ toast("app changed while packing the export — press Export again", "err"); return; }
   const safe = ($("bar-title").textContent || "nanoodle-app").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "nanoodle-app";
-  const blob = new Blob([bundle(APP_STATE.files)], { type:"text/html" });
+  const blob = new Blob([bundle(APP_STATE.files, localMediaScript)], { type:"text/html" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = safe + ".html";
   document.body.appendChild(a); a.click(); a.remove();

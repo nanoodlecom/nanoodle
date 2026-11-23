@@ -1,4 +1,4 @@
-// Browser-only media for the editor. The server and SDK remain unchanged.
+// Browser-only media for the editor and app player.
 const MAX_BYTES = 64 * 1024 * 1024;
 const localSignal = signal => AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(120000)]);
 
@@ -64,7 +64,37 @@ const number = (value, fallback) => Number.isFinite(parseFloat(value)) ? parseFl
 const nameOrIndex = value => /^-?\d+$/.test(String(value).trim()) ? Number(value) : value;
 const checked = value => value === true || value === "true";
 
-export async function render3d(source, fields, { decodeData, signal: outerSignal, muxAvc, progress }) {
+async function openSceneFrame(signal) {
+  const frame = document.createElement("iframe");
+  frame.hidden = true;
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  frame.title = "Local 3D renderer";
+  const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+  frame.src = new URL("./rotoscope-render3d/scene.html", import.meta.url).href;
+  document.body.append(frame);
+  try {
+    await abortable(loaded, signal);
+    const scene = frame.contentWindow.__render3d;
+    const canvas = frame.contentDocument?.querySelector("canvas");
+    if (!scene?.load || !canvas) throw new Error("Could not start the local Render 3D scene");
+    return { scene, canvas, dispose: () => frame.remove() };
+  } catch (error) {
+    frame.remove();
+    throw error;
+  }
+}
+
+function muxAvc(samples, width, height, fps, description, writer) {
+  const { box, fullbox, u16, u32, writeMp4 } = writer;
+  const avc1 = box("avc1", new Uint8Array(6), u16(1), new Uint8Array(16),
+    u16(width), u16(height), u32(0x00480000), u32(0x00480000), u32(0),
+    u16(1), new Uint8Array(32), u16(24), u16(0xffff), box("avcC", description));
+  return writeMp4(samples.map(s=>s.bytes), [{ kind:"video", width, height, timescale:fps,
+    stsdRaw:fullbox("stsd",0,0,u32(1),avc1),
+    samples:samples.map((s,i)=>({ bufIdx:i,offset:0,size:s.bytes.length,dur:1,cts:0,sync:s.sync })) }]);
+}
+
+export async function render3d(source, fields, { decodeData, signal: outerSignal, mp4Writer, progress, createScene }) {
   if (!source) throw new Error("Connect a 3D model first");
   const signal = localSignal(outerSignal);
   const width = Math.max(16, Math.round(number(fields.width, 800)));
@@ -83,17 +113,18 @@ export async function render3d(source, fields, { decodeData, signal: outerSignal
     throw new Error("Render 3D video duration must be at least one frame at the selected fps");
   }
   const model = await mediaBytes(source, signal, decodeData);
-  const frame = document.createElement("iframe");
-  frame.hidden = true;
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
-  frame.title = "Local 3D renderer";
-  const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
-  frame.src = new URL("./rotoscope-render3d/scene.html", import.meta.url).href;
-  document.body.append(frame);
+  let view;
+  if (createScene) {
+    // The app already runs at an isolated origin. A nested iframe would have
+    // a different opaque origin, making its canvas unreadable to this app.
+    const canvas = document.createElement("canvas");
+    const scene = createScene(canvas);
+    view = { scene, canvas, dispose: () => scene.dispose() };
+  } else {
+    view = await openSceneFrame(signal);
+  }
+  const {scene, canvas} = view;
   try {
-    await abortable(loaded, signal);
-    const scene = frame.contentWindow.__render3d;
-    if (!scene?.load) throw new Error("Could not start the local Render 3D scene");
     await abortable(scene.load(model), signal);
     const base = {
       width, height,
@@ -103,7 +134,6 @@ export async function render3d(source, fields, { decodeData, signal: outerSignal
       clipAxis: fields.clipAxis, clipPos: number(fields.clipPos, 0),
       animClip: nameOrIndex(fields.animClip), animTime: number(fields.animTime, 0),
     };
-    const canvas = frame.contentDocument.querySelector("canvas");
     if (!video) {
       scene.apply(base);
       return { image: canvas.toDataURL("image/png") };
@@ -150,13 +180,13 @@ export async function render3d(source, fields, { decodeData, signal: outerSignal
         samples.some((sample, i) => sample.timestamp !== Math.round(i * 1e6 / fps))) {
         throw new Error("Render 3D encoder did not return every frame in order");
       }
-      const mp4 = new Blob([muxAvc(samples, width, height, fps, description)], { type: "video/mp4" });
+      const mp4 = new Blob([muxAvc(samples, width, height, fps, description, mp4Writer)], { type: "video/mp4" });
       return { video: await abortable(dataUrl(mp4), signal) };
     } finally {
       if (encoder.state !== "closed") encoder.close();
     }
   } finally {
-    frame.remove();
+    view.dispose();
   }
 }
 

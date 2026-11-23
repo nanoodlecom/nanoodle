@@ -328,6 +328,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   try {
     lift2 = {
       outputKinds: extractFn(html, "outputKinds"),
+      primaryOutputPort: extractFn(html, "primaryOutputPort"),
       renderOutputPlaceholder: extractFn(html, "renderOutputPlaceholder"),
       clearOutputPlaceholder: extractFn(html, "clearOutputPlaceholder"),
       refreshOutputPlaceholder: extractFn(html, "refreshOutputPlaceholder"),
@@ -346,6 +347,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
     let __msgHandler = null;
     const localStorage = { _s: {}, setItem(k, v){ this._s[k] = String(v); }, removeItem(k){ delete this._s[k]; }, getItem(k){ return k in this._s ? this._s[k] : null; } };
     const getKey = () => localStorage.getItem("ngpt_key");
+    const NODE_TYPES = {render3d:{outputs:[{name:"image",type:"image"},{name:"video",type:"video"}]}};
     function t(s){ return s; }
     const esc = (s) => String(s == null ? "" : s);
     function renderAuth(){}
@@ -377,7 +379,8 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
     };
   `;
   const program2 =
-    preamble2 + "\n" + lift2.outputKinds + "\n" + lift2.renderOutputPlaceholder + "\n" +
+    preamble2 + "\n" + lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" +
+    lift2.primaryOutputPort + "\n" + lift2.outputKinds + "\n" + lift2.renderOutputPlaceholder + "\n" +
     lift2.clearOutputPlaceholder + "\n" + lift2.refreshOutputPlaceholder + "\n" +
     lift2.wireParentBridge + "\n" + lift2.setKey + "\n" + epilogue2;
   const ctx2 = { globalThis: null };
@@ -425,6 +428,13 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   T2.setKey(null);
   ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
     "standalone setKey(null): signing out must restore the needs-a-key line");
+
+  T2.reset();
+  const localVideo = { type:"render3d", fields:{mode:"video"} };
+  T2.setSTATE({ graph:{nodes:[localVideo]}, outputs:[localVideo] });
+  T2.renderOutputPlaceholder();
+  ok(T2.empty() && T2.empty().innerHTML.includes("Your video will appear here") && !T2.empty().innerHTML.includes("oe-sub"),
+    "a local Render 3D video shows the video placeholder without an API-key requirement");
 }
 
 // ---- 6. INPUT KINDS HAVE NO PLAY — source nodes are not generate nodes ----------
