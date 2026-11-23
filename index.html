@@ -15266,7 +15266,8 @@ const CTX = {
     if(pend && pend.sig===bodySig && pend.resultUrl){
       return await deliverResolvedMedia(PENDING_VIDEO, runKey, pend, pend.resultUrl, runAbortSignal);
     }
-    let runId = (pend && pend.sig===bodySig) ? pend.runId : null;
+    let accepted = (pend && pend.sig===bodySig) ? pend : null;
+    let runId = accepted?.runId;
     if(pend && !runId && runKey) PENDING_VIDEO.delete(runKey);   // stale (request changed) — drop it and submit fresh
     if(!runId){
       const payload = JSON.stringify(body);
@@ -15285,7 +15286,10 @@ const CTX = {
       const j = await r.json(); accrue(j, undefined, r);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
-      if(runKey) PENDING_VIDEO.set(runKey, {sig:bodySig, runId});   // remember it (with its request sig) the moment it exists, so a timeout is recoverable
+      accepted = {sig:bodySig, runId};
+      if(runKey){
+        PENDING_VIDEO.set(runKey, accepted);
+      }
     }
     const t0 = Date.now();
     const is3d = opts.mediaKind==="model3d";
@@ -15306,6 +15310,11 @@ const CTX = {
         throw new Error(t("still building after 25 minutes — ▶ Run to check the same job"));
       return remaining;
     };
+    const failedStatuses = [
+      "FAILED","ERROR",
+      "CANCELED","CANCELLED",
+      "CONTENT_POLICY_VIOLATION",
+    ];
     try{
       while(true){
         await sleep(Math.min(5000, remainingPollTime()));
@@ -15313,13 +15322,26 @@ const CTX = {
         let pr, s;
         try{
           pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:pollSignal});
-          if(!pr.ok) continue;
-          s = await pr.json();
+          if(pr.ok) s = await pr.json();
         }catch(e){ remainingPollTime(); if(e?.name==="AbortError") throw e; continue; }
         remainingPollTime();
+        if(!pr.ok){
+          // A status request can fail independently of the accepted job.
+          const status = pr.status;
+          if(status<400 || status>=500) continue;
+          if([408,429].includes(status)) continue;
+          const hint = [401,403].includes(status)
+            ? " Sign in again and retry." : "";
+          const label = is3d ? "3D model" : "Video";
+          throw new Error(`${label} status check failed (HTTP ${status}).${hint}`);
+        }
+        if(!s) continue;
         const st = String(s?.data?.status || s?.status || "").toUpperCase();
         const waited = Date.now()-t0;
         onProgress && onProgress(st, waited, { runId, polledAt: Date.now(), stall: is3d && waited >= MODEL3D_STALL_MS });
+        runAbortSignal?.throwIfAborted();
+        const slot = PENDING_VIDEO.get(runKey);
+        const ownsJob = slot===accepted;
         if(st==="COMPLETED" || st==="SUCCEEDED"){
           const out = s.data?.output || s.output || {};
           const url = is3d ? model3dStatusUrl(s, model)
@@ -15327,11 +15349,16 @@ const CTX = {
           if(!url) throw new Error(is3d ? "completed but no model url" : "completed but no video url");
           applyPollSettlement(s, pr, false);
           const vEntry = { sig:bodySig, runId, resultUrl:url };
-          if(pend && pend.njs) vEntry.njs = true;
-          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url, runAbortSignal);
+          if(accepted.njs) vEntry.njs = true;
+          return await deliverResolvedMedia(
+            PENDING_VIDEO, ownsJob ? runKey : null,
+            vEntry, url, runAbortSignal
+          );
         }
-        if(["FAILED","ERROR","CANCELED","CANCELLED","CONTENT_POLICY_VIOLATION"].includes(st)){
-          if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
+        if(failedStatuses.includes(st)){
+          if(ownsJob){
+            PENDING_VIDEO.delete(runKey);
+          }
           applyPollSettlement(s, pr, true);
           throw new Error((is3d ? "3D failed: " : "video failed: ") + videoFailText(s, st));
         }

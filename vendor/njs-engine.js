@@ -1,5 +1,5 @@
-/* data-hash=98f51c3d2cbcbdb2 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-b2eb2f92f489 (33 modules) */
+/* data-hash=fe8134ae45c15ecb */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-72709afcddfe (33 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -667,7 +667,12 @@ class Workflow {
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
       if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
-      const primary = o.type === "endpoint" ? endpointOutPort(byId.get(o.nodeId), rec.out) : o.ports[0];
+      let primary = o.ports[0];
+      if (o.type === "endpoint") primary = endpointOutPort(byId.get(o.nodeId), rec.out);
+      else if (o.type === "render3d") {
+        // Render 3D emits only one port. Settings and wires can change its mode after inspection.
+        primary = o.ports.find(p => Object.hasOwn(rec.out, p.name)) ?? primary;
+      }
       const value = this._wrapValue(rec.out[primary.name], primary.type);
       outputEntries.push([o.key, value], [o.nodeId, value]);
     }
@@ -9021,5 +9026,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-b2eb2f92f489";
+  window.NanoodleEngine.version = "src-72709afcddfe";
 })();

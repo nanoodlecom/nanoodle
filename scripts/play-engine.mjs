@@ -66,11 +66,11 @@ function inert() {
 // The builder defines window.NoodleApp by appending a <script> whose text is
 // RUNTIME_JS (injectEngineForBuilder). Run that script's text in the sandbox so
 // the engine — and runGraph/NODE_TYPES — actually exist for us to drive.
-function scriptAwareDocument(ctx) {
+function scriptAwareDocument(ctx, prepareRuntime) {
   const base = inert();
   const run = (el) => {
     const text = el && el.__text;
-    if (text) new vm.Script(text, { filename: "play.html#runtime" }).runInContext(ctx);
+    if (text) new vm.Script(prepareRuntime ? prepareRuntime(text) : text, { filename: "play.html#runtime" }).runInContext(ctx);
   };
   const head = { appendChild: (el) => (run(el), el), append: (el) => (run(el), el) };
   return new Proxy(base, {
@@ -135,7 +135,7 @@ export function recordingFetch(url, opts = {}) {
 
 // extend(ctx): optional hook to add globals (Image, __createElement, …) to the
 // vm context before the engine script runs — see check-js-parity.mjs's canvas shim.
-export function loadEngine(extend) {
+export function loadEngine(extend, { prepareRuntime } = {}) {
   const code = prepare(extractScript(readFileSync(PLAY, "utf8")));
   const localStorage = {
     _k: "test-api-key",
@@ -167,7 +167,7 @@ export function loadEngine(extend) {
     },
   };
   ctx.window = ctx; ctx.globalThis = ctx; ctx.window.parent = ctx; // parent===window → EMBEDDED false
-  ctx.document = scriptAwareDocument(ctx);
+  ctx.document = scriptAwareDocument(ctx, prepareRuntime);
   if (extend) extend(ctx);
   vm.createContext(ctx);
   try {
