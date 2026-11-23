@@ -12013,9 +12013,12 @@ function scanForBox(u8, type){
 }
 
 // Parse one mp4 into { moovTimescale, tracks:[{kind, timescale, stsdRaw, samples:[{offset,size,dur,cts,sync}], width,height}] }
-function parseMp4(u8){
+function parseMp4(u8, indexed){
+  // Array.map passes an index as its second argument. Only the exact-frame path opts in.
+  indexed = indexed === true;
   const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
   const top = walk(dv, 0, u8.byteLength);
+  if(indexed && top.some(b=>b.type==="moof")) throw new Error("fragmented MP4 is not supported");
   const moov = find(top, "moov");
   if(!moov) throw new Error("no moov");
   const moovBoxes = walk(dv, moov.body, moov.end);
@@ -12032,6 +12035,7 @@ function parseMp4(u8){
     const timescale = dv.getUint32(mdhd.body + (mdhdV1 ? 20 : 12));
     const handler = fourcc(dv, hdlr.body + 8); // after ver/flags(4)+pre_defined(4)
     const kind = handler === "vide" ? "video" : handler === "soun" ? "audio" : handler;
+    if(indexed && kind!=="video") continue;
     const minf = find(mb, "minf"); const minfB = walk(dv, minf.body, minf.end);
     const stbl = find(minfB, "stbl"); const sb = walk(dv, stbl.body, stbl.end);
     const stsd = find(sb, "stsd");
@@ -12056,6 +12060,7 @@ function parseMp4(u8){
     // stsz
     const stszSampleSize = dv.getUint32(stsz.body + 4);
     const sampleCount = dv.getUint32(stsz.body + 8);
+    if(indexed && sampleCount > 20000) throw new Error("video exceeds 20,000 source frames");
     const sizes = new Array(sampleCount);
     if(stszSampleSize === 0){ for(let i=0;i<sampleCount;i++) sizes[i] = dv.getUint32(stsz.body + 12 + i*4); }
     else sizes.fill(stszSampleSize);
@@ -12077,11 +12082,13 @@ function parseMp4(u8){
     // chunk offsets
     const co = stco || co64; const is64 = !!co64;
     const coN = dv.getUint32(co.body + 4);
+    if(indexed && coN > sampleCount) throw new Error("invalid MP4 chunk count");
     const chunkOffsets = new Array(coN);
     for(let e=0;e<coN;e++) chunkOffsets[e] = is64 ? Number(dv.getBigUint64(co.body + 8 + e*8)) : dv.getUint32(co.body + 8 + e*4);
 
     // stsc -> samples per chunk
     const stscN = dv.getUint32(stsc.body + 4);
+    if(indexed && stscN > coN) throw new Error("invalid MP4 sample mapping");
     const stscEntries = [];
     for(let e=0;e<stscN;e++) stscEntries.push({ first: dv.getUint32(stsc.body + 8 + e*12), spc: dv.getUint32(stsc.body + 12 + e*12) });
 
@@ -12101,6 +12108,27 @@ function parseMp4(u8){
     }
     if(samples.length !== sampleCount) throw new Error("sample count mismatch " + samples.length + "/" + sampleCount);
     tracks.push({ kind, timescale, stsdRaw, codecCfg, samples, width, height, channels, sampleRate });
+    if(indexed){
+      const track = tracks.at(-1);
+      track.editStart = -Infinity; track.editEnd = Infinity;
+      const edts = find(tb, "edts");
+      const edit = edts && find(walk(dv, edts.body, edts.end), "elst");
+      if(edit){
+        const v = dv.getUint8(edit.body);
+        if(v > 1 || dv.getUint32(edit.body + 4) !== 1) throw new Error("complex MP4 edits are not supported");
+        const mvhd = find(moovBoxes, "mvhd");
+        const movieScale = dv.getUint32(mvhd.body + (dv.getUint8(mvhd.body) === 1 ? 20 : 12));
+        const duration = v ? Number(dv.getBigUint64(edit.body + 8)) : dv.getUint32(edit.body + 8);
+        const start = v ? Number(dv.getBigInt64(edit.body + 16)) : dv.getInt32(edit.body + 12);
+        const rate = dv.getInt32(edit.body + (v ? 24 : 16));
+        if(start < 0 || rate !== 65536 || !movieScale || !Number.isSafeInteger(duration) || !Number.isSafeInteger(start)) {
+          throw new Error("complex MP4 edits are not supported");
+        }
+        track.editStart = start;
+        track.editEnd = start + duration * timescale / movieScale;
+      }
+      break;
+    }
   }
   return { tracks };
 }
@@ -13774,7 +13802,14 @@ return "image/png";
       inputs:[{name:"video", type:"video"}], outputs:[{name:"frame1", type:"image"}],
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
+        const fields = n.fields;
         const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+        if([fields.stride, fields.startSec, fields.endSec].some(value=>value!=null && value!=="")){
+          const signal = ABORT?.signal;
+          const local = await loadRotoscopeLocal();
+          return local.indexedFrames(inp.video, fields, { parseMp4:MP4CAT.parseMp4,
+            decodeData:window.NanoodleEngine?.dataUrlBytes, count, signal, progress:onProgress || (()=>{}) });
+        }
         const gapRaw = parseFloat(n.fields.gap);
         const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
         const fromEnd = (n.fields.dir||"end")==="end";
@@ -14787,7 +14822,10 @@ const PROMPT_CAPS = {
     soundtrack:[{ f:"loop", label:"Loop audio to fill video", kind:"boolean", def:false }],
     vframes: [{ f:"dir", label:"Start from", kind:"select", options:[["end","last frame"],["start","beginning"]], def:"end" },
               { f:"frames", label:"How many frames", kind:"number", min:1, max:MAX_FRAMES, def:"1" },
-              { f:"gap", label:"Gap between frames (s)", kind:"number", min:0, step:"0.1", def:"0.5" }],
+              { f:"gap", label:"Gap between frames (s)", kind:"number", min:0, step:"0.1", def:"0.5" },
+              { f:"stride", label:"Frame stride", kind:"number", min:1, max:20000 },
+              { f:"startSec", label:"Range start (s)", kind:"number", min:0, max:86400, step:"0.001" },
+              { f:"endSec", label:"Range end (s)", kind:"number", min:0, max:86400, step:"0.001" }],
     // prompt/image/mask are IO (deriveInputs special-case) — only model + size/seed here
     inpaint: [{ f:"model", label:"Model", kind:"model" },
               { f:"size", label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
