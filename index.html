@@ -13669,7 +13669,8 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   try{
     // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
     const x = dir==="out" ? wx + 8 : wx - 232;
-    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+    const fields = typeKey==="render3d" && dir==="in" && type==="video" ? {mode:"video"} : undefined;
+    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24), fields);
     separateOnAdd(n, { x: Math.round(x), y: Math.round(wy - 24) });
     rememberAdd(typeKey);
     select(n);
