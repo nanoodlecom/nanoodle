@@ -286,6 +286,9 @@
   #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
   #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); gap:.8rem }
+  #examplessearch{ width:100%; box-sizing:border-box; min-height:46px; margin:.9rem 0 0; background:var(--panel2); border:1px solid var(--line);
+              border-radius:.5rem; padding:.5rem .6rem; color:inherit; font:inherit }
+  #examplesnone{ margin-top:1rem }
   .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:var(--nano-radius-card,12px) }
   .ex-card:focus-within,.ex-card:hover{ border-color:var(--accent) }
   .ex-preview{ display:flex; align-items:center; justify-content:center; height:150px; background:var(--bg); overflow:hidden; text-decoration:none; color:var(--ink); position:relative }
@@ -895,7 +898,7 @@
   .body .modelchoices .setbool{ margin:0 }
   /* an inline hint inside an uppercased <label> opts out of the SHOUTING (reads as a sentence) */
   .body label .lblhint{ text-transform:none; letter-spacing:0; font-weight:400; font-size:.92em }
-  .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
+  .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #examplessearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
   .body .two{ display:flex; gap:.4rem } .body .two > *{ flex:1; min-width:0 }
   /* image upload / webcam panel */
   .body .uprev{ width:100%; min-height:90px; display:flex; align-items:center; justify-content:center;
@@ -1174,7 +1177,7 @@
     /* ≥16px font on every text field so iOS Safari stops auto-zooming the fixed editor on focus
        (parity with play.html's `input,#goal{font-size:16px}`); explicit selectors because the base
        #describegoal/#addsearch/.node-name rules out-specify a bare `input{}`. */
-    #keyrow input, #addsearch, #mpicksearch, #describegoal, .node textarea, .node input, .node select, .node-name{ font-size:16px }
+    #keyrow input, #addsearch, #examplessearch, #mpicksearch, #describegoal, .node textarea, .node input, .node select, .node-name{ font-size:16px }
     /* fatten remaining small close/dismiss/overlay controls the coarse pass missed */
     #updatesclose{ min-width:40px; min-height:40px }
     #appmodalclose{ width:2.6rem; height:2.6rem }
@@ -1520,7 +1523,8 @@
       <button id="examplesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
     <p id="examplesintro">See saved results without a key. Open a workflow, change the inputs, then Run with your NanoGPT key and balance. Loading does not run or charge.</p>
-
+    <input id="examplessearch" type="search" autocomplete="off" placeholder="Search examples…" aria-label="Search examples…" />
+    <p id="examplesnone" class="dim" hidden></p>
     <div id="exampleslist"></div>
     <!-- 🏆 community shelf — hand-curated winner/showcase noodles (share links, so they open in a
          new tab and never touch the current canvas). Stays hidden while COMMUNITY_NOODLES is empty. -->
@@ -1787,6 +1791,8 @@ const I18N = {
     "Drag a":"Arrastra un",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"puerto sobre otro compatible para conectar — o suelta un cable en el lienzo vacío para añadir rápido.",
     "no nodes match “{q}”":"ningún nodo coincide con “{q}”",
+    "Search examples…":"Buscar ejemplos…",
+    "no examples match “{q}”":"ningún ejemplo coincide con “{q}”",
     "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"ese {field} pesa ~{mb} MB — supera el límite de envío de 4 MB; usa un clip más corto o no llegará al modelo",
     "Start here":"Empieza aquí",
     "■ Stop":"■ Detener",
@@ -2595,6 +2601,8 @@ const I18N = {
     "Drag a":"Glissez un",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"port sur un port compatible pour connecter — ou déposez un fil sur le canevas vide pour un ajout rapide.",
     "no nodes match “{q}”":"aucun nœud ne correspond à “{q}”",
+    "Search examples…":"Rechercher des exemples…",
+    "no examples match “{q}”":"aucun exemple ne correspond à “{q}”",
     "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"ce {field} fait ~{mb} MB — au-delà de la limite d’envoi de 4 MB ; utilisez un clip plus court ou il n’atteindra pas le modèle",
     "Start here":"Commencez ici",
     "■ Stop":"■ Arrêter",
@@ -3403,6 +3411,8 @@ const I18N = {
     "Drag a":"Ziehe einen",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"Port auf einen passenden, um zu verbinden — oder lass eine Verbindung auf dem leeren Canvas los zum Schnell-Hinzufügen.",
     "no nodes match “{q}”":"kein Node passt zu “{q}”",
+    "Search examples…":"Beispiele suchen…",
+    "no examples match “{q}”":"kein Beispiel passt zu “{q}”",
     "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"diese {field}-Datei ist ~{mb} MB groß — über dem 4-MB-Sendelimit; nutze einen kürzeren Clip, sonst erreicht sie das Modell nicht",
     "Start here":"Starte hier",
     "■ Stop":"■ Stopp",
@@ -4211,6 +4221,8 @@ const I18N = {
     "Drag a":"Arraste uma",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"porta sobre outra compatível para conectar — ou solte um fio na tela vazia para adicionar rápido.",
     "no nodes match “{q}”":"nenhum nó corresponde a “{q}”",
+    "Search examples…":"Buscar exemplos…",
+    "no examples match “{q}”":"nenhum exemplo corresponde a “{q}”",
     "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"esse {field} tem ~{mb} MB — acima do limite de envio de 4 MB; use um clipe mais curto ou ele não chegará ao modelo",
     "Start here":"Comece aqui",
     "■ Stop":"■ Parar",
@@ -5019,6 +5031,8 @@ const I18N = {
     "Drag a":"接続するには",
     "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"ポートを対応するポートへドラッグしてください — 空のキャンバスに線をドロップするとクイック追加できます。",
     "no nodes match “{q}”":"“{q}” に一致するノードはありません",
+    "Search examples…":"例を検索…",
+    "no examples match “{q}”":"“{q}” に一致する例はありません",
     "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"この{field}は約 {mb} MB あり、送信上限の 4 MB を超えています。短いクリップを使わないとモデルに届きません",
     "Start here":"まずはここから",
     "■ Stop":"■ 停止",
@@ -23040,6 +23054,22 @@ function openExamples(){
     list.appendChild(c);
   });
   renderCommunity();
+  // Filter the cards as you type — the dialog holds ~40 workflows and had no search at all
+  // (the node palette and model picker both have one; UX Pass Cycles 1+5 flagged the gap).
+  // Matches the rendered (already-localized) card text, so it works in every locale.
+  const exSearch=$("examplessearch"), exNone=$("examplesnone");
+  exSearch.value=""; exNone.hidden=true;
+  exSearch.oninput=()=>{
+    const q=exSearch.value.trim().toLowerCase();
+    let any=false;
+    for(const c of list.children){
+      const hit=!q || c.textContent.toLowerCase().includes(q);
+      c.style.display=hit?"":"none";
+      if(hit) any=true;
+    }
+    exNone.hidden=any;
+    if(!any) exNone.textContent=t("no examples match “{q}”").replace("{q}", exSearch.value.trim());
+  };
   $("examplesmodal").hidden=false;
   try{ window.__nextAction?.record?.("open:examples"); }catch(_){}
 }
