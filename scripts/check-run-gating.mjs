@@ -87,6 +87,7 @@ try {
     applyRunGating: extractFn(html, "applyRunGating"),
     stashRunInputs: extractFn(html, "stashRunInputs"),
     run: extractFn(html, "run"),
+    malformedNodeRecordError: extractFn(html, "malformedNodeRecordError"),
     isPaidNanoType: extractFn(html, "isPaidNanoType"),
     graphNeedsNanoKey: extractFn(html, "graphNeedsNanoKey"),
     unsupportedGraphMessage: extractFn(html, "unsupportedGraphMessage"),
@@ -171,7 +172,7 @@ const program =
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
   lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" + lift.unsupportedGraphMessage + "\n" +
   lift.wireInputFields + "\n" + lift.declaresWireOutput + "\n" + lift.declaresWireInput + "\n" + lift.invalidWireMessage + "\n" +
-  lift.inputConflict + "\n" +
+  lift.inputConflict + "\n" + lift.malformedNodeRecordError + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };
@@ -256,7 +257,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
 {
   T.setEmbedded(false); T.setKey(null); T.setParentAuthed(false);
   T.setLocation({ protocol: "https:", origin: "https://x", pathname: "/" });
-  T.setSTATE({ graph: { nodes: [{ type: "llm" }] }, outputs: [] });
+  T.setSTATE({ graph: { nodes: [{ id: "paid", type: "llm" }] }, outputs: [] });
   T.resetSpies();
   await T.run();
   const s = T.spies();
@@ -267,7 +268,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
 {
   T.setEmbedded(false); T.setKey(null); T.setParentAuthed(false);
   T.setLocation({ protocol: "file:", origin: "null", pathname: "/app.html" });
-  T.setSTATE({ graph: { nodes: [{ type: "llm" }] }, outputs: [] });
+  T.setSTATE({ graph: { nodes: [{ id: "paid", type: "llm" }] }, outputs: [] });
   T.resetSpies();
   await T.run();
   const s = T.spies();

@@ -35,6 +35,7 @@ function extractFn(src, name) {
   throw new Error(`could not brace-match ${name}()`);
 }
 const runGroupSrc = extractAsyncFn(SRC, "runGroup");
+const malformedNodeRecordErrorSrc = extractFn(SRC, "malformedNodeRecordError");
 const declaresWireOutputSrc = extractFn(SRC, "declaresWireOutput");
 const declaresWireInputSrc = extractFn(SRC, "declaresWireInput");
 const invalidWireMessageSrc = extractFn(SRC, "invalidWireMessage");
@@ -170,7 +171,7 @@ function bindWorld(world, opts = {}) {
   vm.createContext(ctx);
   new vm.Script(
     wireInputFieldsSrc + "\n" + declaresWireOutputSrc + "\n" + declaresWireInputSrc + "\n" + invalidWireMessageSrc + "\n" +
-    inputConflictSrc + "\n" +
+    inputConflictSrc + "\n" + malformedNodeRecordErrorSrc + "\n" +
     isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +

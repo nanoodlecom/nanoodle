@@ -109,6 +109,8 @@ try {
     serializeGraph: extractFunction(SRC, "serializeGraph"),
     stripInjectedMedia: extractFunction(SRC, "stripInjectedMedia"),
     allocateLinkId: extractFunction(SRC, "allocateLinkId"),
+    malformedNodeRecordError: extractFunction(SRC, "malformedNodeRecordError"),
+    graphPayloadOk: extractFunction(SRC, "graphPayloadOk"),
     applyGraphData: extractFunction(SRC, "applyGraphData"),
     b64urlToBytes: extractFunction(SRC, "b64urlToBytes"),
     loadFile: extractFunction(SRC, "loadFile"),
@@ -214,6 +216,7 @@ const surface = `
 const bundle = [
   prelude,
   PIECES.UPLOAD_FIELD, PIECES.SAFE_MEDIA_RE,
+  PIECES.malformedNodeRecordError, PIECES.graphPayloadOk,
   PIECES.serializeGraph, PIECES.stripInjectedMedia, PIECES.allocateLinkId, PIECES.applyGraphData,
   PIECES.b64urlToBytes,
   PIECES.undoBlock,

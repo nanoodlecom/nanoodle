@@ -369,20 +369,27 @@ async function run() {
       `banner=${bannerShown(ctx)} appShown=${appShown(ctx)} (expected banner hidden, empty state)`);
   }
 
-  const graph = { nodes: [...SPEC.graph.nodes, { ...SPEC.graph.nodes[0], name: "Duplicate" }], links: [] };
   const encoded = (value) => bytesToB64url(new TextEncoder().encode(JSON.stringify(value)));
-  for (const [kind, hash] of [
-    ["app import", aHashLegacyU({ ...SPEC, graph })],
-    ["app update", "#ga=u" + encoded({ appId: "app_mine", graph })],
-    ["workflow handoff", "#j=" + encoded(graph)],
+  for (const [bad, diagnostic] of [
+    [{ ...SPEC.graph.nodes[0], name: "Duplicate" }, 'duplicate node id "n_hi"'],
+    [null, "node at position 2 must be an object"],
+    [{ type: "text" }, "node at position 2 has a missing or invalid id"],
+    [{ id: "missing-type" }, "node at position 2 has a missing or invalid type"],
   ]) {
-    const store = { noodle_apps: OWN_APPS, noodle_app_state: JSON.stringify({ v: 1, id: "app_mine" }) };
-    const ctx = await bootPlay(hash, store);
-    const message = el(ctx, "linkerr-msg").textContent;
-    record(`duplicate ID in ${kind} identifies the node and preserves the open app`,
-      bannerShown(ctx) && message.includes('duplicate node id "n_hi"') && appShown(ctx)
-        && ctx.location.hash === hash && store.noodle_apps === OWN_APPS,
-      `message=${message} appShown=${appShown(ctx)} libIntact=${store.noodle_apps === OWN_APPS}`);
+    const graph = { nodes: [...SPEC.graph.nodes, bad], links: [] };
+    for (const [kind, hash] of [
+      ["app import", aHashLegacyU({ ...SPEC, graph })],
+      ["app update", "#ga=u" + encoded({ appId: "app_mine", graph })],
+      ["workflow handoff", "#j=" + encoded(graph)],
+    ]) {
+      const store = { noodle_apps: OWN_APPS, noodle_app_state: JSON.stringify({ v: 1, id: "app_mine" }) };
+      const ctx = await bootPlay(hash, store);
+      const message = el(ctx, "linkerr-msg").textContent;
+      record(`${diagnostic} in ${kind} preserves the open app`,
+        bannerShown(ctx) && message.includes(diagnostic) && appShown(ctx)
+          && ctx.location.hash === hash && store.noodle_apps === OWN_APPS,
+        `message=${message} appShown=${appShown(ctx)} libIntact=${store.noodle_apps === OWN_APPS}`);
+    }
   }
 }
 

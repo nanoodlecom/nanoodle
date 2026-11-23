@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { loadEngine } from "./play-engine.mjs";
+import { calls, loadEngine } from "./play-engine.mjs";
 
 const app = loadEngine();
 const node = (id, type, fields = {}) => ({ id, type, fields });
@@ -8,6 +8,39 @@ const link = (from, to, port, fromPort = "text") => ({
   from: { node: from, port: fromPort }, to: { node: to, port },
 });
 const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
+
+{
+  const paid = node("paid", "llm", { model: "fixture-chat", prompt: "must not send" });
+  for (const [bad, diagnostic] of [
+    [null, /node at position 2 must be an object/],
+    [[], /node at position 2 must be an object/],
+    [{type:"text"}, /node at position 2 has a missing or invalid id/],
+    [node(" \t", "text"), /node at position 2 has a missing or invalid id/],
+    [node(Infinity, "text"), /node at position 2 has a missing or invalid id/],
+    [Object.create({ id:"inherited", type:"text" }), /node at position 2 has a missing or invalid id/],
+    [{id:"damaged"}, /node at position 2 has a missing or invalid type/],
+    [node("damaged", " \t"), /node at position 2 has a missing or invalid type/],
+  ]) {
+    const fails = error => error.code === "invalid-node-record" && diagnostic.test(error.message);
+    assert.throws(() => app.materialize({ nodes: [paid, bad], links: [] }), fails);
+    const graph = roundTrip({ nodes: [paid], links: [] });
+    graph.nodes.push(bad);
+    calls.length = 0;
+    await assert.rejects(app.runGraph(graph, {
+      seeds: [paid.id], onStart: () => assert.fail("malformed graph started running"),
+    }), fails);
+    assert.deepEqual(calls, []);
+  }
+}
+
+{
+  const graph = roundTrip({
+    nodes: [node(0, "text", { text:"legacy numeric input" }), node(-4.5, "join")],
+    links: [link(0, -4.5, "a")],
+  });
+  assert.equal((await app.runGraph(graph)).nodeErrors, 0);
+  assert.equal(graph.byId("-4.5").out.text, "legacy numeric input");
+}
 
 {
   const duplicate = {
