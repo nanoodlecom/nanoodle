@@ -339,7 +339,7 @@ function toy(name, ok, detail) {
   };
   const source = [
     cut("function addNode(type, x, y, fields){", "\n// A node's output ports"),
-    cut("function connect(fromNode, fromPort, toNode, toPort){", "\n/* ======================================================================\n   QUICK ADD"),
+    cut("function allocateLinkId(reserved){", "\n/* ======================================================================\n   QUICK ADD"),
     cut("function removeNode(id){", "\nfunction updateDelBtn()"),
     cut("function pushUndo(boundary){", "\nfunction _restore("),
     cut("function _restore(from, to){", "\nfunction syncUndoBtn()"),

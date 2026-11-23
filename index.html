@@ -12943,8 +12943,9 @@ function redraw(){
     const p1 = portCenter(a), p2 = portCenter(b);
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
-    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>tap to remove</title></path>`;
-    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
+    const linkId = esc(l.id);
+    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>tap to remove</title></path>`;
+    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${linkId}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
@@ -13464,14 +13465,24 @@ function wouldCycle(fromNode, toNode, toPort){
   return false;
 }
 
+function allocateLinkId(reserved){
+  let id;
+  do{
+    id = "l"+lid;
+    lid = lid < Number.MAX_SAFE_INTEGER ? lid+1 : 1;
+  }while(reserved.has(id));
+  return id;
+}
+
 // Returns true when the wire was made. A cycle (or self-link) is refused with a notice and
 // nothing mutates — the graph must stay a feed-forward DAG (topoOrder is the run-time backstop).
 function connect(fromNode, fromPort, toNode, toPort){
   if(wouldCycle(fromNode, toNode, toPort)){ toast("that wire would make a loop — workflows flow one way", "warn"); return false; }
   pushUndo();   // after the loop guard, so a refused drop doesn't snapshot
+  const id = allocateLinkId(new Set(graph.links.map(l=>l.id)));
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
-  graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
+  graph.links.push({ id, from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
   const tn = byId(toNode);
   refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
@@ -18547,15 +18558,30 @@ function applyGraphData(d, opts){
   }
   // Keep broken wires for diagnostics and a faithful save/share round trip.
   graph.links = (d.links||[]).map(l=>({ ...l, from:{...l?.from}, to:{...l?.to} }));
-  // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
+  // Reserve every usable ID before repairing missing or repeated IDs. Keep the first occurrence.
+  const reservedLinkIds = new Set(graph.links.map(l=>l.id).filter(id=>
+    typeof id==="string" && id.trim() && !/[\u0000\r]/.test(id)));
+  const unseenLinkIds = new Set(reservedLinkIds);
+  let highestLinkNumber = 0;
+  for(const id of reservedLinkIds){
+    if(!/^l[1-9]\d*$/.test(id)) continue;
+    const linkNumber = Number(id.slice(1));
+    if(Number.isSafeInteger(linkNumber)) highestLinkNumber = Math.max(highestLinkNumber, linkNumber);
+  }
+  const savedLinkCounter = Number.isSafeInteger(d.lid) && d.lid>0 ? d.lid : 1;
+  lid = Math.max(savedLinkCounter, highestLinkNumber < Number.MAX_SAFE_INTEGER ? highestLinkNumber+1 : 1);
   for(const l of graph.links){
+    if(!unseenLinkIds.delete(l.id)){
+      l.id = allocateLinkId(reservedLinkIds);
+      reservedLinkIds.add(l.id);
+    }
+    // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
     const tn = byId(l.to.node);
     if(tn && (tn.type==="music"||tn.type==="tts") && l.to.port==="text") l.to.port="prompt";
   }
-  // rebuild id counters so new nodes/links never collide with loaded ones
+  // rebuild the node counter so new nodes never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
   // Restore frame ports required by existing links. An explicit field edit can still remove them.
   for(const n of graph.nodes){

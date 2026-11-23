@@ -123,6 +123,7 @@ const bundle = [
   extractFn(SRC, "serializeGraph"),
   extractFn(SRC, "shareableGraph"),
   extractFn(SRC, "stripInjectedMedia"),
+  extractFn(SRC, "allocateLinkId"),
   extractFn(SRC, "applyGraphData"),
   "let saveT=null;",
   extractFn(SRC, "save"),
@@ -251,6 +252,34 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
   // counters must clear the highest EXISTING id so a fresh node/link can't collide
   ok(ctx.nid === 8, `nid must rebuild above max node id (n7 → expected 8, got ${ctx.nid})`);
   ok(ctx.lid === 10, `lid must rebuild above max link id (l9 → expected 10, got ${ctx.lid})`);
+}
+
+// Imported wire IDs must round trip as unique strings without changing endpoints or order.
+{
+  const max = Number.MAX_SAFE_INTEGER;
+  const links = [undefined, "l1", "repeated", "repeated", 17, " ", `l${max}`].map((id, i) => ({
+    ...(id === undefined ? {} : {id}),
+    from: {node: "n1", port: "text"},
+    to: {node: "n2", port: `input${i}`},
+  }));
+  const graph = {nodes: [
+    {id: "n1", type: "text", fields: {}}, {id: "n2", type: "llm", fields: {}},
+  ], links, lid: max};
+  const importBefore = JSON.stringify(graph);
+  const endpoints = links.map(l => [l.from, l.to]);
+  P.applyGraphData(graph);
+  const saved = JSON.parse(JSON.stringify(P.serializeGraph()));
+  const ids = saved.links.map(l => l.id);
+  ok(ids.join(",") === `l2,l1,repeated,l3,l4,l5,l${max}`, "repair reserves all authored strings and wraps the counter without collisions");
+  ok(ctx.lid === 6, `next repaired wire counter is 6, got ${ctx.lid}`);
+  ok(JSON.stringify(saved.links.map(l => [l.from, l.to])) === JSON.stringify(endpoints), "repair preserves every endpoint and the link order");
+  ok(JSON.stringify(graph) === importBefore, "repair leaves the imported source records untouched");
+  P.applyGraphData(saved);
+  ok(JSON.stringify(P.serializeGraph().links) === JSON.stringify(saved.links), "reloading never reassigns repaired IDs");
+  P.applyGraphData(graph);
+  ok(JSON.stringify(P.serializeGraph().links) === JSON.stringify(saved.links), "repair is deterministic on repeated import");
+  P.applyGraphData({...graph, lid: max + 1});
+  ok(JSON.stringify(P.serializeGraph().links) === JSON.stringify(saved.links), "an unsafe saved counter cannot break wire repair");
 }
 
 // ===========================================================================
