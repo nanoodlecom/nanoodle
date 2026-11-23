@@ -1019,6 +1019,11 @@
   #demopaste{ border:none; background:none; color:var(--dim); text-decoration:underline; text-underline-offset:2px;
               cursor:pointer; font-size:.74rem; padding:.3rem 0; white-space:nowrap }
   #demopaste:hover{ color:var(--ink) }
+  /* the way back to the one free-sample graph — an action, so accent-coloured, but still a quiet link */
+  #demostarter{ border:none; background:none; color:var(--accent); text-decoration:underline; text-underline-offset:2px;
+              cursor:pointer; font-size:.74rem; padding:.3rem 0; white-space:nowrap }
+  #demostarter:hover{ color:var(--ink) }
+  #demostarter[hidden]{ display:none }
   #demox{ position:absolute; top:.3rem; right:.35rem; display:inline-flex; align-items:center; justify-content:center;
           min-width:36px; min-height:36px; border:none; background:none; color:var(--dim); cursor:pointer;
           font-size:1.2rem; line-height:1; padding:.2rem; border-radius:.4rem }
@@ -1431,6 +1436,8 @@
     <button id="wsadd" type="button" title="New workspace" aria-label="New workspace" aria-haspopup="menu" aria-expanded="false">+</button>
     <div id="wschooser" hidden role="menu" aria-label="New workspace">
       <div class="wshint">Opens in a new tab — your current workflow stays open.</div>
+      <button type="button" data-ws="starter">Sketch → story — the starter sample</button>
+      <div class="wssep"></div>
       <button type="button" data-ws="blank">Blank canvas</button>
       <button type="button" data-ws="t2i">Text to image</button>
       <button type="button" data-ws="ask">Ask a model</button>
@@ -1460,6 +1467,7 @@
   <div class="dp-txt"><b>Sample run</b> — <span>results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.</span></div>
   <div class="dp-actions">
     <button id="demosignin">Sign in with NanoGPT</button>
+    <button id="demostarter" hidden>Back to the starter sample</button>
     <button id="demopaste">or paste a key</button>
   </div>
   <button id="demox" title="Close" aria-label="Close">×</button>
@@ -15639,6 +15647,7 @@ function openDemoPop(mode){
   if(mode === false) mode = "exact";
   const p = $("demopop"); if(!p) return;
   $("demosignin").style.display = /^https?:$/.test(location.protocol) ? "" : "none";   // OAuth needs http(s); file:// keeps paste-key only
+  const sb = $("demostarter"); if(sb) sb.hidden = !!mode;   // the way back to the sample matters only at the wall (mode null); on the starter itself it would point at the canvas already showing
   const ch = $("connecthint"); if(ch && !ch.hidden) ch.hidden = true;   // don't stack teaching pills behind the sample pitch (no flag — it can return next load)
   const txt = p.querySelector(".dp-txt");
   if(txt){
@@ -20757,6 +20766,40 @@ function acknowledgeCurrentWorkspace(msg){
   }catch(_){}
   try{ toast(msg); }catch(_){}
 }
+// Returning-visitor re-entry (initial-moment Cycle 5): the shipped starter is
+// the only graph a signed-out visitor can free-sample, but once any workspace
+// exists nothing pointed back to it — the New workspace menu had no starter
+// entry, it is not among the Examples, and the sign-in wall's "the sample only
+// covers the starter" named a thing that could not be clicked. Open the
+// canonical starter (noodle-graph.json, via starterGraphData) in a new tab.
+async function openStarterWorkspace(){
+  let mode = null;
+  try{ mode = (typeof demoMode === "function") ? demoMode() : null; }catch(_){}
+  if(mode){ acknowledgeCurrentWorkspace(wsT("Starter sample is this tab.")); return; }
+  // If a saved tab already holds the starter, go back to it instead of
+  // piling up identical starter tabs.
+  try{
+    const d = readWorkspaces();
+    if(d && demoStarterShape){
+      for(const tab of d.tabs){
+        if(tab.id === d.active) continue;
+        let g = null;
+        try{ g = JSON.parse(workspaceStorage.getItem(wsGraphKey(tab.id)) || "null"); }catch(_){}
+        if(g && demoShapeSig(g) === demoStarterShape){ switchWorkspace(tab.id); return; }
+      }
+    }
+  }catch(_){}
+  let data = null;
+  try{ data = await starterGraphData(); }catch(_){}
+  if(!data){ toast(wsT("Couldn't load the starter sample — try again."), "err"); return; }
+  // Deep copy: the cached canonical starter also feeds demoMode's baseline
+  // signatures — opening it must never mutate the baseline.
+  const copy = JSON.parse(JSON.stringify(data));
+  const had = !!(graph.nodes && graph.nodes.length);
+  if(!openWorkspaceWithGraph(copy, wsT("Sketch → story"), { fit:true })) return;
+  try{ if(typeof dismissHint === "function") dismissHint(); }catch(_){}
+  if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", wsT("Sketch → story")));
+}
 function chooseWorkspace(kind){
   closeWorkspaceMenus();
   if(kind==="examples"){ if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return; if(typeof openExamples==="function") openExamples(); return; }
@@ -20772,6 +20815,7 @@ function chooseWorkspace(kind){
     deferredWorkspaceKind = kind;
     return "deferred";
   }
+  if(kind==="starter"){ void openStarterWorkspace(); return; }
   let data, name, fit = true;
   if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
   else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
@@ -20863,7 +20907,7 @@ function fillDropMenu(d){
   hint.className = "wshint";
   hint.textContent = wsT("Opens in a new tab — your current workflow stays open.");
   menu.appendChild(hint);
-  for(const [kind, label] of [["blank","Blank canvas"],["t2i","Text to image"],["ask","Ask a model"],["examples","Browse Examples"]]){
+  for(const [kind, label] of [["starter","Sketch → story — the starter sample"],["blank","Blank canvas"],["t2i","Text to image"],["ask","Ask a model"],["examples","Browse Examples"]]){
     const item = document.createElement("button");
     item.type = "button";
     item.setAttribute("data-ws", kind);
@@ -22970,6 +23014,7 @@ $("pastebtn").onclick = async ()=>{
 $("keysignin").onclick = ()=> signIn().catch(signInErr);
 // sample-run pill (#demopop) — the two real ways in, plus a plain close
 $("demosignin").onclick = ()=> signIn().catch(signInErr);
+$("demostarter").onclick = ()=>{ $("demopop").hidden = true; chooseWorkspace("starter"); };   // the wall names the starter — this makes the name a way back to it
 $("demopaste").onclick = ()=>{ $("demopop").hidden = true; $("pastebtn").onclick(); };   // reuse the paste flow (opens #keyrow + clipboard fill)
 $("demox").onclick = ()=> $("demopop").hidden = true;
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("demopop").hidden) $("demopop").hidden = true; });
