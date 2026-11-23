@@ -10,6 +10,7 @@ import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { verifyPlayerVframes } from "./smoke-player-vframes.mjs";
+import { checkPlayerRender3d } from "./smoke-player-render3d.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const modulePath = process.env.NANOODLE_PLAYWRIGHT;
@@ -385,6 +386,7 @@ try {
     ...(process.env.NANOODLE_CHROMIUM ? { executablePath:process.env.NANOODLE_CHROMIUM } : {}) });
   await verifyRotoscope(browser);
   await verifyPlayerVframes(browser,{origin,root});
+  await checkPlayerRender3d({ browser, origin, root });
   for (const mobile of [false, true]) {
     const label = mobile ? "mobile-retired-model" : "desktop";
     const contexts = [];
