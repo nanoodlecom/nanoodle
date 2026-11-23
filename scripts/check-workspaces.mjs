@@ -146,6 +146,7 @@ const prelude = `
   function updateTitle() {}
   function syncUndoBtn() {}
   function flash() {}
+  function getKey() { return localStorage.getItem("ngpt_key"); }
   var __toasts = [];
   function toast(m) { __toasts.push(String(m)); }
   function t(s) { return s; }
@@ -444,11 +445,15 @@ const photoOf = (g) => {
   const jobs=W.pendingMediaJobs();
   jobs.audio.set("n1",{job:{runId:"paid-audio"}});
   jobs.video.set("n1",{runId:"paid-video"});
+  const otherJobs=W.pendingMediaJobs("other-fixture-key");
+  otherJobs.video.set("n1",{runId:"other-paid-video"});
   W.closeWorkspace("w1");
   ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1 && !W.serializeGraph().nodes.length,"last close resets same tab ID");
   ok(!W.pendingMediaJobs().audio.size && !W.pendingMediaJobs().video.size,"blank workspace cannot inherit jobs from its reused ID");
+  ok(!W.pendingMediaJobs("other-fixture-key").video.size,"blank workspace cannot inherit jobs from another credential");
   ok(W.restoreClosedWorkspace(),"last-tab Undo succeeds");
   ok(W.pendingMediaJobs()===jobs,"last-tab Undo restores the closed workspace's paid job registry");
+  ok(W.pendingMediaJobs("other-fixture-key")===otherJobs,"last-tab Undo restores every credential's paid job registry");
   ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1,"last Undo never adds a duplicate tab");
   ok(W.readWorkspaces().tabs[0].name==="Night desk" && W.pending().id==="last-app","last Undo restores tab metadata and app binding");
   ok(W.stacks().undo[0]?.s==="last history" && W.outOf("n1")?.text==="LAST PAID RESULT","last Undo restores canvas history and results");
@@ -458,6 +463,7 @@ const photoOf = (g) => {
   ok(photoOf(R.serializeGraph())===photoOf(JSON.parse(FIXTURE)),"Undo then refresh retains uploaded input");
   ok(!R.closedCounts().undo && !R.restoreClosedWorkspace(),"refresh does not resurrect visit-only tombstones");
   ok(!R.pendingMediaJobs().audio.size && !R.pendingMediaJobs().video.size,"refresh does not persist provider jobs");
+  ok(!R.pendingMediaJobs("other-fixture-key").video.size,"refresh does not persist jobs from another credential");
   R.applyGraphData(JSON.parse(exported));
   ok(textOf(R.serializeGraph())===textOf(JSON.parse(FIXTURE)),"Save JSON from restored tab loads its workflow");
 }

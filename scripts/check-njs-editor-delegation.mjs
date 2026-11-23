@@ -569,6 +569,8 @@ for(const delegated of [false, true]){
   for(const kind of ["video", "audio"]){
     const on = makeCtx({ flagOn: delegated });
     on.assertGenerateSongLyrics = () => {};
+    let credential = "first-fixture-key";
+    on.getKey = () => credential;
     // The shared index can already point elsewhere while this browser still displays w1.
     on.readWorkspaces = () => ({active:"w2"});
     const client = { ...ENGINE, NanoClient: class extends ENGINE.NanoClient {
@@ -579,14 +581,15 @@ for(const delegated of [false, true]){
     const media = (id) => `https://fixtures.invalid/${id}.${kind === "video" ? "mp4" : "mp3"}`;
     on.fetch = async (value, init) => {
       const url = new URL(value);
+      const key = new Headers(init.headers).get("x-api-key");
       if(init.method === "POST"){
         const id = `paid-${submits.length + 1}`;
-        submits.push(id);
+        submits.push([id, key]);
         return Response.json({runId:id});
       }
       const id = url.searchParams.get(kind === "video" ? "requestId" : "runId");
       assert.ok(id, `unexpected fixture fetch: ${url}`);
-      polls.push(id);
+      polls.push([id, key]);
       if(stopNextPoll){ stopNextPoll = false; ctl.abort(); throw ctl.signal.reason; }
       return Response.json({status:"COMPLETED", audioUrl:media(id), output:{url:media(id)}});
     };
@@ -608,12 +611,74 @@ for(const delegated of [false, true]){
     assert.equal(await start(), media("paid-2"));
     assert.ok(registry.has(nodeId), "completion in the second workspace must not clear the first job");
     on.wsCanvasOwner = {id:"w1"};
+    credential = null;
+    assert.equal(on.pendingMediaJobs()[kind].size, 0, "sign-out cannot access a paid job");
+    credential = "second-fixture-key";
+    assert.equal(await start(), media("paid-3"), "new credentials submit their own job on the same node");
+    assert.ok(registry.has(nodeId), "a different credential's completion preserves the original job");
+    credential = "first-fixture-key";
     assert.equal(await start(), media("paid-1"));
-    assert.deepEqual(submits, ["paid-1", "paid-2"]);
-    assert.deepEqual(polls, ["paid-1", "paid-2", "paid-1"]);
+    assert.deepEqual(submits, [["paid-1", "first-fixture-key"], ["paid-2", "first-fixture-key"], ["paid-3", "second-fixture-key"]]);
+    assert.deepEqual(polls, [...submits, submits[0]]);
   }
 }
-console.log("✓ editor built-in and delegated media resume on the owning workspace only");
+console.log("✓ editor built-in and delegated media resume with the owning workspace and credential");
+
+for(const delegated of [false, true]){
+  for(const kind of ["video", "audio"]){
+    const on = makeCtx({flagOn:delegated});
+    on.assertGenerateSongLyrics = () => {};
+    let credential = "first-fixture-key";
+    on.getKey = () => credential;
+    const requests = [];
+    const asset = "https://fixtures.invalid/paid-media";
+    const content = kind === "audio" ? "/api/tts/content" : "/api/generate-video/content";
+    const client = {...ENGINE, NanoClient: class extends ENGINE.NanoClient {
+      constructor(opts){ super({...opts, pollIntervals:{[kind]:1}}); }
+    }};
+    on.fetch = async (value, init) => {
+      const {pathname} = new URL(value);
+      const headers = new Headers(init.headers);
+      requests.push([init.method || "GET", pathname, headers.get("authorization"), headers.get("x-api-key")]);
+      if(init.method === "POST"){
+        credential = "second-fixture-key";
+        return Response.json({runId:"paid-while-switching"});
+      }
+      if(pathname === content) return Response.redirect(asset);
+      return Response.json({status:"COMPLETED", audioUrl:content, output:{url:content}});
+    };
+    const nodeId = "n1";
+    const result = delegated
+      ? await on.njsCtx(client, {id:nodeId})[kind]("m", "prompt", {})
+      : kind === "video"
+        ? await on.builtIn.genVideo("m", "prompt", {runKey:nodeId})
+        : await on.builtIn.genAudio("m", "prompt", {}, undefined, nodeId);
+    assert.equal(result, asset);
+    assert.equal(requests.length, 3, "paid run submits, polls and resolves its content");
+    assert.ok(requests.every(([, , bearer]) => bearer === "Bearer first-fixture-key"));
+    assert.deepEqual(requests.map(([, , , key]) => key), ["first-fixture-key", "first-fixture-key", null]);
+  }
+}
+console.log("✓ a credential switch during submission keeps the original poll and content credentials");
+
+{
+  const on = makeCtx({flagOn:true});
+  let credential = "first-fixture-key";
+  on.getKey = () => credential;
+  const node = {id:"n1", type:"tvideo", fields:{model:"m", prompt:"test"}};
+  on.pendingMediaJobs().video.set(node.id, {runId:"old-built-in-job"});
+  assert.equal(on.njsRunFor(node.type, node, {}, node), null);
+  credential = "second-fixture-key";
+  const run = on.njsRunFor(node.type, node, {}, node);
+  assert.equal(typeof run, "function", "another credential's pending built-in job cannot veto delegation");
+  on.njsCatalogs = async () => {
+    credential = "third-fixture-key";
+    return {};
+  };
+  on.NanoodleEngine.RUNNERS.tvideo = () => assert.fail("a stale delegated context cannot start paid work");
+  await assert.rejects(run, {name:"AbortError"});
+}
+console.log("✓ editor delegation checks the credential before starting paid work");
 
 // Two live nodes make the old global fallback choose the second node's signal.
 // Stop the first both between polls and during an accepted job's content read.

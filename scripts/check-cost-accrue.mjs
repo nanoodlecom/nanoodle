@@ -402,6 +402,14 @@ function checkChip(){
     fail("chip", `paint: charged step should flash −$0.22 (got ${S.el._deltaEl && S.el._deltaEl.textContent})`);
   if(!(S.raf().length > 0)) fail("chip", "paint: a charged step should queue a balance tween when motion is allowed");
 
+  // A late paid response adds to visit spend while keeping the replacement key's balance.
+  reset();
+  S.stats.balance = 10;
+  const beforeSwitch = S.refreshed();
+  S.accrue({ cost:0.22 }, undefined, fakeR({ "x-remaining-balance":"1.45" }), "previous-fixture-key");
+  if(!near(S.stats.cost, 0.22) || S.stats.count !== 1) fail("chip", "late paid response must count in visit spend");
+  if(S.stats.balance !== 10 || S.refreshed() !== beforeSwitch) fail("chip", "late paid response must preserve the active credential's balance");
+
   // known-free: no delta flash.
   reset();
   S.stats.balance = 10;
