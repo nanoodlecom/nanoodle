@@ -368,6 +368,22 @@ async function run() {
       !bannerShown(ctx) && !appShown(ctx),
       `banner=${bannerShown(ctx)} appShown=${appShown(ctx)} (expected banner hidden, empty state)`);
   }
+
+  const graph = { nodes: [...SPEC.graph.nodes, { ...SPEC.graph.nodes[0], name: "Duplicate" }], links: [] };
+  const encoded = (value) => bytesToB64url(new TextEncoder().encode(JSON.stringify(value)));
+  for (const [kind, hash] of [
+    ["app import", aHashLegacyU({ ...SPEC, graph })],
+    ["app update", "#ga=u" + encoded({ appId: "app_mine", graph })],
+    ["workflow handoff", "#j=" + encoded(graph)],
+  ]) {
+    const store = { noodle_apps: OWN_APPS, noodle_app_state: JSON.stringify({ v: 1, id: "app_mine" }) };
+    const ctx = await bootPlay(hash, store);
+    const message = el(ctx, "linkerr-msg").textContent;
+    record(`duplicate ID in ${kind} identifies the node and preserves the open app`,
+      bannerShown(ctx) && message.includes('duplicate node id "n_hi"') && appShown(ctx)
+        && ctx.location.hash === hash && store.noodle_apps === OWN_APPS,
+      `message=${message} appShown=${appShown(ctx)} libIntact=${store.noodle_apps === OWN_APPS}`);
+  }
 }
 
 run().then(() => {

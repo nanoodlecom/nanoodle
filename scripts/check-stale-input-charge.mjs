@@ -35,6 +35,8 @@ function extractFn(src, name) {
   throw new Error(`could not brace-match ${name}()`);
 }
 const runGroupSrc = extractAsyncFn(SRC, "runGroup");
+const declaresWireOutputSrc = extractFn(SRC, "declaresWireOutput");
+const invalidOutputWireMessageSrc = extractFn(SRC, "invalidOutputWireMessage");
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
 const ancestorsSrc = extractFn(SRC, "ancestors");
 const topoOrderSrc = extractFn(SRC, "topoOrder");
@@ -144,14 +146,15 @@ function bindWorld(world, opts = {}) {
     paintRunLive: () => {},
     refreshRunEstimate: () => {},
     flash: () => {},
-    setStatus: (n, s) => { n.el.dataset.status = s; n._st = s; },
+    setStatus: (n, s, message) => { n.el.dataset.status = s; n._st = s; n._message = message; },
     setStopped: (n) => { n.el.dataset.status = "idle"; n._st = "stopped"; },
     setSkipped: (n) => { n.el.dataset.status = "skip"; n._st = "skip"; },
     byId: (id) => world.nodes[id],
-    NODE_TYPES: world.NODE_TYPES,
+    NODE_TYPES: Object.fromEntries(Object.entries(world.NODE_TYPES).map(([type, spec]) =>
+      [type, { outputs: [{ name: "image", type: "image" }], ...spec }])),
     graph: { links: world.links, nodes: Object.values(world.nodes) },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
-    nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
+    nodeSig: opts.nodeSig || (() => 0), isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
     // prompt-length caps (PROMPT LENGTH CAPS): identity here — this harness is about stale inputs
     // reaching a paid call, not about how long the prompt that reaches it is.
     withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
@@ -161,6 +164,7 @@ function bindWorld(world, opts = {}) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   new vm.Script(
+    declaresWireOutputSrc + "\n" + invalidOutputWireMessageSrc + "\n" +
     isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
@@ -182,6 +186,15 @@ async function run(world, seed, opts = {}) {
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else console.log("  ✓ " + m); };
+
+{
+  const w = makeWorld(2, false);
+  w.links[0].from.port = "obsoletePort";
+  await run(w, "n1");
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "an undeclared output stops the editor before either node runs");
+  ok(w.nodes.n1._st === "error" && w.nodes.n1._message.includes('Node "n0" has no output port "obsoletePort"'),
+    "the editor identifies the bad source port on the selected node");
+}
 
 // 1) Upstream failure → direct dependent is skipped, never charged.
 {
@@ -336,6 +349,32 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(w.paid.filter((x) => x === "nA").length === 1, `paid A charged once (paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.nB.out.image === "EDITED_nB" && w.nodes.nC.out.image === "EDITED_nC",
     "both siblings produced output from the shared A result");
+}
+
+// A new sibling must use the edited upstream prompt even when its older request is still in flight.
+{
+  const w = makeWorld(3, false);
+  w.links[1].from.node = "n0";
+  w.nodes.n0.fields.prompt = "older prompt";
+  const began = Promise.withResolvers(), release = Promise.withResolvers();
+  const upstream = [];
+  w.NODE_TYPES.img.run = async n => {
+    const prompt = n.fields.prompt;
+    upstream.push(prompt);
+    if (prompt === "older prompt") { began.resolve(); await release.promise; }
+    return {image:prompt};
+  };
+  const ctx = bindWorld(w, {nodeSig:(n, inp) => JSON.stringify([n.type,n.fields,inp])});
+  const first = ctx.runGroup(["n1"]);
+  await began.promise;
+  w.nodes.n0.fields.prompt = "edited prompt";
+  const second = ctx.runGroup(["n2"]);
+  release.resolve();
+  await Promise.all([first,second]);
+  ok(JSON.stringify(upstream) === JSON.stringify(["older prompt","edited prompt"]),
+    "edited sibling starts another upstream request");
+  ok(JSON.stringify(w.paid) === JSON.stringify(["n1<=older prompt","n2<=edited prompt"]),
+    "each sibling pays for its own upstream input");
 }
 
 // 9) Stop on B does not abort C. Shared A already finished; C is mid-run.

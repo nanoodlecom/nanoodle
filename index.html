@@ -14437,7 +14437,7 @@ function isSeeded(n){ const s = nodeSeed(n); return s!=null && String(s).trim()!
 function sigHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
 function nodeSig(n, inp){
   const f = {...n.fields}; delete f.sel; delete f.brush; delete f.model3dOutKey;   // display-only knobs (variation pick, inpaint brush radius) + persistence id don't change the output
-  return sigHash(JSON.stringify({ t:n.type, f, inp }));
+  return JSON.stringify({ t:n.type, f, inp });
 }
 /* =====================================================================
    nanoodle-js DELEGATION (default ON) — replace-prep Phase F.
@@ -14699,6 +14699,39 @@ function njsRunFor(type, rn, inp, n){
 // Multiple groups run concurrently because callers don't await each other.
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
+// These checks are about the wire's declared source port. A declared output
+// may be absent in an individual run, e.g. Render 3D's unused media kind.
+function declaresWireOutput(n, port, routed){
+  if(typeof port!=="string") return false;
+  if(n.type==="vframes") return /^frame[1-9]\d*$/.test(port) && Number(port.slice(5))<=MAX_FRAMES;
+  if(n.type==="endpoint"){
+    // Endpoint routes can arrive through either field, including a mode prefix on the URL.
+    if(routed) return /^(text|image|images|audio|video)$/.test(port);
+    const mode = endpointResolveTarget(n).mode;
+    const name = endpointOutPort({fields:{mode}}).name;
+    return port===name || (port==="images" && name==="image");
+  }
+  if(n.type==="decide" && (port==="decision" || (n.fields?.branch===true && /^(yes|no)$/.test(port)))) return true;
+  // Shared and older workflow JSON can wire the secondary values emitted by these runners.
+  if(port==="images" && /^(image|edit|inpaint)$/.test(n.type)) return true;
+  if(port==="layers" && /^(edit|inpaint)$/.test(n.type)) return true;
+  const outputs = NODE_TYPES[n.type].outputs;
+  const ports = typeof outputs==="function" ? outputs(n) : outputs;
+  return (ports || []).some(p=>p.name===port);
+}
+function invalidOutputWireMessage(links, byId, ids){
+  if(!links?.length) return null;
+  const routed = new Set(links.filter(l=>l.to.port==="mode" || l.to.port==="url").map(l=>l.to.node));
+  for(const {from,to} of links){
+    if(ids && !ids.has(to.node)) continue;
+    const source = byId(from.node);
+    if(!source || !Object.hasOwn(NODE_TYPES, source.type)) continue;
+    if(declaresWireOutput(source, from.port, routed.has(source.id))) continue;
+    const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
+    return 'Node "' + from.node + '" has no output port "' + port + '". Reconnect its wire to node "' + to.node + '".';
+  }
+  return null;
+}
 function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
@@ -14730,6 +14763,8 @@ async function runGroup(seedIds, ctx){
   if([...seedSet].some(id=> seedRuns.has(id))) return;
   const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
   if(!ids.size) return;
+  const invalidWire = invalidOutputWireMessage(graph.links, byId, ids);
+  if(invalidWire){ seedSet.forEach(id=> setStatus(byId(id), "error", invalidWire)); return; }
   // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
   const lock = ids;
   seedSet.forEach(id=> seedRuns.add(id));
@@ -14860,7 +14895,7 @@ async function runGroup(seedIds, ctx){
         // describes what actually goes out — switch the Image node to a tighter model and the run
         // correctly re-rolls instead of reusing a result the new model would have rejected.
         const fitted = withFittedPrompt(rn0, n);
-        const rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
+        let rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
@@ -14873,20 +14908,35 @@ async function runGroup(seedIds, ctx){
         // still re-roll (excluded here); poison-propagation already ran above, so a failed upstream
         // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
         if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
-        // In-flight share: another Play already started this node (usually shared upstream A).
-        // Await that promise — never a second paid run. Registered synchronously below so two
-        // Plays that reach A in the same turn can't both slip through.
-        if(typeof nodeWork!=="undefined" && nodeWork.has(id)){
-          const w = nodeWork.get(id); if(w.holders) seedSet.forEach(s=> w.holders.add(s));
-          try{ await w; }catch(_){}
-          if(ctl.signal.aborted && !(w.holders && w.holders.size)){ setStopped(n); return; }
-          // w.ok is THIS run succeeding. Leftover n.out from a prior success must not
-          // count — Play C joining a failing A would otherwise bill C on stale input
-          // (PR #391 class, across sibling Plays).
-          if(w.ok && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        // A sibling Play can join the same request. If its inputs changed while
+        // this node was running, wait for the old owner before taking the node.
+        const credential = getKey();
+        let priorWork;
+        while(typeof nodeWork!=="undefined" && (priorWork = nodeWork.get(id))){
+          const sameRequest = priorWork.sig===sig && priorWork.credential===credential && priorWork.ctx===ctx;
+          if(sameRequest){
+            if(priorWork.holders) seedSet.forEach(seed=> priorWork.holders.add(seed));
+          }else{
+            if(rn===n) rn = { ...n, fields:{ ...n.fields } };
+            // The early holder registration keeps matching siblings alive on Stop.
+            // A request with changed inputs does not need to hold this older job.
+            if(priorWork.holders){
+              seedSet.forEach(seed=> priorWork.holders.delete(seed));
+              if(!priorWork.holders.size) priorWork.ctl?.abort();
+            }
+          }
+          try{ await priorWork; }catch(_){}
+          if(ctl.signal.aborted && (!sameRequest || !priorWork.holders?.size)){
+            failed.add(id);
+            if(sameRequest) setStopped(n);
+            return;
+          }
+          if(!sameRequest) continue;
+          // A joined failure must never feed a dependent a previous .out.
+          if(priorWork.ok && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
           if(!seedSet.has(id)){
             failed.add(id);
-            if(n.el?.dataset.status !== "error") setSkipped(n);   // keep the owner's error; just poison this Play
+            if(n.el?.dataset.status !== "error") setSkipped(n);
             return;
           }
         }
@@ -14905,6 +14955,7 @@ async function runGroup(seedIds, ctx){
           work.holders = new Set(seedSet);
           work.ctl = new AbortController();
           work.ok = false;   // joiners wait on success of THIS run, not leftover n.out
+          Object.assign(work, {sig, credential, ctx});
           nodeWork.set(id, work);
         }
         n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
