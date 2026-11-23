@@ -90,6 +90,8 @@ try {
     isPaidNanoType: extractFn(html, "isPaidNanoType"),
     graphNeedsNanoKey: extractFn(html, "graphNeedsNanoKey"),
     unsupportedGraphMessage: extractFn(html, "unsupportedGraphMessage"),
+    declaresWireOutput: extractFn(html, "declaresWireOutput"),
+    invalidOutputWireMessage: extractFn(html, "invalidOutputWireMessage"),
     RUN_CHOICES: extractConst(html, /const\s+RUN_CHOICES\s*=\s*\[[^\]]*\]\s*;/, "const RUN_CHOICES"),
     RUN_RESUME_KEY: extractConst(html, /const\s+RUN_RESUME_KEY\s*=\s*"[^"]*"\s*;/, "const RUN_RESUME_KEY"),
     hasAuth: extractConst(html, /const\s+hasAuth\s*=\s*\(\)\s*=>[^;]*;/, "const hasAuth"),
@@ -105,7 +107,7 @@ const preamble = `
   let RUNS_N = 1, KEEP = false, _runCost = null, running = false;
   let parentAuthed = false, EMBEDDED = false, __getKeyRet = null;
   let STATE = null, location = { protocol: "https:", origin: "https://x", pathname: "/" };
-  const NODE_TYPES = { llm:{}, endpoint:{} };
+  const NODE_TYPES = { llm:{}, endpoint:{}, text:{outputs:[{name:"text"}]} };
 
   function getKey(){ return __getKeyRet; }                 // stand-in for play.html's localStorage getter
   function t(s){ return s; }                               // identity — we assert markers/money, not translations
@@ -163,6 +165,7 @@ const program =
   lift.fmtUsd + "\n" + lift.paintRunCost + "\n" + lift.renderCount + "\n" +
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
   lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" + lift.unsupportedGraphMessage + "\n" +
+  lift.declaresWireOutput + "\n" + lift.invalidOutputWireMessage + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };
@@ -274,6 +277,17 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   const s = T.spies();
   ok(s.fetch === 0 && s.preflight === 0 && s.statusLine === 1 && /Unsupported node type "future-node"/.test(s.statusMessage),
     "a blocked workflow reports its unsupported node before asking the user to sign in");
+}
+{
+  T.setEmbedded(false); T.setKey(null);
+  const nodes = [{ id:"source", type:"text" }, { id:"paid", type:"llm" }];
+  const links = [{ from:{node:"source",port:"obsoletePort"}, to:{node:"paid",port:"prompt"} }];
+  T.setSTATE({ graph: { nodes, links, byId:id=>nodes.find(n=>n.id===id) } });
+  T.resetSpies();
+  await T.run();
+  const s = T.spies();
+  ok(s.fetch === 0 && s.preflight === 0 && s.statusLine === 1 && /no output port "obsoletePort"/.test(s.statusMessage),
+    "a bad source wire is diagnosed before asking the user to sign in");
 }
 // sanity: an AUTHED run does NOT route into the preflight (it would proceed past the gate)
 {

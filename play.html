@@ -14497,6 +14497,39 @@ const PROMPT_CAPS = {
     };
   }
 
+  // These checks are about the wire's declared source port. A declared output
+  // may be absent in an individual run, e.g. Render 3D's unused media kind.
+  function declaresWireOutput(n, port, routed){
+    if(typeof port!=="string") return false;
+    if(n.type==="vframes") return /^frame[1-9]\d*$/.test(port) && Number(port.slice(5))<=MAX_FRAMES;
+    if(n.type==="endpoint"){
+      // Endpoint routes can arrive through either field, including a mode prefix on the URL.
+      if(routed) return /^(text|image|images|audio|video)$/.test(port);
+      const mode = endpointResolveTarget(n).mode;
+      const name = endpointOutPort({fields:{mode}}).name;
+      return port===name || (port==="images" && name==="image");
+    }
+    if(n.type==="decide" && (port==="decision" || (n.fields?.branch===true && /^(yes|no)$/.test(port)))) return true;
+    // Shared and older workflow JSON can wire the secondary values emitted by these runners.
+    if(port==="images" && /^(image|edit|inpaint)$/.test(n.type)) return true;
+    if(port==="layers" && /^(edit|inpaint)$/.test(n.type)) return true;
+    const outputs = NODE_TYPES[n.type].outputs;
+    const ports = typeof outputs==="function" ? outputs(n) : outputs;
+    return (ports || []).some(p=>p.name===port);
+  }
+  function invalidOutputWireMessage(links, byId, ids){
+    if(!links?.length) return null;
+    const routed = new Set(links.filter(l=>l.to.port==="mode" || l.to.port==="url").map(l=>l.to.node));
+    for(const {from,to} of links){
+      if(ids && !ids.has(to.node)) continue;
+      const source = byId(from.node);
+      if(!source || !Object.hasOwn(NODE_TYPES, source.type)) continue;
+      if(declaresWireOutput(source, from.port, routed.has(source.id))) continue;
+      const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
+      return 'Node "' + from.node + '" has no output port "' + port + '". Reconnect its wire to node "' + to.node + '".';
+    }
+    return null;
+  }
   function isPaidNanoType(type){
     return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
   }
@@ -14524,6 +14557,8 @@ const PROMPT_CAPS = {
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
     const unsupported = unsupportedGraphMessage(graph, ids);
     if(unsupported) throw new Error(unsupported);
+    const invalidWire = invalidOutputWireMessage(graph.links, graph.byId, ids);
+    if(invalidWire) throw new Error(invalidWire);
     if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
     const wireValue = (l)=>{
@@ -17448,6 +17483,8 @@ const PROMPT_CAPS = {
     if(running) return;
     const unsupported = unsupportedGraphMessage(STATE && STATE.graph);
     if(unsupported){ statusLine("__unsupported__", "error", unsupported); return; }
+    const invalidWire = invalidOutputWireMessage(STATE?.graph?.links, STATE?.graph?.byId);
+    if(invalidWire){ statusLine("__invalidwire__", "error", invalidWire); return; }
     if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
       // a status line right under the Run button plus a brief pulse on the header auth block, so the

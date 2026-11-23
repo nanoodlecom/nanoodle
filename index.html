@@ -14699,6 +14699,39 @@ function njsRunFor(type, rn, inp, n){
 // Multiple groups run concurrently because callers don't await each other.
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
+// These checks are about the wire's declared source port. A declared output
+// may be absent in an individual run, e.g. Render 3D's unused media kind.
+function declaresWireOutput(n, port, routed){
+  if(typeof port!=="string") return false;
+  if(n.type==="vframes") return /^frame[1-9]\d*$/.test(port) && Number(port.slice(5))<=MAX_FRAMES;
+  if(n.type==="endpoint"){
+    // Endpoint routes can arrive through either field, including a mode prefix on the URL.
+    if(routed) return /^(text|image|images|audio|video)$/.test(port);
+    const mode = endpointResolveTarget(n).mode;
+    const name = endpointOutPort({fields:{mode}}).name;
+    return port===name || (port==="images" && name==="image");
+  }
+  if(n.type==="decide" && (port==="decision" || (n.fields?.branch===true && /^(yes|no)$/.test(port)))) return true;
+  // Shared and older workflow JSON can wire the secondary values emitted by these runners.
+  if(port==="images" && /^(image|edit|inpaint)$/.test(n.type)) return true;
+  if(port==="layers" && /^(edit|inpaint)$/.test(n.type)) return true;
+  const outputs = NODE_TYPES[n.type].outputs;
+  const ports = typeof outputs==="function" ? outputs(n) : outputs;
+  return (ports || []).some(p=>p.name===port);
+}
+function invalidOutputWireMessage(links, byId, ids){
+  if(!links?.length) return null;
+  const routed = new Set(links.filter(l=>l.to.port==="mode" || l.to.port==="url").map(l=>l.to.node));
+  for(const {from,to} of links){
+    if(ids && !ids.has(to.node)) continue;
+    const source = byId(from.node);
+    if(!source || !Object.hasOwn(NODE_TYPES, source.type)) continue;
+    if(declaresWireOutput(source, from.port, routed.has(source.id))) continue;
+    const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
+    return 'Node "' + from.node + '" has no output port "' + port + '". Reconnect its wire to node "' + to.node + '".';
+  }
+  return null;
+}
 function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
@@ -14730,6 +14763,8 @@ async function runGroup(seedIds, ctx){
   if([...seedSet].some(id=> seedRuns.has(id))) return;
   const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
   if(!ids.size) return;
+  const invalidWire = invalidOutputWireMessage(graph.links, byId, ids);
+  if(invalidWire){ seedSet.forEach(id=> setStatus(byId(id), "error", invalidWire)); return; }
   // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
   const lock = ids;
   seedSet.forEach(id=> seedRuns.add(id));
