@@ -108,6 +108,7 @@ try {
     SAFE_MEDIA_RE: grabLine(SRC, /const SAFE_MEDIA_RE = \/[^\n]*;/, "SAFE_MEDIA_RE"),
     serializeGraph: extractFunction(SRC, "serializeGraph"),
     stripInjectedMedia: extractFunction(SRC, "stripInjectedMedia"),
+    allocateLinkId: extractFunction(SRC, "allocateLinkId"),
     applyGraphData: extractFunction(SRC, "applyGraphData"),
     b64urlToBytes: extractFunction(SRC, "b64urlToBytes"),
     loadFile: extractFunction(SRC, "loadFile"),
@@ -213,7 +214,7 @@ const surface = `
 const bundle = [
   prelude,
   PIECES.UPLOAD_FIELD, PIECES.SAFE_MEDIA_RE,
-  PIECES.serializeGraph, PIECES.stripInjectedMedia, PIECES.applyGraphData,
+  PIECES.serializeGraph, PIECES.stripInjectedMedia, PIECES.allocateLinkId, PIECES.applyGraphData,
   PIECES.b64urlToBytes,
   PIECES.undoBlock,
   PIECES.loadFile, PIECES.loadFromHash,

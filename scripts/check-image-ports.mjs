@@ -67,7 +67,7 @@ function extractNodeRun(src, type, alias) {
 const bundle =
   reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
   sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" + imgAspLine + "\n" +
-  ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks",
+  ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "compactInputSlots", "recompactImageLinks",
    "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "imageAspectSpec", "dimDefs", "imageOutputIsGif", "livePrice"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
   grab(/const dimNum = [^\n]*;/, "dimNum") + "\n" +
@@ -150,6 +150,11 @@ ok(JSON.stringify(names(v)) === '["img1","img2","img3"]', `after compaction: wan
 setLinks(["u1", "img1"], ["u9", "img4"]);
 T.recompactImageLinks(v);
 ok(JSON.stringify(imgLinks()) === '["u1->img1","u9->img2"]', `multi-hole compaction failed, got ${JSON.stringify(imgLinks())}`);
+
+setLinks(["u1", "img3"], ["u2", "img3"], ["u9", "img5"]);
+T.recompactImageLinks(v);
+ok(JSON.stringify(imgLinks()) === '["u1->img1","u2->img1","u9->img2"]',
+  `one indexed input retains its competing or conditional wires when slots compact, got ${JSON.stringify(imgLinks())}`);
 
 // recompaction must not touch other nodes' links, and no-op on non-image nodes
 ctx.graph.links = [

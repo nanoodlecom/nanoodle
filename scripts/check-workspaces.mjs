@@ -165,6 +165,7 @@ const bundle = [
   extractConst(SRC, "EDITOR_APP_KEY"),
   extractFn(SRC, "serializeGraph"),
   extractFn(SRC, "stripInjectedMedia"),
+  extractFn(SRC, "allocateLinkId"),
   extractFn(SRC, "applyGraphData"),
   extractFn(SRC, "_stashResults"),
   extractFn(SRC, "save"),

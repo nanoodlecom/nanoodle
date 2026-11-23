@@ -11196,8 +11196,14 @@ function refreshFramePorts(n, preserveWires=false){
   if(graph.links.length !== before) save();
 }
 
+function unsupportedNodeMessage(n){
+  return 'Unsupported node type "' + n._unsupportedNode.type + '" (node ' + n.id + '). Open the workflow in a version of nanoodle that supports it.';
+}
 function buildNodeEl(n){
-  const t = NODE_TYPES[n.type];
+  const t = n._unsupportedNode ? {
+    ...NODE_TYPES.comment, em:"⚠️", title:"Unsupported node", mount:null,
+    body:()=> '<p class="err" role="status" data-no-i18n>' + esc(unsupportedNodeMessage(n)) + '</p>',
+  } : NODE_TYPES[n.type];
   const isNote = !!t.note;   // a sticky note: no ports, no run/status chrome, no result panel
   const hidePlay = isNote || isInputKind(n.type);   // input/source kinds have no ▶ — playing them is meaningless
   const el = document.createElement("div");
@@ -11339,15 +11345,24 @@ function buildNodeEl(n){
 // Keep a node's image ports contiguous (img1, img2, …) after one is unwired — without this,
 // removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
 // links in place, preserving order. Safe no-op for nodes without image inputs.
+function compactInputSlots(links, name){
+  const ports = new Map();
+  for(const link of links){
+    const port = link.to.port;
+    // Routed alternatives and malformed overlaps both retain their shared slot.
+    if(!ports.has(port)) ports.set(port, name(ports.size+1));
+    link.to.port = ports.get(port);
+  }
+}
 function recompactImageLinks(n){
   const s = imgSpec(n); if(!s) return;
   // NOT for role-ordered models: there the slot IS the meaning (image = person, image2 = garment),
   // so re-packing after unwiring slot 1 would silently promote the garment into the person slot and
   // ship a wrong-but-plausible paid render. Leave the hole; edit.run() refuses to send with one.
   if(s.roles) return;
-  graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
-    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port))
-    .forEach((l,i)=>{ l.to.port = s.name(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
+    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port));
+  compactInputSlots(links, s.name);
 }
 
 // Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
@@ -11375,16 +11390,16 @@ function refreshImageInputs(n){
 // Re-pack vid1..vidN after a disconnect so there's never a hole (mirror of recompactImageLinks).
 function recompactVideoLinks(n){
   if(!n || !NODE_TYPES[n.type]?.videoInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "vid"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"vid"+i);
 }
 // Re-pack ref1..refN after a disconnect so there's never a hole (mirror of recompactVideoLinks).
 function recompactRefLinks(n){
   if(!n || !NODE_TYPES[n.type]?.refInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "ref"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"ref"+i);
 }
 // Render the Combine node's dynamic clip input ports. Idempotent — safe after connect,
 // disconnect, or graph load. Shows every wired clip plus one empty trailing slot.
@@ -12943,8 +12958,9 @@ function redraw(){
     const p1 = portCenter(a), p2 = portCenter(b);
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
-    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>tap to remove</title></path>`;
-    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
+    const linkId = esc(l.id);
+    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>tap to remove</title></path>`;
+    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${linkId}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
@@ -13464,14 +13480,24 @@ function wouldCycle(fromNode, toNode, toPort){
   return false;
 }
 
+function allocateLinkId(reserved){
+  let id;
+  do{
+    id = "l"+lid;
+    lid = lid < Number.MAX_SAFE_INTEGER ? lid+1 : 1;
+  }while(reserved.has(id));
+  return id;
+}
+
 // Returns true when the wire was made. A cycle (or self-link) is refused with a notice and
 // nothing mutates — the graph must stay a feed-forward DAG (topoOrder is the run-time backstop).
 function connect(fromNode, fromPort, toNode, toPort){
   if(wouldCycle(fromNode, toNode, toPort)){ toast("that wire would make a loop — workflows flow one way", "warn"); return false; }
   pushUndo();   // after the loop guard, so a refused drop doesn't snapshot
+  const id = allocateLinkId(new Set(graph.links.map(l=>l.id)));
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
-  graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
+  graph.links.push({ id, from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
   const tn = byId(toNode);
   refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
@@ -14784,10 +14810,69 @@ function invalidWireMessage(links, byId, ids){
   }
   return null;
 }
+function competingInputMessage(links, include){
+  const destinations = new Map();
+  for(const link of links){
+    if(!include(link)) continue;
+    const {from, to} = link;
+    let ports = destinations.get(to.node);
+    if(!ports) destinations.set(to.node, ports = new Map());
+    const first = ports.get(to.port);
+    if(!first){ ports.set(to.port, from); continue; }
+    if(first.node===from.node && first.port===from.port) continue;
+    const sources = [first.node + "." + first.port, from.node + "." + from.port].sort().join(" and ");
+    return 'Node "' + to.node + '" has competing wires for input "' + to.port + '" (' + sources + '). Leave one active wire for this input.';
+  }
+  return null;
+}
+function guaranteedWireOutput(link, byId){
+  const source = byId(link.from.node);
+  if(!source || !Object.hasOwn(NODE_TYPES, source.type)) return false;
+  const port = link.from.port;
+  if(/^(endpoint|render3d|vframes)$/.test(source.type)) return false;
+  if(source.type==="sprite-stack-render") return port==="image";
+  if(source.type==="decide") return port==="text" || port==="decision";
+  const outputs = NODE_TYPES[source.type].outputs;
+  return Array.isArray(outputs) && outputs.some(p=>p.name===port);
+}
+function unconditionalInputConflict(links, byId, ids){
+  if(!links?.length) return null;
+  const inScope = l=> (!ids || ids.has(l.to.node)) && guaranteedWireOutput(l, byId);
+  const conflict = competingInputMessage(links, inScope);
+  if(!conflict) return null;
+  // A routed or gated consumer may not run, even with ordinary inbound wires.
+  const wiredModes = new Set(), wiredGates = new Set(), outgoing = new Map();
+  for(const {from,to} of links){
+    if(to.port==="mode") wiredModes.add(to.node);
+    if(to.port==="gate") wiredGates.add(to.node);
+    if(!outgoing.has(from.node)) outgoing.set(from.node, []);
+    outgoing.get(from.node).push(to.node);
+  }
+  const pending = [];
+  for(const {from,to} of links){
+    const node = byId(from.node);
+    if(node?.type!=="decide") continue;
+    const f = node.fields || {};
+    const controls = f.branch===true ? (from.port==="yes" || from.port==="no")
+      : (f.gate===true || f.gate==="true" || wiredGates.has(node.id)) && (f.mode==="yesno" || wiredModes.has(node.id));
+    if(controls) pending.push(to.node);
+  }
+  if(!pending.length) return conflict;
+  const conditional = new Set();
+  while(pending.length){
+    const id = pending.pop();
+    if(conditional.has(id)) continue;
+    conditional.add(id);
+    for(const target of outgoing.get(id) || []) pending.push(target);
+  }
+  return competingInputMessage(links, l=> !conditional.has(l.to.node) && inScope(l));
+}
 function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
 async function runGroup(seedIds, ctx){
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
   if(ctx.demo){
     // A custom-endpoint-only branch never talks to NanoGPT — don't wall it behind a key.
@@ -14815,7 +14900,7 @@ async function runGroup(seedIds, ctx){
   if([...seedSet].some(id=> seedRuns.has(id))) return;
   const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
   if(!ids.size) return;
-  const invalidWire = invalidWireMessage(graph.links, byId, ids);
+  const invalidWire = invalidWireMessage(graph.links, byId, ids) || unconditionalInputConflict(graph.links, byId, ids);
   if(invalidWire){ seedSet.forEach(id=> setStatus(byId(id), "error", invalidWire)); return; }
   // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
   const lock = ids;
@@ -14873,12 +14958,15 @@ async function runGroup(seedIds, ctx){
         // Stop on this Play's seed: don't start (or re-roll) the seed itself.
         // Shared ancestors keep going when another Play still holds them.
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
-        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        let activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
         if(activeLinks===null){ setSkipped(n, false, true); return; }
         const activeDeps = branches ? activeLinks.map(l=> l.from.node) : deps;
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
         if(activeDeps.some(d=> failed.has(d))){ failed.add(id); const byGate = activeDeps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
+        activeLinks = activeLinks.filter(l=> l.to.node===id && byId(l.from.node)?.out?.[l.from.port]!=null);
+        const conflict = competingInputMessage(activeLinks, ()=>true);
+        if(conflict){ failed.add(id); setStatus(n, "error", conflict); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
@@ -15089,7 +15177,9 @@ function warnGifUnknownCost(){
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
-  const invalidWire = invalidWireMessage(graph.links, byId);
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
+  const invalidWire = invalidWireMessage(graph.links, byId) || unconditionalInputConflict(graph.links, byId);
   if(invalidWire){ flash(invalidWire); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
@@ -18468,11 +18558,11 @@ function serializeGraph(){
     node.fields.model = "";
     if(node._glbName) node.fields.modelFile = { name:node._glbName, size:node._glbSize||0 };
   }
-  return {
-    v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
-    links: graph.links, nid, lid, view:{panX,panY,scale}
-  };
+  const nodes = graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})}));
+  graph.nodes.forEach((n,i)=>{
+    if(n._unsupportedNode) nodes[i] = {...n._unsupportedNode, x:n.x, y:n.y, w:n.w, sizes:n.sizes};
+  });
+  return { v:1, nodes, links:graph.links, nid, lid, view:{panX,panY,scale} };
 }
 // A graph for handing off to others: uploaded media inputs are the sharer's own
 // data, so blank them out of share links and exported apps. (Local autosave AND the
@@ -18483,7 +18573,11 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
-    return UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
+    if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}};
+    if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(NODE_TYPES, n.type)) return n;
+    // An unsupported schema may contain private media or results anywhere in its record.
+    const {id,type,name,x,y,w} = n;
+    return {id,type,name,x,y,w,fields:{}};
   });
   return g;
 }
@@ -18532,14 +18626,20 @@ function applyGraphData(d, opts){
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
   const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
-    const type = ALIAS[sn.type] || sn.type;
-    if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
-    if(type==="decide"){
+    const type = Object.hasOwn(ALIAS, sn.type) ? ALIAS[sn.type] : sn.type;
+    const unsupported = !Object.hasOwn(NODE_TYPES, type);
+    // Keep the authored record for backups. The card receives only inert layout and identity.
+    const n = unsupported ? {
+      id:sn.id, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
+      x:sn.x, y:sn.y, w:sn.w, sizes:sn.sizes, fields:{}, out:{}, el:null,
+    } : { ...sn, type, out:{}, el:null };
+    Object.defineProperty(n, "_unsupportedNode", {value:unsupported ? sn : null});
+    stripInjectedMedia(n);
+    if(!unsupported && type==="decide"){
       n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
       if(sn.type==="decide-branch") n.fields.branch = true;
     }
-    if(prevById){
+    if(!unsupported && prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
     }
@@ -18547,16 +18647,38 @@ function applyGraphData(d, opts){
   }
   // Keep broken wires for diagnostics and a faithful save/share round trip.
   graph.links = (d.links||[]).map(l=>({ ...l, from:{...l?.from}, to:{...l?.to} }));
-  // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
+  // Reserve every usable ID before repairing missing or repeated IDs. Keep the first occurrence.
+  const reservedLinkIds = new Set(graph.links.map(l=>l.id).filter(id=>
+    typeof id==="string" && id.trim() && !/[\u0000\r]/.test(id)));
+  const unseenLinkIds = new Set(reservedLinkIds);
+  let highestLinkNumber = 0;
+  for(const id of reservedLinkIds){
+    if(!/^l[1-9]\d*$/.test(id)) continue;
+    const linkNumber = Number(id.slice(1));
+    if(Number.isSafeInteger(linkNumber)) highestLinkNumber = Math.max(highestLinkNumber, linkNumber);
+  }
+  const savedLinkCounter = Number.isSafeInteger(d.lid) && d.lid>0 ? d.lid : 1;
+  lid = Math.max(savedLinkCounter, highestLinkNumber < Number.MAX_SAFE_INTEGER ? highestLinkNumber+1 : 1);
   for(const l of graph.links){
+    if(!unseenLinkIds.delete(l.id)){
+      l.id = allocateLinkId(reservedLinkIds);
+      reservedLinkIds.add(l.id);
+    }
+    // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
     const tn = byId(l.to.node);
     if(tn && (tn.type==="music"||tn.type==="tts") && l.to.port==="text") l.to.port="prompt";
   }
-  // rebuild id counters so new nodes/links never collide with loaded ones
+  // rebuild the node counter so new nodes never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
-  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
+  // A future node's wires keep their authored slots until it can be rendered.
+  const unsupportedIds = new Set(graph.nodes.filter(n=>n._unsupportedNode).map(n=>n.id));
+  const unsupportedTargets = new Set(graph.links.filter(l=>unsupportedIds.has(l.from.node)).map(l=>l.to.node));
+  graph.nodes.forEach(n=>{
+    if(!unsupportedTargets.has(n.id)){ recompactImageLinks(n); recompactVideoLinks(n); }
+    refreshImageInputs(n); refreshVideoInputs(n);
+    if(n.type==="model3d") refreshModel3dPorts(n);
+  });
   // Restore frame ports required by existing links. An explicit field edit can still remove them.
   for(const n of graph.nodes){
     if(n.type!=="vframes") continue;
@@ -21812,9 +21934,10 @@ let appReturnFocus = null;
 // Trim to match serializeGraph/displayName.
 function appHandoffSig(g, appOverride){
   g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
+  const nodes = (g.nodes||[]).map(n=> g===graph && n._unsupportedNode ? n._unsupportedNode : n);
   return JSON.stringify({
     app: appOverride!==undefined ? appOverride : (pendingAppId || ""),   // override for the demo baseline: the shipped starter is never app-bound
-    nodes: (g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
+    nodes: nodes.map(n=>({ id:n.id, type:n.type, name:typeof n.name==="string" ? n.name.trim() : "", fields:n.fields })),
     links: (g.links||[]).map(l=>({ f:l.from, t:l.to }))
   });
 }

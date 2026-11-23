@@ -139,6 +139,7 @@ vm.runInContext(
     extractFn(SRC, "refreshEndpointUI"),
     extractFn(SRC, "refreshPortFills"),
     extractFn(SRC, "wouldCycle"),
+    extractFn(SRC, "allocateLinkId"),
     extractFn(SRC, "connect"),
     extractFn(SRC, "removeLink"),
     extractFn(SRC, "removeNode"),
