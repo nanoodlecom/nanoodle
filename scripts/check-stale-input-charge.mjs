@@ -36,7 +36,9 @@ function extractFn(src, name) {
 }
 const runGroupSrc = extractAsyncFn(SRC, "runGroup");
 const declaresWireOutputSrc = extractFn(SRC, "declaresWireOutput");
-const invalidOutputWireMessageSrc = extractFn(SRC, "invalidOutputWireMessage");
+const declaresWireInputSrc = extractFn(SRC, "declaresWireInput");
+const invalidWireMessageSrc = extractFn(SRC, "invalidWireMessage");
+const wireInputFieldsSrc = SRC.match(/^const WIRE_INPUT_FIELDS = \{[\s\S]*?^};/m)[0];
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
 const ancestorsSrc = extractFn(SRC, "ancestors");
 const topoOrderSrc = extractFn(SRC, "topoOrder");
@@ -152,6 +154,7 @@ function bindWorld(world, opts = {}) {
     byId: (id) => world.nodes[id],
     NODE_TYPES: Object.fromEntries(Object.entries(world.NODE_TYPES).map(([type, spec]) =>
       [type, { outputs: [{ name: "image", type: "image" }], ...spec }])),
+    AUDIO_PARAMS: {},
     graph: { links: world.links, nodes: Object.values(world.nodes) },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
     nodeSig: opts.nodeSig || (() => 0), isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
@@ -164,7 +167,7 @@ function bindWorld(world, opts = {}) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   new vm.Script(
-    declaresWireOutputSrc + "\n" + invalidOutputWireMessageSrc + "\n" +
+    wireInputFieldsSrc + "\n" + declaresWireOutputSrc + "\n" + declaresWireInputSrc + "\n" + invalidWireMessageSrc + "\n" +
     isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
@@ -194,6 +197,19 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "an undeclared output stops the editor before either node runs");
   ok(w.nodes.n1._st === "error" && w.nodes.n1._message.includes('Node "n0" has no output port "obsoletePort"'),
     "the editor identifies the bad source port on the selected node");
+}
+
+for (const [endpoint, edit, expected] of [
+  ["from", { node:"absent" }, "missing source node"],
+  ["to", { port:"iamge" }, 'no input port "iamge"'],
+  ["to", { node:"absent" }, "missing target node"],
+]) {
+  const w = makeWorld(2, false);
+  Object.assign(w.links[0][endpoint], edit);
+  const seed = edit.node === "absent" && endpoint === "to" ? "n0" : "n1";
+  await run(w, seed);
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "a malformed wire blocks the selected editor run before node work");
+  ok(w.nodes[seed]._st === "error" && w.nodes[seed]._message.includes(expected), "editor diagnoses " + expected);
 }
 
 // 1) Upstream failure → direct dependent is skipped, never charged.

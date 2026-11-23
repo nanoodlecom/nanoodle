@@ -16,7 +16,7 @@
 //   1. Round-trip idempotence — applyGraphData(serializeGraph()) reproduces the same
 //      modern multi-node graph (node whitelist id,type,x,y,fields,w,sizes,name; links; view).
 //   2. Legacy migrations — audio→tts alias; unknown type skipped (no throw); dangling
-//      links pruned; music/tts header "text" port → inline "prompt"; nid/lid counters
+//      links retained for repair; music/tts header "text" port → inline "prompt"; nid/lid counters
 //      rebuilt above the max existing id (a node added after load can't collide).
 //   3. Autosave-wipe protection — a throwing/malformed payload must NOT leave the stored
 //      'noodle_graph' overwritten by the empty graph applyGraphData resets to on entry.
@@ -242,8 +242,9 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
   ok(g.nodes.length === 3, `unknown type not skipped (expected 3 nodes, got ${g.nodes.length})`);
   ok(!byId("n5"), "unknown NODE_TYPE (bogusType) should be skipped, not loaded");
   ok(byId("n2") && byId("n2").type === "tts", "legacy 'audio' node must be aliased to 'tts'");
-  ok(!g.links.some((l) => l.id === "l3"), "dangling link (to a skipped node) must be pruned");
-  ok(g.links.length === 3, `expected 3 surviving links, got ${g.links.length}`);
+  ok(g.links.some((l) => l.id === "l3" && l.to.node === "n5"), "dangling link must be retained for run validation and repair");
+  ok(g.links.length === 4, `expected all 4 links to survive, got ${g.links.length}`);
+  ok(P.serializeGraph().links.some((l) => l.id === "l3" && l.to.node === "n5"), "saving the graph preserves the dangling link");
   const l1 = g.links.find((l) => l.id === "l1"), l2 = g.links.find((l) => l.id === "l2");
   ok(l1 && l1.to.port === "prompt", "music node's header 'text' link must migrate to the 'prompt' port");
   ok(l2 && l2.to.port === "prompt", "tts (ex-audio) node's 'text' link must migrate to the 'prompt' port");
