@@ -18909,6 +18909,7 @@ function bridgeMediaReceipt(path, response, body, key){
   if(!response.ok || !bridgeMime(response).includes("json") || !body || body.byteLength>8192) return null;
   let job;
   try{ job = JSON.parse(new TextDecoder().decode(body)); }catch(_){ return null; }
+  if(audio && (job?.url || job?.audioUrl || job?.data?.url || job?.data?.audioUrl)) return null;
   const runId = job?.runId || job?.id;
   if((typeof runId!=="string" && typeof runId!=="number") || !runId || String(runId).length>256) return null;
   const receipt = {runId};

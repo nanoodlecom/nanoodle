@@ -195,6 +195,17 @@ for (const [path, audio] of [["/api/generate-video", false], ["/api/v1/audio/spe
   assert.equal(app.balance(), 25);
 }
 
+{
+  const app = preview({path:"/api/v1/audio/speech", responseBody:{
+    id:"a-receipt-is-not-a-job", audioUrl:"https://private.example/audio.mp3",
+  }});
+  await app.started;
+  app.replaceKey();
+  await app.finish();
+  assert.equal(app.replies()[0]?.accountChanged, true);
+  assert.equal(app.replies()[0]?.body, undefined, "a finished response cannot masquerade as a resumable job");
+}
+
 for (const newApp of [false, true]) {
   const app = preview();
   await app.started;
