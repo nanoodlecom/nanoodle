@@ -18573,7 +18573,11 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
-    return Object.hasOwn(UPLOAD_FIELD, n.type) ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
+    if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}};
+    if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(NODE_TYPES, n.type)) return n;
+    // An unsupported schema may contain private media or results anywhere in its record.
+    const {id,type,name,x,y,w} = n;
+    return {id,type,name,x,y,w,fields:{}};
   });
   return g;
 }

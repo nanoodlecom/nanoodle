@@ -261,8 +261,10 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
      "autosave must preserve the unsupported node type, fields and additional properties");
   ok(JSON.stringify(saved.links.find(l => l.id === "l3")) === JSON.stringify(futureWire),
      "autosave must preserve the unsupported node's connections");
-  ok(JSON.stringify(P.shareableGraph().nodes.find(n => n.id === "n5")) === JSON.stringify(futureNode),
-     "share packing must preserve the unsupported authored type and data");
+  const sharedNode = P.shareableGraph().nodes.find(n => n.id === "n5");
+  ok(sharedNode.type === futureNode.type && sharedNode.x === futureNode.x && sharedNode.y === futureNode.y
+     && Object.keys(sharedNode.fields).length === 0 && !("futureMetadata" in sharedNode),
+     "share packing must preserve the unsupported node's identity and placement while excluding opaque data");
   const startNotices = notices.length;
   P.runAll();
   await P.runGroup(["n7"]);

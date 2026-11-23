@@ -16050,7 +16050,7 @@ const PROMPT_CAPS = {
         const src = graph.byId(l.from.node);
         return nameOf(src) + "'s " + l.from.port + " feeds this step's " + l.to.port;
       });
-      const f = n.fields || {};
+      const f = n.unknown ? {} : n.fields || {};
       const facts = [];
       if(f.model)                                         facts.push("model " + f.model);
       if(!fedPorts.has("system") && (f.system||"").trim()) facts.push('system prompt "' + clip(f.system,140) + '"');
@@ -18375,7 +18375,7 @@ const PROMPT_CAPS = {
 function deriveTitle(graph){
   // Sticky-note captions are author scaffolding, not the app's purpose — exclude them
   // so a note-only graph never titles the app with a stray caption.
-  const nodes = (graph.nodes||[]).filter(n=> n && n.type!=="comment");
+  const nodes = shareableGraph(graph).nodes.filter(n=> n && n.type!=="comment");
   // 1) Prompt gist — a text node first, else the first prompt-ish field on any node.
   const PF = ["text","prompt","instruction","system","description","caption"];
   let promptStr = "";
@@ -20872,11 +20872,16 @@ function finishSignIn(){
 const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
 function shareableGraph(g){
   g = g || { nodes:[], links:[] };
+  const types = window.NoodleApp?.NODE_TYPES || {};
   return { ...g, nodes:(g.nodes||[]).map(n => {
+    if(!n) return n;
     if(n.type==="inpaint") return {...n, fields:{...(n.fields||{}), image:"", mask:""}};   // don't leak the user's photo/mask (mirror index.html shareableGraph)
     if(n.type==="endpoint") return {...n, fields:{...(n.fields||{}), auth:""}};   // optional Authorization — never ride a share card / export
     if(n.type==="mupload"){ const fields = {...n.fields, model:""}; delete fields.modelFile; return {...n, fields}; }
-    return UPLOAD_FIELD[n.type] ? {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}} : n;
+    if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}};
+    if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(types, n.type)) return n;
+    const {id,type,name,x,y,w} = n;
+    return {id,type,name,x,y,w,fields:{}};
   }) };
 }
 
