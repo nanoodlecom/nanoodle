@@ -11892,7 +11892,7 @@ function imgExtra(n){
   }
   // frame extraction helpers (verbatim, index.html): a same-origin handle to paint to a
   // canvas, and a seek that resolves once the frame is decoded (timeout-guarded).
-  const MAX_FRAMES = 12;
+  const MAX_FRAMES = 48;
   // Highest frameN output port wired OUT of a vframes node. fields.frames is SHAPE-affecting:
   // run() emits frame1..frameN and downstream links read fixed frameK ports, so a frame count
   // below the highest wired port starves those consumers MID-RUN — after upstream paid steps
@@ -14773,7 +14773,7 @@ const PROMPT_CAPS = {
     combine: [{ f:"dedup", label:"Trim duplicate seam frame", kind:"boolean", def:true }],
     soundtrack:[{ f:"loop", label:"Loop audio to fill video", kind:"boolean", def:false }],
     vframes: [{ f:"dir", label:"Start from", kind:"select", options:[["end","last frame"],["start","beginning"]], def:"end" },
-              { f:"frames", label:"How many frames", kind:"number", min:1, max:12, def:"1" },
+              { f:"frames", label:"How many frames", kind:"number", min:1, max:MAX_FRAMES, def:"1" },
               { f:"gap", label:"Gap between frames (s)", kind:"number", min:0, step:"0.1", def:"0.5" }],
     // prompt/image/mask are IO (deriveInputs special-case) — only model + size/seed here
     inpaint: [{ f:"model", label:"Model", kind:"model" },

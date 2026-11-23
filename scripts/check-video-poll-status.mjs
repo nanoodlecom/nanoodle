@@ -30,7 +30,7 @@ function loadRunner(file) {
     Date: { now: () => elapsed }, sleep: async ms => { elapsed += ms; },
     setTimeout: () => Symbol("3D timer"), clearTimeout() {},
     MEDIA_INLINE_MAX: 4_000_000, MODEL3D_DEADLINE_MS: 25 * 60_000, MODEL3D_STALL_MS: 12 * 60_000,
-    NANOGPT: "https://provider.example", authHeaders: () => ({}), t: text => text,
+    NANOGPT: "https://provider.example", getKey: () => "fixture-key", authHeaders: () => ({}), t: text => text,
     PENDING_VIDEO: pending, pendingMediaJobs: () => ({ video: pending }),
     sigHash: payload => payload, videoSig: payload => payload,
     costWithHeaders: body => body, accrue() {}, onCost() {},

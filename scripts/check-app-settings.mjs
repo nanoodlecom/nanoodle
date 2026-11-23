@@ -231,14 +231,15 @@ try {
       [{ from: { node: "v1", port: "video" }, to: { node: "f1", port: "video" } }, ...outLinks],
     );
     const framesKnob = (outLinks) => byField(settingsOf(vfGraph(outLinks))).frames;
-    const wired3 = framesKnob([{ from: { node: "f1", port: "frame3" }, to: { node: "e1", port: "image" } }]);
-    if (!wired3) fail("vframes: no frames setting surfaced");
-    else if (wired3.min !== 3) fail(`vframes: frames floor must rise to the highest wired frame port (frame3 wired → min 3), got min ${JSON.stringify(wired3.min)}`);
+    const wired48 = framesKnob([{ from: { node: "f1", port: "frame48" }, to: { node: "e1", port: "image" } }]);
+    if (!wired48) fail("vframes: no frames setting surfaced");
+    else if (wired48.min !== 48 || wired48.max !== 48)
+      fail(`vframes: frame48 wired must keep min and max at 48, got min ${wired48.min} max ${wired48.max}`);
     const wired1 = framesKnob([{ from: { node: "f1", port: "frame1" }, to: { node: "e1", port: "image" } }]);
     if (wired1 && wired1.min !== 1) fail(`vframes: only frame1 wired must keep min 1, got ${JSON.stringify(wired1.min)}`);
     const unwired = byField(settingsOf(graph([node("f1", "vframes", {})]))).frames;
-    if (!unwired || unwired.min !== 1 || unwired.max !== 12)
-      fail(`vframes: unwired frames knob must keep min 1 / max 12 (raising stays allowed), got min ${unwired && unwired.min} max ${unwired && unwired.max}`);
+    if (!unwired || unwired.min !== 1 || unwired.max !== 48)
+      fail(`vframes: unwired frames knob must keep min 1 / max 48 (raising stays allowed), got min ${unwired && unwired.min} max ${unwired && unwired.max}`);
   }
 } catch (e) {
   fail("could not run the settings surface: " + (e && e.stack ? e.stack : e));

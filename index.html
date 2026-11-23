@@ -14504,19 +14504,17 @@ function njsCatalogs(){
   })();
 }
 // Library-shaped ctx bridging to THIS runtime's auth, abort signal, pending-job
-// registries for the owning workspace, spend meter and
+// registries for the owning workspace and credential, spend meter and
 // canvas media. Plain fetch + apiKey (never authHeaders on media): the client
 // adds auth to API calls only, so media CDN downloads never see the key.
-function njsCtx(E, n, jobs = pendingMediaJobs()){
+function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   const {video:PENDING_VIDEO, audio:PENDING_AUDIO} = jobs;
-  const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
+  const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
   // throws without saying the job was saved; video and audio add that only
   // after they have stored the result.
   client.resolveContentUrl = function(url, opts){
-    var key = "";
-    try{ key = (typeof getKey==="function" && getKey()) || ""; }catch(e){ key = ""; }
     return resolveProviderMediaUrl(url, {
       baseUrl: NANOGPT,
       apiKey: key,
@@ -14531,7 +14529,7 @@ function njsCtx(E, n, jobs = pendingMediaJobs()){
     const j = {};
     if(c && c.usd!=null) j.cost = c.usd;
     if(c && c.balance!=null) j.remainingBalance = c.balance;
-    accrue(j);
+    accrue(j, undefined, undefined, key);
   };
   const io = { onCost, onPoll: (info)=>{
     const st = String(info && info.status || "…");
@@ -14543,7 +14541,7 @@ function njsCtx(E, n, jobs = pendingMediaJobs()){
   const runMedia = (jobs, sig, idField, run)=> E.runResumableMedia({
     jobs, key:n.id, sig, idField, signal:io.signal, run,
     resolve: url=> client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); }),
-    onTerminalFailure: ()=>{ if(typeof refreshBalance==="function") refreshBalance(true); },
+    onTerminalFailure: ()=>{ if(key===getKey() && typeof refreshBalance==="function") refreshBalance(true); },
   });
   return {
     // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
@@ -14569,7 +14567,7 @@ function njsCtx(E, n, jobs = pendingMediaJobs()){
         if(c && c.usd==null && est!=null){
           const j = {};
           if(c.balance!=null) j.remainingBalance = c.balance;
-          accrue(j, est);
+          accrue(j, est, undefined, key);
           return;
         }
         onCost(c);
@@ -14601,7 +14599,9 @@ function njsCtx(E, n, jobs = pendingMediaJobs()){
 // (rn, inp, n) so it can veto per-run shapes the library doesn't yet handle like the built-in
 // does — delegation must NEVER change what a paid request sends or costs.
 function njsRunFor(type, rn, inp, n){
-  if(!NJS_TYPES[type] || !njsOn() || !getKey()) return null;
+  if(!NJS_TYPES[type] || !njsOn()) return null;
+  const key = getKey();
+  if(!key) return null;
   const E = window.NanoodleEngine;
   if(!E || !E.RUNNERS || !E.RUNNERS[type]) return null;
   // The editor bundle loads separately, so an older cached copy may lack the
@@ -14642,7 +14642,7 @@ function njsRunFor(type, rn, inp, n){
   // A pending video/audio job submitted by the BUILT-IN engine (lazy bundle load race: first run
   // fires before vendor/njs-engine.js arrives) uses a body-shaped signature this shim can't match —
   // delegating now would orphan that paid job and re-submit. Let the engine that owns it resume it.
-  const jobs = pendingMediaJobs();
+  const jobs = pendingMediaJobs(key);
   const pv = jobs.video.get(n.id), pa = jobs.audio.get(n.id);
   if((pv && !pv.njs) || (pa && !pa.njs)) return null;
   return async function(){
@@ -14658,7 +14658,7 @@ function njsRunFor(type, rn, inp, n){
         inp2[k] = await urlToDataUrl(inp[k]);
       }
     }
-    const ctx = njsCtx(E, n, jobs);
+    const ctx = njsCtx(E, n, key, jobs);
     ctx.catalog = await njsCatalogs();
     // leftover size snap — njs is the default send path; library posts fields.size raw
     if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
@@ -14686,6 +14686,7 @@ function njsRunFor(type, rn, inp, n){
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
+    if(key!==getKey()) throw new DOMException("API key changed", "AbortError");
     return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
@@ -14859,7 +14860,7 @@ async function runGroup(seedIds, ctx){
         // describes what actually goes out — switch the Image node to a tighter model and the run
         // correctly re-rolls instead of reusing a result the new model would have rejected.
         const fitted = withFittedPrompt(rn0, n);
-        const rn = fitted.rn;
+        const rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
@@ -15266,7 +15267,9 @@ const CTX = {
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-    const PENDING_VIDEO = pendingMediaJobs().video;
+    const key = getKey();
+    const PENDING_VIDEO = pendingMediaJobs(key).video;
+    const headers = authHeaders(key);
     const body = { model };
     if(!(opts.mediaKind==="model3d" && !String(prompt||"").trim())) body.prompt = prompt;
     if(opts.duration) body.duration = opts.duration;
@@ -15306,7 +15309,7 @@ const CTX = {
     // Provider already finished. The content fetch failed (or was aborted). Retry
     // only that fetch — a new generate-video would charge again.
     if(pend && pend.sig===bodySig && pend.resultUrl){
-      return await deliverResolvedMedia(PENDING_VIDEO, runKey, pend, pend.resultUrl, runAbortSignal);
+      return await deliverResolvedMedia(PENDING_VIDEO, runKey, pend, pend.resultUrl, runAbortSignal, key);
     }
     let accepted = (pend && pend.sig===bodySig) ? pend : null;
     let runId = accepted?.runId;
@@ -15318,14 +15321,13 @@ const CTX = {
           throw new Error("This 3D photo is a bit large (~4 MB max). nanoodle sends it inline rather than uploading it, so NanoGPT's edge won't accept it. Use a smaller photo.");
         throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
       }
-      const headers = authHeaders();
       let r;
       try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers, body:payload, signal:runAbortSignal}); }
       catch(e){ if(e?.name==="AbortError") throw e;
         if(opts.mediaKind==="model3d") throw new Error(`couldn't reach the 3D API (${e.message||e})`);
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (${e.message||e})`); }
       if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
-      const j = await r.json(); accrue(j, undefined, r);
+      const j = await r.json(); accrue(j, undefined, r, key);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
       accepted = {sig:bodySig, runId};
@@ -15363,7 +15365,7 @@ const CTX = {
         remainingPollTime();
         let pr, s;
         try{
-          pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:pollSignal});
+          pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers, signal:pollSignal});
           if(pr.ok) s = await pr.json();
         }catch(e){ remainingPollTime(); if(e?.name==="AbortError") throw e; continue; }
         remainingPollTime();
@@ -15389,19 +15391,19 @@ const CTX = {
           const url = is3d ? model3dStatusUrl(s, model)
             : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
           if(!url) throw new Error(is3d ? "completed but no model url" : "completed but no video url");
-          applyPollSettlement(s, pr, false);
+          if(key===getKey()) applyPollSettlement(s, pr, false);
           const vEntry = { sig:bodySig, runId, resultUrl:url };
           if(accepted.njs) vEntry.njs = true;
           return await deliverResolvedMedia(
             PENDING_VIDEO, ownsJob ? runKey : null,
-            vEntry, url, runAbortSignal
+            vEntry, url, runAbortSignal, key
           );
         }
         if(failedStatuses.includes(st)){
           if(ownsJob){
             PENDING_VIDEO.delete(runKey);
           }
-          applyPollSettlement(s, pr, true);
+          if(key===getKey()) applyPollSettlement(s, pr, true);
           throw new Error((is3d ? "3D failed: " : "video failed: ") + videoFailText(s, st));
         }
       }
@@ -15416,7 +15418,9 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
-    const PENDING_AUDIO = pendingMediaJobs().audio;
+    const key = getKey();
+    const PENDING_AUDIO = pendingMediaJobs(key).audio;
+    const headers = authHeaders(key);
     const signal = runSignal(runKey);
     signal?.throwIfAborted();
     const mid = String(model||"").trim();
@@ -15439,16 +15443,15 @@ const CTX = {
     // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
     const pend = runKey && PENDING_AUDIO.get(runKey);
     if(pend && pend.sig===bodySig && pend.resultUrl){
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl, signal);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl, signal, key);
     }
     if(pend && pend.sig===bodySig && pend.job){
-      const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig, signal, PENDING_AUDIO);
+      const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig, signal, PENDING_AUDIO, key);
       if(!url) throw new Error("no audio url in response");
       const kept = (runKey && PENDING_AUDIO.get(runKey)) || { sig:bodySig, job:pend.job, resultUrl:url };
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url, signal);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url, signal, key);
     }
     if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
-    const headers = authHeaders();
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers, body:JSON.stringify(body), signal});
     if(!r.ok){
       flagAuth(r, headers["x-api-key"]);
@@ -15465,9 +15468,9 @@ const CTX = {
     }
     const ct = r.headers.get("content-type") || "";
     if(ct.includes("application/json")){
-      const j = await r.json(); accrue(j, undefined, r);
+      const j = await r.json(); accrue(j, undefined, r, key);
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
-      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig, signal, PENDING_AUDIO);
+      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig, signal, PENDING_AUDIO, key);
       if(!url) throw new Error("no audio url in response");
       // The speech POST already charged. Store the raw URL before resolving, even when
       // the JSON body had no runId and no earlier pending job, so a failed fetch is not a second charge.
@@ -15475,7 +15478,7 @@ const CTX = {
       const audEntry = { sig:bodySig, resultUrl:url };
       if(prevAud.job) audEntry.job = prevAud.job;
       if(prevAud.njs) audEntry.njs = true;
-      return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url, signal);
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url, signal, key);
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
@@ -15484,7 +15487,7 @@ const CTX = {
       const it = catItem("audio", model);
       est = it ? speechEstUsd(it.pricing, it.params, input, extra) : null;
     }
-    accrue(isNaN(hc) ? {} : { cost:hc }, est, r);                               // real header cost (x-cost 0 = known-free / subscription)
+    accrue(isNaN(hc) ? {} : { cost:hc }, est, r, key);                          // real header cost (x-cost 0 = known-free / subscription)
     signal?.throwIfAborted();
     // Some providers hand back the audio with a blank/generic content-type. An
     // <audio> element won't play a blob whose MIME it can't recognise (shows
@@ -15746,6 +15749,17 @@ function openDemoPop(mode){
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
 // Output ports for the frame extractor: one image port per requested frame (clamped).
 const MAX_FRAMES = 48;
+// Restored graphs can carry a frame wire above their saved or overridden count.
+function withWiredFrameCount(n, links){
+  const requested = parseInt(n.fields?.frames,10) || 1;
+  let count = requested;
+  for(const link of links){
+    if(link.from.node!==n.id) continue;
+    const frame = /^frame(\d+)$/.exec(link.from.port);
+    if(frame) count = Math.max(count, Math.min(MAX_FRAMES, Number(frame[1])));
+  }
+  return count > requested ? { ...n, fields:{ ...n.fields, frames:count } } : n;
+}
 const hasFrameRange = fields => [fields.stride, fields.startSec, fields.endSec].some(value=>value != null && value !== "");
 function framePorts(n){
   const k = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
@@ -15953,11 +15967,11 @@ function opaqueContentError(err, kept){
   if(kept) return new Error(msg + " The finished job is saved - Run again retries only this download, not a new generation.");
   return new Error(msg + " Running again is a new paid request.");
 }
-async function deliverResolvedMedia(map, runKey, entry, url, signal){
+async function deliverResolvedMedia(map, runKey, entry, url, signal, key){
   if(runKey && map) map.set(runKey, entry);
   var resolved;
   signal?.throwIfAborted();
-  try{ resolved = await resolveContentMedia(url, signal); }
+  try{ resolved = await resolveContentMedia(url, signal, key); }
   catch(e){ throw opaqueContentError(e, true); }
   signal?.throwIfAborted();
   if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
@@ -16046,9 +16060,8 @@ async function resolveProviderMediaUrl(url, opts){
   }
   throw new Error("provider media redirect did not resolve to a fetchable file");
 }
-async function resolveContentMedia(url, signal){
-  var key = "";
-  if(typeof getKey==="function") key = getKey() || "";
+async function resolveContentMedia(url, signal, key){
+  if(key===undefined && typeof getKey==="function") key = getKey();
   if(signal===undefined){
     if(typeof runSignal==="function") signal = runSignal();
     else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
@@ -16679,8 +16692,9 @@ async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed.
 // runKey + bodySig: the job is stashed in PENDING_AUDIO so a re-run resumes without re-charging.
-async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUDIO){
+async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUDIO, key){
   const runId = j.runId || j.id;
+  const headers = authHeaders(key);
   const job = { runId, model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
   // Remember the job (with its request sig) the moment it exists, so EVERY early exit is recoverable
   // (mirror PENDING_VIDEO). The charge already happened at submit: Stop's abort and the 5-min timeout
@@ -16697,7 +16711,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
     let pr, s;
     try{
-      pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:sig});
+      pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers, signal:sig});
       if(pr.ok) s = await pr.json();
     }catch(e){
       if(e?.name==="AbortError") throw e;
@@ -16717,7 +16731,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
     if(!s) continue;
     const st = String(s.status || s.data?.status || "").toLowerCase();
     if(st==="completed" || st==="succeeded"){
-      applyPollSettlement(s, pr, false);
+      if(key===getKey()) applyPollSettlement(s, pr, false);
       const au = s.audioUrl || s.url || s.data?.audioUrl || s.data?.url;
       if(!au) throw new Error("completed but no audio url");
       // Keep the job + raw URL until the caller’s content fetch succeeds. Deleting
@@ -16733,7 +16747,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
       if(slot?.job===job){
         PENDING_AUDIO.delete(runKey);
       }
-      applyPollSettlement(s, pr, true);
+      if(key===getKey()) applyPollSettlement(s, pr, true);
       throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
     }
     onProgress && onProgress(s.queuePosition, Date.now()-t0);
@@ -16743,7 +16757,10 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
     ? "Still generating audio after 5 min — the job is likely still running on NanoGPT's side. Run this node again to pick up the finished track (you won't be charged twice)."
     : "audio timed out (5 min)");
 }
-function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
+function authHeaders(key){
+  const k = key===undefined ? getKey() : key;
+  return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" };
+}
 // A rejection belongs to the key sent on the wire. The caller still surfaces the failed run
 // after a key change, but only the current key can sign out the editor.
 function flagAuth(r, key){
@@ -16825,7 +16842,7 @@ function friendlyRunError(err, n){
 // (image generations and transcriptions — live-confirmed). Real cost (j.cost / x_nanogpt_pricing)
 // always wins; the estimate only fires when none is present, and it marks the session inexact ("~")
 // so the meter never silently reads $0 for a genuinely paid run.
-function accrue(j, estUsd, r){
+function accrue(j, estUsd, r, key){
   const prevBal = stats.balance;
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
@@ -16840,6 +16857,8 @@ function accrue(j, estUsd, r){
   if(usd!=null) stats.cost += usd;                                                                  // real cost → counted, meter stays exact
   else if(typeof estUsd==="number" && isFinite(estUsd)){ stats.cost += estUsd; stats.exact=false; } // catalog estimate → counted, but flag the session as inexact
   else stats.exact=false;                                                                           // no price at all → total is a lower bound
+  // The cost belongs to this visit. The balance belongs to the credential that paid it.
+  if(key!==undefined && key!==getKey()){ paintCost(); return; }
   // Live balance: the x-remaining-balance header is NanoGPT's canonical post-charge figure and rides
   // on EVERY generation (JSON or binary), so it wins; fall back to remainingBalance in the body for
   // any endpoint that only reports it there. Without reading the header here, chat/image/video JSON
@@ -18442,6 +18461,12 @@ function applyGraphData(d, opts){
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
+  // Restore frame ports required by existing links. An explicit field edit can still remove them.
+  for(const n of graph.nodes){
+    if(n.type!=="vframes") continue;
+    const restored = withWiredFrameCount(n, graph.links);
+    if(restored!==n){ n.fields = restored.fields; rerenderNode(n); }
+  }
   // Inpaint bodies render wired-vs-inline UI from graph.links, but buildNodeEl above ran with links
   // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
@@ -19159,13 +19184,15 @@ function updateTitle(){
    noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
-// Node IDs are local to a workflow. Keep accepted jobs with the canvas that
-// submitted them, including when that canvas is parked or recovered.
+// Node IDs are local to a workflow. Keep accepted jobs with the canvas and
+// exact credential that submitted them. Both scopes are page memory only.
 const workspaceMediaJobs = new Map();
-function pendingMediaJobs(){
+function pendingMediaJobs(key = getKey()){
   const id = wsCanvasOwner?.id ?? readWorkspaces()?.active ?? null;
-  let jobs = workspaceMediaJobs.get(id);
-  if(!jobs) workspaceMediaJobs.set(id, jobs = {video:new Map(), audio:new Map()});
+  let accounts = workspaceMediaJobs.get(id);
+  if(!accounts) workspaceMediaJobs.set(id, accounts = new Map());
+  let jobs = accounts.get(key);
+  if(!jobs) accounts.set(key, jobs = {video:new Map(), audio:new Map()});
   return jobs;
 }
 // Closed tabs are reversible for the visible notice, in this visit only. Keep
@@ -19470,8 +19497,9 @@ function wsRecoveryHasRuntime(values, d, tab){
     ? {undo:undoStack, redo:redoStack, describe:window.captureDescribeVersions?.()}
     : workspaceHist.get(tab.id);
   const describe = history?.describe;
-  const jobs = workspaceMediaJobs.get(tab.id);
-  return !!(jobs?.video.size || jobs?.audio.size || history?.undo?.length || history?.redo?.length || describe?.versions?.length || describe?.draft
+  const accounts = workspaceMediaJobs.get(tab.id);
+  const hasJobs = accounts && [...accounts.values()].some(jobs=> jobs.video.size || jobs.audio.size);
+  return !!(hasJobs || history?.undo?.length || history?.redo?.length || describe?.versions?.length || describe?.draft
     || (active ? graph.nodes.some(n=>Object.keys(n.out||{}).length || n._sig!=null || n._glbBytes)
                : workspaceResults.get(tab.id)?.size));
 }

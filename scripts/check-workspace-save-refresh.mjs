@@ -74,6 +74,7 @@ function page(local,session,disk){
     ${load}
     function applyGraphData(data){graph={...data,nid:data.nid+1,lid:data.lid+1};}
     function setPendingApp(){workspaceStorage.removeItem(EDITOR_APP_KEY);}
+    function getKey(){return localStorage.getItem("ngpt_key");}
     function flash(){} function refreshRunEstimate(){} function refreshPromptCaps(){}
     function refreshAppButton(){return false;} function layoutBar(){} function $(){return null;}
     ${save}\n${block}
@@ -176,7 +177,7 @@ await check("local storage retains both edits to the same workspace",async()=>{
   const local=storage(initial()),disk={};
   const a=page(local,storage({}),disk),b=page(local,storage({}),disk);
   await a.boot();await b.boot();
-  const jobs=b.pendingMediaJobs();
+  const jobs=b.pendingMediaJobs("inactive-fixture-key");
   jobs.video.set("n1",{runId:"paid-video"});
   a.edit("FIRST WINDOW EDIT");a.timer();b.edit("SECOND WINDOW EDIT");b.timer();
   const copy=b.view().tabs.find(t=>t.id===b.view().active);
@@ -187,11 +188,11 @@ await check("local storage retains both edits to the same workspace",async()=>{
   b.edit("FOLLOWUP EDIT");b.timer();
   assert.equal(b.view().tabs.length,3,"follow-up edits continue in the same recovered workspace");
   assert.equal(text(local.getItem("noodle_ws_"+copy.id)),"FOLLOWUP EDIT");
-  assert.equal(b.pendingMediaJobs(),jobs,"the recovered canvas retains its accepted jobs");
+  assert.equal(b.pendingMediaJobs("inactive-fixture-key"),jobs,"the recovered canvas retains its accepted jobs across credentials");
   b.switchTo("w1");
-  assert.equal(b.pendingMediaJobs().video.size,0,"the other canvas cannot resume the recovered canvas's job");
+  assert.equal(b.pendingMediaJobs("inactive-fixture-key").video.size,0,"the other canvas cannot resume the recovered canvas's job");
   b.switchTo(copy.id);
-  assert.equal(b.pendingMediaJobs().video.get("n1").runId,"paid-video");
+  assert.equal(b.pendingMediaJobs("inactive-fixture-key").video.get("n1").runId,"paid-video");
   a.close();b.close();
 });
 await check("a stale canvas save preserves edits after its workspace was closed elsewhere",async()=>{

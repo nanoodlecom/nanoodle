@@ -26,7 +26,7 @@ function poller(file) {
   const ctx = vm.createContext({
     URLSearchParams, DOMException, fetch, apiFetch: fetch,
     Date: { now: () => elapsed }, sleep: async ms => { elapsed += ms; },
-    NANOGPT: "https://provider.example", authHeaders: () => ({}),
+    NANOGPT: "https://provider.example", getKey: () => "fixture-key", authHeaders: () => ({}),
     ABORT: controller,
     abortError: () => new DOMException("canceled", "AbortError"),
     PENDING_AUDIO: pending,
@@ -37,7 +37,7 @@ function poller(file) {
   const job = { runId: "paid-audio", cost: 0.25, paymentSource: "balance", isApiRequest: false };
   return {
     pending, responses, requests, settlements, controller, reply,
-    reads: () => reads, run: (j = job) => ctx.pollAudio("audio-model", j, null, "node", "same-input", controller.signal, pending),
+    reads: () => reads, run: (j = job) => ctx.pollAudio("audio-model", j, null, "node", "same-input", controller.signal, pending, "fixture-key"),
   };
 }
 

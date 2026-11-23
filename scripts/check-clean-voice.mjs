@@ -130,7 +130,33 @@ ok(near(audioUnitUsd(EL, undefined, 0.3), 0.00121), "ElevenLabs: floored at the 
 ok(near(audioUnitUsd(VEED, undefined, 23.5), 0.01375) && near(audioUnitUsd(VEED, undefined, 61), 0.0275), "VEED: per started minute ($0.01375 for 23.5 s, two minutes for 61 s)");
 ok(/kind==="audio" && t\.modelFilter==="denoise"[\s\S]{0,400}cleanVoiceEstSeconds\(src && src\.fields\)/.test(IDX), "editor run-cost chip meters the wired source's duration");
 ok(/n\.type==="cleanvoice"[\s\S]{0,400}cleanVoiceEstSeconds\(src && src\.fields\)/.test(PLAY), "app run-cost chip meters it the same way");
-ok(/ct\.includes\("application\/json"\)\)\{\s*const j = await r\.json\(\); accrue\(j, undefined, r\);/.test(IDX), "editor bills the real cost from the 202 reply (accrue(j) before polling)");
+{
+  const method = IDX.match(/^  async genAudio\([\s\S]*?^  },/m)?.[0];
+  if (!method) throw new Error("editor genAudio not found");
+  let key = "original-fixture-key";
+  const calls = [], audio = new Map();
+  const genAudio = vm.runInNewContext(`${extractFn(IDX, "authHeaders")}\n({${method}}).genAudio`, {
+    NANOGPT: "https://provider.example",
+    getKey: () => key,
+    pendingMediaJobs: () => ({ audio }),
+    runSignal: () => undefined,
+    sigHash: body => body,
+    async fetch(_url, { headers }) {
+      calls.push(["submit", headers["x-api-key"]]);
+      key = "replacement-fixture-key";
+      return Response.json({ runId: "clean-voice-job", cost: 0.04752 }, { status: 202 });
+    },
+    accrue: (body, _estimate, response, owner) => calls.push(["cost", body.cost, response.status, owner]),
+    async pollAudio(_model, _job, _progress, _node, _sig, _signal, _pending, owner) {
+      calls.push(["poll", owner]);
+      return "https://cdn.example/clean.mp3";
+    },
+    deliverResolvedMedia: async (_jobs, _node, _entry, url) => url,
+  });
+  await genAudio("elevenlabs/audio-isolation", undefined, { audio: "https://cdn.example/source.mp3", duration: 23.56 }, undefined, "n1");
+  const expected = [["submit", "original-fixture-key"], ["cost", 0.04752, 202, "original-fixture-key"], ["poll", "original-fixture-key"]];
+  ok(JSON.stringify(calls) === JSON.stringify(expected), "editor records the real 202 cost before polling and keeps the submitting key across a switch");
+}
 ok(/ct\.includes\("application\/json"\)\)\{\s*const j = await r\.json\(\); onCost\(costWithHeaders\(j, r\)\);/.test(PLAY), "app bills the real cost from the 202 reply");
 
 console.log("wiring");

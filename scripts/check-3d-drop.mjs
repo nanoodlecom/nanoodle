@@ -164,7 +164,7 @@ ok(SRC.includes("MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5"), "a 3D job warns at
       setTimeout: (callback, delay) => { timer = { callback, delay }; return timer; },
       clearTimeout: (id) => { assert.equal(id, timer); timer = undefined; },
       runSignal: (id) => nodeWork.get(id)?.ctl.signal || otherRun.signal,
-      authHeaders: () => ({}), accrue() {}, applyPollSettlement() {},
+      getKey: () => "fixture-key", authHeaders: () => ({}), accrue() {}, applyPollSettlement() {},
       model3dStatusUrl: (status) => status.data.output.model_url,
       deliverResolvedMedia: (map, key, _, url) => { map.delete(key); return url; },
       fetch: async (url, init) => {

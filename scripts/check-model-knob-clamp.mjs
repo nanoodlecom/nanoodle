@@ -561,6 +561,8 @@ function builderSpecs(src) {
   }
   throw new Error("unbalanced builder SETTING_SPECS");
 }
+const frameCapDeclaration = PLAY.slice(PLAY.indexOf("NJS-ENGINE:END")).match(/^[ 	]*const MAX_FRAMES = \d+;$/m)?.[0];
+if (!frameCapDeclaration) throw new Error("player runtime MAX_FRAMES not found after NJS-ENGINE:END");
 const __specsCtx = { console, Math };
 vm.createContext(__specsCtx);
 vm.runInContext([
@@ -568,6 +570,7 @@ vm.runInContext([
   "var ASPECTS = [['16:9','16:9']];",
   "var RESOLUTIONS = [['','model default']];",
   "var SIZES = [['1024x1024','1024x1024']];",
+  frameCapDeclaration,
   builderSpecs(PLAY),
   "globalThis.__specs = SETTING_SPECS;",
 ].join("\n"), __specsCtx);

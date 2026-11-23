@@ -806,12 +806,12 @@ const SCENARIOS = [
     },
     data: { nodes: [node("s1", "vupload", { video: "https://example/clip.mp4" }),
                     node("f1", "vframes", { frames: "1" }),   // persisted setting lowered below the wired port
-                    node("e1", "edit", { model: "x", prompt: "restyle the third frame" })],
-            links: [link("s1", "video", "f1", "video"), link("f1", "frame3", "e1", "image")] },
+                    node("e1", "edit", { model: "x", prompt: "restyle the last allowed frame" })],
+            links: [link("s1", "video", "f1", "video"), link("f1", "frame48", "e1", "image")] },
     check(app, g, fail) {
       const b = imgCalls()[0]?.body;
-      if (!b) return fail("the frame3 consumer never ran — the engine did not clamp frames up to the wired port");
-      if (b.imageDataUrl !== IMG + "3") fail(`the edit step must receive frame3, got ${JSON.stringify(b.imageDataUrl).slice(0, 40)}`);
+      if (!b) return fail("the frame48 consumer never ran — the engine did not clamp frames up to the wired port");
+      if (b.imageDataUrl !== IMG + "48") fail(`the edit step must receive frame48, got ${JSON.stringify(b.imageDataUrl).slice(0, 40)}`);
     },
   },
   {
