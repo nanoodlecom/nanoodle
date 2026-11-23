@@ -89,6 +89,7 @@ try {
     run: extractFn(html, "run"),
     isPaidNanoType: extractFn(html, "isPaidNanoType"),
     graphNeedsNanoKey: extractFn(html, "graphNeedsNanoKey"),
+    unsupportedGraphMessage: extractFn(html, "unsupportedGraphMessage"),
     RUN_CHOICES: extractConst(html, /const\s+RUN_CHOICES\s*=\s*\[[^\]]*\]\s*;/, "const RUN_CHOICES"),
     RUN_RESUME_KEY: extractConst(html, /const\s+RUN_RESUME_KEY\s*=\s*"[^"]*"\s*;/, "const RUN_RESUME_KEY"),
     hasAuth: extractConst(html, /const\s+hasAuth\s*=\s*\(\)\s*=>[^;]*;/, "const hasAuth"),
@@ -104,6 +105,7 @@ const preamble = `
   let RUNS_N = 1, KEEP = false, _runCost = null, running = false;
   let parentAuthed = false, EMBEDDED = false, __getKeyRet = null;
   let STATE = null, location = { protocol: "https:", origin: "https://x", pathname: "/" };
+  const NODE_TYPES = { llm:{}, endpoint:{} };
 
   function getKey(){ return __getKeyRet; }                 // stand-in for play.html's localStorage getter
   function t(s){ return s; }                               // identity — we assert markers/money, not translations
@@ -112,7 +114,7 @@ const preamble = `
   let __spies = { fetch: 0, preflight: 0, statusLine: 0, flashAuth: 0, renderAuth: 0 };
   function fetch(){ __spies.fetch++; return Promise.resolve({ ok: true, json: () => ({}), text: () => "" }); }
   function showRunPreflight(){ __spies.preflight++; }      // real one is DOM-only + never fetches; spy pins the routing
-  function statusLine(){ __spies.statusLine++; }
+  function statusLine(_id, _kind, message){ __spies.statusLine++; __spies.statusMessage = message; }
   function flashAuth(){ __spies.flashAuth++; }
   function renderAuth(){ __spies.renderAuth++; }
 
@@ -160,7 +162,7 @@ const program =
   lift.RUN_CHOICES + "\n" + lift.RUN_RESUME_KEY + "\n" + lift.hasAuth + "\n" +
   lift.fmtUsd + "\n" + lift.paintRunCost + "\n" + lift.renderCount + "\n" +
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
-  lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" +
+  lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" + lift.unsupportedGraphMessage + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };
@@ -264,6 +266,15 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   ok(s.renderAuth === 1, "signed-out run (file://): must reveal the paste-key row (renderAuth)");
   ok(s.preflight === 0, "signed-out run (file://): the OAuth preflight must NOT show where OAuth is impossible");
 }
+{
+  T.setEmbedded(false); T.setKey(null);
+  T.setSTATE({ graph: { nodes: [{ id:"future", type:"future-node" }, { id:"paid", type:"llm" }] } });
+  T.resetSpies();
+  await T.run();
+  const s = T.spies();
+  ok(s.fetch === 0 && s.preflight === 0 && s.statusLine === 1 && /Unsupported node type "future-node"/.test(s.statusMessage),
+    "a blocked workflow reports its unsupported node before asking the user to sign in");
+}
 // sanity: an AUTHED run does NOT route into the preflight (it would proceed past the gate)
 {
   T.setEmbedded(false); T.setKey("sk-real-key");
@@ -286,6 +297,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   ok(T.spies().preflight === 0, "signed-out Custom-endpoint-only graph must NOT hit the NanoGPT key wall");
   ok(T.spies().fetch === 0, "signed-out Custom-endpoint-only graph still fires ZERO fetch in this harness");
 }
+
 
 // ---- 4. RESUME STASH: typed inputs are written to the single-use resume key ---------------------
 {

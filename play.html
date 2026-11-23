@@ -14017,7 +14017,7 @@ return "image/png";
   // "empty inputs": Image / LLM / Music also have inputs:[] but they generate.
   const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, mupload:1, choice:1, comment:1 };
   function isInputKind(type){
-    if(INPUT_KINDS[type]) return true;
+    if(Object.hasOwn(INPUT_KINDS, type)) return true;
     const t = NODE_TYPES[type];
     return !!(t && t.note);
   }
@@ -14049,9 +14049,8 @@ return "image/png";
 
   /* =====================================================================
      MATERIALIZE window.NOODLE_GRAPH into a runnable graph.
-     Mirrors applyGraphData(): audio→tts alias, drop unknown node types,
-     keep only links with surviving endpoints, migrate music/tts header
-     "text" port → inline "prompt" field port.
+     Migrate legacy node types and ports. Preserve unsupported nodes and
+     their dependencies so preflight can stop the run before any API call.
      ===================================================================== */
   // A node's display label: the user's custom name if set, else the node-type title. One source
   // of truth for every place the played app shows a step's name (steps list, settings group
@@ -14061,14 +14060,16 @@ return "image/png";
     const ALIAS = { audio:"tts", "decide-branch":"decide" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
-      const type = ALIAS[sn.type] || sn.type;
-      if(!NODE_TYPES[type]) continue;
+      const rawType = typeof sn.type==="string" ? sn.type : "";
+      const type = Object.hasOwn(ALIAS, rawType) ? ALIAS[rawType] : rawType;
       const fields = { ...(sn.fields||{}) };
       if(type==="decide"){
         fields.model = decideModelId(fields.model) || DECIDE_DEFAULT_MODEL;
         if(sn.type==="decide-branch") fields.branch = true;
       }
-      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields, out:{} });
+      const node = { id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields, out:{} };
+      if(!Object.hasOwn(NODE_TYPES, type)) node.unknown = true;
+      nodes.push(node);
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
     const ids = new Set(nodes.map(n=>n.id));
@@ -14430,6 +14431,13 @@ const PROMPT_CAPS = {
   function graphNeedsNanoKey(graph){
     return ((graph && graph.nodes) || []).some(function(n){ return n && isPaidNanoType(n.type); });
   }
+  function unsupportedGraphMessage(graph, ids){
+    const node = (graph?.nodes || []).find(n=> (!ids || ids.has(n.id)) &&
+      (typeof n.type!=="string" || !Object.hasOwn(NODE_TYPES, n.type)));
+    if(!node) return null;
+    const type = typeof node.type==="string" && node.type ? node.type : "(missing type)";
+    return 'Unsupported node type "' + type + '" (node ' + node.id + '). Open the workflow in a version of nanoodle that supports it.';
+  }
   async function runGraph(graph, opts){
     opts = opts || {};
     const signal = ABORT?.signal;
@@ -14438,11 +14446,13 @@ const PROMPT_CAPS = {
     const onStatus = statusCallback && ((...args)=>{ if(!signal?.aborted) statusCallback(...args); });
     const onResult = resultCallback && ((n)=>{ if(!signal?.aborted) resultCallback(n); });
     checkStopped();
-    if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
-    const byId = graph.byId;
     const seedList = (opts.seeds && opts.seeds.length) ? opts.seeds : graph.nodes.map(n=>n.id);
     const seedSet = new Set(seedList);
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
+    const unsupported = unsupportedGraphMessage(graph, ids);
+    if(unsupported) throw new Error(unsupported);
+    if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
+    const byId = graph.byId;
     const r = topoOrder(graph, ids);
     let branches = null;
     if(graph.nodes.some(n=> n.type==="decide" && n.fields.branch===true) ||
@@ -14721,6 +14731,7 @@ const PROMPT_CAPS = {
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
+      if(n.unknown) continue;
       // Inpaint is special: source + mask each come from a wire OR from the user. Surface the easiest
       // controls for whatever isn't wired — an upload+brush widget for the common case, a B/W mask
       // upload when the source is wired (so "generate → repaint" apps still expose the mask).
@@ -14758,7 +14769,7 @@ const PROMPT_CAPS = {
   function deriveOutputs(graph){
     return graph.nodes.filter(n=>{
       const t = NODE_TYPES[n.type];
-      if(!t.outputs || !t.outputs.length) return false;
+      if(n.unknown || !t?.outputs || !t.outputs.length) return false;
       return !graph.links.some(l=> l.from.node===n.id);
     });
   }
@@ -14889,6 +14900,7 @@ const PROMPT_CAPS = {
   function deriveSettings(graph){
     const out = [];
     for(const n of graph.nodes){
+      if(n.unknown) continue;
       const specs = SETTING_SPECS[n.type]; if(!specs) continue;
       const preset = n.type==="slice-3d" ? slicePresetValues(n.fields.preset) : {};
       for(const s of specs){
@@ -16879,7 +16891,7 @@ const PROMPT_CAPS = {
       var s = samples[i];
       var gn = STATE.graph && STATE.graph.byId ? STATE.graph.byId(s.id) : null;
       var nodeType = (gn && gn.type) || s.type;
-      if(!NODE_TYPES[nodeType]) continue;
+      if(!Object.hasOwn(NODE_TYPES, nodeType)) continue;
       var port = ((NODE_TYPES[nodeType].outputs)||[])[0] || {};
       var out = {};
       out[s.port || port.name || "text"] = s.v;
@@ -17351,6 +17363,8 @@ const PROMPT_CAPS = {
 
   async function run(){
     if(running) return;
+    const unsupported = unsupportedGraphMessage(STATE && STATE.graph);
+    if(unsupported){ statusLine("__unsupported__", "error", unsupported); return; }
     if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
       // a status line right under the Run button plus a brief pulse on the header auth block, so the
