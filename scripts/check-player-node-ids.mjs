@@ -44,7 +44,7 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
 }
 
 {
-  const graph = roundTrip({
+  const data = {
     nodes: [
       node("__proto__", "text", { text: "left" }),
       node("constructor", "text", { text: "right" }),
@@ -56,15 +56,18 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
       link("__proto__", "hasOwnProperty", "a"),
       link("constructor", "hasOwnProperty", "b"),
       link("hasOwnProperty", "toString", "a"),
-      link("__proto__", "toString", "b", "constructor"),
     ],
-  });
+  };
+  const graph = roundTrip(data);
   const completed = [];
   const result = await app.runGraph(graph, { onResult: (n) => completed.push(n.id) });
   assert.equal(result.nodeErrors, 0);
   assert.equal(graph.byId("toString").out.text, "left/right");
   assert.deepEqual(new Set(completed), new Set(["__proto__", "constructor", "hasOwnProperty", "toString"]));
   assert.equal(graph.byId("valueOf").type, "comment");
+  await assert.rejects(app.runGraph(roundTrip({
+    ...data, links: [...data.links, link("__proto__", "toString", "b", "constructor")],
+  })), /Node "__proto__" has no output port "constructor"/);
 }
 
 {
