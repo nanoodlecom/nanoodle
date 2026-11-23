@@ -11,7 +11,9 @@ const src=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const block=src.slice(src.indexOf('const WS_INDEX_KEY = "noodle_workspaces";'),src.indexOf("/* WORKSPACES-END */"));
 const save=src.slice(src.indexOf("function save(){"),src.indexOf("/* ---- Undo / redo:"));
 const load=src.slice(src.indexOf("function load(){"),src.indexOf("let _starterData"));
+const malformedNodeRecordError=src.match(/^function malformedNodeRecordError\(nodes\)\{[\s\S]*?^\}/m)?.[0];
 assert.ok(block.includes("function flushSave()"));
+assert.ok(malformedNodeRecordError, "editor node record validator was not extracted");
 const copy=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
 const graph=text=>({v:1,nodes:[{id:"n1",type:"text",fields:{text}},{id:"n2",type:"upload",fields:{image:"data:image/png;base64,c3ludGhldGlj"}}],links:[],nid:3,lid:1});
 const index=JSON.stringify({v:1,active:"w1",seq:2,tabs:[{id:"w1",name:"Editing"},{id:"w2",name:"Other tab"}]});
@@ -71,6 +73,7 @@ function page(local,session,disk){
     var location={hash:"",pathname:"/",search:""},history={replaceState(){location.hash="";}};
     function serializeGraph(){if(serializeFailure)throw new Error("synthetic serialization failure");return graph;}
     function _stashResults(){return null;}
+    ${malformedNodeRecordError}
     ${load}
     function applyGraphData(data){graph={...data,nid:data.nid+1,lid:data.lid+1};}
     function setPendingApp(){workspaceStorage.removeItem(EDITOR_APP_KEY);}
