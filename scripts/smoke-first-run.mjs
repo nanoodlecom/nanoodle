@@ -321,6 +321,34 @@ async function verifyRotoscope(browser) {
     assert.ok(results.still.every(count=>count>100));
     assert.ok(results.clipped[0]+results.clipped[1] < (results.still[0]+results.still[1])*0.75);
     assert.match(results.external,/self-contained model/);
+
+    const clip = await readFile(resolve(root,"scripts/fixtures/rotoscope/cfr.mp4"));
+    const restoredGraph = { v:1, nodes:[
+      { id:"source", type:"vupload", x:30, y:40, fields:{ video:"data:video/mp4;base64,"+clip.toString("base64") } },
+      { id:"frames", type:"vframes", x:300, y:40, fields:{ frames:1, dir:"start", gap:0.04 } },
+      { id:"sink", type:"resize", x:580, y:40, fields:{ width:32, height:32 } },
+    ], links:[
+      { id:"source-wire", from:{node:"source",port:"video"}, to:{node:"frames",port:"video"} },
+      { id:"frame-wire", from:{node:"frames",port:"frame48"}, to:{node:"sink",port:"image"} },
+    ] };
+    await page.goto(origin+"/?product=off&na=0&engine=js#g="+gzipSync(JSON.stringify(restoredGraph)).toString("base64url"));
+    await page.waitForFunction(()=>typeof byId==="function" && !!byId("sink")?.el);
+    const restored = await page.evaluate(async ()=>{
+      const frames = byId("frames");
+      const wire = () => graph.links.some(l=> l.from.node==="frames" && l.from.port==="frame48");
+      const count = frames.el.querySelector('[data-f="frames"]');
+      const port = () => frames.el.querySelector('.col.out [data-port="frame48"]');
+      const loaded = {count:count.value, wired:wire(), visible:!!port()};
+      // Model a value below the wired count arriving after graph restore, before Run.
+      frames.fields.frames = 1;
+      await runGroup(["sink"]);
+      const run = {frames:Object.keys(frames.out).length, resized:!!byId("sink").out.image};
+      count.value = "12";
+      count.dispatchEvent(new Event("input"));
+      count.dispatchEvent(new Event("change"));
+      return {loaded, run, trimmed:!wire() && !port()};
+    });
+    assert.deepEqual(restored,{loaded:{count:"48",wired:true,visible:true},run:{frames:48,resized:true},trimmed:true});
     assert.deepEqual(forbidden,[]);
     console.log("✓ local Rotoscope: shared graph rendered PNG and MP4, kept exact CFR/VFR frames, denied external assets, and made no paid requests");
   } finally { await context.close(); }

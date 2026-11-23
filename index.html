@@ -14853,7 +14853,8 @@ async function runGroup(seedIds, ctx){
           }
           fieldOverrides[l.to.port] = v;
         }
-        const rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        let rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        if(n.type==="vframes") rn0 = withWiredFrameCount(rn0, graph.links);
         // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is
         // trimmed to fit rather than sent to a certain 400. Lands before nodeSig so the signature
         // describes what actually goes out — switch the Image node to a tighter model and the run
@@ -15746,6 +15747,17 @@ function openDemoPop(mode){
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
 // Output ports for the frame extractor: one image port per requested frame (clamped).
 const MAX_FRAMES = 48;
+// Restored graphs can carry a frame wire above their saved or overridden count.
+function withWiredFrameCount(n, links){
+  const requested = parseInt(n.fields?.frames,10) || 1;
+  let count = requested;
+  for(const link of links){
+    if(link.from.node!==n.id) continue;
+    const frame = /^frame(\d+)$/.exec(link.from.port);
+    if(frame) count = Math.max(count, Math.min(MAX_FRAMES, Number(frame[1])));
+  }
+  return count > requested ? { ...n, fields:{ ...n.fields, frames:count } } : n;
+}
 const hasFrameRange = fields => [fields.stride, fields.startSec, fields.endSec].some(value=>value != null && value !== "");
 function framePorts(n){
   const k = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
@@ -18442,6 +18454,12 @@ function applyGraphData(d, opts){
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
+  // Restore frame ports required by existing links. An explicit field edit can still remove them.
+  for(const n of graph.nodes){
+    if(n.type!=="vframes") continue;
+    const restored = withWiredFrameCount(n, graph.links);
+    if(restored!==n){ n.fields = restored.fields; rerenderNode(n); }
+  }
   // Inpaint bodies render wired-vs-inline UI from graph.links, but buildNodeEl above ran with links
   // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
