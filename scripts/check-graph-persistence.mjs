@@ -124,6 +124,8 @@ const bundle = [
   extractFn(SRC, "shareableGraph"),
   extractFn(SRC, "stripInjectedMedia"),
   extractFn(SRC, "allocateLinkId"),
+  extractFn(SRC, "malformedNodeRecordError"),
+  extractFn(SRC, "graphPayloadOk"),
   extractFn(SRC, "applyGraphData"),
   extractFn(SRC, "unsupportedNodeMessage"),
   extractFn(SRC, "runAll"),
@@ -310,16 +312,34 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
 
 // ===========================================================================
 // 3) AUTOSAVE-WIPE PROTECTION
-//    A throwing payload resets graph to empty at applyGraphData's first line; the
-//    caller (loadFromHash) must NOT let save() persist that empty graph over the
-//    good autosave. Protection = applyGraphData is inside try, save() only on success.
+//    A malformed node must fail before applying a new canvas or saving its state.
 // ===========================================================================
 {
   const good = { v: 1, nodes: [{ id: "n1", type: "text", x: 0, y: 0, fields: { text: "keep me" }, w: 200, sizes: {} }], links: [], nid: 2, lid: 1 };
   const goodJson = JSON.stringify(good);
   const b64 = (s) => P.bytesToB64url(new TextEncoder().encode(s));
 
-  // negative: a malformed payload (nodes:5 → for-of throws after graph is wiped)
+  // A malformed node cannot partially replace the mounted workflow or its saved copy.
+  P.applyGraphData(good);
+  const previousCanvas = ctx.graph;
+  for (const [invalid, message] of [[null, "must be an object"], [{ type: "text" }, "invalid id"], [{ id: "bad" }, "invalid type"]]) {
+    const malformed = { ...good, nodes: [...good.nodes, invalid] };
+    let error;
+    try { P.applyGraphData(malformed); } catch (e) { error = e; }
+    ok(error?.code === "invalid-node-record" && error.message.includes("node at position 2") && error.message.includes(message), "direct apply identifies the malformed node record");
+    ok(ctx.graph === previousCanvas, "direct apply keeps the live canvas on node validation failure");
+
+    const invalidJson = JSON.stringify(malformed);
+    store.set("noodle_graph", invalidJson);
+    ok(!P.load() && ctx.graph === previousCanvas && store.get("noodle_graph") === invalidJson, "persisted malformed graph is preserved for recovery without mounting it");
+
+    store.set("noodle_graph", goodJson);
+    ctx.location.hash = "#j=" + b64(invalidJson);
+    ok(!(await P.loadFromHash()) && ctx.graph === previousCanvas && store.get("noodle_graph") === goodJson, "malformed shared graph preserves the canvas and its saved copy");
+    ok(notices.at(-1)?.message.includes("node at position 2"), "share rejection surfaces the malformed node position");
+  }
+
+  // A malformed node list also leaves the existing autosave in place.
   store.clear(); store.set("noodle_graph", goodJson);
   ctx.location.hash = "#j=" + b64(JSON.stringify({ nodes: 5 }));
   let ret;

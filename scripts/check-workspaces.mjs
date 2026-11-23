@@ -166,6 +166,7 @@ const bundle = [
   extractFn(SRC, "serializeGraph"),
   extractFn(SRC, "stripInjectedMedia"),
   extractFn(SRC, "allocateLinkId"),
+  extractFn(SRC, "malformedNodeRecordError"),
   extractFn(SRC, "applyGraphData"),
   extractFn(SRC, "_stashResults"),
   extractFn(SRC, "save"),
@@ -325,6 +326,23 @@ const photoOf = (g) => {
   ok(backing.noodle_graph === FIXTURE, "a malformed share link must not overwrite noodle_graph");
   ok(!Object.keys(backing).some((k) => k.startsWith("noodle_ws_")), "a malformed share link must not shelve");
   ok(JSON.parse(backing.noodle_workspaces).tabs.length === before.tabs.length, "a malformed share link must not add a tab");
+}
+
+{
+  clearStore();
+  const W = boot();
+  const index = W.ensureWorkspaces();
+  W.applyGraphData(markerGraph("keep active work"));
+  W.save();
+  index.seq = 2;
+  index.tabs.push({ id:"w2", name:"Damaged workspace" });
+  backing.noodle_workspaces = JSON.stringify(index);
+  const malformed = JSON.stringify({ ...markerGraph("invalid"), nodes:[{type:"text"}] });
+  backing.noodle_ws_w2 = malformed;
+  W.switchWorkspace("w2");
+  ok(W.readWorkspaces().active === "w1" && textOf(W.serializeGraph()) === "keep active work", "a malformed saved workspace leaves the active canvas and tab intact");
+  ok(backing.noodle_ws_w2 === malformed, "a rejected workspace keeps its original bytes");
+  ok(JSON.stringify(W.toasts()).includes("node at position 1 has a missing or invalid id"), "a rejected workspace shows the node validation error");
 }
 
 // ---------------------------------------------------------------------------

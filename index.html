@@ -14870,7 +14870,26 @@ function unconditionalInputConflict(links, byId, ids){
 function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
+function malformedNodeRecordError(nodes){
+  if(!Array.isArray(nodes)) return null;
+  for(const [index, node] of nodes.entries()){
+    const position = "node at position " + (index+1);
+    let message;
+    if(!node || typeof node!=="object" || Array.isArray(node)) message = position + " must be an object";
+    else if(!Object.hasOwn(node, "id") || !(typeof node.id==="string" && node.id.trim() || Number.isFinite(node.id)))
+      message = position + " has a missing or invalid id (expected a non-empty string or finite number)";
+    else if(!Object.hasOwn(node, "type") || typeof node.type!=="string" || !node.type.trim())
+      message = position + " has a missing or invalid type (expected a non-empty string)";
+    else continue;
+    const error = new Error(message);
+    error.code = "invalid-node-record";
+    return error;
+  }
+  return null;
+}
 async function runGroup(seedIds, ctx){
+  const malformed = malformedNodeRecordError(graph.nodes);
+  if(malformed){ toast(malformed.message, "err"); return; }
   const unsupported = graph.nodes.find(n=>n._unsupportedNode);
   if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
@@ -15176,6 +15195,8 @@ function warnGifUnknownCost(){
 // Run every idle group at once (busy ones keep going untouched).
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
+  const malformed = malformedNodeRecordError(graph.nodes);
+  if(malformed){ toast(malformed.message, "err"); return; }
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
   const unsupported = graph.nodes.find(n=>n._unsupportedNode);
   if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
@@ -18603,6 +18624,8 @@ function stripInjectedMedia(n){
     delete n.fields.sample;
 }
 function applyGraphData(d, opts){
+  const malformed = malformedNodeRecordError(d?.nodes);
+  if(malformed) throw malformed;
   try{ clearRunFailPort(); }catch(_){}
   // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
   // version-jump, describe-apply). serializeGraph() never persists n.out/n._sig, so without this
@@ -18626,13 +18649,14 @@ function applyGraphData(d, opts){
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
   const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
+    const id = String(sn.id);
     const type = Object.hasOwn(ALIAS, sn.type) ? ALIAS[sn.type] : sn.type;
     const unsupported = !Object.hasOwn(NODE_TYPES, type);
     // Keep the authored record for backups. The card receives only inert layout and identity.
     const n = unsupported ? {
-      id:sn.id, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
+      id, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
       x:sn.x, y:sn.y, w:sn.w, sizes:sn.sizes, fields:{}, out:{}, el:null,
-    } : { ...sn, type, out:{}, el:null };
+    } : { ...sn, id, type, out:{}, el:null };
     Object.defineProperty(n, "_unsupportedNode", {value:unsupported ? sn : null});
     stripInjectedMedia(n);
     if(!unsupported && type==="decide"){
@@ -18660,6 +18684,8 @@ function applyGraphData(d, opts){
   const savedLinkCounter = Number.isSafeInteger(d.lid) && d.lid>0 ? d.lid : 1;
   lid = Math.max(savedLinkCounter, highestLinkNumber < Number.MAX_SAFE_INTEGER ? highestLinkNumber+1 : 1);
   for(const l of graph.links){
+    if(Number.isFinite(l.from.node)) l.from.node = String(l.from.node);
+    if(Number.isFinite(l.to.node)) l.to.node = String(l.to.node);
     if(!unseenLinkIds.delete(l.id)){
       l.id = allocateLinkId(reservedLinkIds);
       reservedLinkIds.add(l.id);
@@ -18845,7 +18871,14 @@ function load(){
     try{ restoreModel3dOuts({legacy:true}); }catch(_){}
     if(typeof wsRememberRecoveryCanvas==="function") wsRememberRecoveryCanvas(raw);
     return true;
-  }catch{ return false; }
+  }catch(error){
+    if(error?.code==="invalid-node-record"){
+      // Leave the saved record in place for recovery and skip the starter overlay.
+      if(typeof claimInitialCanvas==="function") claimInitialCanvas();
+      toast(error.message, "err");
+    }
+    return false;
+  }
 }
 let _starterData = null;   // the shipped starter graph (noodle-graph.json), fetched once and reused as the demo baseline
 async function starterGraphData(){   // the shipped starter's data, or null on file:// where the fetch is blocked (caller falls back to the built-in seed)
@@ -18877,7 +18910,6 @@ function saveFile(){
 function loadFile(file){
   if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   if(!file) return;
-  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
   r.onload = ()=>{
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
@@ -18885,10 +18917,13 @@ function loadFile(file){
     try{ parsed = JSON.parse(r.result); }
     catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); return; }
     // Reject a bad file before parking undo or clearing the canvas.
+    const malformed = malformedNodeRecordError(parsed?.nodes);
+    if(malformed){ alert(t("Couldn’t load that file:")+" "+malformed.message); return; }
     if(typeof graphPayloadOk==="function" && !graphPayloadOk(parsed)){
       alert(t("Couldn’t load that file:")+" invalid graph");
       return;
     }
+    if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
     const had = graph.nodes.length > 0;
     let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null, describeShot = null;
     try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
@@ -20615,21 +20650,21 @@ function workspaceRollback(shot, extra){
 function graphPayloadOk(g){
   if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
   if(g.links!=null && !Array.isArray(g.links)) return false;
+  if(malformedNodeRecordError(g.nodes)) return false;
   const ids = new Set();
   for(const n of g.nodes){
-    if(!n || typeof n!=="object" || Array.isArray(n)) return false;
-    if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
     if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
-    if(ids.has(n.id)) return false;
-    ids.add(n.id);
+    const id = String(n.id);
+    if(ids.has(id)) return false;
+    ids.add(id);
   }
   for(const l of (g.links||[])){
     if(!l || typeof l!=="object" || Array.isArray(l)) return false;
     const a = l.from, b = l.to;
     if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
-    if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
-    if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
-    if(!ids.has(a.node) || !ids.has(b.node)) return false;
+    if(!(typeof a.node==="string" || Number.isFinite(a.node)) || typeof a.port!=="string" || !a.port) return false;
+    if(!(typeof b.node==="string" || Number.isFinite(b.node)) || typeof b.port!=="string" || !b.port) return false;
+    if(!ids.has(String(a.node)) || !ids.has(String(b.node))) return false;
   }
   return true;
 }
@@ -20872,6 +20907,12 @@ function switchWorkspace(id){
   if(raw && !destObj){
     restoreResults(leaving.id, shot.res);
     wsStorageError("switch");
+    return;
+  }
+  const malformed = malformedNodeRecordError(destObj?.nodes);
+  if(malformed){
+    restoreResults(leaving.id, shot.res);
+    toast(malformed.message, "err");
     return;
   }
   const destJson = destObj ? raw : JSON.stringify(blankGraph());
@@ -21735,30 +21776,10 @@ async function loadFromHash(){
   let incoming = null;
   try{ incoming = JSON.parse(json); }catch{ return false; }
   const graphData = ga ? incoming && incoming.graph : incoming;
-  // Shape of every node and every link, before a tab is added or the canvas cleared.
-  // {nodes:[null]} and a link to a missing id used to pass the array check.
-  const payloadOk = (typeof graphPayloadOk==="function") ? graphPayloadOk : function(g){
-    if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
-    if(g.links!=null && !Array.isArray(g.links)) return false;
-    const ids = new Set();
-    for(const n of g.nodes){
-      if(!n || typeof n!=="object" || Array.isArray(n)) return false;
-      if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
-      if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
-      if(ids.has(n.id)) return false;
-      ids.add(n.id);
-    }
-    for(const l of (g.links||[])){
-      if(!l || typeof l!=="object" || Array.isArray(l)) return false;
-      const a = l.from, b = l.to;
-      if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
-      if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
-      if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
-      if(!ids.has(a.node) || !ids.has(b.node)) return false;
-    }
-    return true;
-  };
-  if(!payloadOk(graphData)) return false;
+  // Validate before parking the previous canvas or adding a workspace tab.
+  const malformed = malformedNodeRecordError(graphData?.nodes);
+  if(malformed){ toast(malformed.message, "err"); return false; }
+  if(!graphPayloadOk(graphData)) return false;
   if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed() &&
       typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
