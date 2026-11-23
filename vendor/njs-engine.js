@@ -1,5 +1,5 @@
-/* data-hash=6d3e958159101325 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-374e5d1fa79b (35 modules) */
+/* data-hash=33e8eaeab1b9b881 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-568ea4201352 (35 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -359,15 +359,6 @@ class Workflow {
       effFields.get(entry.nodeId)[entry.field] = this._coerceInput(entry, value, mediaCoerceOpts);
       explicit.add(entry);
     }
-    // vframes: raise frames to highest wired frameK (play.html wiredFramesFloor) so a
-    // persisted frames=1 with frame3 wired doesn't starve the consumer after paid upstream.
-    for (const n of graph.nodes) {
-      if (n.type !== "vframes") continue;
-      const fields = effFields.get(n.id);
-      const floor = wiredFramesFloor(graph, n.id);
-      const cur = Math.max(1, Math.min(MAX_FRAMES, parseInt(fields.frames, 10) || 1));
-      if (floor > cur) fields.frames = String(floor);
-    }
     // defaults + required check
     for (const entry of this.inputs) {
       const fields = effFields.get(entry.nodeId);
@@ -542,6 +533,13 @@ class Workflow {
             inp[port] = value;
           }
           else fields = { ...fields, [port]: value };
+        }
+        // The floor applies to the resolved frame count, which a wire can override.
+        // The extractor still uses the requested stride and range.
+        if (n.type === "vframes") {
+          const floor = wiredFramesFloor(graph, n.id);
+          const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(fields.frames, 10) || 1));
+          if (floor > count) fields = { ...fields, frames: String(floor) };
         }
         throwIfAborted(ac.signal);
         // Prompt length caps (see prompt-caps.mjs). Many image/video models reject an over-long
@@ -9239,5 +9237,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-374e5d1fa79b";
+  window.NanoodleEngine.version = "src-568ea4201352";
 })();
