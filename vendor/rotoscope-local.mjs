@@ -73,10 +73,14 @@ export async function render3d(source, fields, { decodeData, signal: outerSignal
   const video = fields.mode === "video";
   const fps = Math.round(number(fields.fps, 24));
   const seconds = number(fields.duration, 2);
-  const count = Math.max(2, Math.round(fps * seconds));
+  const requestedFrames = fps * seconds;
+  const count = Math.round(requestedFrames);
   if (video && (fps < 1 || fps > 60 || seconds < 0.1 || seconds > 10 || count > 240 ||
     width * height * count > 200000000 || width % 2 || height % 2)) {
     throw new Error("Render 3D video needs even dimensions, 1–60 fps, 0.1–10 seconds and at most 240 frames or 200 million pixels");
+  }
+  if (video && requestedFrames < 1) {
+    throw new Error("Render 3D video duration must be at least one frame at the selected fps");
   }
   const model = await mediaBytes(source, signal, decodeData);
   const frame = document.createElement("iframe");
@@ -125,7 +129,7 @@ export async function render3d(source, fields, { decodeData, signal: outerSignal
       for (let i = 0; i < count; i++) {
         signal.throwIfAborted();
         if (codecError) throw codecError;
-        const t = i / (count - 1);
+        const t = count === 1 ? 0 : i / (count - 1);
         scene.apply({ ...base,
           azimuth: base.azimuth + turntable * t,
           ...(base.animClip != null && base.animClip !== "" ? { animTime: seconds * t } : {}),

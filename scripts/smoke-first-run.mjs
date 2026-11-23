@@ -290,25 +290,42 @@ async function verifyRotoscope(browser) {
       catch(error) { invalid=error.message; }
       const model = cases+"two-cube.glb";
       const flat = {id:"render",fields:{width:160,height:120,azimuth:0,elevation:0}};
-      const colors = async fields=>{
-        const output = await NODE_TYPES.render3d.run({...flat,fields},{model});
-        const rgba = await pixels(output.image);
+      function colorCounts(rgba) {
         let red=0,blue=0;
         for(let i=0;i<rgba.length;i+=4){
           if(rgba[i]>rgba[i+1]+40 && rgba[i]>rgba[i+2]+40) red++;
           if(rgba[i+2]>rgba[i]+30 && rgba[i+2]>rgba[i+1]+15) blue++;
         }
         return [red,blue];
+      }
+      const colors = async fields=>{
+        const output = await NODE_TYPES.render3d.run({...flat,fields},{model});
+        return colorCounts(await pixels(output.image));
       };
       const still=await colors(flat.fields);
       const clipped=await colors({...flat.fields,clipAxis:"x",clipPos:0});
+      const shortVideo = async (duration,fps)=>{
+        const fields={...flat.fields,mode:"video",duration,fps,turntable:80,clipAxis:"x",clipSweep:true};
+        const out=await NODE_TYPES.render3d.run({...flat,fields},{model});
+        const mp4=(await loadNjsEngine()).dataUrlBytes(out.video);
+        const track=MP4CAT.parseMp4(mp4.bytes,true).tracks[0];
+        const first=await NODE_TYPES.vframes.run({id:"frames",fields:{stride:1,frames:1,dir:"start"}},{video:out.video});
+        return {samples:track.samples.length,seconds:track.samples.reduce((sum,sample)=>sum+sample.dur,0)/track.timescale,
+          visible:colorCounts(await pixels(first.frame1))};
+      };
+      const tooShort = [];
+      for(const duration of [0.1,0.9]){
+        try { await shortVideo(duration,1); }
+        catch(error) { tooShort.push(error.message); }
+      }
+      const short = [await shortVideo(1,1),await shortVideo(0.25,4),await shortVideo(0.375,4)];
       const glb=await (await fetch(model)).arrayBuffer();
       const size=new DataView(glb).getUint32(12,true);
       const doc=JSON.parse(new TextDecoder().decode(glb.slice(20,20+size)));
       doc.buffers[0].uri=location.origin+"/external-model-asset";
       try { await NODE_TYPES.render3d.run(flat,{model:"data:model/gltf+json;base64,"+btoa(JSON.stringify(doc))}); }
       catch(error) { external=error.message; }
-      return {cfr,forward,reverse,invalid,still,clipped,external};
+      return {cfr,forward,reverse,invalid,still,clipped,tooShort,short,external};
     }, cases);
     const checkPixels = (actual, indices)=>{
       assert.equal(actual.length,indices.length);
@@ -320,6 +337,12 @@ async function verifyRotoscope(browser) {
     assert.match(results.invalid,/range start/);
     assert.ok(results.still.every(count=>count>100));
     assert.ok(results.clipped[0]+results.clipped[1] < (results.still[0]+results.still[1])*0.75);
+    assert.deepEqual(results.tooShort,Array(2).fill("Render 3D video duration must be at least one frame at the selected fps"));
+    assert.deepEqual(results.short.map(({samples,seconds})=>[samples,seconds]),[[1,1],[1,0.25],[2,0.5]]);
+    // A single-frame turntable/clip sweep renders the same initial pose as the multi-frame clip.
+    for(const {visible} of results.short){
+      assert.ok(visible.every((count,i)=>count>100 && Math.abs(count-results.short[2].visible[i])<40),JSON.stringify(visible));
+    }
     assert.match(results.external,/self-contained model/);
 
     const clip = await readFile(resolve(root,"scripts/fixtures/rotoscope/cfr.mp4"));
