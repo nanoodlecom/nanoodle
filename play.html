@@ -14042,9 +14042,9 @@ return "image/png";
     const indeg=Object.create(null), adj=Object.create(null);
     ids.forEach(id=>{ indeg[id]=0; adj[id]=[]; });
     for(const l of graph.links) if(ids.has(l.from.node) && ids.has(l.to.node)){ adj[l.from.node].push(l.to.node); indeg[l.to.node]++; }
-    const order=[...ids].filter(id=>indeg[id]===0);
-    for(let i=0; i<order.length; i++) for(const m of adj[order[i]]) if(--indeg[m]===0) order.push(m);
-    return { order, cyclic:[...ids].filter(id=>indeg[id]>0) };
+    const q=[...ids].filter(id=>indeg[id]===0), order=[];
+    while(q.length){ const n=q.shift(); order.push(n); for(const m of adj[n]) if(--indeg[m]===0) q.push(m); }
+    return { order, cyclic:[...ids].filter(id=>!order.includes(id)) };
   }
 
   /* =====================================================================
