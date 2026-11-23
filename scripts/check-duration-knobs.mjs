@@ -213,7 +213,7 @@ const SFX = { id: "elevenlabs/sound-effects/v2", supported_parameters: { min_dur
 // the library (njs, the default send path) posts fields.duration raw — both engines clamp it first
 {
   const e = block(IDX, "function njsRunFor(type, rn, inp, n){");
-  const p = block(PLAY, "function njsRunFor(type, rn, inp, runKey){");
+  const p = block(PLAY, "function njsRunFor(type, rn, inp, runKey");
   if (!/type==="music" \|\| type==="remix"[\s\S]{0,400}rn\.fields\.duration = Math\.min\(\+ap\.max_duration/.test(e)) fail("editor: njsRunFor no longer clamps audio duration before the library send");
   else ok("editor: njsRunFor clamps audio duration before the library send");
   if (!/type==="music" \|\| type==="remix"[\s\S]{0,400}rn\.fields\.duration = Math\.min\(\+asp\.max_duration/.test(p)) fail("play: njsRunFor no longer clamps audio duration before the library send");

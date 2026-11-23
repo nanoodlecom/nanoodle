@@ -266,7 +266,7 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const np = block(PLAY, "async function nodeUnitUsdPlay(n){");
   if (!/return u\*songs\*pricingMultiplier\(pricing, f\)/.test(np)) fail("play: nodeUnitUsdPlay must pass the node fields to audioUnitUsd");
   else ok("play: run estimate prices the Samples knob");
-  const ej = block(IDX, "function njsRunFor(type, rn, inp, n){"), pj = block(PLAY, "function njsRunFor(type, rn, inp, runKey){");
+  const ej = block(IDX, "function njsRunFor(type, rn, inp, n){"), pj = block(PLAY, "function njsRunFor(type, rn, inp, runKey");
   if (!/videoMultiplierDim\(catItem\("video", rn\.fields\.model\)\)\) return null/.test(ej) || !/audioIsSfx\(am\)/.test(ej)) fail("editor: njsRunFor must keep SFX Samples runs on the built-in path");
   else if (!/sfx\|sound/.test(pj)) fail("play: njsRunFor must keep SFX runs on the built-in path");
   else ok("both engines: SFX runs stay built-in (the library doesn't send num_samples / upload_audio_format yet)");

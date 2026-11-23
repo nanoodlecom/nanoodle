@@ -11851,13 +11851,13 @@ function imgExtra(n){
   }
   // source-video payload for /api/generate-video: a public https link rides as videoUrl (a resolved
   // content redirect is already absolute); anything local is inlined as videoDataUrl.
-  async function videoSourceOpts(url, resolveMedia){
+  async function videoSourceOpts(url, resolveMedia = resolveContentMedia){
     var resolved = await resolveMedia(url);
     return /^https?:/.test(resolved) ? { videoUrl:resolved } : { videoDataUrl: await urlToDataUrl(resolved) };
   }
   // source-audio payload for lipsync: a remote song/TTS url rides as audioUrl (no inlining — a long
   // song base64'd would blow past the edge's ~4 MB body limit); only blob/data urls get inlined.
-  async function audioSourceOpts(url, resolveMedia){
+  async function audioSourceOpts(url, resolveMedia = resolveContentMedia){
     var resolved = await resolveMedia(url);
     return /^https?:/.test(resolved) ? { audioUrl:resolved } : { audioDataUrl: await urlToDataUrl(resolved) };
   }
@@ -12715,7 +12715,7 @@ function mp4ParamsMatch(bufs){
   // Source track for the Remix node's "audio" param (verbatim twin of the editor's remixSourceAudio):
   // a chained https output rides as-is — every provider takes a hosted URL; anything local (upload
   // data:, Trim/Speech blob:) is inlined as a data URL under the ~4.4MB edge body cap.
-  async function remixSourceAudio(url, resolveMedia){
+  async function remixSourceAudio(url, resolveMedia = resolveContentMedia){
     if(typeof url!=="string" || !url) throw new Error("no audio — wire a source track into the audio port");
     var resolved = await resolveMedia(url);
     if(/^https?:/.test(resolved)) return resolved;
