@@ -163,6 +163,13 @@ function structuralChecks(t, failures) {
   if (t.sig(audioGraph) === null) failures.push("ioSignature() returned null for an audio node (alias not handled)");
   if (!t.compat(audioGraph, ttsGraph)) failures.push("audio and tts should be compatible (audio aliases to tts)");
 
+  const render3d = mode => ({ nodes: [node("r", "render3d", { mode })], links: [] });
+  const renderVideoSig = t.sig(render3d("video"));
+  if (renderVideoSig !== JSON.stringify({ ins: [], outs: ["video"] }))
+    failures.push("a video-mode Render 3D sink must be classified as video");
+  if (t.compat(render3d("image"), render3d("video")))
+    failures.push("changing Render 3D from image to video changes the app's output shape");
+
   // unknown node types are dropped by materialize → must not affect the signature
   const withUnknown = { nodes: [node("z1", "frobnicate", {}), node("i1", "image", { prompt: "a cat" })], links: [] };
   if (!t.compat(loneImage(), withUnknown)) failures.push("an unknown/dropped node changed the signature — materialize drop not honored");

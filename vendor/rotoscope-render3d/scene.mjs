@@ -1,0 +1,162 @@
+import * as THREE from 'three';
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from './addons/environments/RoomEnvironment.js';
+
+export function createRender3dScene(canvas) {
+  // render3d scene module (Edge Styles S2): ONE implementation of the node's
+  // field semantics. The caller passes self-contained model bytes, applies
+  // the fields and reads the canvas back.
+  // Deterministic: same GLB + same fields -> same frame (modulo GL stack).
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, alpha: true });
+  renderer.localClippingEnabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const scene = new THREE.Scene();
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  // Provider exports (Tripo in particular) ship metallicFactor 1.0, which under
+  // an environment alone renders near-black; a boosted environment + a key
+  // light is the standard viewer remedy and is part of the node's contract.
+  scene.environmentIntensity = 1.25;
+  const key = new THREE.DirectionalLight(0xffffff, 1.5);
+  key.position.set(3, 5, 4);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xdde4ff, 0.6);
+  rim.position.set(-4, 2, -3);
+  scene.add(rim);
+  const cam = new THREE.PerspectiveCamera(40, 4 / 3, 0.001, 100000);
+
+  let root = null, parts = [], center = new THREE.Vector3(), radius = 1, mixer = null, clips = [];
+  let basePos = [];
+
+  function collectParts() {
+    parts = [];
+    root.updateMatrixWorld(true);
+    root.traverse((o) => { if (o.isMesh) parts.push(o); });
+    basePos = parts.map((m) => m.position.clone());
+  }
+
+  const api = {
+    ready: false,
+    error: null,
+    info: null,
+    apply(f) {
+      const W = f.width || 800, H = f.height || 600;
+      if (!Number.isInteger(W) || !Number.isInteger(H) || W < 16 || H < 16 || W > 2048 || H > 2048) {
+        throw new Error('render3d dimensions must be 16–2048 pixels');
+      }
+      renderer.setSize(W, H, false);
+      canvas.width = W; canvas.height = H;
+      cam.aspect = W / H; cam.updateProjectionMatrix();
+
+      // background
+      if (!f.background || f.background === 'dark') { scene.background = new THREE.Color(0x181a20); renderer.setClearAlpha(1); }
+      else if (f.background === 'light') { scene.background = new THREE.Color(0xf2f3f5); renderer.setClearAlpha(1); }
+      else if (f.background === 'transparent') { scene.background = null; renderer.setClearAlpha(0); }
+      else { scene.background = new THREE.Color(f.background); renderer.setClearAlpha(1); }
+
+      // isolate: hide every part except the chosen one (index, name, or "largest")
+      let isolated = f.isolate;
+      if (isolated === 'largest') {
+        let largest = -1;
+        parts.forEach((part, index) => {
+          const size = new THREE.Box3().setFromObject(part).getSize(new THREE.Vector3());
+          const volume = size.x * size.y * size.z;
+          if (volume > largest) { largest = volume; isolated = index; }
+        });
+      }
+      parts.forEach((part, index) => {
+        part.visible = isolated == null || isolated === '' || (typeof isolated === 'number' ? index === isolated : part.name === isolated);
+      });
+
+      // explode: offset each part from the model center along its own centroid ray
+      const ex = f.explode || 0;
+      parts.forEach((m, i) => {
+        m.position.copy(basePos[i]);
+        if (ex > 0 && m.visible) {
+          const c = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
+          const dir = c.sub(center);
+          if (dir.lengthSq() > 1e-12) m.position.add(dir.normalize().multiplyScalar(ex * radius));
+        }
+      });
+
+      // clip plane: axis + position as a fraction (-1..1) of the bounding
+      // radius. The plane passes through center + axis*pos with normal -axis,
+      // so clipPos sweeping -1 -> 1 slices the model away along +axis.
+      if (f.clipAxis && f.clipAxis !== 'none') {
+        const axis = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) }[f.clipAxis];
+        if (!axis) throw new Error('render3d slice axis must be x, y or z');
+        const through = center.clone().add(axis.clone().multiplyScalar((f.clipPos ?? 0) * radius));
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis.clone().negate(), through);
+        renderer.clippingPlanes = [plane];
+      } else {
+        renderer.clippingPlanes = [];
+      }
+
+      // animation: named/indexed clip at an absolute time
+      if (mixer && clips.length) {
+        let clip = null;
+        if (typeof f.animClip === 'number') clip = clips[f.animClip];
+        else if (f.animClip) clip = clips.find((c) => c.name === f.animClip) || clips[0];
+        if (clip) {
+          mixer.stopAllAction();
+          mixer.clipAction(clip).play();
+          mixer.setTime(f.animTime || 0);
+          mixer.update(0);
+        }
+      }
+
+      // camera: spherical placement around the model center, auto-framed
+      const az = THREE.MathUtils.degToRad(f.azimuth ?? 35);
+      const el = THREE.MathUtils.degToRad(f.elevation ?? 18);
+      const dist = (f.distance || 1.9) * radius * 2;
+      cam.position.set(
+        center.x + dist * Math.cos(el) * Math.sin(az),
+        center.y + dist * Math.sin(el),
+        center.z + dist * Math.cos(el) * Math.cos(az)
+      );
+      cam.lookAt(center);
+      renderer.render(scene, cam);
+      return { triangles: renderer.info.render.triangles, parts: parts.length };
+    },
+  };
+
+  api.load = async function load(bytes) {
+    const manager = new THREE.LoadingManager();
+    let externalAsset = false;
+    manager.setURLModifier(source => {
+      if (/^(data|blob):/i.test(source)) return source;
+      externalAsset = true;
+      throw new Error('Render 3D needs a self-contained model without external assets');
+    });
+    let model;
+    try {
+      model = await new GLTFLoader(manager).parseAsync(Uint8Array.from(bytes).buffer, '');
+    } catch (error) {
+      if (!externalAsset) throw error;
+    }
+    if (externalAsset) throw new Error('Render 3D needs a self-contained model without external assets');
+    root = model.scene;
+    scene.add(root);
+    const box = new THREE.Box3().setFromObject(root);
+    box.getCenter(center);
+    const size = box.getSize(new THREE.Vector3());
+    radius = Math.max(size.x, size.y, size.z) / 2 || 1;
+    collectParts();
+    if (!parts.length || ![radius, ...center.toArray()].every(Number.isFinite)) {
+      throw new Error('Render 3D model has no renderable mesh bounds');
+    }
+    if (model.animations.length) {
+      mixer = new THREE.AnimationMixer(root);
+      clips = model.animations;
+    }
+  };
+
+  api.dispose = () => {
+    scene.environment.dispose();
+    pmrem.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+  };
+  return api;
+}
