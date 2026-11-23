@@ -10,6 +10,31 @@ const link = (from, to, port, fromPort = "text") => ({
 const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
 
 {
+  const duplicate = {
+    nodes: [node("same", "text", { text: "first" }), node("same", "text", { text: "second" })],
+    links: [],
+  };
+  const diagnostic = /duplicate node id "same" — every node must have a unique id/;
+  assert.throws(() => roundTrip(duplicate), diagnostic);
+  assert.throws(() => roundTrip({
+    ...duplicate,
+    nodes: [node("same", "text"), node("same", "future-node-type")],
+  }), diagnostic);
+  assert.throws(() => roundTrip({
+    ...duplicate,
+    nodes: [node(42, "text"), node("42", "text")],
+  }), /duplicate node id "42"/);
+
+  // runGraph also accepts a materialized graph from callers. A repeated node
+  // inserted after materialization still has to fail before any run callbacks.
+  const graph = roundTrip({ ...duplicate, nodes: duplicate.nodes.slice(0, 1) });
+  graph.nodes.push({ ...duplicate.nodes[1], out: {} });
+  await assert.rejects(app.runGraph(graph, {
+    onStart: () => assert.fail("ambiguous graph started running"),
+  }), diagnostic);
+}
+
+{
   const graph = roundTrip({ nodes: [node("__proto__", "text", { text: "standalone" })], links: [] });
   const statuses = [];
   const result = await app.runGraph(graph, { onStatus: (id, kind) => statuses.push([id, kind]) });
@@ -63,4 +88,4 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
   assert.equal(graph.byId("independent").out.text, "still runs");
 }
 
-console.log("✓ Player schedules prototype-like node IDs, passes wired output, and reports real cycles.");
+console.log("✓ Player rejects duplicate IDs, runs prototype-like IDs, and reports real cycles.");

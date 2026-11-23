@@ -9933,6 +9933,21 @@ let toastTimer=null;
 function toast(msg, kind){ const el=$("toast"); el.className = kind==="err" ? "err" : ""; el.textContent=msg;
   el.style.opacity="1"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.style.opacity="0", 6000); }
 
+// Used before builder imports and copied into the sandboxed and standalone runtime.
+function assertUniqueNodeIds(graph){
+  const seenIds = new Set();
+  for(const n of (Array.isArray(graph?.nodes) ? graph.nodes : [])){
+    if(n?.id==null) continue;
+    const id = String(n.id);
+    if(seenIds.has(id)){
+      const error = new Error("duplicate node id " + JSON.stringify(id) + " — every node must have a unique id");
+      error.code = "duplicate-node-id";
+      throw error;
+    }
+    seenIds.add(id);
+  }
+}
+
 /* ======================================================================
    FIXED RUNTIME — the faithful headless engine extracted from index.html.
    This string is injected into the app bundle by the bundler; patchling
@@ -9950,6 +9965,8 @@ const RUNTIME_JS = String.raw`
    ===================================================================== */
 window.NoodleApp = (function () {
   "use strict";
+
+  ${assertUniqueNodeIds.toString()}
 
   /* ---------- endpoints (verbatim from index.html) ---------- */
   const NANOGPT = "https://nano-gpt.com";
@@ -14101,6 +14118,7 @@ return "image/png";
   // header, result card, live-runner label, plain-text description). Backtick-free (RUNTIME_JS).
   const displayName = (n)=> (n && n.name && String(n.name).trim()) || (NODE_TYPES[n && n.type] && NODE_TYPES[n.type].title) || (n && n.type) || "?";
   function materialize(data){
+    assertUniqueNodeIds(data);
     const ALIAS = { audio:"tts", "decide-branch":"decide" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
@@ -14500,6 +14518,7 @@ const PROMPT_CAPS = {
     const onStatus = statusCallback && ((...args)=>{ if(!signal?.aborted) statusCallback(...args); });
     const onResult = resultCallback && ((n)=>{ if(!signal?.aborted) resultCallback(n); });
     checkStopped();
+    assertUniqueNodeIds(graph);
     const seedList = (opts.seeds && opts.seeds.length) ? opts.seeds : graph.nodes.map(n=>n.id);
     const seedSet = new Set(seedList);
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
@@ -17933,7 +17952,14 @@ const PROMPT_CAPS = {
     if(mounted) return;                 // idempotent — the bundler may emit the mount call defensively
     mounted = true;
     const data = window.NOODLE_GRAPH || { nodes:[], links:[] };
-    const graph = materialize(data);
+    let graph;
+    try{ graph = materialize(data); }
+    catch(error){
+      if(error?.code!=="duplicate-node-id") throw error;
+      const runBtn = $("app-run"); if(runBtn) runBtn.disabled = true;
+      statusLine("__graph__", "error", error.message);
+      return;
+    }
     STATE = { data, graph, inputs:deriveInputs(graph), settings:deriveSettings(graph), outputs:deriveOutputs(graph) };
 
     wireParentBridge();
@@ -19853,6 +19879,9 @@ function stashResume(){
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
 function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang, ranOnce, armed, samples, openOnly }){
+  // A previously saved app can still be opened for inspection. Imports must
+  // reject ambiguous identities before changing the preview or writing storage.
+  if(!openOnly) assertUniqueNodeIds(graph);
   clearTimeout(persistTimer);
   abandonAppSave();
   setAppTransition("");
@@ -19958,8 +19987,14 @@ function updateAppWorkflow(appId, newGraph, fromEditor){
    app" (same as the #g= boot — installApp commits fresh apps, so Create creates). */
 function applyHandoff(d){
   const graph = d.graph || { nodes:[], links:[] };
-  if(d.appId) updateAppWorkflow(d.appId, graph, true);
-  else installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });
+  try{
+    if(d.appId) updateAppWorkflow(d.appId, graph, true);
+    else installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });
+  }catch(error){
+    if(error?.code!=="duplicate-node-id") throw error;
+    setAppTransition(error.message, true);
+    return;
+  }
   try{ localStorage.removeItem("noodle_app_handoff"); }catch(_){}   // consume the belt-and-suspenders copy
 }
 
@@ -20043,8 +20078,9 @@ function applyEditorAppAction(request){
     const saved = kind==="update" ? updateAppWorkflow(appId, graph, false)
       : installApp({ graph, files:defaultFiles(graph), fresh:true });
     finishEditorAppSave(request, saved);
-  }catch(_){
-    setAppTransition(tB("Couldn’t open this app. Return to the workflow and try again."), true);
+  }catch(error){
+    const message = error?.code==="duplicate-node-id" ? error.message : tB("Couldn’t open this app. Return to the workflow and try again.");
+    setAppTransition(message, true);
     replyToEditorAppAction(request, false, "failed");
   }
 }
@@ -20630,6 +20666,7 @@ async function packShareFit(base, samples, urlPrefix, shrinkMedia){
 }
 async function doShare(){
   try{
+    assertUniqueNodeIds(APP_STATE.graph);
     const _lang = bakedAppLang();   // carry the creator's language in the link (short field); "" → omit, keeps the link neutral + small
     // Snapshot the app being shared BEFORE the (up to 2s) sample ask: switching apps
     // mid-wait must never pack — or stamp samples onto — the newly opened app.
@@ -20877,6 +20914,8 @@ async function shortenWith(svc, longUrl){
 // Best-effort: pack the same creator samples Share would, so a cold open of the .html still
 // shows what the app makes before the viewer pastes a key. Never blocks export on sample fail.
 async function doExport(){
+  try{ assertUniqueNodeIds(APP_STATE.graph); }
+  catch(error){ toast(error.message, "err"); return; }
   const _id = CUR_ID;   // the app the user asked to export — the sample ask below can take up to 2s
   try{
     let samples = await askAppSamples();
@@ -20942,11 +20981,17 @@ function consumeHandoff(){
 // recipient's own saved apps — instead boot surfaces this friendly banner so the app doesn't
 // just look broken. Distinct from the quota-full case, which DID decode but couldn't persist.
 let shareLinkBroken = false;
-function showLinkError(){
+let rejectedGraphMessage = "";
+function rememberRejectedGraph(error){
+  if(error?.code!=="duplicate-node-id") return false;
+  rejectedGraphMessage = error.message;
+  return true;
+}
+function showLinkError(message){
   const box = $("linkerr"); if(!box) return;
   const msg = $("linkerr-msg");
   // Only overwrite with a non-empty translation — never blank the baked-in fallback copy.
-  const t = tB("This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.");
+  const t = message || tB("This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.");
   if(msg && t) msg.textContent = t;
   box.hidden = false;
 }
@@ -20979,7 +21024,7 @@ async function loadFromHash(){
         toast("Couldn’t save the imported app — local storage is full. Keep this link to re-open it.", "err");
       }
       return true;
-    }catch(_){ shareLinkBroken = true; /* fall through — boot surfaces the incomplete-link banner */ }
+    }catch(error){ shareLinkBroken = !rememberRejectedGraph(error); }
   }
   // #ga= : graph + app id, round-tripped back from the editor after editing THIS app's
   // workflow. Re-target the existing app onto the edited graph (keep UI, or offer a port).
@@ -20992,7 +21037,7 @@ async function loadFromHash(){
       updateAppWorkflow(spec.appId, spec.graph, true);
       consumeHandoff();
       return true;
-    }catch(_){ /* fall through */ }
+    }catch(error){ rememberRejectedGraph(error); }
   }
   // #g= / #j= : graph-only handoff from the editor -> build the deterministic default app
   if(h.startsWith("#g=") || h.startsWith("#j=")){
@@ -21003,7 +21048,7 @@ async function loadFromHash(){
       installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });   // straight from the editor → lead with the prompt
       consumeHandoff();   // a reload now restores the saved draft, not the original graph
       return true;
-    }catch(_){ /* fall through */ }
+    }catch(error){ rememberRejectedGraph(error); }
   }
   return false;
 }
@@ -21377,8 +21422,10 @@ async function boot(){
   // Resume the app stashed just before an OAuth redirect — exactly what the user was on.
   if(!loaded && resumeSt && resumeSt.graph){
     if(resumeSt.id && !loadApps().some(a=>a.id===resumeSt.id)) resumeSt.id = null;   // its library slot was lost (e.g. quota) → reopen as a draft
-    installApp(resumeSt); loaded = true;
-    if(resumeSt.goal && $("goal")){ $("goal").value = resumeSt.goal; syncSuggest(); }   // the goal typed before the sign-in redirect
+    try{
+      installApp(resumeSt); loaded = true;
+      if(resumeSt.goal && $("goal")){ $("goal").value = resumeSt.goal; syncSuggest(); }   // the goal typed before the sign-in redirect
+    }catch(error){ if(!rememberRejectedGraph(error)) throw error; }
   }
 
   if(!loaded) loaded = await loadFromHash();
@@ -21386,8 +21433,9 @@ async function boot(){
   // belt-and-suspenders: the editor also stashes the raw graph JSON before opening us
   if(!loaded){
     try{ const ho = localStorage.getItem("noodle_app_handoff");
-      if(ho){ const graph = JSON.parse(ho); localStorage.removeItem("noodle_app_handoff");
-        installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true }); loaded = true; } }catch(_){}
+      if(ho){ const graph = JSON.parse(ho);
+        installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true }); loaded = true;
+        localStorage.removeItem("noodle_app_handoff"); } }catch(error){ rememberRejectedGraph(error); }
   }
   // saved builder session — restore the app that was open, reconnecting it to its library slot
   if(!loaded){
@@ -21396,14 +21444,13 @@ async function boot(){
       if(saved || st?.graph){
         installApp(saved ? {...saved, openOnly:true} : {...st, id:null});
         loaded = true;
-      } }catch(_){}
+      } }catch(error){ rememberRejectedGraph(error); }
   }
   // friendly empty state
   if(!loaded) showEmpty();
-  // An #a= share link that wouldn't decode: whatever fell back above (the recipient's own saved
-  // app, or the empty state) now renders — but explain WHY the shared app didn't open, so it
-  // doesn't look broken. The hash stays in the URL, so a corrected link works on reload.
-  if(shareLinkBroken) showLinkError();
+  // Explain the failure alongside the fallback app or empty state. The hash
+  // stays in the URL, so a corrected link works on reload.
+  if(shareLinkBroken || rejectedGraphMessage) showLinkError(rejectedGraphMessage);
   renderAppsBtn();
   // Tell the host editor we're live: only NOW is a __handoff__ postMessage safe (sent
   // earlier it would find no listener, or this boot would overwrite it with the stale
