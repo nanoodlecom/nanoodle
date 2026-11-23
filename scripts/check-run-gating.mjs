@@ -355,7 +355,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   // mini-DOM with a REAL id registry: $ returns null for absent elements (like getElementById),
   // appendChild registers by id, remove() unregisters — so "is the placeholder present" is real.
   const preamble2 = `
-    let EMBEDDED = false, parentAuthed = false, STATE = null;
+    let EMBEDDED = false, parentAuthed = false, parentCredential = null, STATE = null;
     let __msgHandler = null;
     const localStorage = { _s: {}, setItem(k, v){ this._s[k] = String(v); }, removeItem(k){ delete this._s[k]; }, getItem(k){ return k in this._s ? this._s[k] : null; } };
     const getKey = () => localStorage.getItem("ngpt_key");
@@ -377,13 +377,13 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
     __byId["app-output"] = mkNode(); __byId["app-output"].id = "app-output";
     function $(id){ return __byId[id] || null; }
     const document = { createElement: () => mkNode(), getElementById: (id) => __byId[id] || null, addEventListener(){}, head: null, documentElement: mkNode() };
-    const window = { addEventListener(type, fn){ if(type === "message") __msgHandler = fn; } };
+    const window = { parent:{}, addEventListener(type, fn){ if(type === "message") __msgHandler = fn; } };
   `;
   const epilogue2 = `
     globalThis.__T2 = {
       setEmbedded(v){ EMBEDDED = v; }, setParentAuthed(v){ parentAuthed = v; }, setSTATE(v){ STATE = v; },
       renderOutputPlaceholder, wireParentBridge, setKey,
-      msg(data){ __msgHandler({ data }); },
+      msg(data){ __msgHandler({ data, source:window.parent }); },
       out(){ return __byId["app-output"]; },
       empty(){ return __byId["app-output-empty"] || null; },
       addChild(id){ const n = mkNode(); n.id = id; __byId["app-output"].appendChild(n); return n; },
@@ -414,7 +414,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   T2.renderOutputPlaceholder();
   ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
     "embedded pre-__auth__ mount: placeholder must carry the needs-a-key line");
-  T2.msg({ type: "__auth__", signedIn: true });
+  T2.msg({ type: "__auth__", signedIn: true, credential: "opaque-credential" });
   ok(!!T2.empty(), "embedded __auth__ signedIn: the empty-state card must survive the refresh (still pre-results)");
   ok(T2.empty() && !T2.empty().innerHTML.includes("oe-sub"),
     "embedded __auth__ signedIn: the needs-a-key nag must be refreshed away — a signed-in creator was told to sign in");
@@ -425,7 +425,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   // 5b. baked samples / real results showing → no placeholder exists → __auth__ must NOT invent one.
   T2.reset();
   T2.addChild("some-sample-card");
-  T2.msg({ type: "__auth__", signedIn: true });
+  T2.msg({ type: "__auth__", signedIn: true, credential: "opaque-credential" });
   ok(!T2.empty(), "baked-samples path: __auth__ must not conjure a placeholder over sample/result cards");
   ok(T2.out().children.length === 1, "baked-samples path: the existing card must be untouched by the auth refresh");
 

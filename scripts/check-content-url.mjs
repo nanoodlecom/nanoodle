@@ -9,6 +9,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { loadEngine } from "./play-engine.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -724,8 +725,9 @@ async function parentContentRedirect() {
     const replies = [];
     const seen = [];
     const frameWin = { postMessage(msg) { replies.push(msg); } };
-    let apiListener = null;
+    let apiListener = null, context;
     loadEngine((ctx) => {
+      context = ctx;
       const doc = ctx.document;
       ctx.document = new Proxy(doc, {
         get(target, prop, recv) {
@@ -759,7 +761,9 @@ async function parentContentRedirect() {
       };
     });
     ok(typeof apiListener === "function", label + ": captured the trusted iframe bridge");
-    const data = { type: "__api__", id: 7, url: "https://nano-gpt.com" + RELATIVE, method: "GET" };
+    vm.runInContext("pushAuthToApp()", context);
+    const [auth] = replies.splice(0);
+    const data = { type: "__api__", credential:auth.credential, id: 7, url: "https://nano-gpt.com" + RELATIVE, method: "GET" };
     if (redirectField !== undefined) data.redirect = redirectField;
     await apiListener({ source: frameWin, data });
     const gets = seen.filter((r) => r.pathname === "/api/generate-video/content");
@@ -815,12 +819,13 @@ async function parentStreamCap() {
   console.log("\nplay parent: a content read stops streaming at the inline cap");
   const replies = [];
   const frameWin = { postMessage(msg) { replies.push(msg); } };
-  let apiListener = null;
+  let apiListener = null, context;
   let pulled = 0;
   let cancelled = false;
   let reads = 0;
   const chunk = 256 * 1024;
   loadEngine((ctx) => {
+    context = ctx;
     const doc = ctx.document;
     ctx.document = new Proxy(doc, {
       get(target, prop, recv) {
@@ -868,9 +873,11 @@ async function parentStreamCap() {
     };
   });
   ok(typeof apiListener === "function", "captured the trusted iframe bridge");
+  vm.runInContext("pushAuthToApp()", context);
+  const [auth] = replies.splice(0);
   await apiListener({
     source: frameWin,
-    data: { type: "__api__", id: 9, url: "https://nano-gpt.com" + RELATIVE, method: "GET" },
+    data: { type: "__api__", credential:auth.credential, id: 9, url: "https://nano-gpt.com" + RELATIVE, method: "GET" },
   });
   const reply = replies[0] || {};
   ok(/inline cap/.test(reply.error || ""), "the bridge reports the cap instead of the whole file (" + (reply.error || "") + ")");

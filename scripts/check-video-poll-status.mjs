@@ -25,7 +25,7 @@ function loadRunner(file) {
     return replies.shift()();
   };
   const genVideo = vm.runInNewContext(`({${method}}).genVideo`, {
-    AbortController, DOMException, fetch, apiFetch: fetch,
+    AbortController, DOMException, fetch, apiFetch: fetch, send: fetch, credential: "fixture-key",
     ABORT: controller, runSignal: () => controller.signal, runKey: "node",
     Date: { now: () => elapsed }, sleep: async ms => { elapsed += ms; },
     setTimeout: () => Symbol("3D timer"), clearTimeout() {},
