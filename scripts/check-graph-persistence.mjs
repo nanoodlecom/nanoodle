@@ -15,8 +15,8 @@
 // Invariants pinned:
 //   1. Round-trip idempotence — applyGraphData(serializeGraph()) reproduces the same
 //      modern multi-node graph (node whitelist id,type,x,y,fields,w,sizes,name; links; view).
-//   2. Legacy migrations — audio→tts alias; unknown type skipped (no throw); dangling
-//      links retained for repair; music/tts header "text" port → inline "prompt"; nid/lid counters
+//   2. Legacy migrations — audio→tts alias; unsupported nodes retained with authored data and
+//      connections; music/tts header "text" port → inline "prompt"; nid/lid counters
 //      rebuilt above the max existing id (a node added after load can't collide).
 //   3. Autosave-wipe protection — a throwing/malformed payload must NOT leave the stored
 //      'noodle_graph' overwritten by the empty graph applyGraphData resets to on entry.
@@ -83,7 +83,7 @@ function extractConst(src, name) {
   return m[0];
 }
 
-// the real set of NODE_TYPES keys (so "unknown type skipped" reflects the shipped registry).
+// The real set of NODE_TYPES keys, including the editor's comment card.
 function nodeTypeKeys(src) {
   const start = src.indexOf("const NODE_TYPES = {");
   if (start === -1) throw new Error("NODE_TYPES registry not found");
@@ -125,6 +125,9 @@ const bundle = [
   extractFn(SRC, "stripInjectedMedia"),
   extractFn(SRC, "allocateLinkId"),
   extractFn(SRC, "applyGraphData"),
+  extractFn(SRC, "unsupportedNodeMessage"),
+  extractFn(SRC, "runAll"),
+  extractFn(SRC, "runGroup"),
   "let saveT=null;",
   extractFn(SRC, "save"),
   extractFn(SRC, "load"),
@@ -136,7 +139,7 @@ const bundle = [
   extractFn(SRC, "buildShareUrl"),
   "const byId = (id)=> graph.nodes.find(n=>n.id===id);",
   ";globalThis.__P = { serializeGraph, applyGraphData, save, load, loadFromHash, " +
-    "bytesToB64url, b64urlToBytes, gzip, gunzip, buildShareUrl, shareableGraph };",
+    "bytesToB64url, b64urlToBytes, gzip, gunzip, buildShareUrl, shareableGraph, runAll, runGroup };",
 ].join("\n");
 
 // ---- a context: real primitives, stubbed DOM/UI, a Map-backed localStorage ----
@@ -148,6 +151,7 @@ const localStorage = {
 };
 const NODE_TYPES = {};
 for (const k of TYPE_KEYS) NODE_TYPES[k] = {};
+const notices = [];
 
 const ctx = {
   console, JSON, Math, parseInt, String, Object, Set, Array, Uint8Array, Error,
@@ -167,7 +171,9 @@ const ctx = {
   applyWorld() {}, buildNodeEl() {}, redraw() {}, refreshPortFills() {}, refreshAllPrices() {},
   recompactImageLinks() {}, refreshImageInputs() {}, recompactVideoLinks() {}, refreshVideoInputs() {},
   recompactRefLinks() {}, refreshRefInputs() {}, updateNodePrice() {},
-  refreshRunEstimate() {}, refreshPromptCaps() {}, syncUndoBtn() {}, flash() {}, toast() {}, appHandoffSig() { return ""; },   // refreshPromptCaps: save() live-refreshes the prompt-room notes (UI touchpoint, stubbed like refreshRunEstimate)
+  refreshRunEstimate() {}, refreshPromptCaps() {}, syncUndoBtn() {}, flash() {},
+  toast(message, kind) { notices.push({ message, kind }); },
+  appHandoffSig() { return ""; },
   refreshAppButton() { return false; }, layoutBar() {},   // save() live-refreshes the ✨ Open↔Update label (UI touchpoint, stubbed like refreshRunEstimate)
   t: (s) => s,
   // save() debounces via setTimeout(…,250); run it synchronously so the write lands before we assert
@@ -220,17 +226,23 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
 // 2) LEGACY MIGRATIONS
 // ===========================================================================
 {
+  const futureNode = {
+    id: "n5", type: "constructor", x: 0, y: 0,
+    fields: { image: "https://fixture.invalid/future-image", custom: { mode: "opaque" } },
+    futureMetadata: { version: 2 },
+  };
+  const futureWire = { id: "l3", from: { node: "n1", port: "text" }, to: { node: "n5", port: "in" } };
   const legacy = {
     nodes: [
       { id: "n2", type: "audio", x: 0, y: 0, fields: { text: "sing" } },   // ALIAS audio→tts
-      { id: "n5", type: "bogusType", x: 0, y: 0, fields: {} },             // unknown → skipped
+      futureNode,                                                        // unsupported → inert card
       { id: "n7", type: "music", x: 0, y: 0, fields: {} },                 // music: header text→prompt
       { id: "n1", type: "text", x: 0, y: 0, fields: { text: "hi" } },
     ],
     links: [
       { id: "l1", from: { node: "n1", port: "text" }, to: { node: "n7", port: "text" } }, // music text→prompt
       { id: "l2", from: { node: "n1", port: "text" }, to: { node: "n2", port: "text" } }, // tts text→prompt
-      { id: "l3", from: { node: "n1", port: "text" }, to: { node: "n5", port: "in" } },   // dangling (n5 gone)
+      futureWire,
       { id: "l9", from: { node: "n1", port: "text" }, to: { node: "n1", port: "x" } },    // both survive → keep
     ],
     nid: 0, lid: 0,
@@ -240,12 +252,24 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
   const g = ctx.graph;
   const byId = (id) => g.nodes.find((n) => n.id === id);
 
-  ok(g.nodes.length === 3, `unknown type not skipped (expected 3 nodes, got ${g.nodes.length})`);
-  ok(!byId("n5"), "unknown NODE_TYPE (bogusType) should be skipped, not loaded");
+  ok(g.nodes.length === 4 && byId("n5")?._unsupportedNode, "unsupported authored type must get an inert card");
   ok(byId("n2") && byId("n2").type === "tts", "legacy 'audio' node must be aliased to 'tts'");
-  ok(g.links.some((l) => l.id === "l3" && l.to.node === "n5"), "dangling link must be retained for run validation and repair");
   ok(g.links.length === 4, `expected all 4 links to survive, got ${g.links.length}`);
-  ok(P.serializeGraph().links.some((l) => l.id === "l3" && l.to.node === "n5"), "saving the graph preserves the dangling link");
+  P.save();
+  const saved = JSON.parse(store.get("noodle_graph"));
+  ok(JSON.stringify(saved.nodes.find(n => n.id === "n5")) === JSON.stringify(futureNode),
+     "autosave must preserve the unsupported node type, fields and additional properties");
+  ok(JSON.stringify(saved.links.find(l => l.id === "l3")) === JSON.stringify(futureWire),
+     "autosave must preserve the unsupported node's connections");
+  ok(JSON.stringify(P.shareableGraph().nodes.find(n => n.id === "n5")) === JSON.stringify(futureNode),
+     "share packing must preserve the unsupported authored type and data");
+  const startNotices = notices.length;
+  P.runAll();
+  await P.runGroup(["n7"]);
+  const runNotices = notices.slice(startNotices);
+  ok(runNotices.length === 2 && runNotices.every(({ message, kind }) => kind === "err" &&
+     /Unsupported node type "constructor" \(node n5\).*version of nanoodle/.test(message)),
+     "Run and branch Play must both stop before auth or execution and name the unsupported node");
   const l1 = g.links.find((l) => l.id === "l1"), l2 = g.links.find((l) => l.id === "l2");
   ok(l1 && l1.to.port === "prompt", "music node's header 'text' link must migrate to the 'prompt' port");
   ok(l2 && l2.to.port === "prompt", "tts (ex-audio) node's 'text' link must migrate to the 'prompt' port");
@@ -360,4 +384,4 @@ function emit() {
   if (failures.length) process.stderr.write("✗ graph persistence / share-payload integrity broke:\n\n- " + failures.join("\n- ") + "\n");
 }
 if (failures.length) { emit(); process.exit(1); }
-process.stdout.write("✓ graph persistence holds: round-trip idempotent, legacy migrations intact, autosave protected on bad payloads, >64KB pack round-trips (gzip + #j= fallback).\n");
+process.stdout.write("✓ graph persistence holds: legacy migrations intact, unsupported nodes retained and blocked from running, autosave protected, >64KB pack round-trips (gzip + #j= fallback).\n");

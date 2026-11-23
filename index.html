@@ -11196,8 +11196,14 @@ function refreshFramePorts(n, preserveWires=false){
   if(graph.links.length !== before) save();
 }
 
+function unsupportedNodeMessage(n){
+  return 'Unsupported node type "' + n._unsupportedNode.type + '" (node ' + n.id + '). Open the workflow in a version of nanoodle that supports it.';
+}
 function buildNodeEl(n){
-  const t = NODE_TYPES[n.type];
+  const t = n._unsupportedNode ? {
+    ...NODE_TYPES.comment, em:"⚠️", title:"Unsupported node", mount:null,
+    body:()=> '<p class="err" role="status" data-no-i18n>' + esc(unsupportedNodeMessage(n)) + '</p>',
+  } : NODE_TYPES[n.type];
   const isNote = !!t.note;   // a sticky note: no ports, no run/status chrome, no result panel
   const hidePlay = isNote || isInputKind(n.type);   // input/source kinds have no ▶ — playing them is meaningless
   const el = document.createElement("div");
@@ -14799,6 +14805,8 @@ function isPaidNanoType(type){
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
 async function runGroup(seedIds, ctx){
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
   if(ctx.demo){
     // A custom-endpoint-only branch never talks to NanoGPT — don't wall it behind a key.
@@ -15100,6 +15108,8 @@ function warnGifUnknownCost(){
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
   const invalidWire = invalidWireMessage(graph.links, byId);
   if(invalidWire){ flash(invalidWire); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
@@ -18479,11 +18489,11 @@ function serializeGraph(){
     node.fields.model = "";
     if(node._glbName) node.fields.modelFile = { name:node._glbName, size:node._glbSize||0 };
   }
-  return {
-    v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
-    links: graph.links, nid, lid, view:{panX,panY,scale}
-  };
+  const nodes = graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})}));
+  graph.nodes.forEach((n,i)=>{
+    if(n._unsupportedNode) nodes[i] = {...n._unsupportedNode, x:n.x, y:n.y, w:n.w, sizes:n.sizes};
+  });
+  return { v:1, nodes, links:graph.links, nid, lid, view:{panX,panY,scale} };
 }
 // A graph for handing off to others: uploaded media inputs are the sharer's own
 // data, so blank them out of share links and exported apps. (Local autosave AND the
@@ -18494,7 +18504,7 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
-    return UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
+    return Object.hasOwn(UPLOAD_FIELD, n.type) ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
   });
   return g;
 }
@@ -18543,9 +18553,18 @@ function applyGraphData(d, opts){
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
   const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
-    const type = ALIAS[sn.type] || sn.type;
-    if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
+    const type = Object.hasOwn(ALIAS, sn.type) ? ALIAS[sn.type] : sn.type;
+    if(!Object.hasOwn(NODE_TYPES, type)){
+      // Render an inert card and keep the complete authored data for future versions.
+      const n = {
+        ...sn, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
+        fields:{}, out:{}, el:null, _unsupportedNode:sn,
+      };
+      graph.nodes.push(n); buildNodeEl(n);
+      continue;
+    }
     const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
+    delete n._unsupportedNode;
     if(type==="decide"){
       n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
       if(sn.type==="decide-branch") n.fields.branch = true;
@@ -18582,7 +18601,14 @@ function applyGraphData(d, opts){
   // rebuild the node counter so new nodes never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
+  // A future node's wires keep their authored slots until it can be rendered.
+  const unsupportedIds = new Set(graph.nodes.filter(n=>n._unsupportedNode).map(n=>n.id));
+  const unsupportedTargets = new Set(graph.links.filter(l=>unsupportedIds.has(l.from.node)).map(l=>l.to.node));
+  graph.nodes.forEach(n=>{
+    if(!unsupportedTargets.has(n.id)){ recompactImageLinks(n); recompactVideoLinks(n); }
+    refreshImageInputs(n); refreshVideoInputs(n);
+    if(n.type==="model3d") refreshModel3dPorts(n);
+  });
   // Restore frame ports required by existing links. An explicit field edit can still remove them.
   for(const n of graph.nodes){
     if(n.type!=="vframes") continue;
@@ -21838,9 +21864,10 @@ let appReturnFocus = null;
 // Trim to match serializeGraph/displayName.
 function appHandoffSig(g, appOverride){
   g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
+  const nodes = (g.nodes||[]).map(n=> g===graph && n._unsupportedNode ? n._unsupportedNode : n);
   return JSON.stringify({
     app: appOverride!==undefined ? appOverride : (pendingAppId || ""),   // override for the demo baseline: the shipped starter is never app-bound
-    nodes: (g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
+    nodes: nodes.map(n=>({ id:n.id, type:n.type, name:typeof n.name==="string" ? n.name.trim() : "", fields:n.fields })),
     links: (g.links||[]).map(l=>({ f:l.from, t:l.to }))
   });
 }
