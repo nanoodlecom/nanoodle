@@ -14295,8 +14295,14 @@ const PROMPT_CAPS = {
     return undefined;
   }
   function isSeeded(n){ var s = nodeSeed(n); return s!=null && String(s).trim()!==""; }
-  function sigHash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
-  function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; delete f.model3dOutKey; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
+  function nodeSig(n, inp){
+    const fields = { ...n.fields };
+    delete fields.sel; delete fields.brush; delete fields.model3dOutKey;
+    return JSON.stringify({ type:n.type, fields, inp }, (_key, value)=>{
+      if(!value || typeof value!=="object" || Array.isArray(value)) return value;
+      return Object.fromEntries(Object.keys(value).sort().map(key=>[key, value[key]]));
+    });
+  }
   /* =====================================================================
      nanoodle-js DELEGATION (default ON) — replace-prep Phase E.
      window.NanoodleEngine is the embedded nanoodle-js bundle (the njs-engine
@@ -14561,8 +14567,9 @@ const PROMPT_CAPS = {
     if(invalidWire) throw new Error(invalidWire);
     if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
+    const runOutputs = new Map();
     const wireValue = (l)=>{
-      const out = byId(l.from.node)?.out;
+      const out = runOutputs.get(l.from.node);
       return out && Object.hasOwn(out, l.from.port) ? out[l.from.port] : undefined;
     };
     const r = topoOrder(graph, ids);
@@ -14587,6 +14594,11 @@ const PROMPT_CAPS = {
     const done = Object.create(null);                   // id → promise, keyed so dependents can await their inputs
     let nodeErrors = r.cyclic.length;                   // per-node failures (isolated, not thrown) — reported for keep-mode backoff
     const failed = new Set(r.cyclic);                   // errored/cyclic ids → dependents must not run (no leftover-field charge)
+    function storeOutput(n, out, sig){
+      n.out = out;
+      outputOwners.set(n, {credential, sig});
+      runOutputs.set(n.id, out);
+    }
     const gated = new Set();                            // ⚖️ Decide gates that said no (+ everything they skipped) — a settled "no", not an error
     let generated = 0;                                 // model calls made this pass (not cache reuses, not instant local nodes) — keep mode stops when 0
     const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
@@ -14602,7 +14614,7 @@ const PROMPT_CAPS = {
         const n = byId(id); if(!n) return;
         const t = NODE_TYPES[n.type], inp = {};
         if(t.note) return;   // annotation node — nothing to run, no cost, no status
-        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : runOutputs.get(src)) : graph.links;
         if(activeLinks===null){
           onStatus && onStatus(id, "skip", "skipped — branch not selected");
           return;
@@ -14671,7 +14683,7 @@ const PROMPT_CAPS = {
           }
           fieldOverrides[l.to.port] = v;
         }
-        let rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        let rn = { ...n, fields:{...n.fields, ...fieldOverrides} };
         // vframes: re-clamp the frame count up to the highest wired frameK port (wiredFramesFloor).
         // The settings UI floors the knob too, but an app persisted BEFORE that guard can still
         // carry frames below a wired port — without this, upstream paid steps run and charge, then
@@ -14680,33 +14692,7 @@ const PROMPT_CAPS = {
           const floor = wiredFramesFloor(graph, id);
           if(floor > (parseInt(rn.fields.frames,10)||1)) rn = { ...rn, fields:{ ...rn.fields, frames:floor } };
         }
-        // In-flight share: another targeted Play already started this node. Await it
-        // BEFORE any paid work so two Plays can't both miss and double-charge A.
-        // Key includes lane so a multi-count Run (identical node ids, N cloned graphs)
-        // still submits one paid job per lane — NODE_WORK is only shared across
-        // sibling Plays that omit lane (Play B + Play C awaiting A).
-        const workKey = opts.lane!=null ? (id + ":" + opts.lane) : id;
-        const sharedWork = NODE_WORK.get(workKey);
-        if(sharedWork){
-          try{
-            const out = await sharedWork;
-            checkStopped();
-            if(isPaidNanoType(n.type)) checkCredential(credential);
-            if(out && Object.keys(out).length){
-              n.out = out;   // owner keeps costUsd — joiner lane gets a reused view below
-              onStatus && onStatus(id, "done", "done");
-              onResult && onResult(Object.assign({}, n, { costUsd:0, cached:true, costKnown:false }));
-            } else { failed.add(id); onStatus && onStatus(id, "skip", "skipped — upstream failed"); }
-          }catch(err){
-            checkStopped();
-            if(err?.name==="AbortError") throw err;
-            failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
-          }
-          return;
-        }
-        let resolveWork;
-        const work = new Promise(resolve=>{ resolveWork = resolve; });
-        NODE_WORK.set(workKey, work);   // sync — before withFittedPrompt's await — so a sibling Play waits
+        let resolveWork, work, workKey;
         let resultForWaiters = null, p = null;
         let nodeCost = 0, nodeKnown = false, didGen = false;
         try{
@@ -14714,13 +14700,37 @@ const PROMPT_CAPS = {
           // trimmed before nodeSig so the signature matches the request sent to the provider.
           const fitted = await withFittedPrompt(rn, n); rn = fitted.rn;
           checkStopped();
+          if(isPaidNanoType(n.type)) checkCredential(credential);
           const seeded = isSeeded(rn);
           const sig = nodeSig(rn, inp), cached = RUN_CACHE.get(id);
+          // Different inputs can be in flight for the same node and lane.
+          // Matching fixed seeds may share a generation across lanes as well.
+          const runKey = JSON.stringify([id, opts.lane ?? null]) + sig;
+          workKey = seeded ? JSON.stringify([id]) + sig : runKey;
+          const sharedWork = NODE_WORK.get(workKey);
+          if(sharedWork){
+            const out = await sharedWork.promise;
+            checkStopped();
+            if(isPaidNanoType(n.type)) checkCredential(credential);
+            if(out && Object.keys(out).length){
+              storeOutput(n, out, sig);
+              if(seeded && sharedWork.node!==n){ n.costUsd = 0; n.cached = true; }
+              onStatus && onStatus(id, "done", "done");
+              // A joiner reports reuse without mutating the owner's billing on a shared node.
+              onResult && onResult(Object.assign({}, n, { costUsd:0, cached:true, costKnown:false }));
+            } else { failed.add(id); onStatus && onStatus(id, "skip", "skipped — upstream failed"); }
+            return;
+          }
+          const promise = new Promise(resolve=>{ resolveWork = resolve; });
+          work = {promise, node:n};
+          NODE_WORK.set(workKey, work);
           // A succeeded ancestor with the same signature can be reused by a targeted Play.
-          if(!seedSet.has(id) && outputOwners.get(n)===credential && n._sig===sig && n.out && Object.keys(n.out).length){
+          const prior = outputOwners.get(n);
+          if(!seedSet.has(id) && prior?.credential===credential && prior?.sig===sig && n.out && Object.keys(n.out).length){
+            resultForWaiters = n.out;
+            runOutputs.set(id, resultForWaiters);
             onStatus && onStatus(id, "done", "done");
             onResult && onResult(n);
-            resultForWaiters = n.out;
             return;
           }
           if(seeded && cached && cached.sig===sig){
@@ -14728,7 +14738,8 @@ const PROMPT_CAPS = {
             const out = cached.out !== undefined ? cached.out : (await cached.pending || {});
             checkStopped();
             if(isPaidNanoType(n.type)) checkCredential(credential);
-            n.out = out; n.costUsd = 0; n.cached = true;
+            storeOutput(n, out, sig);
+            n.costUsd = 0; n.cached = true;
             onStatus && onStatus(id, "done", "done");
             onResult && onResult(n);
             resultForWaiters = out;
@@ -14737,9 +14748,9 @@ const PROMPT_CAPS = {
           onStatus && onStatus(id, "run", "running…");
           if(fitted.trimmed) onStatus && onStatus(id, "run", "prompt trimmed to " + fitted.trimmed.cap + " characters to fit this model (was " + fitted.trimmed.from + ")");
           checkStopped();
-          // The lane-scoped work key also distinguishes accepted jobs for cloned graphs.
+          // Accepted media jobs retain both their lane and their request identity.
           const onCostCb = (c)=>{ didGen = true; nodeCost += bumpCost(c, credential); if(c && c.usd!=null) nodeKnown = true; };
-          const ctx = makeCtx(onCostCb, workKey, credential);
+          const ctx = makeCtx(onCostCb, runKey, credential);
           // Fixed seed: register the IN-FLIGHT generation BEFORE awaiting so a concurrent multi-count
           // lane finds {sig,pending} and awaits THIS call rather than issuing a byte-identical paid
           // one. Read→register is synchronous (no await between), so exactly one lane ever generates.
@@ -14750,16 +14761,14 @@ const PROMPT_CAPS = {
             checkStopped();
             if(isPaidNanoType(n.type)) checkCredential(credential);
             const noteCb = (msg)=> onStatus && onStatus(id, "run", msg);
-            const njsR = njsRunFor(n.type, rn, inp, workKey, credential);
-            return njsR ? njsR(rn, inp, onCostCb, workKey, noteCb) : t.run(rn, inp, ctx, noteCb);
+            const njsR = njsRunFor(n.type, rn, inp, runKey, credential);
+            return njsR ? njsR(rn, inp, onCostCb, runKey, noteCb) : t.run(rn, inp, ctx, noteCb);
           })();
           if(seeded) RUN_CACHE.set(id, { sig, pending: p });
           const out = await p || {};
           checkStopped();
           if(isPaidNanoType(n.type)) checkCredential(credential);
-          n.out = out;
-          outputOwners.set(n, credential);
-          n._sig = sig;   // so a later sibling Play can reuse this ancestor (PR #391) without a second charge
+          storeOutput(n, out, sig);
           if(seeded && RUN_CACHE.get(id)?.pending===p) RUN_CACHE.set(id, { sig, out });
           if(didGen) generated++;                          // a real model call happened — NOT a cache reuse or an instant local node (so keep mode keeps pacing only on real generations)
           n.costUsd = nodeCost; n.costKnown = nodeKnown; n.cached = false;   // genuine generation, not a reused cache hit
@@ -14782,8 +14791,10 @@ const PROMPT_CAPS = {
           failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
         } finally {
           // Resolve failed work with null so joiners skip it and avoid stale inputs.
-          resolveWork(resultForWaiters);
-          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
+          if(work){
+            resolveWork(resultForWaiters);
+            if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
+          }
         }
       })();
     }

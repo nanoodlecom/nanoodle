@@ -154,7 +154,7 @@ function bindWorld(world, opts = {}) {
       [type, { outputs: [{ name: "image", type: "image" }], ...spec }])),
     graph: { links: world.links, nodes: Object.values(world.nodes) },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
-    nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
+    nodeSig: opts.nodeSig || (() => 0), isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
     // prompt-length caps (PROMPT LENGTH CAPS): identity here — this harness is about stale inputs
     // reaching a paid call, not about how long the prompt that reaches it is.
     withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
@@ -349,6 +349,32 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(w.paid.filter((x) => x === "nA").length === 1, `paid A charged once (paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.nB.out.image === "EDITED_nB" && w.nodes.nC.out.image === "EDITED_nC",
     "both siblings produced output from the shared A result");
+}
+
+// A new sibling must use the edited upstream prompt even when its older request is still in flight.
+{
+  const w = makeWorld(3, false);
+  w.links[1].from.node = "n0";
+  w.nodes.n0.fields.prompt = "older prompt";
+  const began = Promise.withResolvers(), release = Promise.withResolvers();
+  const upstream = [];
+  w.NODE_TYPES.img.run = async n => {
+    const prompt = n.fields.prompt;
+    upstream.push(prompt);
+    if (prompt === "older prompt") { began.resolve(); await release.promise; }
+    return {image:prompt};
+  };
+  const ctx = bindWorld(w, {nodeSig:(n, inp) => JSON.stringify([n.type,n.fields,inp])});
+  const first = ctx.runGroup(["n1"]);
+  await began.promise;
+  w.nodes.n0.fields.prompt = "edited prompt";
+  const second = ctx.runGroup(["n2"]);
+  release.resolve();
+  await Promise.all([first,second]);
+  ok(JSON.stringify(upstream) === JSON.stringify(["older prompt","edited prompt"]),
+    "edited sibling starts another upstream request");
+  ok(JSON.stringify(w.paid) === JSON.stringify(["n1<=older prompt","n2<=edited prompt"]),
+    "each sibling pays for its own upstream input");
 }
 
 // 9) Stop on B does not abort C. Shared A already finished; C is mid-run.
