@@ -113,6 +113,8 @@ function fakeFetch(url, opts = {}) {
 const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
   extractFn("njsCtx"), extractFn("njsRunFor"),
+  extractFn("pendingMediaJobs"), extractFn("pollAudio"),
+  grab(/const runSignal = [\s\S]+?\n};/, "runSignal"),
   extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
   // genImage resolves provider content URLs before returning them. data:/https no-ops here;
   // the helpers must be in the sandbox or a b64 image response throws before the body compare.
@@ -156,12 +158,13 @@ const REAL = [
   "let _njsCat = null; const _njsRaw = {};",
   extractConst("CATALOG"),
   extractConst("CTX"),
+  "globalThis.builtIn = CTX;",
   "const RUN = { llm:" + extractNodeRun("llm") + ", image:" + extractNodeRun("image") + ", edit:" + extractNodeRun("edit") + " };",
 ].join("\n");
 
 function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], directive = null }) {
   const ctx = {
-    console, URL, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    console, URL, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException,
     Uint8Array, TextEncoder, TextDecoder, btoa, atob,
     // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome)
     Blob,
@@ -183,11 +186,14 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     window: null,                                  // set below (self-reference)
     // leaf stubs — UI / i18n / registries the extracted code touches but the scenarios don't exercise
     t: (s) => s, toast() {}, flagAuth() {}, accrue() {}, setNodeProgress() {},
+    sleep: async () => {}, applyPollSettlement() {}, fmtPollHeadline: (text) => text,
     localeDirective: () => directive,              // null = default locale (withLocale passthrough); a string = non-English UI
     modelDrifted: () => drifted,
     httpRunError: (st, tx) => new Error(st + ": " + tx),
-    runSignal: () => undefined,
-    PENDING_VIDEO: new Map(), PENDING_AUDIO: new Map(),
+    nodeWork: new Map(), liveAborts: new Set(), runAbort: null,
+    workspaceMediaJobs: new Map(), wsCanvasOwner: { id: "w1" }, readWorkspaces: () => null,
+    get PENDING_VIDEO() { return this.pendingMediaJobs().video; },
+    get PENDING_AUDIO() { return this.pendingMediaJobs().audio; },
     maskToSource: (m) => m,
     imgSpec: () => ({ re: /^image\d*$/, cap: 9 }),
     normChat: (x) => x, normDecision: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x, norm3d: (x) => x,
@@ -558,6 +564,92 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   }
   console.log("✓ editor video/audio pending jobs survive auth, transport, Stop and timeout errors");
 }
+
+for(const delegated of [false, true]){
+  for(const kind of ["video", "audio"]){
+    const on = makeCtx({ flagOn: delegated });
+    on.assertGenerateSongLyrics = () => {};
+    // The shared index can already point elsewhere while this browser still displays w1.
+    on.readWorkspaces = () => ({active:"w2"});
+    const client = { ...ENGINE, NanoClient: class extends ENGINE.NanoClient {
+      constructor(opts){ super({...opts, pollIntervals:{[kind]:1}}); }
+    } };
+    const nodeId = "n1", submits = [], polls = [];
+    let stopNextPoll = true, ctl;
+    const media = (id) => `https://fixtures.invalid/${id}.${kind === "video" ? "mp4" : "mp3"}`;
+    on.fetch = async (value, init) => {
+      const url = new URL(value);
+      if(init.method === "POST"){
+        const id = `paid-${submits.length + 1}`;
+        submits.push(id);
+        return Response.json({runId:id});
+      }
+      const id = url.searchParams.get(kind === "video" ? "requestId" : "runId");
+      assert.ok(id, `unexpected fixture fetch: ${url}`);
+      polls.push(id);
+      if(stopNextPoll){ stopNextPoll = false; ctl.abort(); throw ctl.signal.reason; }
+      return Response.json({status:"COMPLETED", audioUrl:media(id), output:{url:media(id)}});
+    };
+    const start = async () => {
+      ctl = new AbortController();
+      on.nodeWork.set(nodeId, {ctl});
+      if(delegated){
+        const ctx = on.njsCtx(client, {id:nodeId, _runCtl:ctl});
+        return ctx[kind]("m", "same prompt", {});
+      }
+      return kind === "video"
+        ? on.builtIn.genVideo("m", "same prompt", {runKey:nodeId})
+        : on.builtIn.genAudio("m", "same prompt", {}, undefined, nodeId);
+    };
+    await assert.rejects(start, {name:"AbortError"});
+    const registry = on.pendingMediaJobs()[kind];
+    assert.ok(registry.has(nodeId));
+    on.wsCanvasOwner = {id:"w2"};
+    assert.equal(await start(), media("paid-2"));
+    assert.ok(registry.has(nodeId), "completion in the second workspace must not clear the first job");
+    on.wsCanvasOwner = {id:"w1"};
+    assert.equal(await start(), media("paid-1"));
+    assert.deepEqual(submits, ["paid-1", "paid-2"]);
+    assert.deepEqual(polls, ["paid-1", "paid-2", "paid-1"]);
+  }
+}
+console.log("✓ editor built-in and delegated media resume on the owning workspace only");
+
+// Two live nodes make the old global fallback choose the second node's signal.
+// Stop the first both between polls and during an accepted job's content read.
+for(const stopAt of ["poll sleep", "content read"]){
+  const on = makeCtx({flagOn:false});
+  const owner = new AbortController(), other = new AbortController();
+  const ready = Promise.withResolvers(), finish = Promise.withResolvers();
+  const nodeId = "n1", paths = [];
+  const audio = "/api/tts/content?runId=paid-audio";
+  on.nodeWork.set(nodeId, {ctl:owner});
+  on.nodeWork.set("n2", {ctl:other});
+  on.runAbort = other;
+  if(stopAt === "poll sleep") on.sleep = () => { ready.resolve(); return finish.promise; };
+  on.fetch = async (value, init) => {
+    const url = new URL(value);
+    paths.push(url.pathname);
+    assert.equal(init.signal, owner.signal, `${url.pathname} belongs to the audio node`);
+    if(init.method === "POST") return Response.json({runId:"paid-audio"});
+    if(url.pathname === "/api/tts/status") return Response.json({status:"COMPLETED", audioUrl:audio});
+    ready.resolve();
+    // Even if a response races Stop and the adapter still resolves, the record stays resumable.
+    await finish.promise;
+    return new Response(new Uint8Array([0x49,0x44,0x33]), {headers:{"Content-Type":"audio/mpeg"}});
+  };
+  const running = on.builtIn.genAudio("m", "an accepted job", {}, undefined, nodeId);
+  await Promise.race([ready.promise, running]);
+  owner.abort();
+  finish.resolve();
+  await assert.rejects(running, {name:"AbortError"});
+  assert.equal(other.signal.aborted, false, "a different node is not stopped");
+  const pending = on.pendingMediaJobs().audio.get(nodeId);
+  assert.equal(pending.job.runId, "paid-audio");
+  if(stopAt === "poll sleep") assert.deepEqual(paths, ["/api/v1/audio/speech"]);
+  else assert.equal(pending.resultUrl, audio, "Stop during delivery preserves the finished URL");
+}
+console.log("✓ editor built-in audio Stop follows its own signal through polling and delivery");
 
 // Browser fetch with redirect:manual is opaque. The editor shim must not POST the
 // user key to nanoodle.com. A manual content read drops x-api-key. When Location
