@@ -1,5 +1,5 @@
-/* data-hash=8d55b7641eced843 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-bf41854ad295 (35 modules) */
+/* data-hash=6d3e958159101325 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-374e5d1fa79b (35 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -44,7 +44,7 @@ __def("browser.mjs", function (__x, __req) {
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
 const { abortReason, enforceDeadline, normalizeTimeoutMs, startDeadline, throwIfAborted } = __req("deadline.mjs");
-const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wireIssue, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, assertNodeRecord, displayName, isInputPort, lockedNode, materialize, topoSort, wireIssue, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { COMPETING_INPUT_WIRES, competingInputIssues, staticCompetingInputIssues } = __req("input-wires.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 const { MEDIA_INPUT_KINDS, deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
@@ -293,8 +293,10 @@ class Workflow {
     const { settings = {}, defaults = true, timeoutMs, signal, onProgress } = runOpts;
     const graph = this.graph;
 
-    for (const n of graph.nodes) {
-      if (n.unknown) {
+    for (const [index, n] of graph.nodes.entries()) {
+      // Workflow.graph can be edited after materialize; validate before scheduling it.
+      assertNodeRecord(n, index);
+      if (n.unknown || !Object.hasOwn(NODE_TYPES, n.type)) {
         throw new UnsupportedNodeError(
           `node ${n.id}: unknown node type '${n.type}' — this graph needs a newer nanoodle library`,
           { nodeId: n.id, nodeType: n.type });
@@ -2223,8 +2225,26 @@ function scrubMediaPlaceholders(n, warnings) {
   }
 }
 
+function nonblankString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/** Reject structurally invalid records before normalizing their IDs or types. */
+function assertNodeRecord(node, index) {
+  let issue;
+  if (!node || typeof node !== "object" || Array.isArray(node)) {
+    issue = "must be an object";
+  } else if (!Object.hasOwn(node, "id") || !(nonblankString(node.id) || Number.isFinite(node.id))) {
+    issue = "has a missing or invalid id (expected a non-empty string or finite number)";
+  } else if (!Object.hasOwn(node, "type") || !nonblankString(node.type)) {
+    issue = "has a missing or invalid type (expected a non-empty string)";
+  }
+  if (issue) throw new NanoodleError(`node at position ${index + 1} ${issue}`, { code: "invalid-node-record" });
+}
+
 /**
  * Load raw parsed graph JSON into an executable graph (mirrors the app's applyGraphData):
+ * - malformed node records are rejected with their position in the nodes array
  * - `audio` type aliases to `tts` (legacy saves)
  * - unknown node types are KEPT but flagged (`unknown: true`) + a warning; run() fails fast on them
  * - media fields that aren't a data:/http(s) URL (prose placeholders, file paths) are blanked + a warning
@@ -2239,13 +2259,13 @@ function materialize(data) {
   const warnings = [];
   const nodes = [];
   const seenIds = new Set();
-  for (const raw of data.nodes) {
-    if (!raw || raw.id == null || !raw.type) continue;
+  for (const [index, raw] of data.nodes.entries()) {
+    assertNodeRecord(raw, index);
     const id = String(raw.id);
     if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
     seenIds.add(id);
     const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
-    const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    const n = { id, type, name: raw.name, fields: { ...(raw.fields || {}) } };
     if (raw.type === "decide-branch") n.fields.branch = true;
     if (!Object.hasOwn(NODE_TYPES, type)) {
       n.unknown = true;
@@ -2318,7 +2338,7 @@ function topoSort(graph) {
   return order;
 }
 
-__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.wireIssue = wireIssue; __x.materialize = materialize; __x.topoSort = topoSort;
+__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.wireIssue = wireIssue; __x.assertNodeRecord = assertNodeRecord; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
 const { slice3d, renderSpriteStack } = __req("sprite-stack.mjs");
@@ -9219,5 +9239,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-bf41854ad295";
+  window.NanoodleEngine.version = "src-374e5d1fa79b";
 })();
