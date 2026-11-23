@@ -75,15 +75,17 @@ for (const label of ["play.html #njs-engine", "vendor/njs-engine.js"]) {
     fail(`${label}: ${e.message}`);
     continue;
   }
-  // Exercise the actual generated client method, not its source spelling.
-  const method = src.match(/  async chat\(messages, model,[\s\S]*?\n  \}/)?.[0];
-  if (!method) throw new Error(`${label}: chat method missing`);
-  const client = vm.runInNewContext("({" + method + "})");
   let body;
-  client._postJson = async (_path, value) => {
-    body = value;
-    return {ok:true,json:async()=>({choices:[{message:{content:"fixture"}}]})};
-  };
+  // Run the generated client with its real helpers and intercept the request.
+  const window = {};
+  vm.runInNewContext(src, { window, TextEncoder, TextDecoder });
+  const client = new window.NanoodleEngine.NanoClient({
+    apiKey: "fixture",
+    fetch: async (_url, init) => {
+      body = JSON.parse(init.body);
+      return Response.json({ choices: [{ message: { content: "fixture" } }] });
+    },
+  });
   for (const [name, fields, want] of CASES) {
     for (const model of ["google/gemini-4-carbon", "google/gemini-4-argon", "fixture/other"]) {
       await client.chat([], model, llmOpts({fields}));
