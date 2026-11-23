@@ -551,8 +551,9 @@ result = wf.run(
 )
 ```
 
-`timeout=` bounds the whole run (`None` waits without a run deadline; `0` starts no work).
-It must be a finite, non-negative number of seconds. Ctrl-C cancels pending work promptly.
+`timeout=` bounds the whole run. `None` leaves the run without an overall deadline, and `0`
+starts no work. A numeric timeout must be finite, non-negative, and at most
+`threading.TIMEOUT_MAX` seconds on the current platform. Ctrl-C cancels pending work promptly.
 When the deadline fires, `run()` returns straight away and the in-flight nodes stop polling within about a second, so the process is
 free to exit. Without `timeout=`, each node still waits out its own limit
 (video has no default limit, audio 300 s, 3D 25 minutes).
