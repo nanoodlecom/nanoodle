@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const modulePath = process.env.NANOODLE_PLAYWRIGHT;
@@ -232,10 +232,106 @@ async function verifyAppLifecycle(page) {
   assert.equal((await saved()).length,3);
 }
 
+async function verifyRotoscope(browser) {
+  const context = await browser.newContext({ serviceWorkers:"block" });
+  const forbidden = [];
+  await context.route("**/*", route=>{
+    const req = route.request();
+    const url = new URL(req.url());
+    if(req.method()!=="GET" || url.pathname==="/external-model-asset") forbidden.push(url.pathname);
+    return url.origin===origin && req.method()==="GET" ? route.continue() : route.abort();
+  });
+  try {
+    const page = await context.newPage();
+    const cases = "/scripts/fixtures/rotoscope/";
+    const graph = { v:1,nid:4,lid:3,
+      nodes:[
+        {id:"model",type:"mupload",x:30,y:50,fields:{}},
+        {id:"render",type:"render3d",x:360,y:50,fields:{mode:"video",width:160,height:120,duration:0.5,fps:8,turntable:80}},
+        {id:"frames",type:"vframes",x:690,y:50,fields:{frames:48,stride:1,startSec:0.125,endSec:0.375,dir:"end"}},
+      ],
+      links:[
+        {id:"model-wire",from:{node:"model",port:"model"},to:{node:"render",port:"model"}},
+        {id:"video-wire",from:{node:"render",port:"video"},to:{node:"frames",port:"video"}},
+      ],
+    };
+    const hash = "#g=" + gzipSync(JSON.stringify(graph)).toString("base64url");
+    await page.goto(origin+"/?product=off&na=0"+hash, {waitUntil:"domcontentloaded"});
+    await page.waitForFunction(()=>typeof byId==="function" && !!byId("frames")?.el);
+    assert.equal(await page.locator('[data-id="frames"] [data-f="frames"]').getAttribute("max"),"48");
+    await page.locator('[data-id="model"] input[type=file]').setInputFiles(resolve(root,"scripts/fixtures/rotoscope/two-cube.glb"));
+    await page.waitForFunction(()=>!!byId("model")?._glbBytes);
+    await page.evaluate(()=>runGroup(["frames"]));
+    const chain = await page.evaluate(async ()=>{
+      const render = byId("render"), frames = byId("frames");
+      const mp4 = render.out?.video ? (await loadNjsEngine()).dataUrlBytes(render.out.video) : null;
+      const track = mp4 && MP4CAT.parseMp4(mp4.bytes,true).tracks[0];
+      return { mime:render.out?.video?.slice(0,22), width:track?.width,height:track?.height,samples:track?.samples.length,
+        frames:Object.keys(frames.out||{}), errors:[render,frames].filter(n=>n.el.dataset.status!=="done").map(n=>n.el.innerText) };
+    });
+    assert.deepEqual(chain,{mime:"data:video/mp4;base64,",width:160,height:120,samples:4,frames:["frame1","frame2","frame3"],errors:[]});
+    const results = await page.evaluate(async cases=>{
+      const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
+      async function pixels(url) {
+        const image = new Image(); image.src = url; await image.decode();
+        canvas.width=image.naturalWidth; canvas.height=image.naturalHeight;
+        ctx.drawImage(image,0,0);
+        return ctx.getImageData(0,0,canvas.width,canvas.height).data;
+      }
+      const probe = async (file, fields)=>{
+        const out = await NODE_TYPES.vframes.run({id:"frames",fields},{video:cases+file+".mp4"});
+        return Promise.all(Object.values(out).map(async image=>(await pixels(image))[0]));
+      };
+      const cfr = await probe("cfr",{frames:99,stride:1,dir:"start"});
+      const forward = await probe("vfr",{frames:48,stride:2,dir:"start",startSec:0.09,endSec:0.76});
+      const reverse = await probe("vfr",{frames:48,stride:2,dir:"end",startSec:0.09,endSec:0.6});
+      let invalid, external;
+      try { await probe("vfr",{stride:1,startSec:0.7,endSec:0.2}); }
+      catch(error) { invalid=error.message; }
+      const model = cases+"two-cube.glb";
+      const flat = {id:"render",fields:{width:160,height:120,azimuth:0,elevation:0}};
+      const colors = async fields=>{
+        const output = await NODE_TYPES.render3d.run({...flat,fields},{model});
+        const rgba = await pixels(output.image);
+        let red=0,blue=0;
+        for(let i=0;i<rgba.length;i+=4){
+          if(rgba[i]>rgba[i+1]+40 && rgba[i]>rgba[i+2]+40) red++;
+          if(rgba[i+2]>rgba[i]+30 && rgba[i+2]>rgba[i+1]+15) blue++;
+        }
+        return [red,blue];
+      };
+      const still=await colors(flat.fields);
+      const clipped=await colors({...flat.fields,clipAxis:"x",clipPos:0});
+      const glb=await (await fetch(model)).arrayBuffer();
+      const size=new DataView(glb).getUint32(12,true);
+      const doc=JSON.parse(new TextDecoder().decode(glb.slice(20,20+size)));
+      doc.buffers[0].uri=location.origin+"/external-model-asset";
+      try { await NODE_TYPES.render3d.run(flat,{model:"data:model/gltf+json;base64,"+btoa(JSON.stringify(doc))}); }
+      catch(error) { external=error.message; }
+      return {cfr,forward,reverse,invalid,still,clipped,external};
+    }, cases);
+    const checkPixels = (actual, indices)=>{
+      assert.equal(actual.length,indices.length);
+      assert.ok(actual.every((value,i)=>Math.abs(value-(20+3*indices[i]))<=2), JSON.stringify(actual));
+    };
+    checkPixels(results.cfr,Array.from({length:48},(_,i)=>i));
+    checkPixels(results.forward,[2,4,6]);
+    checkPixels(results.reverse,[5,3]);
+    assert.match(results.invalid,/range start/);
+    assert.ok(results.still.every(count=>count>100));
+    assert.ok(results.clipped[0]+results.clipped[1] < (results.still[0]+results.still[1])*0.75);
+    assert.match(results.external,/self-contained model/);
+    assert.deepEqual(forbidden,[]);
+    console.log("✓ local Rotoscope: shared graph rendered PNG and MP4, kept exact CFR/VFR frames, denied external assets, and made no paid requests");
+  } finally { await context.close(); }
+}
+
 let browser;
 try {
   browser = await chromium.launch({ headless:true,
+    args:["--use-angle=swiftshader","--enable-unsafe-swiftshader"],
     ...(process.env.NANOODLE_CHROMIUM ? { executablePath:process.env.NANOODLE_CHROMIUM } : {}) });
+  await verifyRotoscope(browser);
   for (const mobile of [false, true]) {
     const label = mobile ? "mobile-retired-model" : "desktop";
     const contexts = [];

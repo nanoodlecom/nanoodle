@@ -10267,6 +10267,35 @@ const NODE_TYPES = {
       <div class="two">${spriteNumber(n,"yawStart","Start yaw (°)",0,-3600,3600)}${spriteNumber(n,"yawEnd","End yaw (°)",360,-3600,3600)}</div></details>`,
     run:runSpriteNode
   },
+  render3d: {
+    em:"🧊", title:"Render 3D", desc:"Render a self-contained 3D model in the browser", group:"3D",
+    kw:"camera turntable isolate clip plane explode GLB animation rotoscope",
+    inputs:[{name:"model",type:"model3d"}], outputs:[{name:"image",type:"image"},{name:"video",type:"video"}],
+    preview:n=>n.out?.video ? "video" : "image",
+    body:n=>`
+      <div><label>Output</label><select data-f="mode">${optsHTML([["image","Still image"],["video","Video"]],n.fields.mode||"image")}</select></div>
+      <div class="two">${spriteNumber(n,"width","Width",800,16,2048)}${spriteNumber(n,"height","Height",600,16,2048)}</div>
+      <div class="two">${spriteNumber(n,"azimuth","Azimuth (°)",35,-3600,3600)}${spriteNumber(n,"elevation","Elevation (°)",18,-90,90)}</div>
+      <details><summary>Scene settings</summary>
+        <div class="two">${spriteNumber(n,"distance","Camera distance",1.9,0.1,100,0.1)}${spriteNumber(n,"explode","Explode",0,0,10,0.05)}</div>
+        <div class="two"><div><label>Background</label><input data-f="background" value="${esc(n.fields.background||"dark")}"/></div>
+          <div><label>Isolate part</label><input data-f="isolate" value="${esc(n.fields.isolate??"")}"/></div></div>
+        <div class="two"><div><label>Clip axis</label><select data-f="clipAxis">${optsHTML([["none","None"],["x","X"],["y","Y"],["z","Z"]],n.fields.clipAxis||"none")}</select></div>
+          ${spriteNumber(n,"clipPos","Clip position",0,-1.05,1.05,0.01)}</div>
+        <div class="two"><div><label>Animation clip</label><input data-f="animClip" value="${esc(n.fields.animClip??"")}"/></div>
+          ${spriteNumber(n,"animTime","Animation time (s)",0,0,3600,0.01)}</div>
+      </details>
+      <details><summary>Video settings</summary>
+        <div class="two">${spriteNumber(n,"duration","Duration (s)",2,0.1,10,0.1)}${spriteNumber(n,"fps","Frames per second",24,1,60)}</div>
+        ${spriteNumber(n,"turntable","Turntable (°)",360,-3600,3600)}
+        <label><input type="checkbox" data-f="clipSweep"${n.fields.clipSweep===true||n.fields.clipSweep==="true" ? " checked" : ""}/> Sweep clip plane</label>
+      </details>`,
+    async run(n, inp){
+      const [local, engine] = await Promise.all([import("./vendor/rotoscope-local.mjs"), loadNjsEngine()]);
+      return local.render3d(inp.model, n.fields, { decodeData:engine?.dataUrlBytes, muxAvc:MP4CAT.muxAvc,
+        signal:runSignal(n.id), progress:message=>setNodeProgress(n,message) });
+    }
+  },
   mupload: {
     em:"📦", title:"3D input", desc:"Upload a GLB, a self-contained glTF, or a Gaussian PLY", group:"Inputs",
     kw:"glb gltf ply gaussian splat mesh upload import 3d file model",
@@ -10790,19 +10819,31 @@ const NODE_TYPES = {
         <div><label>start from</label><select data-f="dir">${optsHTML([["end","last frame"],["start","beginning"]], n.fields.dir||"end")}</select></div>
         <div><label>how many frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
       </div>
-      <div data-gaprow ${(parseInt(n.fields.frames,10)||1)>1?"":"hidden"}><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
+      <div data-gaprow ${(parseInt(n.fields.frames,10)||1)>1 && !n.fields.stride ? "" : "hidden"}><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>
+      <details${hasFrameRange(n.fields) ? " open" : ""}><summary>Exact frame selection</summary>
+        ${spriteNumber(n,"stride","Frame stride","",1,20000)}
+        <div class="two">${spriteNumber(n,"startSec","Range start (s)","",0,86400,0.001)}${spriteNumber(n,"endSec","Range end (s)","",0,86400,0.001)}</div>
+        <div class="fhint">Stride or a range uses the source frames of an H.264 MP4. Stride takes precedence over the time gap.</div>
+      </details>`,
     mount:(n)=>{
       const fr = n.el.querySelector('[data-f="frames"]');
       const gap = n.el.querySelector("[data-gaprow]");
-      const syncGap = ()=>{ if(gap && fr) gap.hidden = (parseInt(fr.value,10)||1) <= 1; };   // spacing is meaningless for a single frame
+      const stride = n.el.querySelector('[data-f="stride"]');
+      const syncGap = ()=>{ if(gap && fr) gap.hidden = (parseInt(fr.value,10)||1) <= 1 || !!stride?.value; };
       if(fr){
         fr.addEventListener("change", ()=>{ refreshFramePorts(n); syncGap(); });   // grow/shrink the image output ports
         fr.addEventListener("input", syncGap);
       }
+      stride?.addEventListener("input", syncGap);
     },
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+      if(hasFrameRange(n.fields)){
+        const [local, engine] = await Promise.all([import("./vendor/rotoscope-local.mjs"), loadNjsEngine()]);
+        return local.indexedFrames(inp.video, n.fields, { parseMp4:MP4CAT.parseMp4, decodeData:engine?.dataUrlBytes,
+          count, signal:runSignal(n.id), progress:message=>setNodeProgress(n,message) });
+      }
       const gapRaw = parseFloat(n.fields.gap);
       const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
       const fromEnd = (n.fields.dir||"end")==="end";
@@ -13628,7 +13669,8 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   try{
     // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
     const x = dir==="out" ? wx + 8 : wx - 232;
-    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+    const fields = typeKey==="render3d" && dir==="in" && type==="video" ? {mode:"video"} : undefined;
+    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24), fields);
     separateOnAdd(n, { x: Math.round(x), y: Math.round(wy - 24) });
     rememberAdd(typeKey);
     select(n);
@@ -15703,7 +15745,8 @@ function openDemoPop(mode){
 }
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
 // Output ports for the frame extractor: one image port per requested frame (clamped).
-const MAX_FRAMES = 12;
+const MAX_FRAMES = 48;
+const hasFrameRange = fields => [fields.stride, fields.startSec, fields.endSec].some(value=>value != null && value !== "");
 function framePorts(n){
   const k = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
   return Array.from({length:k}, (_,i)=> ({ name:"frame"+(i+1), type:"image" }));
@@ -16142,9 +16185,12 @@ function scanForBox(u8, type){
 }
 
 // Parse one mp4 into { moovTimescale, tracks:[{kind, timescale, stsdRaw, samples:[{offset,size,dur,cts,sync}], width,height}] }
-function parseMp4(u8){
+function parseMp4(u8, indexed){
+  // Array.map passes an index as its second argument. Only the exact-frame path opts in.
+  indexed = indexed === true;
   const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
   const top = walk(dv, 0, u8.byteLength);
+  if(indexed && top.some(b=>b.type==="moof")) throw new Error("fragmented MP4 is not supported");
   const moov = find(top, "moov");
   if(!moov) throw new Error("no moov");
   const moovBoxes = walk(dv, moov.body, moov.end);
@@ -16161,6 +16207,7 @@ function parseMp4(u8){
     const timescale = dv.getUint32(mdhd.body + (mdhdV1 ? 20 : 12));
     const handler = fourcc(dv, hdlr.body + 8); // after ver/flags(4)+pre_defined(4)
     const kind = handler === "vide" ? "video" : handler === "soun" ? "audio" : handler;
+    if(indexed && kind!=="video") continue;
     const minf = find(mb, "minf"); const minfB = walk(dv, minf.body, minf.end);
     const stbl = find(minfB, "stbl"); const sb = walk(dv, stbl.body, stbl.end);
     const stsd = find(sb, "stsd");
@@ -16185,6 +16232,7 @@ function parseMp4(u8){
     // stsz
     const stszSampleSize = dv.getUint32(stsz.body + 4);
     const sampleCount = dv.getUint32(stsz.body + 8);
+    if(indexed && sampleCount > 20000) throw new Error("video exceeds 20,000 source frames");
     const sizes = new Array(sampleCount);
     if(stszSampleSize === 0){ for(let i=0;i<sampleCount;i++) sizes[i] = dv.getUint32(stsz.body + 12 + i*4); }
     else sizes.fill(stszSampleSize);
@@ -16206,11 +16254,13 @@ function parseMp4(u8){
     // chunk offsets
     const co = stco || co64; const is64 = !!co64;
     const coN = dv.getUint32(co.body + 4);
+    if(indexed && coN > sampleCount) throw new Error("invalid MP4 chunk count");
     const chunkOffsets = new Array(coN);
     for(let e=0;e<coN;e++) chunkOffsets[e] = is64 ? Number(dv.getBigUint64(co.body + 8 + e*8)) : dv.getUint32(co.body + 8 + e*4);
 
     // stsc -> samples per chunk
     const stscN = dv.getUint32(stsc.body + 4);
+    if(indexed && stscN > coN) throw new Error("invalid MP4 sample mapping");
     const stscEntries = [];
     for(let e=0;e<stscN;e++) stscEntries.push({ first: dv.getUint32(stsc.body + 8 + e*12), spc: dv.getUint32(stsc.body + 12 + e*12) });
 
@@ -16230,6 +16280,27 @@ function parseMp4(u8){
     }
     if(samples.length !== sampleCount) throw new Error("sample count mismatch " + samples.length + "/" + sampleCount);
     tracks.push({ kind, timescale, stsdRaw, codecCfg, samples, width, height, channels, sampleRate });
+    if(indexed){
+      const track = tracks.at(-1);
+      track.editStart = -Infinity; track.editEnd = Infinity;
+      const edts = find(tb, "edts");
+      const edit = edts && find(walk(dv, edts.body, edts.end), "elst");
+      if(edit){
+        const v = dv.getUint8(edit.body);
+        if(v > 1 || dv.getUint32(edit.body + 4) !== 1) throw new Error("complex MP4 edits are not supported");
+        const mvhd = find(moovBoxes, "mvhd");
+        const movieScale = dv.getUint32(mvhd.body + (dv.getUint8(mvhd.body) === 1 ? 20 : 12));
+        const duration = v ? Number(dv.getBigUint64(edit.body + 8)) : dv.getUint32(edit.body + 8);
+        const start = v ? Number(dv.getBigInt64(edit.body + 16)) : dv.getInt32(edit.body + 12);
+        const rate = dv.getInt32(edit.body + (v ? 24 : 16));
+        if(start < 0 || rate !== 65536 || !movieScale || !Number.isSafeInteger(duration) || !Number.isSafeInteger(start)) {
+          throw new Error("complex MP4 edits are not supported");
+        }
+        track.editStart = start;
+        track.editEnd = start + duration * timescale / movieScale;
+      }
+      break;
+    }
   }
   return { tracks };
 }
@@ -16272,6 +16343,11 @@ function concatMp4(buffers, opts){
     }
     outTracks.push(merged);
   }
+
+  return writeMp4(buffers, outTracks);
+}
+
+function writeMp4(buffers, outTracks){
 
   // Build mdat first so chunk offsets are known. Layout: ftyp + mdat + moov.
   const ftyp = box("ftyp", enc("isom"), u32(0x200), enc("isomiso2avc1mp41"));
@@ -16378,7 +16454,15 @@ function mp4ParamsMatch(bufs){
     return true;
   }catch(e){ return false; }
 }
-  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4 };
+function muxAvc(samples, width, height, fps, description){
+  const avc1 = box("avc1", new Uint8Array(6), u16(1), new Uint8Array(16),
+    u16(width), u16(height), u32(0x00480000), u32(0x00480000), u32(0),
+    u16(1), new Uint8Array(32), u16(24), u16(0xffff), box("avcC", description));
+  return writeMp4(samples.map(s=>s.bytes), [{ kind:"video", width, height, timescale:fps,
+    stsdRaw:fullbox("stsd",0,0,u32(1),avc1),
+    samples:samples.map((s,i)=>({ bufIdx:i,offset:0,size:s.bytes.length,dur:1,cts:0,sync:s.sync })) }]);
+}
+  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4, muxAvc };
 })();
 
 function pickVideoMime(){
@@ -24183,7 +24267,8 @@ $("signout").onclick = ()=> setKey(null);
       model:"v2v model id (optional)", prompt:"instruction (restyle / extend / upscale)",
       resolution:"catalog resolution tier (optional)",
     }, note:"ref-capable edit models (seedance-2.0 video-edit) grow ref1… reference-image ports for character/subject swaps" },
-    vframes:{ fields:{ frames:"how many (1–12)", gap:"seconds between frames", dir:"end|start" }, note:"grows frame1…frameN image output ports" },
+    render3d:{ fields:{ mode:"image|video", width:"16–2048 pixels", height:"16–2048 pixels", azimuth:"degrees", elevation:"degrees", distance:"camera distance", background:"dark|light|transparent|color", isolate:"part name, index or largest", explode:"part separation", clipAxis:"none|x|y|z", clipPos:"normalized clip position", animClip:"clip name or index", animTime:"seconds", fps:"1–60", duration:"0.1–10 seconds", turntable:"degrees", clipSweep:"boolean" }, note:"Editor-local. Wire a self-contained glTF or GLB into model. Produces a PNG or an H.264 MP4." },
+    vframes:{ fields:{ frames:"how many (1–48)", gap:"seconds between frames", dir:"end|start", stride:"optional interval in source frames", startSec:"optional inclusive start time", endSec:"optional inclusive end time" }, note:"grows frame1…frameN image output ports. Stride or range uses the source timeline of an H.264 MP4." },
     combine:{ fields:{ dedup:"trim duplicate seam frame (true/false, default true)" }, note:"grows vid1, vid2, … video input ports" },
     soundtrack:{ fields:{ loop:"loop audio to fill the video (true/false)" }, note:"replaces the video's existing soundtrack" },
     lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction (mood/movement)", resolution:"optional" }, note:"image + single audio → talking video; multi-speaker avatars are filtered out" },

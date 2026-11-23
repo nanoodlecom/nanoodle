@@ -76,7 +76,7 @@ const bundle =
   extractFn(SRC, "spriteNumber") + "\n" +
   extractObj(SRC, "const NODE_TYPES = {") + "\n" +
   "const ADD_GROUPS = ['Inputs','Text','Image','Video','Audio','3D','Notes'];\n" +
-  "const MAX_FRAMES = 12;\n" +
+  SRC.match(/^const MAX_FRAMES = \d+;$/m)[0] + "\n" +
   extractFn(SRC, "framePorts") + "\n" +              // dynamic image ports (vframes)
   extractFn(SRC, "nodeOutputs") + "\n" +             // resolves static-array OR function-valued outputs
   extractFn(SRC, "nodeAcceptsType") + "\n" +
@@ -100,6 +100,7 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 
 // dragging FROM an output → consumers of that type
 ok(keys("out", "model3d").includes("slice-3d"), "3D output offers Slice 3D");
+ok(keys("out", "model3d").includes("render3d"), "3D output offers Render 3D");
 eq(keys("out", "image"), ["decide", "edit", "endpoint", "inpaint", "ivideo", "llm", "lipsync", "model3d", "resize", "slice-3d", "sprite-stack-render", "vision"],
   "image output → nodes that take an image (incl. LLM's and Decide's dynamic image ports + Inpaint's image/mask + Custom endpoint)");
 eq(keys("out", "audio"), ["cleanvoice", "endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
@@ -111,11 +112,11 @@ eq(keys("out", "text"), ["cleanvoice", "decide", "edit", "endpoint", "image", "i
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
-eq(keys("in", "image"), ["decide", "edit", "image", "inpaint", "resize", "slice-3d", "sprite-stack-render", "upload", "vframes"],
+eq(keys("in", "image"), ["decide", "edit", "image", "inpaint", "render3d", "resize", "slice-3d", "sprite-stack-render", "upload", "vframes"],
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills; Decide passes the winner / input through)");
 eq(keys("in", "audio"), ["aupload", "cleanvoice", "extractaudio", "music", "remix", "trim", "tts"],
   "audio input → nodes that produce audio (extractaudio emits a WAV from a video; remix transforms one; cleanvoice denoises one)");
-eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "soundtrack", "sprite-stack-render", "tvideo", "vedit", "vupload"],
+eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "render3d", "soundtrack", "sprite-stack-render", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one; soundtrack outputs the scored video)");
 eq(keys("in", "text"), ["choice", "decide", "endpoint", "join", "llm", "slice-3d", "text", "transcribe", "vision"],
   "text input → nodes that produce text (Choice is a pure text source; Custom endpoint defaults to chat → text; Decide answers in text)");
@@ -138,7 +139,7 @@ function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure
   const sctx = {
     undoMuted: false,
     pushUndo: () => { if (!sctx.undoMuted) calls.snapshots++; },
-    addNode: (tk, x, y) => { sctx.pushUndo(); calls.added = { tk, x, y }; return fakeNew; },
+    addNode: (tk, x, y, fields) => { sctx.pushUndo(); calls.added = { tk, x, y, fields }; return fakeNew; },
     select: () => {}, redraw: () => {},
     connect: (fn, fp, tn, tp) => { sctx.pushUndo(); calls.connected = { fn, fp, tn, tp }; },
     ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
@@ -175,6 +176,11 @@ ok(inCase.connected && inCase.connected.fn === "new1" && inCase.connected.fp ===
   "spawn(in): new node must be the link SOURCE");
 ok(inCase.connected && inCase.connected.tn === "dst" && inCase.connected.tp === "image",
   "spawn(in): origin input must be the link SINK, got " + JSON.stringify(inCase.connected));
+
+const renderVideo = spawnReal("render3d", 500, 300, "in", "video",
+  { node: "dst", port: "video", dir: "in", ptype: "video" }, fixed([freePort("new1", "video")]));
+ok(renderVideo.added?.fields?.mode === "video" && renderVideo.connected?.fp === "video",
+  "spawn(in,video): Render 3D starts in video mode when wired as a video source");
 
 // out-drag image → an LLM whose default model can't see images: the image socket starts disabled,
 // so quickSpawn must upgrade the model (ensureModelForInput) and then wire the now-enabled socket —
