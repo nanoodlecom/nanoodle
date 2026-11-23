@@ -18623,22 +18623,19 @@ function applyGraphData(d, opts){
   const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
     const type = Object.hasOwn(ALIAS, sn.type) ? ALIAS[sn.type] : sn.type;
-    if(!Object.hasOwn(NODE_TYPES, type)){
-      // Render an inert card and keep the complete authored data for future versions.
-      const n = {
-        ...sn, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
-        fields:{}, out:{}, el:null, _unsupportedNode:sn,
-      };
-      graph.nodes.push(n); buildNodeEl(n);
-      continue;
-    }
-    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
-    delete n._unsupportedNode;
-    if(type==="decide"){
+    const unsupported = !Object.hasOwn(NODE_TYPES, type);
+    // Keep the authored record for backups. The card receives only inert layout and identity.
+    const n = unsupported ? {
+      id:sn.id, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
+      x:sn.x, y:sn.y, w:sn.w, sizes:sn.sizes, fields:{}, out:{}, el:null,
+    } : { ...sn, type, out:{}, el:null };
+    Object.defineProperty(n, "_unsupportedNode", {value:unsupported ? sn : null});
+    stripInjectedMedia(n);
+    if(!unsupported && type==="decide"){
       n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
       if(sn.type==="decide-branch") n.fields.branch = true;
     }
-    if(prevById){
+    if(!unsupported && prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
     }
