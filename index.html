@@ -16584,10 +16584,27 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
   while(Date.now()-t0 < 300000){
     await sleep(3000);
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
-    let pr, s; try{ pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:sig}); s = await pr.json(); }
-    catch(e){ sig?.throwIfAborted(); if(e?.name==="AbortError") throw e; continue; }
-    sig?.throwIfAborted();
-    const st = String(s.status||"").toLowerCase();
+    let pr, s;
+    try{
+      pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:sig});
+      if(pr.ok) s = await pr.json();
+    }catch(e){
+      if(e?.name==="AbortError") throw e;
+      if(sig?.aborted) throw new DOMException("aborted","AbortError");
+      continue;
+    }
+    if(sig?.aborted) throw new DOMException("aborted","AbortError");
+    if(!pr.ok){
+      // A failed status request says nothing about the accepted provider job.
+      const status = pr.status;
+      if(status<400 || status>=500) continue;
+      if([408,429].includes(status)) continue;
+      const hint = [401,403].includes(status)
+        ? " Sign in again and retry." : "";
+      throw new Error(`Audio status check failed (HTTP ${status}).${hint}`);
+    }
+    if(!s) continue;
+    const st = String(s.status || s.data?.status || "").toLowerCase();
     if(st==="completed" || st==="succeeded"){
       applyPollSettlement(s, pr, false);
       const au = s.audioUrl || s.url || s.data?.audioUrl || s.data?.url;
@@ -16600,8 +16617,11 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
       }
       return au;
     }
-    if(["error","failed","content_policy_violation"].includes(st)){
-      if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
+    if(["error","failed","canceled","cancelled","content_policy_violation"].includes(st)){
+      const slot = PENDING_AUDIO.get(runKey);
+      if(slot?.job===job){
+        PENDING_AUDIO.delete(runKey);
+      }
       applyPollSettlement(s, pr, true);
       throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
     }

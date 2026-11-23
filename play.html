@@ -12167,12 +12167,32 @@ function mp4ParamsMatch(bufs){
     if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
     if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
     if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
+    const sig = ABORT?.signal;
     const t0 = Date.now();
     while(Date.now()-t0 < 300000){
       await sleep(3000);
-      let pr, s; try{ pr = await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()}); s = await pr.json(); }
-      catch(e){ continue; }
-      const st = String(s.status||"").toLowerCase();
+      if(sig?.aborted) throw abortError();
+      let pr, s;
+      try{
+        pr = await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()});
+        if(pr.ok) s = await pr.json();
+      }catch(e){
+        if(e?.name==="AbortError") throw e;
+        if(sig?.aborted) throw abortError();
+        continue;
+      }
+      if(sig?.aborted) throw abortError();
+      if(!pr.ok){
+        // An HTTP failure from the status endpoint cannot settle the paid job.
+        const status = pr.status;
+        if(status<400 || status>=500) continue;
+        if([408,429].includes(status)) continue;
+        const hint = [401,403].includes(status)
+          ? " Sign in again and retry." : "";
+        throw new Error("Audio status check failed (HTTP " + status + ")." + hint);
+      }
+      if(!s) continue;
+      const st = String(s.status || s.data?.status || "").toLowerCase();
       if(st==="completed" || st==="succeeded"){
         applyPollBalance(s, pr, false);
         const au = s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url);
@@ -12185,8 +12205,11 @@ function mp4ParamsMatch(bufs){
         }
         return au;
       }
-      if(["error","failed","content_policy_violation"].includes(st)){
-        if(runKey) PENDING_AUDIO.delete(runKey);
+      if(["error","failed","canceled","cancelled","content_policy_violation"].includes(st)){
+        const slot = PENDING_AUDIO.get(runKey);
+        if(slot?.job===job){
+          PENDING_AUDIO.delete(runKey);
+        }
         applyPollBalance(s, pr, true);
         throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
       }
