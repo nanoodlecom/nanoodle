@@ -11333,7 +11333,9 @@ function imgExtra(n){
       if(prev && prev.sig===sig && prev.resultUrl){
         return await deliverResolvedMedia(PENDING_VIDEO, runKey, {runId:prev.runId, sig:sig, resultUrl:prev.resultUrl, njs:prev.njs}, prev.resultUrl);
       }
-      let runId = (prev && prev.sig===sig) ? prev.runId : null;
+      const runAbortSignal = ABORT?.signal;
+      let accepted = (prev && prev.sig===sig) ? prev : null;
+      let runId = accepted?.runId;
       if(!runId){
         if(payload.length > MEDIA_INLINE_MAX)
           throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
@@ -11344,27 +11346,66 @@ function imgExtra(n){
         const j = await r.json(); onCost(costWithHeaders(j, r));
         runId = j.runId || j.id;
         if(!runId) throw new Error("no runId returned");
-        if(runKey) PENDING_VIDEO.set(runKey, {runId:runId, sig:sig});   // remember it the moment it exists, so a timeout is recoverable
+        accepted = {runId:runId, sig:sig};
+        if(runKey){
+          PENDING_VIDEO.set(runKey, accepted);
+        }
       }
+      const failedStatuses = [
+        "FAILED","ERROR",
+        "CANCELED","CANCELLED",
+        "CONTENT_POLICY_VIOLATION",
+      ];
       const t0 = Date.now();                           // elapsed progress only — no poll deadline
       // Job id + status URL immediately (before the first 5s sleep) so a long queue is still probeable.
       onProgress && onProgress("SUBMITTED", 0, { runId:runId, polledAt:Date.now() });
       while(true){                                     // wait for COMPLETED/FAILED/Stop; server keeps the job
         await sleep(5000);
-        let pr, s; try{ pr = await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()}); s = await pr.json(); }
-        catch(e){ if(isAbort(e)) throw e; continue; }
+        runAbortSignal?.throwIfAborted();
+        let pr, s;
+        try{
+          pr = await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()});
+          if(pr.ok) s = await pr.json();
+        }catch(e){
+          runAbortSignal?.throwIfAborted();
+          if(e?.name==="AbortError") throw e;
+          continue;
+        }
+        runAbortSignal?.throwIfAborted();
+        if(!pr.ok){
+          // An HTTP failure from this request cannot settle the provider job.
+          const status = pr.status;
+          if(status<400 || status>=500) continue;
+          if([408,429].includes(status)) continue;
+          const hint = [401,403].includes(status)
+            ? " Sign in again and retry." : "";
+          throw new Error("Video status check failed (HTTP " + status + ")." + hint);
+        }
+        if(!s) continue;
         const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
         onProgress && onProgress(st, Date.now()-t0, { runId:runId, polledAt:Date.now() });
+        runAbortSignal?.throwIfAborted();
+        const slot = PENDING_VIDEO.get(runKey);
+        const ownsJob = slot===accepted;
         if(st==="COMPLETED" || st==="SUCCEEDED"){
           const out = (s.data && s.data.output) || s.output || {};
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
           if(!url) throw new Error("completed but no video url");
           applyPollBalance(s, pr, false);
           const vEntry = {runId:runId, sig:sig, resultUrl:url};
-          if(prev && prev.njs) vEntry.njs = true;
-          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
+          if(accepted.njs) vEntry.njs = true;
+          return await deliverResolvedMedia(
+            PENDING_VIDEO, ownsJob ? runKey : null,
+            vEntry, url, runAbortSignal
+          );
         }
-        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); applyPollBalance(s, pr, true); throw new Error("video failed: " + videoFailText(s, st)); }
+        if(failedStatuses.includes(st)){
+          if(ownsJob){
+            PENDING_VIDEO.delete(runKey);
+          }
+          applyPollBalance(s, pr, true);
+          throw new Error("video failed: " + videoFailText(s, st));
+        }
       }
     },
     // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
