@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Drive the shipped player with recording fetch. Only declared source ports
-// may drive inputs, and a declared optional output may be empty for one run.
+// and target ports may be wired, and a declared optional output can be empty.
 import assert from "node:assert/strict";
 import { calls, loadEngine } from "./play-engine.mjs";
 
@@ -63,3 +63,42 @@ for (const {source, port, out, route} of tests) {
   assert.equal(graph.byId("sink").out.text, out);
 }
 console.log("✓ player rejects undeclared source ports and preserves optional, dynamic and legacy outputs");
+
+for (const [link, selected, expected] of [
+  [wire("absent", "text", "paid", "prompt"), "paid", 'missing source node "absent"'],
+  [wire("source", "text", "absent", "prompt"), "source", 'missing target node "absent"'],
+  [wire("source", "text", "paid", "promtp"), "paid", 'no input port "promtp"'],
+  [wire("source", "text", "paid", "__proto__"), "paid", 'no input port "__proto__"'],
+  [{ to:{node:"paid", port:"prompt"} }, "paid", 'missing source node "(missing)"'],
+  [{ from:{node:"source", port:"text"} }, "source", 'missing target node "(missing)"'],
+  [{}, null, 'missing source node "(missing)"'],
+]) {
+  const source = node("source", "text", {text:"wired prompt"});
+  const paid = node("paid", "llm", {...target.fields, promtp:"also stored"});
+  const independent = node("independent", "text", {text:"independent value"});
+  const graph = app.materialize({nodes:[source, paid, independent], links:[link]});
+  assert.equal(graph.links.length, 1, "malformed link remains available for repair and export");
+  calls.length = 0;
+  const check = opts => assert.rejects(app.runGraph(graph, opts), error => error.message.includes(expected));
+  await check({onStart:()=>assert.fail("malformed workflow began to run")});
+  if (selected) await check({seeds:[selected]});
+  assert.deepEqual(calls, [], "a malformed link stops provider work before submission");
+  await app.runGraph(graph, {seeds:["independent"]});
+  assert.equal(graph.byId("independent").out.text, "independent value");
+}
+
+const repaired = app.materialize({nodes:[node("source", "text", {text:"wired prompt"}), target],
+  links:[wire("source", "text", "paid", "prompt")]});
+calls.length = 0;
+await app.runGraph(repaired);
+assert.equal(calls.find(call=>call.url.endsWith("/chat/completions")).body.messages.at(-1).content, "wired prompt");
+
+app.NODE_TYPES.vframes.run = async n => {
+  assert.equal(n.fields.stride, "3");
+  return {frame1:"frame-value"};
+};
+const wiredStride = app.materialize({nodes:[node("source", "text", {text:"3"}), node("frames", "vframes")],
+  links:[wire("source", "text", "frames", "stride")]});
+assert.equal((await app.runGraph(wiredStride)).nodeErrors, 0);
+assert.equal(wiredStride.byId("frames").out.frame1, "frame-value");
+console.log("✓ player preserves malformed endpoints, diagnoses bad inputs, and still executes valid wired overrides");

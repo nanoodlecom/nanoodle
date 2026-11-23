@@ -91,7 +91,9 @@ try {
     graphNeedsNanoKey: extractFn(html, "graphNeedsNanoKey"),
     unsupportedGraphMessage: extractFn(html, "unsupportedGraphMessage"),
     declaresWireOutput: extractFn(html, "declaresWireOutput"),
-    invalidOutputWireMessage: extractFn(html, "invalidOutputWireMessage"),
+    declaresWireInput: extractFn(html, "declaresWireInput"),
+    invalidWireMessage: extractFn(html, "invalidWireMessage"),
+    wireInputFields: extractConst(html, /^  const WIRE_INPUT_FIELDS = \{[\s\S]*?^  };/m, "const WIRE_INPUT_FIELDS"),
     RUN_CHOICES: extractConst(html, /const\s+RUN_CHOICES\s*=\s*\[[^\]]*\]\s*;/, "const RUN_CHOICES"),
     RUN_RESUME_KEY: extractConst(html, /const\s+RUN_RESUME_KEY\s*=\s*"[^"]*"\s*;/, "const RUN_RESUME_KEY"),
     hasAuth: extractConst(html, /const\s+hasAuth\s*=\s*\(\)\s*=>[^;]*;/, "const hasAuth"),
@@ -108,6 +110,7 @@ const preamble = `
   let parentAuthed = false, EMBEDDED = false, __getKeyRet = null;
   let STATE = null, location = { protocol: "https:", origin: "https://x", pathname: "/" };
   const NODE_TYPES = { llm:{}, endpoint:{}, text:{outputs:[{name:"text"}]} };
+  const AUDIO_PARAMS = {};
 
   function getKey(){ return __getKeyRet; }                 // stand-in for play.html's localStorage getter
   function t(s){ return s; }                               // identity — we assert markers/money, not translations
@@ -165,7 +168,7 @@ const program =
   lift.fmtUsd + "\n" + lift.paintRunCost + "\n" + lift.renderCount + "\n" +
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
   lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" + lift.unsupportedGraphMessage + "\n" +
-  lift.declaresWireOutput + "\n" + lift.invalidOutputWireMessage + "\n" +
+  lift.wireInputFields + "\n" + lift.declaresWireOutput + "\n" + lift.declaresWireInput + "\n" + lift.invalidWireMessage + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };

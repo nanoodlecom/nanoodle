@@ -14134,9 +14134,7 @@ return "image/png";
       nodes.push(node);
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
-    const ids = new Set(nodes.map(n=>n.id));
-    const links = (data.links||[]).filter(l=> ids.has(l.from && l.from.node) && ids.has(l.to && l.to.node))
-      .map(l=>({ id:l.id, from:{...l.from}, to:{...l.to} }));
+    const links = (data.links||[]).map(l=>({ ...l, from:{...l?.from}, to:{...l?.to} }));
     for(const l of links){
       const tn = byId(l.to.node);
       if(tn && (tn.type==="music"||tn.type==="tts") && l.to.port==="text") l.to.port="prompt";
@@ -14523,16 +14521,65 @@ const PROMPT_CAPS = {
     const ports = typeof outputs==="function" ? outputs(n) : outputs;
     return (ports || []).some(p=>p.name===port);
   }
-  function invalidOutputWireMessage(links, byId, ids){
+  // Known field overrides, including runtime settings in hand-authored workflows
+  // that do not have an inline socket in every canvas view.
+  const WIRE_INPUT_FIELDS = {
+    text:"text", choice:"options selected", upload:"image", aupload:"audio", vupload:"video", mupload:"model",
+    join:"sep", llm:"model prompt system temperature maxTokens format reasoningEffort showThinking",
+    vision:"model q", decide:"model mode question options levels gate",
+    image:"model prompt size aspect variations seed customCivitaiAir negativePrompt steps guidance promptExpansion modelOpts loras loraUrl loraStrength",
+    edit:"model prompt size aspect seed modelOpts loras loraUrl loraStrength",
+    inpaint:"model prompt size aspect seed modelOpts loras loraUrl loraStrength",
+    model3d:"model prompt modelOpts",
+    tvideo:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+    ivideo:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+    vedit:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+    lipsync:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+    music:"model prompt extraJson",
+    remix:"model prompt extraJson",
+    tts:"model prompt extraJson",
+    transcribe:"model language", cleanvoice:"model url",
+    vframes:"frames gap dir stride startSec endSec", resize:"mode width height",
+    combine:"dedup", soundtrack:"loop", trim:"start length", extractaudio:"start length",
+    "slice-3d":"preset clip frames slices resolution palette outline upAxis",
+    "sprite-stack-render":"yaw pitch spacing scale turntable duration fps yawStart yawEnd",
+    render3d:"mode width height azimuth elevation distance background isolate explode clipAxis clipPos animClip animTime fps duration turntable clipSweep",
+    endpoint:"url mode model prompt system size auth",
+  };
+  function declaresWireInput(n, port){
+    if(typeof port!=="string" || !port) return false;
+    const t = NODE_TYPES[n.type];
+    if(t.inputs?.some(p=>p.name===port)) return true;
+    if(t.imageInputs && (n.type==="edit" ? EDIT_IMG_RE : IMG_PORT_RE).test(port)) return true;
+    if(t.videoInputs && VID_PORT_RE.test(port)) return true;
+    if(t.refInputs && REF_PORT_RE.test(port)) return true;
+    if(t.audioInput && port==="audio") return true;
+    if(t.videoInput && port==="video") return true;
+    if(t.endFrame && port==="endframe") return true;
+    if(t.charInput && port==="image") return true;
+    if(Object.hasOwn(AUDIO_PARAMS, n.type) && AUDIO_PARAMS[n.type].some(p=>p.id===port)) return true;
+    return Object.hasOwn(WIRE_INPUT_FIELDS, n.type) && WIRE_INPUT_FIELDS[n.type].split(" ").includes(port);
+  }
+  function invalidWireMessage(links, byId, ids){
     if(!links?.length) return null;
     const routed = new Set(links.filter(l=>l.to.port==="mode" || l.to.port==="url").map(l=>l.to.node));
     for(const {from,to} of links){
-      if(ids && !ids.has(to.node)) continue;
-      const source = byId(from.node);
-      if(!source || !Object.hasOwn(NODE_TYPES, source.type)) continue;
-      if(declaresWireOutput(source, from.port, routed.has(source.id))) continue;
-      const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
-      return 'Node "' + from.node + '" has no output port "' + port + '". Reconnect its wire to node "' + to.node + '".';
+      const source = from.node!=null && byId(from.node);
+      const target = to.node!=null && byId(to.node);
+      // A dangling incoming wire belongs to its consumer. With no consumer,
+      // the source identifies its scope; a whole-workflow run checks all wires.
+      if(ids && !(target ? ids.has(to.node) : source && ids.has(from.node))) continue;
+      const src = from.node ?? "(missing)", dst = to.node ?? "(missing)";
+      if(!source) return 'Wire to node "' + dst + '" references missing source node "' + src + '". Reconnect or remove the wire.';
+      if(!target) return 'Wire from node "' + src + '" references missing target node "' + dst + '". Reconnect or remove the wire.';
+      if(Object.hasOwn(NODE_TYPES, source.type) && !declaresWireOutput(source, from.port, routed.has(source.id))){
+        const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
+        return 'Node "' + src + '" has no output port "' + port + '". Reconnect its wire to node "' + dst + '".';
+      }
+      if(Object.hasOwn(NODE_TYPES, target.type) && !declaresWireInput(target, to.port)){
+        const port = typeof to.port==="string" && to.port ? to.port : "(missing)";
+        return 'Node "' + dst + '" has no input port "' + port + '". Reconnect its wire from node "' + src + '".';
+      }
     }
     return null;
   }
@@ -14563,7 +14610,7 @@ const PROMPT_CAPS = {
     const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
     const unsupported = unsupportedGraphMessage(graph, ids);
     if(unsupported) throw new Error(unsupported);
-    const invalidWire = invalidOutputWireMessage(graph.links, graph.byId, ids);
+    const invalidWire = invalidWireMessage(graph.links, graph.byId, opts.seeds?.length ? ids : undefined);
     if(invalidWire) throw new Error(invalidWire);
     if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
@@ -17494,7 +17541,7 @@ const PROMPT_CAPS = {
     if(running) return;
     const unsupported = unsupportedGraphMessage(STATE && STATE.graph);
     if(unsupported){ statusLine("__unsupported__", "error", unsupported); return; }
-    const invalidWire = invalidOutputWireMessage(STATE?.graph?.links, STATE?.graph?.byId);
+    const invalidWire = invalidWireMessage(STATE?.graph?.links, STATE?.graph?.byId);
     if(invalidWire){ statusLine("__invalidwire__", "error", invalidWire); return; }
     if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
