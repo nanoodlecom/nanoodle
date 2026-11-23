@@ -208,6 +208,14 @@ const acy = topoOrder(new Set(["a", "b", "c"]));
 ok(acy.cyclic.length === 0 && acy.order.length === 3 && acy.order.indexOf("a") < acy.order.indexOf("b") && acy.order.indexOf("b") < acy.order.indexOf("c"),
    `cycle-safety: an acyclic chain must fully order a→b→c with no cyclic offenders (got order=${JSON.stringify(acy.order)}, cyclic=${JSON.stringify(acy.cyclic)})`);
 
+reset([
+  { id: "p1", from: { node: "__proto__", port: "out" }, to: { node: "constructor", port: "in" } },
+  { id: "p2", from: { node: "constructor", port: "out" }, to: { node: "hasOwnProperty", port: "in" } },
+]);
+const literalIds = topoOrder(new Set(["hasOwnProperty", "__proto__", "constructor"]));
+ok(literalIds.cyclic.length === 0 && literalIds.order.join(",") === "__proto__,constructor,hasOwnProperty",
+   `cycle-safety: saved node IDs are literal strings (got ${JSON.stringify(literalIds)})`);
+
 // ---- LOOP-REFUSAL (PR #231, live on main):
 // A wire that closes a directed loop (b→a already wired; now a→b) must be REFUSED:
 // no link added, no undo snapshot, and a toast shown.
