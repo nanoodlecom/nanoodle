@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1735,
-  "occurrencesIndexHtml": 1824,
-  "occurrencesPlayHtml": 1890,
-  "digest": "639f7c5bacabcc1f59792dbd9b5afa3c",
+  "count": 1736,
+  "occurrencesIndexHtml": 1825,
+  "occurrencesPlayHtml": 1892,
+  "digest": "5d2db40a47dd7a9e0deaa9f59163a574",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -785,6 +785,7 @@
     "74b11130c8f191f3 1 1 - - const verParts = (id)=> (id.match(VER_RE)||[]).join(\".\").split(\".\").map(Number);",
     "74e68f2968b694d2 1 1 - - function contentAuthHeaders(url, origin, authHeaders){",
     "74f5171f8ffe9e74 1 1 - - // (avcC / esds live in stsd). A false positive silently corrupts output, so default to NO on any doubt.",
+    "754173613d5c6750 1 2 - - const authRej = /^API key rejected \\(HTTP (\\d+)\\)/.exec(m);",
     "7582baba002a9dcc 1 1 - - <code id=\"agentmcpcmd\" class=\"ap-cmd\" aria-label=\"MCP install command\" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class=\"ap-key\">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>",
     "75a6e962e617fab5 1 1 - - var fwd = sent.map(function(x, i){ return i; }), rev = fwd.slice().reverse();",
     "75ca2436c13c38ee 1 1 - - if(!url) throw new Error(\"no audio url in response — return { \\\"url\\\" } or a binary audio body\");",
