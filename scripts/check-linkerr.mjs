@@ -370,6 +370,24 @@ async function run() {
   }
 
   const encoded = (value) => bytesToB64url(new TextEncoder().encode(JSON.stringify(value)));
+  {
+    const modelFile = { name: "model.ply", size: 118 };
+    const graph = { nodes: [{ id: "n1", type: "mupload", fields: { model: "", modelFile } }], links: [] };
+    for (const [label, hash, detached] of [
+      ["public app", aHashLegacyU({ ...SPEC, graph }), true],
+      ["public graph", "#j=" + encoded(graph), true],
+      ["private app update", "#ga=u" + encoded({ graph }), false],
+    ]) {
+      const store = {};
+      const ctx = await bootPlay(hash, store);
+      const saved = JSON.parse(store.noodle_apps || "[]")[0]?.graph.nodes[0]?.fields.modelFile;
+      record(`${label} preserves the 3D label and scopes its local file reference`,
+        appShown(ctx) && saved?.name === modelFile.name && saved.size === modelFile.size
+          && (detached ? saved.key === null : !Object.hasOwn(saved, "key")),
+        `saved=${JSON.stringify(saved)}`);
+    }
+  }
+
   for (const [bad, diagnostic] of [
     [{ ...SPEC.graph.nodes[0], name: "Duplicate" }, 'duplicate node id "n_hi"'],
     [null, "node at position 2 must be an object"],

@@ -12316,6 +12316,15 @@ function glbDownloadUrl(n){
   }
   return (typeof n.fields.model==="string" && n.fields.model) ? n.fields.model : "";
 }
+function storeUploadedModel(n, bytes, name){
+  n._glbBytes = bytes;
+  n._glbName = name || "model.glb";
+  n._glbSize = bytes.byteLength;
+  const key = "file:" + newModel3dOutKey();
+  n.fields.model = "";
+  n.fields.modelFile = { name:n._glbName, size:n._glbSize, key };
+  idbPutGlb(key, { name:n._glbName, bytes });
+}
 function putGlbBytes(n, bytes, name){
   const buf = bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset+bytes.byteLength);
   const host = n.el && n.el.querySelector("[data-glb-in]");
@@ -12323,27 +12332,31 @@ function putGlbBytes(n, bytes, name){
     if(host) host.innerHTML = `<div class="glb-err">${esc(t("that 3D file is over 32 MB — try a smaller .glb"))}</div>`;
     return;
   }
-  n._glbBytes = buf;
-  n._glbName = name || "model.glb";
-  n._glbSize = buf.byteLength;
+  storeUploadedModel(n, buf, name);
   if(n._glbBlob){ try{ URL.revokeObjectURL(n._glbBlob); }catch(_){} }
   n._glbBlob = URL.createObjectURL(new Blob([buf], {type:modelFileMime(n._glbName)}));
-  n.fields.model = "";
-  n.fields.modelFile = { name:n._glbName, size:n._glbSize };
   delete n._sig;
   if(host) showUploadedModel(n, host, buf);
   const acts = n.el && n.el.querySelector("[data-macts]");
   if(acts) acts.hidden = false;
-  idbPutGlb(n.id, { name:n._glbName, bytes:buf });
   if(typeof refreshSliceOutputs==="function") refreshSliceOutputs(n);
   save();
+}
+async function readUploadedModel(id, stub){
+  if(!stub?.name) return null;
+  // A shared graph carries a filename for re-upload, with an explicit empty
+  // reference. Older local workflows fall back to their original node-ID key.
+  if(Object.hasOwn(stub, "key") && (typeof stub.key!=="string" || !stub.key)) return null;
+  const rec = await idbGetGlb(stub.key ?? id);
+  if(!rec?.bytes?.byteLength || (rec.name && rec.name !== stub.name) ||
+     (stub.size && rec.bytes.byteLength !== stub.size)) return null;
+  return rec;
 }
 async function restoreUploadedModel(n){
   const stub = n.fields.modelFile;
   if(n._glbBytes || !stub?.name) return;
-  const rec = await idbGetGlb(n.id);
-  if(n._glbBytes || n.fields.modelFile !== stub || !rec?.bytes?.byteLength) return;
-  if((rec.name && rec.name !== stub.name) || (stub.size && rec.bytes.byteLength !== stub.size)) return;
+  const rec = await readUploadedModel(n.id, stub);
+  if(n._glbBytes || n.fields.modelFile !== stub || !rec) return;
   n._glbBytes = rec.bytes;
   n._glbName = rec.name || stub.name;
   n._glbSize = rec.bytes.byteLength;
@@ -14261,6 +14274,7 @@ const runningNodes = new Set();   // nodes in an in-flight subgraph (delete/undo
 const seedRuns = new Set();       // seeds of in-flight per-node Plays — their ▶ becomes ■ Stop
 const seedCtl = new Map();        // seed id → that Play's AbortController (Stop on B does not abort C)
 const nodeWork = new Map();       // node id → in-flight exec promise (sibling Plays await, never re-charge)
+const paidOutputCredentials = new WeakMap();  // paid results keep their owner across in-memory undo/workspace snapshots
 const runLockCount = new Map();   // node id → # of in-flight groups holding it (shared ancestor A)
 const liveAborts = new Set();     // every group's controller; toolbar Stop aborts them all
 let runAbort = null;              // last-started controller (runSignal fallback when only one group is live)
@@ -14538,7 +14552,8 @@ function njsCatalogs(){
 // adds auth to API calls only, so media CDN downloads never see the key.
 function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   const {video:PENDING_VIDEO, audio:PENDING_AUDIO} = jobs;
-  const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
+  const request = (u,o)=>{ assertRunCredential(key); return contentFetchForEngine(u, o); };
+  const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch:request });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
   // throws without saying the job was saved; video and audio add that only
@@ -14549,7 +14564,7 @@ function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
       apiKey: key,
       authHeaders: key ? { Authorization:"Bearer " + key } : {},
       signal: opts && opts.signal,
-      fetch: function(u, init){ return contentFetchForEngine(u, init); }
+      fetch:request,
     });
   };
   // library cost objects ({usd, balance}) → accrue(): spend meter + live balance; a null usd
@@ -14569,7 +14584,12 @@ function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   }, signal: (n && n._runCtl && n._runCtl.signal) || runSignal() };
   const runMedia = (jobs, sig, idField, run)=> E.runResumableMedia({
     jobs, key:n.id, sig, idField, signal:io.signal, run,
-    resolve: url=> client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); }),
+    resolve: async url=>{
+      assertRunCredential(key);
+      const resolved = await client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); });
+      assertRunCredential(key);
+      return resolved;
+    },
     onTerminalFailure: ()=>{ if(key===getKey() && typeof refreshBalance==="function") refreshBalance(true); },
   });
   return {
@@ -14715,7 +14735,7 @@ function njsRunFor(type, rn, inp, n){
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
-    if(key!==getKey()) throw new DOMException("API key changed", "AbortError");
+    assertRunCredential(key);
     return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
@@ -14868,7 +14888,13 @@ function unconditionalInputConflict(links, byId, ids){
   return competingInputMessage(links, l=> !conditional.has(l.to.node) && inScope(l));
 }
 function isPaidNanoType(type){
+  if(type==="model3d") return true;   // 3D generation is available in the editor.
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
+}
+function assertRunCredential(credential){
+  if(credential===getKey()) return;
+  throw Object.assign(new Error("The NanoGPT account changed while this request was running. Run again with the intended account."),
+    { code:"credential-changed", status:409 });
 }
 function malformedNodeRecordError(nodes){
   if(!Array.isArray(nodes)) return null;
@@ -14892,7 +14918,8 @@ async function runGroup(seedIds, ctx){
   if(malformed){ toast(malformed.message, "err"); return; }
   const unsupported = graph.nodes.find(n=>n._unsupportedNode);
   if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
-  ctx = ctx || (getKey() ? CTX : DEMO_CTX);
+  const credential = getKey();
+  ctx = ctx || (credential ? CTX : DEMO_CTX);
   if(ctx.demo){
     // A custom-endpoint-only branch never talks to NanoGPT — don't wall it behind a key.
     const previewIds = ancestors(seedIds);
@@ -14913,6 +14940,9 @@ async function runGroup(seedIds, ctx){
     if(!mode) return;
     }
   }
+  const runCtx = ctx===CTX ? Object.assign(Object.create(ctx), {
+    getRunCredential(){ assertRunCredential(credential); return credential; },
+  }) : ctx;
   const seedSet = new Set(seedIds.filter(id=> byId(id)));   // the node(s) the user explicitly targeted → always re-roll (never reuse) unless already in-flight
   if(!seedSet.size) return;
   // A second Play on the same seed is Stop (handled by the click handler). Don't start a twin.
@@ -14983,6 +15013,11 @@ async function runGroup(seedIds, ctx){
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
         if(activeDeps.some(d=> failed.has(d))){ failed.add(id); const byGate = activeDeps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
+        const paid = ctx===CTX && isPaidNanoType(n.type);
+        if(paid){
+          try{ assertRunCredential(credential); }
+          catch(error){ failed.add(id); setStatus(n, "error", error.message); return; }
+        }
         activeLinks = activeLinks.filter(l=> l.to.node===id && byId(l.from.node)?.out?.[l.from.port]!=null);
         const conflict = competingInputMessage(activeLinks, ()=>true);
         if(conflict){ failed.add(id); setStatus(n, "error", conflict); return; }
@@ -15058,7 +15093,9 @@ async function runGroup(seedIds, ctx){
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
-        if(isSeeded(rn) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        const reusable = n._sig===sig && n.out && Object.keys(n.out).length &&
+          (!paid || paidOutputCredentials.get(n.out)===credential);
+        if(isSeeded(rn) && reusable){ showResult(n); setStatus(n, "done"); return; }
         // Retry reuse: an ANCESTOR the user did NOT explicitly target this run (not in seedSet) that
         // already SUCCEEDED (has output) with an unchanged signature is surfaced as-is — re-executing
         // it would just re-charge for a byte-identical result. This is what stops a Run-again after a
@@ -15066,10 +15103,9 @@ async function runGroup(seedIds, ctx){
         // it, even when that node has no visible seed (LLM, video). The explicitly targeted node(s)
         // still re-roll (excluded here); poison-propagation already ran above, so a failed upstream
         // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
-        if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        if(!ctx.demo && !seedSet.has(id) && reusable){ showResult(n); setStatus(n, "done"); return; }
         // A sibling Play can join the same request. If its inputs changed while
         // this node was running, wait for the old owner before taking the node.
-        const credential = getKey();
         let priorWork;
         while(typeof nodeWork!=="undefined" && (priorWork = nodeWork.get(id))){
           const sameRequest = priorWork.sig===sig && priorWork.credential===credential && priorWork.ctx===ctx;
@@ -15089,6 +15125,10 @@ async function runGroup(seedIds, ctx){
             failed.add(id);
             if(sameRequest) setStopped(n);
             return;
+          }
+          if(paid){
+            try{ assertRunCredential(credential); }
+            catch(error){ failed.add(id); setStatus(n, "error", error.message); return; }
           }
           if(!sameRequest) continue;
           // A joined failure must never feed a dependent a previous .out.
@@ -15120,10 +15160,11 @@ async function runGroup(seedIds, ctx){
         n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
         try{
           const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
-          try{ const out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
+          try{ const out = await (njsR ? njsR() : t.run(rn, inp, runCtx)) || {};
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
             if(workCancelled || seedAlone){ failed.add(id); setStopped(n); return; }   // Stop invalidates this output for dependents too
+            if(paid){ assertRunCredential(credential); paidOutputCredentials.set(out, credential); }
             n.out = out;
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
@@ -15411,13 +15452,14 @@ const CTX = {
   // single url back, unchanged. Some models (midjourney/higgsfield) ALWAYS return 4 regardless of n —
   // multi callers surface all of them so the user doesn't silently pay for 3 discarded images.
   async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+    const key = this?.getRunCredential?.() ?? getKey();
     opts = opts || {};
     const body = { model, size, n: opts.n||1, response_format:"b64_json" };
     if(prompt) body.prompt = prompt;                     // omit when blank — upscalers run with no instruction; every other path guarantees a non-empty prompt before reaching here
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
-    const headers = authHeaders();
+    const headers = authHeaders(key);
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
@@ -15430,10 +15472,11 @@ const CTX = {
     // GIF output is token-settled: never invent a still sizePrices amount when settlement is absent.
     const gifOut = !!(extra && typeof extra==="object" && String(extra.output_format||"").toLowerCase()==="gif");
     const unit = gifOut ? null : imageUnitUsd(model, size);
-    accrue(j, unit!=null ? unit*rawUrls.length : null, r);
+    accrue(j, unit!=null ? unit*rawUrls.length : null, r, key);
     const urls = [];
     for(const u of rawUrls){
-      try{ urls.push(await resolveContentMedia(u)); }
+      assertRunCredential(key);
+      try{ urls.push(await resolveContentMedia(u, undefined, key)); }
       catch(e){ throw opaqueContentError(e, false); }
     }
     if(opts.items){
@@ -15446,6 +15489,7 @@ const CTX = {
     return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
+    const key = this?.getRunCredential?.() ?? getKey();
     opts = opts || {};
     // withLocale injects "respond in <UI language>" so prose output matches the editor language.
     // Skip it for JSON/structured mode: a "respond in Spanish" directive corrupts json_object output
@@ -15455,11 +15499,11 @@ const CTX = {
     if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-    const headers = authHeaders();
+    const headers = authHeaders(key);
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
-    accrue(j, undefined, r);
+    accrue(j, undefined, r, key);
     const msg = j.choices?.[0]?.message || {};
     const txt = msg.content;
     if(txt==null) throw new Error("no text in response");
@@ -15471,19 +15515,20 @@ const CTX = {
   // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The real
   // price rides usage.cost (input tokens only — decision models generate nothing), so accrue that.
   async genDecision(body){
-    const headers = authHeaders();
+    const key = this?.getRunCredential?.() ?? getKey();
+    const headers = authHeaders(key);
     const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
     const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
-    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r);
+    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r, key);
     return j;
   },
   // Submit, then poll /api/video/status for the accepted job.
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-    const key = getKey();
+    const key = this?.getRunCredential?.() ?? getKey();
     const PENDING_VIDEO = pendingMediaJobs(key).video;
     const headers = authHeaders(key);
     const body = { model };
@@ -15579,6 +15624,7 @@ const CTX = {
       while(true){
         await sleep(Math.min(5000, remainingPollTime()));
         remainingPollTime();
+        assertRunCredential(key);
         let pr, s;
         try{
           pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers, signal:pollSignal});
@@ -15634,7 +15680,7 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
-    const key = getKey();
+    const key = this?.getRunCredential?.() ?? getKey();
     const PENDING_AUDIO = pendingMediaJobs(key).audio;
     const headers = authHeaders(key);
     const signal = runSignal(runKey);
@@ -15720,6 +15766,7 @@ const CTX = {
   // speech→text: multipart upload to /api/v1/audio/transcriptions (audio file + model + language).
   // The in-graph audio is a blob/data URL, so we re-fetch its bytes and post them as a file.
   async transcribe(model, audioUrl, language){
+    const k = this?.getRunCredential?.() ?? getKey();
     let blob;
     try{ blob = await (await fetch(audioUrl, {signal:runSignal()})).blob(); }
     catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(audioUrl, e); }
@@ -15730,7 +15777,7 @@ const CTX = {
     fd.append("file", blob, `audio.${ext}`);    // the endpoint is OpenAI-compatible: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
     fd.append("model", model);
     if(language) fd.append("language", language);
-    const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
+    assertRunCredential(k);   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
     if(!r.ok){ await throwHttp(r, k); }
@@ -15741,7 +15788,7 @@ const CTX = {
     const mUsd = j?.metadata?.cost, dur = +j?.duration;
     const perMin = catItem("audio", model)?.pricing?.per_minute;
     const estUsd = (isFinite(dur) && perMin!=null && isFinite(+perMin)) ? (dur/60)*(+perMin) : null;
-    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd, r);
+    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd, r, k);
     const txt = j.transcription ?? j.text ?? j.data?.transcription ?? j.data?.text;
     if(txt==null) throw new Error("no transcription in response");
     return txt;
@@ -16187,9 +16234,11 @@ async function deliverResolvedMedia(map, runKey, entry, url, signal, key){
   if(runKey && map) map.set(runKey, entry);
   var resolved;
   signal?.throwIfAborted();
+  assertRunCredential(key);
   try{ resolved = await resolveContentMedia(url, signal, key); }
   catch(e){ throw opaqueContentError(e, true); }
   signal?.throwIfAborted();
+  assertRunCredential(key);
   if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
   return resolved;
 }
@@ -16917,6 +16966,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
   while(Date.now()-t0 < 300000){
     await sleep(3000);
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
+    assertRunCredential(key);
     let pr, s;
     try{
       pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers, signal:sig});
@@ -18565,19 +18615,15 @@ function serializeGraph(){
       try{
         const bytes = dataUrlToBytes(model);
         if(bytes.byteLength <= GLB_CAP){
-          node._glbBytes = bytes;
-          node._glbName = uploadedModelName(node.fields);
-          node._glbSize = bytes.byteLength;
+          storeUploadedModel(node, bytes, uploadedModelName(node.fields));
           if(typeof URL!=="undefined" && URL.createObjectURL){
             if(node._glbBlob){ try{ URL.revokeObjectURL(node._glbBlob); }catch(_){} }
             node._glbBlob = URL.createObjectURL(new Blob([bytes], {type:modelFileMime(node._glbName)}));
           }
-          idbPutGlb(node.id, { name:node._glbName, bytes });
         }
       }catch(_){}
     }
     node.fields.model = "";
-    if(node._glbName) node.fields.modelFile = { name:node._glbName, size:node._glbSize||0 };
   }
   const nodes = graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})}));
   graph.nodes.forEach((n,i)=>{
@@ -18594,6 +18640,10 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
+    if(n.type==="mupload" && n.fields.modelFile){
+      const {name,size} = n.fields.modelFile;
+      return {...n, fields:{...n.fields, model:"", modelFile:{name,size,key:null}}};
+    }
     if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}};
     if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(NODE_TYPES, n.type)) return n;
     // An unsupported schema may contain private media or results anywhere in its record.
@@ -18897,14 +18947,25 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
   return true;
 }
-function saveFile(){
-  // FULL fidelity: this is the user's own local backup, not a hand-off — serializeGraph()
-  // keeps their uploaded photos/audio/video + inpaint masks so 📂 Load restores everything.
-  // (Share links / exported apps still go through shareableGraph() to blank that private media.)
-  const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
+async function saveFile(){
+  // A local backup includes uploads, including the 3D bytes normally kept in IndexedDB.
+  const name = typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json";
+  const backup = JSON.parse(JSON.stringify(serializeGraph()));
+  const missing = await Promise.all(backup.nodes.map(async n=>{
+    const stub = n.type==="mupload" ? n.fields.modelFile : null;
+    if(!stub?.name) return false;
+    const bytes = byId(n.id)?._glbBytes || (await readUploadedModel(n.id, stub))?.bytes;
+    if(!bytes) return stub.key !== null;
+    n.fields.model = contentBytesToDataUrl(bytes, modelFileMime(stub.name));
+    n.fields.modelFile = { name:stub.name, size:bytes.byteLength };
+    return false;
+  }));
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
-  toast(t("Saved {name}").replace("{name}", ()=>a.download));   // a browser download alone is easy to miss — confirm on the page too
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  const message = t("Saved {name}").replace("{name}", ()=>a.download);
+  if(missing.some(Boolean)) toast(message + " · Re-drop missing 3D files to include them in a backup.", "warn");
+  else toast(message);
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
@@ -21780,6 +21841,14 @@ async function loadFromHash(){
   const malformed = malformedNodeRecordError(graphData?.nodes);
   if(malformed){ toast(malformed.message, "err"); return false; }
   if(!graphPayloadOk(graphData)) return false;
+  // Older public links carried a filename and size without an IndexedDB key.
+  // Keep the label, but stop those stubs falling back to this browser's node-ID records.
+  if(!ga) for(const node of graphData.nodes){
+    if(node.type==="mupload" && node.fields?.modelFile){
+      const {name,size} = node.fields.modelFile;
+      node.fields.modelFile = {name,size,key:null};
+    }
+  }
   if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed() &&
       typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;

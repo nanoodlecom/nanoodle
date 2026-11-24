@@ -24,7 +24,8 @@ function loadRunner(file) {
     if (!replies.length) throw new DOMException("unexpected extra poll", "AbortError");
     return replies.shift()();
   };
-  const genVideo = vm.runInNewContext(`({${method}}).genVideo`, {
+  const credentialGuard = src.match(/^function assertRunCredential\([^)]*\)\{[\s\S]*?^\}/m)?.[0] || "";
+  const genVideo = vm.runInNewContext(`${credentialGuard}\n({${method}}).genVideo`, {
     AbortController, DOMException, fetch, apiFetch: fetch, send: fetch, credential: "fixture-key",
     ABORT: controller, runSignal: () => controller.signal, runKey: "node",
     Date: { now: () => elapsed }, sleep: async ms => { elapsed += ms; },

@@ -347,8 +347,11 @@ npx nanoodle run walk.json --input m.model=@character.glb --out ./sprites
 ```
 
 Media outputs are saved under `--out` (default `./noodle-out`, created only
-when there is media to save); a JSON run summary always goes to stdout,
-progress lines to stderr; exit code `0` on success, `1` on failure.
+when there is media to save). The JSON run summary goes to stdout, and
+progress lines go to stderr. A failed download or write reports an
+`output-save-failed` error and a null value for that output. The summary
+retains the run cost and other outputs. The CLI exits `0` on success or `1`
+on failure.
 
 - `--input k=@path` — read a file (media as media; `.txt` / `.md` / `.json` as text)
 - `--set k=v` — override a setting (`n3.model=flux-pro`)

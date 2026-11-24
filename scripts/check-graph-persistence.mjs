@@ -358,6 +358,27 @@ const norm = (g) => JSON.stringify({ nodes: pickNodes(g), links: g.links, view: 
   try { ok(saved && JSON.parse(saved).nodes.length === 2, "the autosaved graph must be the newly-applied one (2 nodes)"); } catch (_) { fail("autosaved graph is not valid JSON after a share link"); }
 }
 
+// An old public 3D stub must stay detached across the autosave it creates.
+// A private handoff still needs its legacy node-ID fallback.
+{
+  const modelFile = { name: "model.ply", size: 118 };
+  const graph = { nodes: [{ id: "n1", type: "mupload", fields: { model: "", modelFile } }], links: [] };
+  const json = JSON.stringify(graph);
+  const pack = value => P.bytesToB64url(new TextEncoder().encode(value));
+  for (const [hash, detached] of [
+    ["#j=" + pack(json), true],
+    ["#g=" + P.bytesToB64url(await P.gzip(json)), true],
+    ["#ga=u" + pack(JSON.stringify({ graph })), false],
+  ]) {
+    ctx.location.hash = hash;
+    ok(await P.loadFromHash(), "3D workflow must load via " + hash.split("=")[0]);
+    const saved = JSON.parse(store.get("noodle_graph"))?.nodes[0]?.fields?.modelFile;
+    ok(saved?.name === modelFile.name && saved.size === modelFile.size &&
+      (detached ? saved.key === null : !Object.hasOwn(saved, "key")),
+    "3D file metadata must reflect whether the workflow came from a public link");
+  }
+}
+
 // ===========================================================================
 // 4) PACKING ROUND-TRIP (compressed #g= + uncompressed #j= fallback)
 // ===========================================================================
