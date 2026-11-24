@@ -12316,6 +12316,15 @@ function glbDownloadUrl(n){
   }
   return (typeof n.fields.model==="string" && n.fields.model) ? n.fields.model : "";
 }
+function storeUploadedModel(n, bytes, name){
+  n._glbBytes = bytes;
+  n._glbName = name || "model.glb";
+  n._glbSize = bytes.byteLength;
+  const key = "file:" + newModel3dOutKey();
+  n.fields.model = "";
+  n.fields.modelFile = { name:n._glbName, size:n._glbSize, key };
+  idbPutGlb(key, { name:n._glbName, bytes });
+}
 function putGlbBytes(n, bytes, name){
   const buf = bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset+bytes.byteLength);
   const host = n.el && n.el.querySelector("[data-glb-in]");
@@ -12323,27 +12332,31 @@ function putGlbBytes(n, bytes, name){
     if(host) host.innerHTML = `<div class="glb-err">${esc(t("that 3D file is over 32 MB — try a smaller .glb"))}</div>`;
     return;
   }
-  n._glbBytes = buf;
-  n._glbName = name || "model.glb";
-  n._glbSize = buf.byteLength;
+  storeUploadedModel(n, buf, name);
   if(n._glbBlob){ try{ URL.revokeObjectURL(n._glbBlob); }catch(_){} }
   n._glbBlob = URL.createObjectURL(new Blob([buf], {type:modelFileMime(n._glbName)}));
-  n.fields.model = "";
-  n.fields.modelFile = { name:n._glbName, size:n._glbSize };
   delete n._sig;
   if(host) showUploadedModel(n, host, buf);
   const acts = n.el && n.el.querySelector("[data-macts]");
   if(acts) acts.hidden = false;
-  idbPutGlb(n.id, { name:n._glbName, bytes:buf });
   if(typeof refreshSliceOutputs==="function") refreshSliceOutputs(n);
   save();
+}
+async function readUploadedModel(id, stub){
+  if(!stub?.name) return null;
+  // A shared graph carries a filename for re-upload, with an explicit empty
+  // reference. Older local workflows fall back to their original node-ID key.
+  if(Object.hasOwn(stub, "key") && (typeof stub.key!=="string" || !stub.key)) return null;
+  const rec = await idbGetGlb(stub.key ?? id);
+  if(!rec?.bytes?.byteLength || (rec.name && rec.name !== stub.name) ||
+     (stub.size && rec.bytes.byteLength !== stub.size)) return null;
+  return rec;
 }
 async function restoreUploadedModel(n){
   const stub = n.fields.modelFile;
   if(n._glbBytes || !stub?.name) return;
-  const rec = await idbGetGlb(n.id);
-  if(n._glbBytes || n.fields.modelFile !== stub || !rec?.bytes?.byteLength) return;
-  if((rec.name && rec.name !== stub.name) || (stub.size && rec.bytes.byteLength !== stub.size)) return;
+  const rec = await readUploadedModel(n.id, stub);
+  if(n._glbBytes || n.fields.modelFile !== stub || !rec) return;
   n._glbBytes = rec.bytes;
   n._glbName = rec.name || stub.name;
   n._glbSize = rec.bytes.byteLength;
@@ -18565,19 +18578,15 @@ function serializeGraph(){
       try{
         const bytes = dataUrlToBytes(model);
         if(bytes.byteLength <= GLB_CAP){
-          node._glbBytes = bytes;
-          node._glbName = uploadedModelName(node.fields);
-          node._glbSize = bytes.byteLength;
+          storeUploadedModel(node, bytes, uploadedModelName(node.fields));
           if(typeof URL!=="undefined" && URL.createObjectURL){
             if(node._glbBlob){ try{ URL.revokeObjectURL(node._glbBlob); }catch(_){} }
             node._glbBlob = URL.createObjectURL(new Blob([bytes], {type:modelFileMime(node._glbName)}));
           }
-          idbPutGlb(node.id, { name:node._glbName, bytes });
         }
       }catch(_){}
     }
     node.fields.model = "";
-    if(node._glbName) node.fields.modelFile = { name:node._glbName, size:node._glbSize||0 };
   }
   const nodes = graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})}));
   graph.nodes.forEach((n,i)=>{
@@ -18594,6 +18603,10 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
+    if(n.type==="mupload" && n.fields.modelFile){
+      const {name,size} = n.fields.modelFile;
+      return {...n, fields:{...n.fields, model:"", modelFile:{name,size,key:null}}};
+    }
     if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}};
     if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(NODE_TYPES, n.type)) return n;
     // An unsupported schema may contain private media or results anywhere in its record.
@@ -18897,14 +18910,25 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
   return true;
 }
-function saveFile(){
-  // FULL fidelity: this is the user's own local backup, not a hand-off — serializeGraph()
-  // keeps their uploaded photos/audio/video + inpaint masks so 📂 Load restores everything.
-  // (Share links / exported apps still go through shareableGraph() to blank that private media.)
-  const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
+async function saveFile(){
+  // A local backup includes uploads, including the 3D bytes normally kept in IndexedDB.
+  const name = typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json";
+  const backup = JSON.parse(JSON.stringify(serializeGraph()));
+  const missing = await Promise.all(backup.nodes.map(async n=>{
+    const stub = n.type==="mupload" ? n.fields.modelFile : null;
+    if(!stub?.name) return false;
+    const bytes = byId(n.id)?._glbBytes || (await readUploadedModel(n.id, stub))?.bytes;
+    if(!bytes) return stub.key !== null;
+    n.fields.model = contentBytesToDataUrl(bytes, modelFileMime(stub.name));
+    n.fields.modelFile = { name:stub.name, size:bytes.byteLength };
+    return false;
+  }));
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
-  toast(t("Saved {name}").replace("{name}", ()=>a.download));   // a browser download alone is easy to miss — confirm on the page too
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  const message = t("Saved {name}").replace("{name}", ()=>a.download);
+  if(missing.some(Boolean)) toast(message + " · Re-drop missing 3D files to include them in a backup.", "warn");
+  else toast(message);
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
