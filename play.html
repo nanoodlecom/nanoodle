@@ -18147,6 +18147,11 @@ const PROMPT_CAPS = {
       if(cap && kind && n && n.fields && n.fields.model) learnPromptCap(kind, n.fields.model, cap);
       if(cap) return "this model takes prompts of at most " + cap + " characters — noted. Run again: a longer prompt is trimmed to fit.";
     }
+    // The built-in engine words its auth rejection for terminal/agent users ("check your
+    // NanoGPT key / NANOGPT_API_KEY") — an app viewer pasted a key and has no env var to
+    // check. Translate it to the browser fix: re-copy and paste again. (Mirrors index.html.)
+    const authRej = /^API key rejected \(HTTP (\d+)\)/.exec(m);
+    if(authRej) return "NanoGPT rejected your API key (HTTP " + authRej[1] + ") — re-copy it from nano-gpt.com → Settings → API and paste it again";
     // TypeError gate is load-bearing: thrown "STATUS: body" errors relay API bodies verbatim,
     // and a body saying "Invalid value" must NOT wipe a good key — browser-internal
     // header/network failures are always TypeErrors, ours never are.
@@ -20923,6 +20928,10 @@ const keySendable = (k)=> /^[\x21-\x7E]+$/.test(k);   // printable ASCII — any
 // bodies verbatim and must never wipe a good key — browser header/network failures are TypeErrors.
 function friendlyRunError(err){
   const m = (err && err.message) || String(err);
+  // Engine auth rejection is worded for terminal users (NANOGPT_API_KEY) — translate to the
+  // browser fix, same as the runtime twin above.
+  const authRej = /^API key rejected \(HTTP (\d+)\)/.exec(m);
+  if(authRej) return "NanoGPT rejected your API key (HTTP " + authRej[1] + ") — re-copy it from nano-gpt.com → Settings → API and paste it again";
   if((err instanceof TypeError) && /ISO-8859-1|invalid header|Invalid value/i.test(m)){
     const key = getKey();
     if(key && !keySendable(key)){
