@@ -320,6 +320,15 @@ for (const [endpoint, edit, expected] of [
   ok(!(w.demoBadged || []).length, `no sample badge on a graph we refused to fake (badged=${JSON.stringify(w.demoBadged || [])})`);
 }
 
+{
+  const w = makeWorld(1, false);
+  w.nodes.n0.type = "model3d";
+  w.NODE_TYPES.model3d = w.NODE_TYPES.img;
+  await run(w, "n0", { signedOut: true, customGraph: true });
+  ok(!w.runs.n0 && w.demoPopOpened && w.demoPopMode === null,
+    "the signed-out editor asks for a key before starting a paid 3D model");
+}
+
 // 5b) Signed out on the starter SHAPE with field tweaks → still free-samples (canned results),
 //     but the pill uses "shape" mode so the UI can warn that edits aren't reflected yet.
 {
