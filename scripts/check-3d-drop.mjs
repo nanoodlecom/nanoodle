@@ -146,7 +146,7 @@ ok(SRC.includes("MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5"), "a 3D job warns at
   const start = SRC.indexOf("async genVideo(model, prompt, opts, imageDataUrl, onProgress){");
   const end = SRC.indexOf("\n  },", start);
   assert.ok(start >= 0 && end > start, "editor video runner is present");
-  const source = `({${SRC.slice(start, end + 4)}}).genVideo`;
+  const source = `${extractFn("assertRunCredential")}\n({${SRC.slice(start, end + 4)}}).genVideo`;
   for(const outage of ["HTTP error", "bad JSON", "response body stall", "Stop"]){
     let now = 0, submits = 0, timer, recovered = false;
     const polls = [], jobs = new Map();

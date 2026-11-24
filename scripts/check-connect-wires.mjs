@@ -84,13 +84,14 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 
 // ---- build a runnable bundle from the SHIPPED source ----------------------
 // connect() calls, in order: (PR#231 only) wouldCycle → toast; then pushUndo,
-// graph.links filter/push (lid++), byId, refreshImageInputs, refreshVideoInputs,
+// allocateLinkId, graph.links filter/push, byId, refreshImageInputs, refreshVideoInputs,
 // (inpaint only) rerenderNode, redraw, refreshPortFills, save. topoOrder reads
 // graph.links. We supply spies for the ones we assert on and no-op stubs for the
 // rest, and seed the module-level `lid` link counter.
-let connectFn, topoFn, wouldCycleFn = "";
+let connectFn, allocateLinkIdFn, topoFn, wouldCycleFn = "";
 try {
   connectFn = extractFunction(SRC, "connect");
+  allocateLinkIdFn = extractFunction(SRC, "allocateLinkId");
   topoFn = extractFunction(SRC, "topoOrder");
   if (/function\s+wouldCycle\s*\(/.test(SRC)) wouldCycleFn = extractFunction(SRC, "wouldCycle");  // PR #231
 } catch (e) {
@@ -118,6 +119,7 @@ vm.createContext(ctx);
 const bundle =
   "let lid = 500;\n" +
   wouldCycleFn + "\n" +
+  allocateLinkIdFn + "\n" +
   connectFn + "\n" +
   topoFn + "\n" +
   ";globalThis.__t = { connect, topoOrder };";
@@ -133,6 +135,16 @@ const { connect, topoOrder } = ctx.__t;
 const nodes = (...ids) => ids.map((id) => ({ id, type: "text" }));
 function reset(links) { ctx.graph.links = links || []; spy.pushUndo = spy.refreshImageInputs = spy.refreshVideoInputs = spy.refreshRefInputs = spy.updateNodePrice = spy.toast = 0; }
 const into = (port) => ctx.graph.links.filter((l) => l.to.node === "m" && l.to.port === port);
+
+// Reconnect must avoid IDs already live, including after the last safe counter value.
+ctx.graph.nodes = nodes("a", "b", "m");
+reset([{id: "l1", from: {node: "a", port: "out"}, to: {node: "m", port: "a"}}]);
+vm.runInContext("lid = Number.MAX_SAFE_INTEGER", ctx);
+connect("b", "out", "m", "b");
+ok(into("b")[0]?.id === `l${Number.MAX_SAFE_INTEGER}`, "connect uses the final safe ID without advancing out of range");
+connect("a", "out", "m", "b");
+ok(into("b")[0]?.id === "l2", "connect wraps and preserves the occupied l1 ID");
+ok(vm.runInContext("lid", ctx) === 3, "connect retains a safe next counter after wrapping");
 
 // ---- 1. SINGLE-INPUT-WIRE --------------------------------------------------
 // a→(m,prompt) already wired; wire b→(m,prompt). Neither b nor m has a back-path,

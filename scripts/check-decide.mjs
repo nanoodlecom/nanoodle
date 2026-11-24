@@ -123,8 +123,8 @@ ok(/decide:\s*\{\s*em:"⚖️"/.test(IDX.replace(/\n\s*/g, "")) || /decide:\s*\{
 ok(/decide:\s*\{\s*\n\s*em:"⚖️", title:"Decide"/.test(PLAY), "play.html runtime registers the decide node");
 ok(/DECIDE_ENDPOINT = .*\/api\/v1\/decisions/.test(IDX) && /DECIDE_ENDPOINT = NANOGPT \+ "\/api\/v1\/decisions"/.test(PLAY), "both engines post to NanoGPT /api/v1/decisions (the one allowed host — no Liquid direct call, which has no CORS)");
 for (const [label, src] of [["index.html", IDX], ["play.html", PLAY]]) {
-  const m = /function isPaidNanoType\(type\)\{\s*return \/\^\(([^)]*)\)\$\//.exec(src);
-  ok(m && m[1].split("|").includes("decide"), label + ": decide is a paid NanoGPT type (needs a key)");
+  const m = /function isPaidNanoType\(type\)\{[\s\S]*?^[ \t]*\}/m.exec(src);
+  ok(m && vm.runInNewContext("(" + m[0] + ")")("decide"), label + ": decide is a paid NanoGPT type (needs a key)");
   ok(/err(?:or)? && err\.gate|err\.gate/.test(src) && /gate upstream said no/.test(src), label + ": a closed gate settles as a skip with downstream skipped, not an error");
 }
 // play: decision models only suit decide

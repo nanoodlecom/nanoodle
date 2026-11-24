@@ -1,5 +1,5 @@
-/* data-hash=ed96efd8975b7685 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-2f0281cbebb4 (33 modules) */
+/* data-hash=397fe773e7c8752b */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-e91c497b3215 (35 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -43,8 +43,9 @@ __def("browser.mjs", function (__x, __req) {
 });
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
-const { abortReason, enforceDeadline, startDeadline, throwIfAborted } = __req("deadline.mjs");
-const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { abortReason, enforceDeadline, normalizeTimeoutMs, startDeadline, throwIfAborted } = __req("deadline.mjs");
+const { NODE_TYPES, assertNodeRecord, displayName, isInputPort, lockedNode, materialize, topoSort, wireIssue, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { COMPETING_INPUT_WIRES, competingInputIssues, staticCompetingInputIssues } = __req("input-wires.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 const { MEDIA_INPUT_KINDS, deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
@@ -208,6 +209,13 @@ function isPlainObject(v) {
   return proto === Object.prototype || proto === null;
 }
 
+function isTrimmedAudioInput(entry, graph, byId) {
+  if (entry.kind !== "audio" || byId.get(entry.nodeId)?.type !== "aupload") return false;
+  const destinations = graph.links.filter(link => link.from.node === entry.nodeId);
+  return destinations.length > 0 && destinations.every(({ from, to }) =>
+    from.port === "audio" && to.port === "audio" && byId.get(to.node)?.type === "trim");
+}
+
 class Workflow {
   /**
    * @param {object} graphData parsed noodle-graph.json
@@ -226,7 +234,7 @@ class Workflow {
      * the next run of the same Workflow, which is where a retry actually happens.
      */
     this._promptCaps = new Map();
-    /** Load-time warnings (unknown / unsupported node types). load() only warns; run() fails fast. */
+    /** Load-time graph warnings, including unknown node types and invalid wires. */
     this.warnings = warnings;
     this.client = new NanoClient({
       apiKey: opts.apiKey !== undefined ? opts.apiKey : envApiKey(),
@@ -292,6 +300,22 @@ class Workflow {
     const { settings = {}, defaults = true, timeoutMs, signal, onProgress } = runOpts;
     const graph = this.graph;
 
+    for (const [index, n] of graph.nodes.entries()) {
+      // Workflow.graph can be edited after materialize; validate before scheduling it.
+      assertNodeRecord(n, index);
+      if (n.unknown || !Object.hasOwn(NODE_TYPES, n.type)) {
+        throw new UnsupportedNodeError(
+          `node ${n.id}: unknown node type '${n.type}' — this graph needs a newer nanoodle library`,
+          { nodeId: n.id, nodeType: n.type });
+      }
+    }
+
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    for (const link of graph.links) {
+      const issue = wireIssue(link, byId);
+      if (issue) throw new NanoodleError(issue.message, { code: issue.code });
+    }
+
     // bare scalar → the single required input
     if (!isPlainObject(inputs)) {
       const required = this.inputs.filter((i) => !i.optional);
@@ -322,15 +346,6 @@ class Workflow {
       settingAssignments.push({ entry, value });
     }
 
-    // unknown node types fail fast — before any network call
-    for (const n of graph.nodes) {
-      if (n.unknown) {
-        throw new UnsupportedNodeError(
-          `node ${n.id}: unknown node type '${n.type}' — this graph needs a newer nanoodle library`,
-          { nodeId: n.id, nodeType: n.type });
-      }
-    }
-
     const order = topoSort(graph); // throws naming cyclic nodes
     const branches = planBranches(graph, order.map(n => n.id));
 
@@ -344,19 +359,15 @@ class Workflow {
     for (const { entry, value } of settingAssignments) {
       effFields.get(entry.nodeId)[entry.field] = this._coerceSetting(entry, value);
     }
+    const inputConflict = staticCompetingInputIssues(graph, order, branches, node => effFields.get(node.id))[0];
+    if (inputConflict) throw new NanoodleError(inputConflict, { code: COMPETING_INPUT_WIRES });
     const explicit = new Set();
     for (const { entry, value } of inputAssignments) {
-      effFields.get(entry.nodeId)[entry.field] = this._coerceInput(entry, value, mediaCoerceOpts);
+      // When all uses go through Trim, only the trimmed output can reach a request.
+      const opts = hasNetwork && isTrimmedAudioInput(entry, graph, byId)
+        ? { enforceInlineMax: false } : mediaCoerceOpts;
+      effFields.get(entry.nodeId)[entry.field] = this._coerceInput(entry, value, opts);
       explicit.add(entry);
-    }
-    // vframes: raise frames to highest wired frameK (play.html wiredFramesFloor) so a
-    // persisted frames=1 with frame3 wired doesn't starve the consumer after paid upstream.
-    for (const n of graph.nodes) {
-      if (n.type !== "vframes") continue;
-      const fields = effFields.get(n.id);
-      const floor = wiredFramesFloor(graph, n.id);
-      const cur = Math.max(1, Math.min(MAX_FRAMES, parseInt(fields.frames, 10) || 1));
-      if (floor > cur) fields.frames = String(floor);
     }
     // defaults + required check
     for (const entry of this.inputs) {
@@ -373,6 +384,11 @@ class Workflow {
       }
     }
 
+    const runTimeoutMs = normalizeTimeoutMs(timeoutMs, "run timeoutMs");
+    for (const n of graph.nodes) {
+      normalizeTimeoutMs(effFields.get(n.id).timeoutMs, `node ${n.id} timeoutMs`);
+    }
+
     // API key (or an x402 payment callback) required only when the graph actually calls NanoGPT
     if (!this.client.apiKey && !this.client.payment && hasNetwork) {
       throw new NanoodleError("no API key — pass { apiKey } to Workflow.load/fromJSON, set NANOGPT_API_KEY, or pass { payment } for accountless x402 runs (this workflow calls the NanoGPT API)");
@@ -386,8 +402,8 @@ class Workflow {
       if (signal.aborted) ac.abort(signal.reason);
       else signal.addEventListener("abort", onOuterAbort, { once: true });
     }
-    if (timeoutMs) {
-      timer = startDeadline(ac, timeoutMs, `run timed out after ${timeoutMs}ms`);
+    if (runTimeoutMs != null) {
+      timer = startDeadline(ac, runTimeoutMs, `run timed out after ${runTimeoutMs}ms`);
     }
 
     const emit = (evt) => { if (onProgress) { try { onProgress(evt); } catch { /* listener errors never kill the run */ } } };
@@ -396,7 +412,6 @@ class Workflow {
     const payments = [];
     const canPay = !this.client.apiKey && this.client.payment;
     const cost = { total: 0, exact: true, balance: null };
-    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     const promises = new Map();
     const mediaFetch = this.client.fetch;
 
@@ -477,8 +492,7 @@ class Workflow {
             return {};
           }
         }
-        const inp = {};
-        let fields = effFields.get(n.id);
+        const supplied = [];
         let upstreamFail = null, gatedBy = null, skippedIn = 0;
         for (const l of inbound) {
           let srcOut;
@@ -492,23 +506,7 @@ class Workflow {
             continue;
           }
           const v = srcOut[l.from.port];
-          if (isInputPort(n, l.to.port)) {
-            // Node boundary: a relative content URL from the upstream provider is
-            // resolved (authed redirect → absolute file URL, or inlined bytes)
-            // before this node builds videoUrl / videoDataUrl / audio / image.
-            inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
-              ? await withSignal(() => this.client.resolveContentUrl(v, { signal: ac.signal }), ac.signal)
-              : v;
-          }
-          // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
-          // endpointResolveTarget can join it onto the typed host. Overwriting
-          // fields.url with "/post" rejects the joined URL.
-          else if (n.type === "endpoint" && (l.to.port === "url" || l.to.port === "mode")) {
-            if (v != null) inp[l.to.port] = v;
-          }
-          // wired textarea port = field override; a missing upstream port (degraded save) must
-          // NOT clobber the typed field with undefined — the app only applies v != null
-          else if (v != null) fields = { ...fields, [l.to.port]: v };
+          if (v != null) supplied.push({ link: l, value: v });
         }
         // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
@@ -527,6 +525,33 @@ class Workflow {
           throw new GateSkip(gatedBy);
         }
         throwIfAborted(ac.signal);
+        const conflict = competingInputIssues(supplied.map(({ link }) => link))[0];
+        if (conflict) throw new NanoodleError(conflict, { code: COMPETING_INPUT_WIRES });
+        const inp = {};
+        let fields = effFields.get(n.id);
+        for (const { link, value } of supplied) {
+          const port = link.to.port;
+          if (isInputPort(n, port)) {
+            // Resolve an upstream provider's content URL before the consumer builds its payload.
+            inp[port] = (typeof value === "string" && value && HANDED_MEDIA_PORT.test(port))
+              ? await withSignal(() => this.client.resolveContentUrl(value, { signal: ac.signal }), ac.signal)
+              : value;
+          }
+          // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
+          // endpointResolveTarget can join it onto the typed host.
+          else if (n.type === "endpoint" && (port === "url" || port === "mode")) {
+            inp[port] = value;
+          }
+          else fields = { ...fields, [port]: value };
+        }
+        // The floor applies to the resolved frame count, which a wire can override.
+        // The extractor still uses the requested stride and range.
+        if (n.type === "vframes") {
+          const floor = wiredFramesFloor(graph, n.id);
+          const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(fields.frames, 10) || 1));
+          if (floor > count) fields = { ...fields, frames: String(floor) };
+        }
+        throwIfAborted(ac.signal);
         // Prompt length caps (see prompt-caps.mjs). Many image/video models reject an over-long
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
         // caller has nothing to shorten. Trim it to fit rather than send a request certain to 400,
@@ -537,15 +562,15 @@ class Workflow {
         throwIfAborted(ac.signal);
         const t0 = Date.now();
         // The node deadline covers progress callbacks, the runner and media publication.
-        const timeoutMs = Number(fields.timeoutMs);
-        const timedNode = Number.isFinite(timeoutMs) && timeoutMs > 0;
-        if (timedNode || canPay) {
+        // Incoming wires can override the stored timeout after preflight.
+        const timeoutMs = normalizeTimeoutMs(fields.timeoutMs, `node ${n.id} timeoutMs`);
+        if (timeoutMs != null || canPay) {
           nodeController = new AbortController();
           const onRunAbort = () => nodeController.abort(ac.signal.reason);
           ac.signal.addEventListener("abort", onRunAbort, { once: true });
           unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
           nodeSignal = nodeController.signal;
-          nodeTimer = startDeadline(nodeController, timedNode ? timeoutMs : null, `node timed out after ${timeoutMs}ms`, ac.signal);
+          nodeTimer = startDeadline(nodeController, timeoutMs, `node timed out after ${timeoutMs}ms`, ac.signal);
         }
         rec.started = true;
         emit({ type: "node-start", nodeId: n.id, name: displayName(n) });
@@ -1996,20 +2021,52 @@ __x.runResumableMedia = runResumableMedia;
 });
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
+const { INPUT_SPECS, SETTING_SPECS } = __req("io-specs.mjs");
+const { planBranches } = __req("branches.mjs");
+const { competingInputIssues, staticCompetingInputIssues } = __req("input-wires.mjs");
 
-/* Dynamic input-port families (mirrors the nanoodle app's runGraph). A wire landing on one of
-   these ports — or on a port declared in NODE_TYPES[type].inputs — is a data input; a wire
-   landing on ANY other port is a field override (wired prompt/system/lyrics/q/...). */
+/* Dynamic input-port families also used by the runners to collect their values. */
 const IMG_PORT_RE = /^img\d*$/;      // llm vision references, decide candidates
 const EDIT_IMG_RE = /^image\d*$/;    // edit multi-reference: image, image2, ...
 const VID_PORT_RE = /^vid\d*$/;
 const CLIP_PORT_RE = /^clip\d*$/;    // combine clips
 const REF_PORT_RE = /^ref\d*$/;      // tvideo reference images
-const FRAME_PORT_RE = /^frame\d+$/;  // vframes outputs
+const FRAME_PORT_RE = /^frame[1-9]\d*$/;  // vframes outputs
 const MAX_FRAMES = 48;
 
-const DYNAMIC_INPUT_RES = [IMG_PORT_RE, EDIT_IMG_RE, VID_PORT_RE, CLIP_PORT_RE, REF_PORT_RE];
-const DYNAMIC_INPUT_NAMES = new Set(["audio", "endframe"]);
+const DYNAMIC_INPUTS = new Map([
+  ["llm", [IMG_PORT_RE]],
+  ["decide", [IMG_PORT_RE]],
+  ["edit", [EDIT_IMG_RE]],
+  ["tvideo", [REF_PORT_RE]],
+  ["vedit", [REF_PORT_RE]],
+  ["combine", [VID_PORT_RE, CLIP_PORT_RE]],
+]);
+
+// Runtime-consumed fields that aren't surfaced as workflow inputs or settings.
+const LORA_FIELDS = ["loras", "loraUrl", "loraStrength"];
+const IMAGE_FIELDS = ["modelOpts", "aspect", "customCivitaiAir", "negativePrompt", ...LORA_FIELDS];
+const VIDEO_FIELDS = ["modelOpts", ...LORA_FIELDS];
+const AUDIO_FIELDS = ["response_format", "extraJson"];
+const EXTRA_WIRED_FIELDS = new Map([
+  ["upload", ["optional"]],
+  ["aupload", ["optional"]],
+  ["vupload", ["optional"]],
+  ["mupload", ["optional"]],
+  ["choice", ["options", "selected"]],
+  ["image", ["sel", ...IMAGE_FIELDS]],
+  ["edit", IMAGE_FIELDS],
+  ["inpaint", ["prompt", ...IMAGE_FIELDS]],
+  ["tvideo", VIDEO_FIELDS],
+  ["ivideo", VIDEO_FIELDS],
+  ["vedit", ["aspect", "duration", ...VIDEO_FIELDS]],
+  ["lipsync", ["aspect", "duration", "modelOpts"]],
+  ["model3d", ["modelOpts"]],
+  ["music", AUDIO_FIELDS],
+  ["remix", AUDIO_FIELDS],
+  ["tts", AUDIO_FIELDS],
+  ["endpoint", ["system", "size"]],
+]);
 
 /**
  * Highest frameN port wired OUT of a vframes node. fields.frames is shape-affecting:
@@ -2021,8 +2078,8 @@ function wiredFramesFloor(graph, nodeId) {
   let floor = 1;
   for (const l of (graph && graph.links) || []) {
     if (l.from.node !== nodeId) continue;
-    const m = /^frame(\d+)$/.exec(String(l.from.port));
-    if (m) floor = Math.max(floor, parseInt(m[1], 10) || 1);
+    const port = String(l.from.port);
+    if (FRAME_PORT_RE.test(port)) floor = Math.max(floor, Number(port.slice(5)));
   }
   return Math.min(floor, MAX_FRAMES);
 }
@@ -2030,6 +2087,7 @@ function wiredFramesFloor(graph, nodeId) {
 /**
  * Node-type registry (execution-relevant subset of the app's NODE_TYPES).
  * flags: local (pure logic / on-device media) | network (calls NanoGPT) | note.
+ * extraSourcePorts lists runtime outputs that are absent from the standard port list.
  * Local media: pure-JS first (MP4CAT / PCM-WAV / PNG); ffmpeg on PATH is the heavy fallback.
  */
 const NODE_TYPES = {
@@ -2042,17 +2100,17 @@ const NODE_TYPES = {
   mupload: { title: "3D input",        inputs: [], outputs: [{ name: "model", type: "model3d" }], local: true },
   choice:  { title: "Choice",          inputs: [], outputs: [{ name: "text", type: "text" }], local: true },
   join:    { title: "Join",            inputs: ["a", "b"], outputs: [{ name: "text", type: "text" }], local: true },
-  llm:     { title: "LLM",             inputs: [], outputs: [{ name: "text", type: "text" }], network: true },
-  image:   { title: "Image",           inputs: [], outputs: [{ name: "image", type: "image" }], network: true },
-  edit:    { title: "Edit",            inputs: [], outputs: [{ name: "image", type: "image" }], network: true },
-  inpaint: { title: "Inpaint",         inputs: ["image", "mask"], outputs: [{ name: "image", type: "image" }], network: true },
+  llm:     { title: "LLM",             inputs: ["audio", "video"], outputs: [{ name: "text", type: "text" }], network: true },
+  image:   { title: "Image",           inputs: [], outputs: [{ name: "image", type: "image" }], extraSourcePorts: ["images"], network: true },
+  edit:    { title: "Edit",            inputs: [], outputs: [{ name: "image", type: "image" }], extraSourcePorts: ["images", "layers"], network: true },
+  inpaint: { title: "Inpaint",         inputs: ["image", "mask"], outputs: [{ name: "image", type: "image" }], extraSourcePorts: ["images", "layers"], network: true },
   resize:  { title: "Resize / crop",   inputs: ["image"], outputs: [{ name: "image", type: "image" }], local: true },
   vision:  { title: "Vision",          inputs: ["image"], outputs: [{ name: "text", type: "text" }], network: true },
-  decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
+  decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], extraSourcePorts: ["yes", "no", "decision"], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
-  ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
+  ivideo:  { title: "Image→Video",     inputs: ["image", "endframe"], outputs: [{ name: "video", type: "video" }], network: true },
   model3d: { title: "3D model",        inputs: ["image", "model"], outputs: [{ name: "model", type: "model3d" }], network: true },
-  vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
+  vedit:   { title: "Video edit",      inputs: ["video", "image"], outputs: [{ name: "video", type: "video" }], network: true },
   vframes: { title: "Video → frames",  inputs: ["video"], outputs: [{ name: "frame1", type: "image" }], local: true, framesOut: true }, // dynamic frame1..N
   render3d: { title: "Render 3D",      inputs: ["model"], outputs: [{ name: "image", type: "image" }, { name: "video", type: "video" }], local: true },
   combine: { title: "Combine videos",  inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
@@ -2067,7 +2125,7 @@ const NODE_TYPES = {
   cleanvoice: { title: "Clean voice", inputs: ["audio", "video"], outputs: [{ name: "audio", type: "audio" }], network: true },
   // Custom URL — not a NanoGPT call, so `network` stays unset (no API key required).
   // Output port follows the selected route mode (see deriveOutputs / endpointOutPort).
-  endpoint: { title: "Custom endpoint", inputs: ["text", "image", "audio", "video"], outputs: [{ name: "text", type: "text" }] },
+  endpoint: { title: "Custom endpoint", inputs: ["text", "image", "audio", "video"], outputs: [{ name: "text", type: "text" }], extraSourcePorts: ["image", "audio", "video", "images"] },
   comment: { title: "Comment",         inputs: [], outputs: [], note: true, local: true },
 };
 
@@ -2099,9 +2157,43 @@ function lockedNode(node) {
 /** Is a wire landing on `port` of `node` a data input (vs a field override)? */
 function isInputPort(node, port) {
   const t = NODE_TYPES[node.type];
-  if (t && (t.inputs || []).includes(port)) return true;
-  if (DYNAMIC_INPUT_NAMES.has(port)) return true;
-  return DYNAMIC_INPUT_RES.some((re) => re.test(port));
+  return t?.inputs?.includes(port) || DYNAMIC_INPUTS.get(node.type)?.some((re) => re.test(port));
+}
+
+/** Check the possible source ports without depending on what a particular run emits. */
+function isSourcePort(source, port) {
+  const type = NODE_TYPES[source.type];
+  return type?.outputs?.some(output => output.name === port) || type?.extraSourcePorts?.includes(port) ||
+    (type?.framesOut && FRAME_PORT_RE.test(port) && Number(port.slice(5)) <= MAX_FRAMES);
+}
+
+function isTargetPort(target, port) {
+  return isInputPort(target, port) ||
+    INPUT_SPECS[target.type]?.some(spec => spec.f === port) ||
+    SETTING_SPECS[target.type]?.some(spec => spec.f === port) ||
+    EXTRA_WIRED_FIELDS.get(target.type)?.includes(port) ||
+    (port === "timeoutMs" && !NODE_TYPES[target.type].note);
+}
+
+/** Report the first problem with a link, using the same checks on load and before a run. */
+function wireIssue({ from, to }, byId) {
+  const source = byId.get(from.node);
+  const target = byId.get(to.node);
+  const wire = `wire ${from.node ?? "(missing)"}.${from.port} → ${to.node ?? "(missing)"}.${to.port}`;
+  if (!source) return { code: "missing-wire-node", message: `${wire} references missing source node "${from.node ?? ""}"` };
+  if (!target) return { code: "missing-wire-node", message: `${wire} references missing target node "${to.node ?? ""}"` };
+  if (!source.unknown && !isSourcePort(source, from.port)) {
+    return { code: "invalid-source-port", message: `${wire} uses undeclared source port "${from.port}" on ${displayName(source)}` };
+  }
+  if (!target.unknown && !isTargetPort(target, to.port)) {
+    return { code: "invalid-target-port", message: `${wire} uses undeclared target port "${to.port}" on ${displayName(target)}` };
+  }
+  if (target.type === "llm" && to.port === "video") {
+    return {
+      code: "unsupported-target-port",
+      message: `${wire} uses unsupported LLM input "video" in the JavaScript executor. Run this workflow in the nanoodle editor or player to use the clip.`,
+    };
+  }
 }
 
 /**
@@ -2141,13 +2233,31 @@ function scrubMediaPlaceholders(n, warnings) {
   }
 }
 
+function nonblankString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/** Reject structurally invalid records before normalizing their IDs or types. */
+function assertNodeRecord(node, index) {
+  let issue;
+  if (!node || typeof node !== "object" || Array.isArray(node)) {
+    issue = "must be an object";
+  } else if (!Object.hasOwn(node, "id") || !(nonblankString(node.id) || Number.isFinite(node.id))) {
+    issue = "has a missing or invalid id (expected a non-empty string or finite number)";
+  } else if (!Object.hasOwn(node, "type") || !nonblankString(node.type)) {
+    issue = "has a missing or invalid type (expected a non-empty string)";
+  }
+  if (issue) throw new NanoodleError(`node at position ${index + 1} ${issue}`, { code: "invalid-node-record" });
+}
+
 /**
  * Load raw parsed graph JSON into an executable graph (mirrors the app's applyGraphData):
+ * - malformed node records are rejected with their position in the nodes array
  * - `audio` type aliases to `tts` (legacy saves)
  * - unknown node types are KEPT but flagged (`unknown: true`) + a warning; run() fails fast on them
  * - media fields that aren't a data:/http(s) URL (prose placeholders, file paths) are blanked + a warning
- * - links are kept only when both endpoints exist
  * - links into music/tts port "text" migrate to "prompt"
+ * - links with missing nodes or undeclared ports are kept with a warning so they can be repaired
  * @returns {{ nodes, links, warnings: string[] }}
  */
 function materialize(data) {
@@ -2157,15 +2267,15 @@ function materialize(data) {
   const warnings = [];
   const nodes = [];
   const seenIds = new Set();
-  for (const raw of data.nodes) {
-    if (!raw || raw.id == null || !raw.type) continue;
+  for (const [index, raw] of data.nodes.entries()) {
+    assertNodeRecord(raw, index);
     const id = String(raw.id);
     if (seenIds.has(id)) throw new NanoodleError(`duplicate node id "${id}" — every node must have a unique id`);
     seenIds.add(id);
     const type = raw.type === "audio" ? "tts" : raw.type === "decide-branch" ? "decide" : raw.type;
-    const n = { id: String(raw.id), type, name: raw.name, fields: { ...(raw.fields || {}) } };
+    const n = { id, type, name: raw.name, fields: { ...(raw.fields || {}) } };
     if (raw.type === "decide-branch") n.fields.branch = true;
-    if (!NODE_TYPES[type]) {
+    if (!Object.hasOwn(NODE_TYPES, type)) {
       n.unknown = true;
       warnings.push(`unknown node type "${raw.type}" (node ${n.id}) — kept, but running this workflow will fail; you may need a newer nanoodle library`);
     } else {
@@ -2173,19 +2283,36 @@ function materialize(data) {
     }
     nodes.push(n);
   }
-  const ids = new Set(nodes.map((n) => n.id));
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const links = [];
+  const validLinks = [];
   for (const l of data.links || []) {
-    if (!l || !l.from || !l.to) continue;
-    const from = { node: String(l.from.node), port: String(l.from.port) };
-    const to = { node: String(l.to.node), port: String(l.to.port) };
-    if (!ids.has(from.node) || !ids.has(to.node)) continue;
+    const from = normalizeEndpoint(l?.from);
+    const to = normalizeEndpoint(l?.to);
     const toNode = byId.get(to.node);
-    if ((toNode.type === "music" || toNode.type === "tts") && to.port === "text") to.port = "prompt"; // legacy port migration
-    links.push({ id: l.id, from, to });
+    if ((toNode?.type === "music" || toNode?.type === "tts") && to.port === "text") to.port = "prompt"; // legacy port migration
+    const link = { id: l?.id, from, to };
+    const issue = wireIssue(link, byId);
+    if (issue) warnings.push(issue.message);
+    else validLinks.push(link);
+    links.push(link);
+  }
+  if (competingInputIssues(validLinks).length) {
+    const validGraph = { nodes, links: validLinks };
+    try {
+      const order = topoSort(validGraph);
+      const branches = planBranches(validGraph, order.map(node => node.id));
+      warnings.push(...staticCompetingInputIssues(validGraph, order, branches));
+    } catch (error) {
+      if (!(error instanceof NanoodleError)) throw error;
+      // Invalid routing or cycles will be reported by run's graph preflight.
+    }
   }
   return { nodes, links, warnings };
+}
+
+function normalizeEndpoint(endpoint) {
+  return { node: endpoint?.node == null ? null : String(endpoint.node), port: String(endpoint?.port ?? "") };
 }
 
 /**
@@ -2196,7 +2323,9 @@ function topoSort(graph) {
   const indeg = new Map(graph.nodes.map((n) => [n.id, 0]));
   const outAdj = new Map(graph.nodes.map((n) => [n.id, []]));
   for (const l of graph.links) {
-    indeg.set(l.to.node, (indeg.get(l.to.node) || 0) + 1);
+    // Inspection still sorts the existing nodes when a retained wire dangles.
+    if (!indeg.has(l.from.node) || !indeg.has(l.to.node)) continue;
+    indeg.set(l.to.node, indeg.get(l.to.node) + 1);
     outAdj.get(l.from.node).push(l.to.node);
   }
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
@@ -2217,7 +2346,7 @@ function topoSort(graph) {
   return order;
 }
 
-__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
+__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.wireIssue = wireIssue; __x.assertNodeRecord = assertNodeRecord; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
 const { slice3d, renderSpriteStack } = __req("sprite-stack.mjs");
@@ -3204,12 +3333,15 @@ const { NanoodleError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 const { CHARACTER_SLICE_DEFAULTS } = __req("sprite-slices.mjs");
+const { INPUT_SPECS, SETTING_SPECS } = __req("io-specs.mjs");
+
+__x.INPUT_SPECS = INPUT_SPECS; __x.SETTING_SPECS = SETTING_SPECS;
 
 // Allocate the final key, not just a count of the unsuffixed name: an authored
 // "Out 2" can otherwise collide with the suffix generated for a second "Out".
-function uniqueKey(base, used, reserved = new Set()) {
+function uniqueKey(base, used, isReserved) {
   let key = base;
-  for (let suffix = 2; used.has(key.toLowerCase()) || reserved.has(key.toLowerCase()); suffix++) key = base + " " + suffix;
+  for (let suffix = 2; used.has(key.toLowerCase()) || isReserved(key.toLowerCase()); suffix++) key = base + " " + suffix;
   used.add(key.toLowerCase());
   return key;
 }
@@ -3217,25 +3349,6 @@ function uniqueKey(base, used, reserved = new Set()) {
 /* ============================== INPUTS ============================== */
 
 const MEDIA_INPUT_KINDS = new Set(["image", "audio", "video", "model3d", "inpaint"]);
-
-/** Which node types contribute user inputs, and with what fields (mirrors play.html INPUT_SPECS). */
-const INPUT_SPECS = {
-  text:    [{ f: "text",   label: "Text",  kind: "textarea" }],
-  upload:  [{ f: "image",  label: "Image", kind: "image" }],
-  aupload: [{ f: "audio",  label: "Audio", kind: "audio" }],
-  vupload: [{ f: "video",  label: "Video", kind: "video" }],
-  mupload: [{ f: "model",  label: "3D file", kind: "model3d" }],
-  llm:     [{ f: "prompt", label: "Prompt", kind: "textarea" },
-            { f: "system", label: "System prompt", kind: "textarea", optional: true, def: "You are a helpful, concise assistant." }],
-  image:   [{ f: "prompt", label: "Image prompt", kind: "textarea" }],
-  tvideo:  [{ f: "prompt", label: "Video prompt", kind: "textarea" }],
-  music:   [{ f: "prompt", label: "Style / prompt", kind: "textarea" }],
-  remix:   [{ f: "prompt", label: "Style / direction", kind: "textarea" }],
-  tts:     [{ f: "prompt", label: "Text to speak", kind: "textarea" }],
-  // Optional: image-only 3D models run with a photo and no prompt.
-  model3d: [{ f: "prompt", label: "3D prompt", kind: "textarea", optional: true }],
-  endpoint:[{ f: "prompt", label: "Prompt", kind: "textarea" }],
-};
 
 /**
  * Derive the workflow's user inputs: INPUT_SPECS fields not fed by a wire, plus the
@@ -3283,21 +3396,39 @@ function deriveInputs(graph) {
     if (!specs) continue;
     for (const s of specs) {
       if (fed(n.id, s.f)) continue;
-      entries.push(mk(n, s.f, s.label, s.kind, s.optional, s.def));
+      const optional = s.optional || (n.type === "endpoint" && s.f === "prompt" && fed(n.id, "text"));
+      entries.push(mk(n, s.f, s.label, s.kind, optional, s.def));
     }
   }
   // Friendly keys: a node's custom name labels its input when it contributes exactly one
   // REQUIRED input (app PR #138) — or exactly one input at all, so an author-optional
   // renamed node (e.g. an optional "Style reference" upload) keeps its name as the key.
-  // Otherwise the generic spec label. Dedupe with " 2", " 3".
+  // Otherwise the generic spec label. Suffix collisions with other names or addresses.
+  const byNode = new Map();
+  for (const e of entries) {
+    if (!byNode.has(e.nodeId)) byNode.set(e.nodeId, []);
+    byNode.get(e.nodeId).push(e);
+  }
+  const reserved = new Map();
+  const reserve = (address, owner) => {
+    const key = address.trim().toLowerCase();
+    reserved.set(key, reserved.has(key) && reserved.get(key) !== owner ? null : owner);
+  };
+  for (const e of entries) {
+    reserve(`${e.nodeId}.${e.field}`, e);
+    if (byNode.get(e.nodeId).length === 1) reserve(e.nodeId, e);
+  }
+  for (const { to } of graph.links) {
+    if (to.node != null) reserve(`${to.node}.${to.port}`, null);
+  }
   const used = new Set();
   for (const e of entries) {
-    const nodeEntries = entries.filter((x) => x.nodeId === e.nodeId);
+    const nodeEntries = byNode.get(e.nodeId);
     const required = nodeEntries.filter((x) => !x.optional);
     const custom = (e._node.name || "").trim();
     const names = (required.length === 1 && required[0] === e) ||
                   (required.length === 0 && nodeEntries.length === 1);
-    e.key = uniqueKey(custom && names ? custom : e.label, used);
+    e.key = uniqueKey(custom && names ? custom : e.label, used, key => reserved.has(key) && reserved.get(key) !== e);
   }
   for (const e of entries) delete e._node;
   return entries;
@@ -3311,12 +3442,44 @@ function ambiguous(userKey, candidates) {
 
 /**
  * Resolve a user-supplied input name to a derived input entry (case-insensitive, trimmed).
- * Order: derived key → exact node custom name → nodeId.field / bare nodeId → label/field if unique.
+ * Order: derived key → nodeId.field / bare nodeId → node custom name → label/field if unique.
  */
 function resolveInputKey(graph, inputs, userKey) {
-  const norm = String(userKey).trim().toLowerCase();
+  const spelling = String(userKey).trim();
+  const norm = spelling.toLowerCase();
   const byKey = inputs.filter((i) => i.key.toLowerCase() === norm);
   if (byKey.length === 1) return byKey[0];
+
+  const dot = spelling.lastIndexOf(".");
+  if (dot > 0) {
+    const head = spelling.slice(0, dot);
+    const field = spelling.slice(dot + 1).toLowerCase();
+    const canonical = new Map(inputs.filter(i => `${i.nodeId}.${i.field}`.trim().toLowerCase() === norm)
+      .map(i => [i.nodeId, i]));
+    for (const { to } of graph.links) {
+      if (to.node != null && `${to.node}.${to.port}`.trim().toLowerCase() === norm) {
+        canonical.set(to.node, null);
+      }
+    }
+    const addressed = canonical.has(head) ? [head] : [...canonical.keys()];
+    if (addressed.length === 1) {
+      const input = canonical.get(addressed[0]);
+      if (input) return input;
+      throw new NanoodleError(`"${userKey}" is wired from another node in this workflow and can't be supplied as an input`);
+    }
+    if (addressed.length > 1) {
+      const keys = addressed.map(id => {
+        const input = canonical.get(id);
+        return input ? `${id}.${input.field}` : `${id}.${field} (wired)`;
+      });
+      throw new NanoodleError(`input "${userKey}" is ambiguous — matches ${keys.join(", ")}`);
+    }
+  }
+  const byNode = inputs.filter(i => i.nodeId.trim().toLowerCase() === norm);
+  const exact = byNode.filter(i => i.nodeId === spelling);
+  const addressed = exact.length ? exact : byNode;
+  if (addressed.length === 1) return addressed[0];
+  if (addressed.length > 1) throw ambiguous(userKey, addressed);
 
   const named = graph.nodes.filter((n) => (n.name || "").trim().toLowerCase() === norm);
   if (named.length) {
@@ -3324,20 +3487,6 @@ function resolveInputKey(graph, inputs, userKey) {
     if (cand.length === 1) return cand[0];
     if (cand.length > 1) throw ambiguous(userKey, cand);
   }
-
-  const dot = norm.lastIndexOf(".");
-  if (dot > 0) {
-    const nid = norm.slice(0, dot), field = norm.slice(dot + 1);
-    const hit = inputs.find((i) => i.nodeId.toLowerCase() === nid && i.field.toLowerCase() === field);
-    if (hit) return hit;
-    const node = graph.nodes.find((n) => n.id.toLowerCase() === nid);
-    if (node && graph.links.some((l) => l.to.node === node.id && l.to.port.toLowerCase() === field)) {
-      throw new NanoodleError(`"${userKey}" is wired from another node in this workflow and can't be supplied as an input`);
-    }
-  }
-  const byNode = inputs.filter((i) => i.nodeId.toLowerCase() === norm);
-  if (byNode.length === 1) return byNode[0];
-  if (byNode.length > 1) throw ambiguous(userKey, byNode);
 
   const byLabel = inputs.filter((i) => i.label.toLowerCase() === norm || i.field.toLowerCase() === norm);
   if (byLabel.length === 1) return byLabel[0];
@@ -3367,7 +3516,7 @@ function deriveOutputs(graph) {
   const used = new Set();
   return sinks.map((n) => {
     const aliases = new Set(sinks.filter(other => other.id !== n.id).map(other => other.id.toLowerCase()));
-    const key = uniqueKey(displayName(n), used, aliases);
+    const key = uniqueKey(displayName(n), used, key => aliases.has(key));
     const t = NODE_TYPES[n.type];
     let ports = t.outputs.map((p) => ({ ...p }));
     // vframes grows frame1..frameN from max(fields.frames, wired floor) (mirrors browser)
@@ -3385,179 +3534,6 @@ function deriveOutputs(graph) {
 }
 
 /* ============================== SETTINGS ============================== */
-
-// Option lists verbatim from play.html (SIZES line 897, DURATIONS line 3232).
-const SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
-const DURATIONS = ["5", "10"];
-
-/** Per-node knobs that are not part of the IO shape (mirrors play.html SETTING_SPECS). */
-const SETTING_SPECS = {
-  llm: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
-    { f: "maxTokens", label: "Max tokens", kind: "number" },
-    { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
-    { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
-    { f: "showThinking", label: "Show thinking", kind: "boolean" },
-  ],
-  vision: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "q", label: "Question", kind: "textarea", def: "Describe this image." },
-  ],
-  decide: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "mode", label: "Decide", kind: "select", options: ["pick", "choose", "score", "yesno"], def: "pick" },
-    { f: "question", label: "Question", kind: "textarea" },
-    { f: "options", label: "Labels (one per line)", kind: "textarea" },
-    { f: "levels", label: "Scale (worst → best, one per line)", kind: "textarea", def: "poor\nokay\ngood\ngreat" },
-    { f: "gate", label: "Gate: stop downstream on no", kind: "boolean" },
-  ],
-  image: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
-    { f: "variations", label: "Variations", kind: "number", def: "1" },
-    { f: "seed", label: "Seed", kind: "number" },
-  ],
-  edit: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "prompt", label: "Edit instruction", kind: "textarea" },
-    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
-    { f: "seed", label: "Seed", kind: "number" },
-  ],
-  tvideo: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "resolution", label: "Resolution", kind: "select", def: "" },
-    { f: "aspect", label: "Aspect ratio", kind: "select", options: ["16:9", "9:16", "1:1", "4:3", "3:4"], def: "16:9" },
-    { f: "duration", label: "Duration", kind: "select", options: DURATIONS, def: "5" },
-  ],
-  ivideo: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "prompt", label: "Motion prompt", kind: "textarea" },
-    { f: "resolution", label: "Resolution", kind: "select", def: "" },
-    { f: "aspect", label: "Aspect ratio", kind: "select", options: ["16:9", "9:16", "1:1", "4:3", "3:4"], def: "16:9" },
-    { f: "duration", label: "Duration", kind: "select", options: DURATIONS, def: "5" },
-  ],
-  vedit: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "prompt", label: "Edit instruction", kind: "textarea" },
-    { f: "resolution", label: "Resolution", kind: "select", def: "" },
-  ],
-  lipsync: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "prompt", label: "Guidance prompt", kind: "textarea" },
-    { f: "resolution", label: "Resolution", kind: "select", def: "" },
-  ],
-  music: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "lyrics", label: "Lyrics", kind: "textarea" },
-    { f: "instrumental", label: "Instrumental", kind: "boolean" },
-    { f: "duration", label: "Duration (s)", kind: "number" },
-    { f: "negative_prompt", label: "Negative prompt", kind: "textarea" },
-    { f: "seed", label: "Seed", kind: "number" },
-  ],
-  remix: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "lyrics", label: "Lyrics", kind: "textarea" },
-    { f: "duration", label: "Duration (s)", kind: "number" },
-  ],
-  tts: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "voice", label: "Voice", kind: "text" },
-    { f: "speed", label: "Speed", kind: "number", def: "1" },
-    { f: "instructions", label: "Voice instructions", kind: "textarea" },
-  ],
-  transcribe: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "language", label: "Language", kind: "text", def: "auto" },
-  ],
-  cleanvoice: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "url", label: "Public link (when nothing is wired)", kind: "text" },
-  ],
-  model3d: [
-    { f: "model", label: "Model", kind: "model" },
-  ],
-  endpoint: [
-    { f: "url", label: "URL", kind: "text", def: "http://127.0.0.1:8787/v1/chat/completions" },
-    { f: "mode", label: "Mode", kind: "select", options: ["chat", "image", "video", "audio", "json"], def: "chat" },
-    { f: "model", label: "Model", kind: "text", def: "local" },
-    { f: "auth", label: "Authorization (optional)", kind: "text", def: "" },
-  ],
-  join: [{ f: "sep", label: "Separator (use \\n for a line break)", kind: "text", def: " " }],
-  inpaint: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
-    { f: "seed", label: "Seed", kind: "number" },
-  ],
-  // local media knobs (play.html SETTING_SPECS) — shape-affecting fields for vframes/combine
-  "slice-3d": [
-    { f: "preset", label: "Preset", kind: "select", options: ["default", "character"], def: "default" },
-    { f: "clip", label: "Animation clip", kind: "text", def: "" },
-    { f: "frames", label: "Pose frames", kind: "number", min: 1, max: 64, def: "1" },
-    { f: "slices", label: "Slices", kind: "number", min: 8, max: 128, def: "48" },
-    { f: "resolution", label: "Tile resolution", kind: "number", min: 16, max: 128, def: "48" },
-    { f: "palette", label: "Palette colors", kind: "number", min: 0, max: 64, def: "16" },
-    { f: "outline", label: "Outline", kind: "boolean", def: true },
-    { f: "upAxis", label: "Up axis", kind: "select", options: ["auto", "x", "y", "z"], def: "auto" },
-  ],
-  "sprite-stack-render": [
-    { f: "yaw", label: "Yaw (degrees)", kind: "number", def: "35" },
-    { f: "pitch", label: "Pitch (degrees)", kind: "number", min: 0, max: 90, def: "30" },
-    { f: "spacing", label: "Layer spacing", kind: "number", min: 0, max: 4, def: "1" },
-    { f: "scale", label: "Pixel scale", kind: "number", min: 1, max: 8, def: "3" },
-    { f: "turntable", label: "Record turntable", kind: "boolean", def: false },
-    { f: "duration", label: "Duration (s)", kind: "number", min: 0.25, max: 30, def: "3" },
-    { f: "fps", label: "Frames per second", kind: "number", min: 1, max: 60, def: "24" },
-    { f: "yawStart", label: "Start yaw", kind: "number", def: "0" },
-    { f: "yawEnd", label: "End yaw", kind: "number", def: "360" },
-  ],
-  resize: [
-    { f: "mode", label: "Mode", kind: "select", options: ["fit", "fill", "exact"], def: "fit" },
-    { f: "width", label: "Width", kind: "number" },
-    { f: "height", label: "Height", kind: "number" },
-  ],
-  vframes: [
-    { f: "dir", label: "Start from", kind: "select", options: ["end", "start"], def: "end" },
-    { f: "frames", label: "Frames", kind: "number", def: "1", min: 1, max: 48 },
-    { f: "gap", label: "Gap (s)", kind: "number", def: "0.5" },
-    { f: "stride", label: "Stride (every Nth frame)", kind: "number", def: "1", min: 1 },
-    { f: "startSec", label: "Range start (s)", kind: "number" },
-    { f: "endSec", label: "Range end (s)", kind: "number" },
-  ],
-  render3d: [
-    { f: "mode", label: "Output", kind: "select", options: ["image", "video"], def: "image" },
-    { f: "azimuth", label: "Azimuth (deg)", kind: "number", def: "35" },
-    { f: "elevation", label: "Elevation (deg)", kind: "number", def: "18" },
-    { f: "distance", label: "Distance (× size)", kind: "number", def: "1.9" },
-    { f: "width", label: "Width", kind: "number", def: "800" },
-    { f: "height", label: "Height", kind: "number", def: "600" },
-    { f: "background", label: "Background", kind: "select", options: ["dark", "light", "transparent"], def: "dark" },
-    { f: "clipAxis", label: "Slice axis", kind: "select", options: ["none", "x", "y", "z"], def: "none" },
-    { f: "clipPos", label: "Slice position (-1..1)", kind: "number", def: "0" },
-    { f: "clipSweep", label: "Video: sweep the slice", kind: "boolean" },
-    { f: "explode", label: "Explode parts (0..1)", kind: "number", def: "0" },
-    { f: "isolate", label: "Isolate part (index, name, or largest)", kind: "text" },
-    { f: "animClip", label: "Animation clip (name or index)", kind: "text" },
-    { f: "animTime", label: "Animation time (s)", kind: "number", def: "0" },
-    { f: "turntable", label: "Video: turntable (deg)", kind: "number", def: "360" },
-    { f: "duration", label: "Video: duration (s)", kind: "number", def: "2" },
-    { f: "fps", label: "Video: fps", kind: "number", def: "24" },
-  ],
-  combine: [
-    { f: "dedup", label: "Trim duplicate seam frame", kind: "boolean", def: true },
-  ],
-  soundtrack: [
-    { f: "loop", label: "Loop audio to fill video", kind: "boolean", def: false },
-  ],
-  trim: [
-    { f: "start", label: "Start (s)", kind: "number", def: "0" },
-    { f: "length", label: "Length (s)", kind: "number", def: "30" },
-  ],
-  extractaudio: [
-    { f: "start", label: "Start (s)", kind: "number", def: "0" },
-    { f: "length", label: "Length (s)", kind: "number" },
-  ],
-};
 
 /**
  * Derive overridable settings: SETTING_SPECS fields that aren't wired.
@@ -3645,7 +3621,7 @@ function resolveSettingKey(graph, settings, userKey) {
   throw new NanoodleError(`unknown setting "${userKey}" — available settings: ${avail}`);
 }
 
-__x.MEDIA_INPUT_KINDS = MEDIA_INPUT_KINDS; __x.INPUT_SPECS = INPUT_SPECS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.SETTING_SPECS = SETTING_SPECS; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
+__x.MEDIA_INPUT_KINDS = MEDIA_INPUT_KINDS; __x.deriveInputs = deriveInputs; __x.resolveInputKey = resolveInputKey; __x.deriveOutputs = deriveOutputs; __x.deriveSettings = deriveSettings; __x.resolveSettingKey = resolveSettingKey;
 });
 __def("branches.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -3685,6 +3661,7 @@ function planBranches(graph, order) {
   }
   const skipped = new Set();
   return {
+    isRouted: id => selectors.has(id),
     // Call after this node's upstreams have settled. A failed router is left
     // to the usual upstream-error handling, which must also prevent execution.
     activeLinks(id, outFor) {
@@ -5505,20 +5482,32 @@ __x.qrModules = qrModules; __x.qrTerminal = qrTerminal;
 __def("deadline.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function normalizeTimeoutMs(value, label) {
+  const ms = typeof value === "string" ? Number(value) : value ?? 0;
+  // A nonzero decimal string can round down to zero during conversion.
+  const underflow = ms === 0 && typeof value === "string" && /[1-9]/.test(value.split(/[eE]/, 1)[0]);
+  if (!Number.isFinite(ms) || ms < 0 || ms > MAX_TIMEOUT_MS || underflow) {
+    throw new NanoodleError(`${label} expects milliseconds between 0 and ${MAX_TIMEOUT_MS}`, { code: "invalid-timeout" });
+  }
+  return ms === 0 ? null : ms;
+}
+
 // Keep the absolute deadline alongside the real signal. The timer wakes idle
 // work, while I/O and completion checks also catch an overdue timer when
 // synchronous code or a chain of microtasks keeps the event loop busy.
 const checks = new WeakMap();
 
 function startDeadline(controller, timeoutMs, message, parentSignal) {
-  const until = timeoutMs == null ? Infinity : performance.now() + Number(timeoutMs);
+  const until = timeoutMs == null ? Infinity : performance.now() + timeoutMs;
   const expire = () => controller.abort(new NanoodleError(message, { code: "timeout" }));
   const signal = controller.signal;
   checks.set(signal, () => {
     enforceDeadline(parentSignal);
     if (!signal.aborted && performance.now() >= until) expire();
   });
-  return timeoutMs == null ? null : setTimeout(expire, timeoutMs);
+  return timeoutMs == null ? null : setTimeout(expire, Math.ceil(timeoutMs));
 }
 
 function enforceDeadline(signal) {
@@ -5536,7 +5525,67 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw abortReason(signal);
 }
 
-__x.startDeadline = startDeadline; __x.enforceDeadline = enforceDeadline; __x.abortReason = abortReason; __x.throwIfAborted = throwIfAborted;
+__x.normalizeTimeoutMs = normalizeTimeoutMs; __x.startDeadline = startDeadline; __x.enforceDeadline = enforceDeadline; __x.abortReason = abortReason; __x.throwIfAborted = throwIfAborted;
+});
+__def("input-wires.mjs", function (__x, __req) {
+const { isBranchDecider } = __req("branches.mjs");
+
+const COMPETING_INPUT_WIRES = "competing-input-wires";
+
+/** One logical input can receive one value. Repeated copies of a wire share a supplier. */
+function competingInputIssues(links) {
+  const inputs = new Map();
+  for (const { from, to } of links) {
+    const inputKey = JSON.stringify([to.node, to.port]);
+    if (!inputs.has(inputKey)) inputs.set(inputKey, { to, sources: new Set() });
+    inputs.get(inputKey).sources.add(`${from.node}.${from.port}`);
+  }
+  const issues = [];
+  for (const { to, sources } of inputs.values()) {
+    if (sources.size < 2) continue;
+    const suppliers = [...sources].sort().join(", ");
+    issues.push(`input ${to.node}.${to.port} has competing wires from ${suppliers}. Leave one active wire for this input.`);
+  }
+  return issues.sort();
+}
+
+function canOmitOutput(node, port) {
+  if (node.type === "endpoint" || node.type === "render3d" || node.type === "vframes") return true;
+  if (node.type === "sprite-stack-render") return port === "video";
+  return port === "layers" && (node.type === "edit" || node.type === "inpaint");
+}
+
+/** Defer to the run when an upstream output or the consumer can be inactive. */
+function staticCompetingInputIssues(graph, order, branches, fieldsFor = node => node.fields) {
+  const inbound = new Map(order.map(node => [node.id, []]));
+  const byId = new Map(order.map(node => [node.id, node]));
+  for (const link of graph.links) inbound.get(link.to.node)?.push(link);
+
+  const mayGate = new Set();
+  const steady = [];
+  for (const node of order) {
+    const links = inbound.get(node.id);
+    if (links.some(link => mayGate.has(link.from.node))) {
+      mayGate.add(node.id);
+      continue;
+    }
+    if (node.type === "decide" && !isBranchDecider(node)) {
+      const fields = fieldsFor(node);
+      const canEnable = fields.gate === true || fields.gate === "true" || links.some(link => link.to.port === "gate");
+      const canBeYesNo = fields.mode === "yesno" || links.some(link => link.to.port === "mode");
+      if (canEnable && canBeYesNo) mayGate.add(node.id);
+    }
+    if (branches?.isRouted(node.id)) continue;
+    for (const link of links) {
+      const supplier = byId.get(link.from.node);
+      if (!supplier || supplier.unknown || fieldsFor(supplier).onError === "skip" || canOmitOutput(supplier, link.from.port)) continue;
+      steady.push(link);
+    }
+  }
+  return competingInputIssues(steady);
+}
+
+__x.COMPETING_INPUT_WIRES = COMPETING_INPUT_WIRES; __x.competingInputIssues = competingInputIssues; __x.staticCompetingInputIssues = staticCompetingInputIssues;
 });
 __def("endpoint.mjs", function (__x, __req) {
 /**
@@ -6134,6 +6183,201 @@ function imageModelOpts(opts) {
 }
 
 __x.imageModelOpts = imageModelOpts;
+});
+__def("io-specs.mjs", function (__x, __req) {
+/** Which node types contribute user inputs, and with what fields (mirrors play.html INPUT_SPECS). */
+const INPUT_SPECS = {
+  text:    [{ f: "text",   label: "Text",  kind: "textarea" }],
+  upload:  [{ f: "image",  label: "Image", kind: "image" }],
+  aupload: [{ f: "audio",  label: "Audio", kind: "audio" }],
+  vupload: [{ f: "video",  label: "Video", kind: "video" }],
+  mupload: [{ f: "model",  label: "3D file", kind: "model3d" }],
+  llm:     [{ f: "prompt", label: "Prompt", kind: "textarea" },
+            { f: "system", label: "System prompt", kind: "textarea", optional: true, def: "You are a helpful, concise assistant." }],
+  image:   [{ f: "prompt", label: "Image prompt", kind: "textarea" }],
+  tvideo:  [{ f: "prompt", label: "Video prompt", kind: "textarea" }],
+  music:   [{ f: "prompt", label: "Style / prompt", kind: "textarea" }],
+  remix:   [{ f: "prompt", label: "Style / direction", kind: "textarea" }],
+  tts:     [{ f: "prompt", label: "Text to speak", kind: "textarea" }],
+  // Optional: image-only 3D models run with a photo and no prompt.
+  model3d: [{ f: "prompt", label: "3D prompt", kind: "textarea", optional: true }],
+  endpoint:[{ f: "prompt", label: "Prompt", kind: "textarea" }],
+};
+
+// Option lists verbatim from play.html (SIZES line 897, DURATIONS line 3232).
+const SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
+const DURATIONS = ["5", "10"];
+
+/** Per-node knobs that are not part of the IO shape (mirrors play.html SETTING_SPECS). */
+const SETTING_SPECS = {
+  llm: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "temperature", label: "Temperature", kind: "number", def: "0.8" },
+    { f: "maxTokens", label: "Max tokens", kind: "number" },
+    { f: "format", label: "Output format", kind: "select", options: ["Text", "JSON"], def: "Text" },
+    { f: "reasoningEffort", label: "Reasoning effort", kind: "select", options: ["default", "low", "medium", "high"], def: "default" },
+    { f: "showThinking", label: "Show thinking", kind: "boolean" },
+  ],
+  vision: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "q", label: "Question", kind: "textarea", def: "Describe this image." },
+  ],
+  decide: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "mode", label: "Decide", kind: "select", options: ["pick", "choose", "score", "yesno"], def: "pick" },
+    { f: "question", label: "Question", kind: "textarea" },
+    { f: "options", label: "Labels (one per line)", kind: "textarea" },
+    { f: "levels", label: "Scale (worst → best, one per line)", kind: "textarea", def: "poor\nokay\ngood\ngreat" },
+    { f: "gate", label: "Gate: stop downstream on no", kind: "boolean" },
+  ],
+  image: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
+    { f: "variations", label: "Variations", kind: "number", def: "1" },
+    { f: "seed", label: "Seed", kind: "number" },
+  ],
+  edit: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "prompt", label: "Edit instruction", kind: "textarea" },
+    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
+    { f: "seed", label: "Seed", kind: "number" },
+  ],
+  tvideo: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "resolution", label: "Resolution", kind: "select", def: "" },
+    { f: "aspect", label: "Aspect ratio", kind: "select", options: ["16:9", "9:16", "1:1", "4:3", "3:4"], def: "16:9" },
+    { f: "duration", label: "Duration", kind: "select", options: DURATIONS, def: "5" },
+  ],
+  ivideo: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "prompt", label: "Motion prompt", kind: "textarea" },
+    { f: "resolution", label: "Resolution", kind: "select", def: "" },
+    { f: "aspect", label: "Aspect ratio", kind: "select", options: ["16:9", "9:16", "1:1", "4:3", "3:4"], def: "16:9" },
+    { f: "duration", label: "Duration", kind: "select", options: DURATIONS, def: "5" },
+  ],
+  vedit: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "prompt", label: "Edit instruction", kind: "textarea" },
+    { f: "resolution", label: "Resolution", kind: "select", def: "" },
+  ],
+  lipsync: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "prompt", label: "Guidance prompt", kind: "textarea" },
+    { f: "resolution", label: "Resolution", kind: "select", def: "" },
+  ],
+  music: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "lyrics", label: "Lyrics", kind: "textarea" },
+    { f: "instrumental", label: "Instrumental", kind: "boolean" },
+    { f: "duration", label: "Duration (s)", kind: "number" },
+    { f: "negative_prompt", label: "Negative prompt", kind: "textarea" },
+    { f: "seed", label: "Seed", kind: "number" },
+  ],
+  remix: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "lyrics", label: "Lyrics", kind: "textarea" },
+    { f: "duration", label: "Duration (s)", kind: "number" },
+  ],
+  tts: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "voice", label: "Voice", kind: "text" },
+    { f: "speed", label: "Speed", kind: "number", def: "1" },
+    { f: "instructions", label: "Voice instructions", kind: "textarea" },
+  ],
+  transcribe: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "language", label: "Language", kind: "text", def: "auto" },
+  ],
+  cleanvoice: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "url", label: "Public link (when nothing is wired)", kind: "text" },
+  ],
+  model3d: [
+    { f: "model", label: "Model", kind: "model" },
+  ],
+  endpoint: [
+    { f: "url", label: "URL", kind: "text", def: "http://127.0.0.1:8787/v1/chat/completions" },
+    { f: "mode", label: "Mode", kind: "select", options: ["chat", "image", "video", "audio", "json"], def: "chat" },
+    { f: "model", label: "Model", kind: "text", def: "local" },
+    { f: "auth", label: "Authorization (optional)", kind: "text", def: "" },
+  ],
+  join: [{ f: "sep", label: "Separator (use \\n for a line break)", kind: "text", def: " " }],
+  inpaint: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
+    { f: "seed", label: "Seed", kind: "number" },
+  ],
+  // local media knobs (play.html SETTING_SPECS) — shape-affecting fields for vframes/combine
+  "slice-3d": [
+    { f: "preset", label: "Preset", kind: "select", options: ["default", "character"], def: "default" },
+    { f: "clip", label: "Animation clip", kind: "text", def: "" },
+    { f: "frames", label: "Pose frames", kind: "number", min: 1, max: 64, def: "1" },
+    { f: "slices", label: "Slices", kind: "number", min: 8, max: 128, def: "48" },
+    { f: "resolution", label: "Tile resolution", kind: "number", min: 16, max: 128, def: "48" },
+    { f: "palette", label: "Palette colors", kind: "number", min: 0, max: 64, def: "16" },
+    { f: "outline", label: "Outline", kind: "boolean", def: true },
+    { f: "upAxis", label: "Up axis", kind: "select", options: ["auto", "x", "y", "z"], def: "auto" },
+  ],
+  "sprite-stack-render": [
+    { f: "yaw", label: "Yaw (degrees)", kind: "number", def: "35" },
+    { f: "pitch", label: "Pitch (degrees)", kind: "number", min: 0, max: 90, def: "30" },
+    { f: "spacing", label: "Layer spacing", kind: "number", min: 0, max: 4, def: "1" },
+    { f: "scale", label: "Pixel scale", kind: "number", min: 1, max: 8, def: "3" },
+    { f: "turntable", label: "Record turntable", kind: "boolean", def: false },
+    { f: "duration", label: "Duration (s)", kind: "number", min: 0.25, max: 30, def: "3" },
+    { f: "fps", label: "Frames per second", kind: "number", min: 1, max: 60, def: "24" },
+    { f: "yawStart", label: "Start yaw", kind: "number", def: "0" },
+    { f: "yawEnd", label: "End yaw", kind: "number", def: "360" },
+  ],
+  resize: [
+    { f: "mode", label: "Mode", kind: "select", options: ["fit", "fill", "exact"], def: "fit" },
+    { f: "width", label: "Width", kind: "number" },
+    { f: "height", label: "Height", kind: "number" },
+  ],
+  vframes: [
+    { f: "dir", label: "Start from", kind: "select", options: ["end", "start"], def: "end" },
+    { f: "frames", label: "Frames", kind: "number", def: "1", min: 1, max: 48 },
+    { f: "gap", label: "Gap (s)", kind: "number", def: "0.5" },
+    { f: "stride", label: "Stride (every Nth frame)", kind: "number", def: "1", min: 1 },
+    { f: "startSec", label: "Range start (s)", kind: "number" },
+    { f: "endSec", label: "Range end (s)", kind: "number" },
+  ],
+  render3d: [
+    { f: "mode", label: "Output", kind: "select", options: ["image", "video"], def: "image" },
+    { f: "azimuth", label: "Azimuth (deg)", kind: "number", def: "35" },
+    { f: "elevation", label: "Elevation (deg)", kind: "number", def: "18" },
+    { f: "distance", label: "Distance (× size)", kind: "number", def: "1.9" },
+    { f: "width", label: "Width", kind: "number", def: "800" },
+    { f: "height", label: "Height", kind: "number", def: "600" },
+    { f: "background", label: "Background", kind: "select", options: ["dark", "light", "transparent"], def: "dark" },
+    { f: "clipAxis", label: "Slice axis", kind: "select", options: ["none", "x", "y", "z"], def: "none" },
+    { f: "clipPos", label: "Slice position (-1..1)", kind: "number", def: "0" },
+    { f: "clipSweep", label: "Video: sweep the slice", kind: "boolean" },
+    { f: "explode", label: "Explode parts (0..1)", kind: "number", def: "0" },
+    { f: "isolate", label: "Isolate part (index, name, or largest)", kind: "text" },
+    { f: "animClip", label: "Animation clip (name or index)", kind: "text" },
+    { f: "animTime", label: "Animation time (s)", kind: "number", def: "0" },
+    { f: "turntable", label: "Video: turntable (deg)", kind: "number", def: "360" },
+    { f: "duration", label: "Video: duration (s)", kind: "number", def: "2" },
+    { f: "fps", label: "Video: fps", kind: "number", def: "24" },
+  ],
+  combine: [
+    { f: "dedup", label: "Trim duplicate seam frame", kind: "boolean", def: true },
+  ],
+  soundtrack: [
+    { f: "loop", label: "Loop audio to fill video", kind: "boolean", def: false },
+  ],
+  trim: [
+    { f: "start", label: "Start (s)", kind: "number", def: "0" },
+    { f: "length", label: "Length (s)", kind: "number", def: "30" },
+  ],
+  extractaudio: [
+    { f: "start", label: "Start (s)", kind: "number", def: "0" },
+    { f: "length", label: "Length (s)", kind: "number" },
+  ],
+};
+
+__x.INPUT_SPECS = INPUT_SPECS; __x.SETTING_SPECS = SETTING_SPECS;
 });
 __def("sprite-stack.mjs", function (__x, __req) {
 const { number, viewPlan, softwareView, flag, turntablePlan } = __req("sprite-projection.mjs");
@@ -9039,5 +9283,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-2f0281cbebb4";
+  window.NanoodleEngine.version = "src-e91c497b3215";
 })();

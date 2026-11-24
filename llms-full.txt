@@ -347,13 +347,16 @@ npx nanoodle run walk.json --input m.model=@character.glb --out ./sprites
 ```
 
 Media outputs are saved under `--out` (default `./noodle-out`, created only
-when there is media to save); a JSON run summary always goes to stdout,
-progress lines to stderr; exit code `0` on success, `1` on failure.
+when there is media to save). The JSON run summary goes to stdout, and
+progress lines go to stderr. A failed download or write reports an
+`output-save-failed` error and a null value for that output. The summary
+retains the run cost and other outputs. The CLI exits `0` on success or `1`
+on failure.
 
 - `--input k=@path` — read a file (media as media; `.txt` / `.md` / `.json` as text)
 - `--set k=v` — override a setting (`n3.model=flux-pro`)
 - `--out dir` — where media outputs land (default `./noodle-out`)
-- `--timeout ms` — overall run timeout
+- `--timeout ms` — overall run timeout in decimal milliseconds, from `0` to `2147483647`. Omit it or pass `0` to leave the run without an overall deadline.
 - `--json` — quiet mode: skip the stderr progress lines (the JSON summary is printed either way)
 - `--env-file path` — load `NANOGPT_API_KEY` from a `.env`-style file (`--key` wins if both are set)
 
@@ -551,8 +554,9 @@ result = wf.run(
 )
 ```
 
-`timeout=` bounds the whole run (`None` waits without a run deadline; `0` starts no work).
-It must be a finite, non-negative number of seconds. Ctrl-C cancels pending work promptly.
+`timeout=` bounds the whole run. `None` leaves the run without an overall deadline, and `0`
+starts no work. A numeric timeout must be finite, non-negative, and at most
+`threading.TIMEOUT_MAX` seconds on the current platform. Ctrl-C cancels pending work promptly.
 When the deadline fires, `run()` returns straight away and the in-flight nodes stop polling within about a second, so the process is
 free to exit. Without `timeout=`, each node still waits out its own limit
 (video has no default limit, audio 300 s, 3D 25 minutes).

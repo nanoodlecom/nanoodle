@@ -14,7 +14,11 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const chrome=process.env.NANOODLE_CHROMIUM || ['/usr/bin/chromium','/usr/bin/google-chrome','/usr/bin/chromium-browser'].find(existsSync);
 if(!chrome){console.log('⊘ workspace-recovery: Chromium unavailable');process.exit(0);}
 const profile=mkdtempSync(join(tmpdir(),'nanoodle-recovery-'));
-const child=spawn(chrome,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',`--user-data-dir=${profile}`,'--remote-debugging-port=0','about:blank'],{stdio:['ignore','pipe','pipe']});
+const child=spawn(chrome,[
+  '--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
+  // Use the basic password store for the isolated, credential-free headless profile.
+  '--password-store=basic',`--user-data-dir=${profile}`,'--remote-debugging-port=0','about:blank',
+],{stdio:['ignore','pipe','pipe']});
 const servers=[];let socket;
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.css':'text/css'};
 try{

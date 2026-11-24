@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { loadEngine } from "./play-engine.mjs";
+import { calls, loadEngine } from "./play-engine.mjs";
 
 const app = loadEngine();
 const node = (id, type, fields = {}) => ({ id, type, fields });
@@ -8,6 +8,64 @@ const link = (from, to, port, fromPort = "text") => ({
   from: { node: from, port: fromPort }, to: { node: to, port },
 });
 const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
+
+{
+  const paid = node("paid", "llm", { model: "fixture-chat", prompt: "must not send" });
+  for (const [bad, diagnostic] of [
+    [null, /node at position 2 must be an object/],
+    [[], /node at position 2 must be an object/],
+    [{type:"text"}, /node at position 2 has a missing or invalid id/],
+    [node(" \t", "text"), /node at position 2 has a missing or invalid id/],
+    [node(Infinity, "text"), /node at position 2 has a missing or invalid id/],
+    [Object.create({ id:"inherited", type:"text" }), /node at position 2 has a missing or invalid id/],
+    [{id:"damaged"}, /node at position 2 has a missing or invalid type/],
+    [node("damaged", " \t"), /node at position 2 has a missing or invalid type/],
+  ]) {
+    const fails = error => error.code === "invalid-node-record" && diagnostic.test(error.message);
+    assert.throws(() => app.materialize({ nodes: [paid, bad], links: [] }), fails);
+    const graph = roundTrip({ nodes: [paid], links: [] });
+    graph.nodes.push(bad);
+    calls.length = 0;
+    await assert.rejects(app.runGraph(graph, {
+      seeds: [paid.id], onStart: () => assert.fail("malformed graph started running"),
+    }), fails);
+    assert.deepEqual(calls, []);
+  }
+}
+
+{
+  const graph = roundTrip({
+    nodes: [node(0, "text", { text:"legacy numeric input" }), node(-4.5, "join")],
+    links: [link(0, -4.5, "a")],
+  });
+  assert.equal((await app.runGraph(graph)).nodeErrors, 0);
+  assert.equal(graph.byId("-4.5").out.text, "legacy numeric input");
+}
+
+{
+  const duplicate = {
+    nodes: [node("same", "text", { text: "first" }), node("same", "text", { text: "second" })],
+    links: [],
+  };
+  const diagnostic = /duplicate node id "same" — every node must have a unique id/;
+  assert.throws(() => roundTrip(duplicate), diagnostic);
+  assert.throws(() => roundTrip({
+    ...duplicate,
+    nodes: [node("same", "text"), node("same", "future-node-type")],
+  }), diagnostic);
+  assert.throws(() => roundTrip({
+    ...duplicate,
+    nodes: [node(42, "text"), node("42", "text")],
+  }), /duplicate node id "42"/);
+
+  // runGraph also accepts a materialized graph from callers. A repeated node
+  // inserted after materialization still has to fail before any run callbacks.
+  const graph = roundTrip({ ...duplicate, nodes: duplicate.nodes.slice(0, 1) });
+  graph.nodes.push({ ...duplicate.nodes[1], out: {} });
+  await assert.rejects(app.runGraph(graph, {
+    onStart: () => assert.fail("ambiguous graph started running"),
+  }), diagnostic);
+}
 
 {
   const graph = roundTrip({ nodes: [node("__proto__", "text", { text: "standalone" })], links: [] });
@@ -19,7 +77,7 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
 }
 
 {
-  const graph = roundTrip({
+  const data = {
     nodes: [
       node("__proto__", "text", { text: "left" }),
       node("constructor", "text", { text: "right" }),
@@ -31,15 +89,18 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
       link("__proto__", "hasOwnProperty", "a"),
       link("constructor", "hasOwnProperty", "b"),
       link("hasOwnProperty", "toString", "a"),
-      link("__proto__", "toString", "b", "constructor"),
     ],
-  });
+  };
+  const graph = roundTrip(data);
   const completed = [];
   const result = await app.runGraph(graph, { onResult: (n) => completed.push(n.id) });
   assert.equal(result.nodeErrors, 0);
   assert.equal(graph.byId("toString").out.text, "left/right");
   assert.deepEqual(new Set(completed), new Set(["__proto__", "constructor", "hasOwnProperty", "toString"]));
   assert.equal(graph.byId("valueOf").type, "comment");
+  await assert.rejects(app.runGraph(roundTrip({
+    ...data, links: [...data.links, link("__proto__", "toString", "b", "constructor")],
+  })), /Node "__proto__" has no output port "constructor"/);
 }
 
 {
@@ -63,4 +124,4 @@ const roundTrip = (data) => app.materialize(JSON.parse(JSON.stringify(data)));
   assert.equal(graph.byId("independent").out.text, "still runs");
 }
 
-console.log("✓ Player schedules prototype-like node IDs, passes wired output, and reports real cycles.");
+console.log("✓ Player rejects duplicate IDs, runs prototype-like IDs, and reports real cycles.");

@@ -104,6 +104,7 @@ try {
   // Build a sandbox from the REAL source pieces. shareableGraph only calls
   // serializeGraph() when handed no arg; we always pass a graph, so no stub needed.
   const program =
+    "const NODE_TYPES = { text: {} };\n" +
     uploadDecl + "\n" +
     safeDecl + "\n" +
     shareFnText + "\n" +
@@ -171,6 +172,8 @@ if (api) {
       { id: 3, type: "vupload", fields: { video: "blob:https://nanoodle/PRIVATE" } },
       { id: 4, type: "inpaint", fields: { image: "data:image/png;base64,PHOTO", mask: "data:image/png;base64,MASK", strength: "0.8" } },
       { id: 5, type: "text",    fields: { prompt: "keep this prompt" } },
+      { id: 6, type: "future-node", x: 40, y: 80, fields: { hiddenMedia: "data:image/png;base64,PRIVATE" },
+        out: { image: "https://beacon.example/result" }, futureMetadata: { token: "PRIVATE" } },
     ],
     links: [{ from: { node: 1, port: "out" }, to: { node: 5, port: "image" } }],
     view: { panX: 10, panY: 20, scale: 1.5 },
@@ -192,7 +195,11 @@ if (api) {
   if (nodeBy(1)?.fields.label !== "my pic") fail("shareableGraph dropped a non-media field (upload.label) — it must only blank media");
   if (nodeBy(4)?.fields.strength !== "0.8") fail("shareableGraph dropped a non-media field (inpaint.strength)");
   if (nodeBy(5)?.fields.prompt !== "keep this prompt") fail("shareableGraph altered an unrelated node's fields (text.prompt)");
-  if ((g.nodes || []).length !== 5) fail(`shareableGraph changed the node count (${(g.nodes || []).length} ≠ 5) — graph structure must survive`);
+  const future = nodeBy(6);
+  if (!future || future.type !== "future-node" || future.x !== 40 || future.y !== 80 ||
+      Object.keys(future.fields).length || "out" in future || "futureMetadata" in future)
+    fail("shareableGraph must keep the unsupported node's identity and position and omit its opaque payload");
+  if ((g.nodes || []).length !== 6) fail(`shareableGraph changed the node count (${(g.nodes || []).length} ≠ 6) — graph structure must survive`);
   if (JSON.stringify(g.links) !== JSON.stringify(graphIn.links)) fail("shareableGraph mutated the links array — wiring must survive sharing");
   if (JSON.stringify(g.view) !== JSON.stringify(graphIn.view)) fail("shareableGraph dropped/altered the view");
   // must not mutate the caller's graph in place (it spreads)

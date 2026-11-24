@@ -130,6 +130,7 @@ function buildSigs(src) {
     "let pendingAppId = 'APP_BASE';\n" +
     "let panX = 0, panY = 0, scale = 1, nid = 99, lid = 99;\n" +
     "let graph = { nodes: [], links: [] };\n" +
+    "const NODE_TYPES = { text: {} };\n" +
     uploadDecl + "\n" +
     serializeFn + "\n" +
     handoffFn + "\n" +
