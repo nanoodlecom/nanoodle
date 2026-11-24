@@ -112,7 +112,7 @@ function fakeFetch(url, opts = {}) {
 
 const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
-  extractFn("njsCtx"), extractFn("njsRunFor"),
+  extractFn("njsCtx"), extractFn("njsRunFor"), extractFn("assertRunCredential"),
   extractFn("pendingMediaJobs"), extractFn("pollAudio"),
   grab(/const runSignal = [\s\S]+?\n};/, "runSignal"),
   extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
@@ -648,18 +648,22 @@ for(const delegated of [false, true]){
       return Response.json({status:"COMPLETED", audioUrl:content, output:{url:content}});
     };
     const nodeId = "n1";
-    const result = delegated
-      ? await on.njsCtx(client, {id:nodeId})[kind]("m", "prompt", {})
+    const start = () => delegated
+      ? on.njsCtx(client, {id:nodeId})[kind]("m", "prompt", {})
       : kind === "video"
-        ? await on.builtIn.genVideo("m", "prompt", {runKey:nodeId})
-        : await on.builtIn.genAudio("m", "prompt", {}, undefined, nodeId);
-    assert.equal(result, asset);
+        ? on.builtIn.genVideo("m", "prompt", {runKey:nodeId})
+        : on.builtIn.genAudio("m", "prompt", {}, undefined, nodeId);
+    await assert.rejects(start(), {code:"credential-changed"});
+    assert.equal(requests.length, 1, "a replaced credential cannot continue polling the accepted job");
+    credential = "first-fixture-key";
+    assert.ok(on.pendingMediaJobs()[kind].has(nodeId), "the old account can resume its accepted job");
+    assert.equal(await start(), asset);
     assert.equal(requests.length, 3, "paid run submits, polls and resolves its content");
     assert.ok(requests.every(([, , bearer]) => bearer === "Bearer first-fixture-key"));
     assert.deepEqual(requests.map(([, , , key]) => key), ["first-fixture-key", "first-fixture-key", null]);
   }
 }
-console.log("✓ a credential switch during submission keeps the original poll and content credentials");
+console.log("✓ a credential switch pauses the accepted job for the owning account to resume");
 
 {
   const on = makeCtx({flagOn:true});
@@ -676,7 +680,7 @@ console.log("✓ a credential switch during submission keeps the original poll a
     return {};
   };
   on.NanoodleEngine.RUNNERS.tvideo = () => assert.fail("a stale delegated context cannot start paid work");
-  await assert.rejects(run, {name:"AbortError"});
+  await assert.rejects(run, {code:"credential-changed"});
 }
 console.log("✓ editor delegation checks the credential before starting paid work");
 

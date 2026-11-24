@@ -43,6 +43,8 @@ const inputConflictSrc = ["competingInputMessage", "guaranteedWireOutput", "unco
   .map(name => extractFn(SRC, name)).join("\n");
 const wireInputFieldsSrc = SRC.match(/^const WIRE_INPUT_FIELDS = \{[\s\S]*?^};/m)[0];
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
+const assertRunCredentialSrc = extractFn(SRC, "assertRunCredential");
+const paidOutputCredentialsSrc = SRC.match(/^const paidOutputCredentials = new WeakMap\(\);/m)[0];
 const ancestorsSrc = extractFn(SRC, "ancestors");
 const topoOrderSrc = extractFn(SRC, "topoOrder");
 const groupBusySrc = extractFn(SRC, "groupBusy");
@@ -172,7 +174,7 @@ function bindWorld(world, opts = {}) {
   new vm.Script(
     wireInputFieldsSrc + "\n" + declaresWireOutputSrc + "\n" + declaresWireInputSrc + "\n" + invalidWireMessageSrc + "\n" +
     inputConflictSrc + "\n" + malformedNodeRecordErrorSrc + "\n" +
-    isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
+    isPaidNanoTypeSrc + "\n" + assertRunCredentialSrc + "\n" + paidOutputCredentialsSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
     "\nglobalThis.runGroup = runGroup;" +
@@ -193,6 +195,46 @@ async function run(world, seed, opts = {}) {
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else console.log("  ✓ " + m); };
+
+for(const held of [true, false]){
+  const w = makeWorld(2, false);
+  w.nodes.n0.type = "image";
+  const began = Promise.withResolvers(), release = Promise.withResolvers();
+  const paid = [];
+  w.NODE_TYPES.image = { inputs: [], async run(_node, _inp, ctx) {
+    const owner = ctx.getRunCredential();
+    paid.push(["source", owner]);
+    if(owner === "first"){
+      began.resolve();
+      if(held) await release.promise;
+    }
+    return {image:owner + " result"};
+  } };
+  w.NODE_TYPES.edit.run = async (_node, inp, ctx) => {
+    paid.push(["consumer", ctx.getRunCredential(), inp.image]);
+    return {image:inp.image};
+  };
+  let key = "first";
+  const ctx = bindWorld(w);
+  ctx.getKey = () => key;
+  const firstRun = ctx.runGroup([held ? "n1" : "n0"]);
+  await began.promise;
+  if(!held) await firstRun;
+  key = "second";
+  release.resolve();
+  if(held){
+    await firstRun;
+    ok(paid.length === 1 && w.nodes.n0.out.image === "STALE_PRIOR_RUN" && w.nodes.n1._st === "skip",
+      "replacing a key mid-run prevents old result publication and downstream debit");
+    ok(w.nodes.n0._message.includes("account changed"), "the old account's run receives a clear key change message");
+  }
+  await ctx.runGroup(["n1"]);
+  ok(JSON.stringify(paid) === JSON.stringify([["source","first"],["source","second"],["consumer","second","second result"]]),
+    "a new account executes its own ancestors and never forwards the old account's cached output");
+  await ctx.runGroup(["n1"]);
+  ok(paid.filter(([node]) => node === "source").length === 2,
+    "a repeat with the same key continues to reuse a succeeded ancestor");
+}
 
 {
   const w = makeWorld(2, false);
@@ -298,13 +340,13 @@ for (const [endpoint, edit, expected] of [
 //    present); n2 is the retried target. n1 is a PAID edit node, so a reuse miss would re-charge it.
 {
   const w = makeWorld(3, false);
-  w.nodes.n0._sig = 0;                                   // nodeSig() stub is ()=>0, so _sig=0 == "unchanged"
-  w.nodes.n1._sig = 0; w.nodes.n1.out = { image: "PRIOR_EDIT_n1" };   // n1 succeeded on the prior run
-  // n2.out stays {} — it's the node being retried
-  await run(w, "n2");                                    // Run targeting only n2 (per-node retry on the failed node)
+  const ctx = bindWorld(w);
+  await ctx.runGroup(["n1"]);                           // n0 and n1 succeeded under the same real-run context
+  delete w.runs.n0; delete w.runs.n1; w.paid.length = 0;
+  await ctx.runGroup(["n2"]);                           // Run targeting only n2 (per-node retry on the failed node)
   ok(!w.runs.n0 && !w.runs.n1, `succeeded upstream REUSED, not re-executed on retry (n0=${w.runs.n0 || 0}, n1=${w.runs.n1 || 0})`);
   ok(w.runs.n2 === 1, `the explicitly targeted (retried) node re-executes (run count=${w.runs.n2})`);
-  ok(w.paid.length === 1 && w.paid[0] === "n2<=PRIOR_EDIT_n1", `only the target charged, on the REUSED upstream output (paid=${JSON.stringify(w.paid)})`);
+  ok(w.paid.length === 1 && w.paid[0] === "n2<=EDITED_n1", `only the target charged, on the REUSED upstream output (paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.n1._st === "done", `reused upstream node shown 'done' (status=${w.nodes.n1._st})`);
 }
 

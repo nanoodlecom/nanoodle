@@ -33,7 +33,8 @@ function poller(file) {
     applyPollSettlement: (body, _response, refunded) => settlements.push({ body, refunded }),
     applyPollBalance: (body, _response, refunded) => settlements.push({ body, refunded }),
   });
-  vm.runInContext(source, ctx);
+  const credentialGuard = html.match(/^function assertRunCredential\([^)]*\)\{[\s\S]*?^\}/m)?.[0] || "";
+  vm.runInContext(credentialGuard + "\n" + source, ctx);
   const job = { runId: "paid-audio", cost: 0.25, paymentSource: "balance", isApiRequest: false };
   return {
     pending, responses, requests, settlements, controller, reply,

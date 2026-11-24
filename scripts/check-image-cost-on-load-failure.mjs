@@ -56,7 +56,7 @@ async function editor() {
   let posts = 0;
   const sb = {
     IMG_ENDPOINT: "https://nano-gpt.com/v1/images/generations",
-    authHeaders: () => ({}), runSignal: () => undefined,
+    getKey: () => "fixture-key", authHeaders: () => ({}), runSignal: () => undefined,
     throwHttp: async (r) => { throw new Error("http " + r.status); },
     b64ImageMime: () => "image/png", imageModelOpts: () => ({}),
     imageUnitUsd: () => 0.04,
@@ -66,7 +66,8 @@ async function editor() {
     opaqueContentError: (e) => e,
   };
   createContext(sb);
-  const CTX = new Script("({" + method + "})").runInContext(sb);
+  const credentialGuard = src.match(/^function assertRunCredential\([^)]*\)\{[\s\S]*?^\}/m)?.[0];
+  const CTX = new Script(credentialGuard + "\n({" + method + "})").runInContext(sb);
   let threw = null;
   try { await CTX.genImage("a boat", "flux", "1024x1024"); } catch (e) { threw = e; }
   ok(posts === 1, "one paid POST (" + posts + ")");
