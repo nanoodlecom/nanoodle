@@ -21420,6 +21420,15 @@ function showLinkError(message){
   if(msg && t) msg.textContent = t;
   box.hidden = false;
 }
+function detachSharedModelFiles(graph){
+  if(!Array.isArray(graph?.nodes)) return;
+  // Public imports can be reopened in the editor. Keep their labels without local file references.
+  for(const node of graph.nodes){
+    if(node?.type==="mupload" && node.fields?.modelFile){
+      node.fields.modelFile = {...node.fields.modelFile, key:null};
+    }
+  }
+}
 async function loadFromHash(){
   const h = location.hash;
   // #a= : full app spec {v,graph,files}, gzip (or 'u'+b64 uncompressed fallback)
@@ -21429,6 +21438,7 @@ async function loadFromHash(){
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
+      detachSharedModelFiles(spec.graph);
       // someone else's app → keep it in "My apps", flagged as imported. Customized apps carry
       // their own files; compact (never-Customized) shares ship files-less and rebuild the
       // default shell from the graph here — only the creator's name isn't graph-derivable, so
@@ -21470,6 +21480,7 @@ async function loadFromHash(){
       const json = h.startsWith("#g=") ? await gunzip(b64urlToBytes(h.slice(3)))
                                        : new TextDecoder().decode(b64urlToBytes(h.slice(3)));
       const graph = JSON.parse(json);
+      detachSharedModelFiles(graph);
       installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });   // straight from the editor → lead with the prompt
       consumeHandoff();   // a reload now restores the saved draft, not the original graph
       return true;

@@ -21841,6 +21841,14 @@ async function loadFromHash(){
   const malformed = malformedNodeRecordError(graphData?.nodes);
   if(malformed){ toast(malformed.message, "err"); return false; }
   if(!graphPayloadOk(graphData)) return false;
+  // Older public links carried a filename and size without an IndexedDB key.
+  // Keep the label, but stop those stubs falling back to this browser's node-ID records.
+  if(!ga) for(const node of graphData.nodes){
+    if(node.type==="mupload" && node.fields?.modelFile){
+      const {name,size} = node.fields.modelFile;
+      node.fields.modelFile = {name,size,key:null};
+    }
+  }
   if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed() &&
       typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
