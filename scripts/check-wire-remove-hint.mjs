@@ -9,7 +9,7 @@ const IDX = readFileSync(join(resolve(dirname(fileURLToPath(import.meta.url)), "
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else console.log("  ✓ " + m); };
 ok(!IDX.includes("<title>tap to remove</title>"), "no fixed English \"tap to remove\" tooltip");
-ok(/const wireTip = esc\(t\(matchMedia\("\(pointer:coarse\)"\)\.matches \? "tap twice to remove" : "click to remove"\)\)\);/.test(IDX), "tooltip follows the pointer type, translated");
+ok(/const wireTip = esc\(t\(matchMedia\("\(pointer:coarse\)"\)\.matches \? "tap twice to remove" : "click to remove"\)\);/.test(IDX), "tooltip follows the pointer type, translated");
 ok(/<title>\$\{wireTip\}<\/title>/.test(IDX), "wire hit paths use it");
 const block = IDX.slice(IDX.indexOf("I18N-MAPS-BEGIN"), IDX.indexOf("I18N-MAPS-END"));
 for (const k of ["click to remove", "tap twice to remove"]) ok(block.split(JSON.stringify(k) + ":").length - 1 === 5, `"${k}" in all 5 languages`);
