@@ -2447,6 +2447,8 @@ const I18N = {
     "Workspaces":"Espacios de trabajo",
     "New workspace":"Nuevo espacio de trabajo",
     "Blank canvas":"Lienzo en blanco",
+    "click to remove":"haz clic para quitar",
+    "tap twice to remove":"toca dos veces para quitar",
     "This workspace is empty":"Este espacio de trabajo está vacío",
     "Start from a node, an example, or the starter sample.":"Empieza con un nodo, un ejemplo o el ejemplo inicial.",
     "Try the starter sample":"Prueba el ejemplo inicial",
@@ -3260,6 +3262,8 @@ const I18N = {
     "Workspaces":"Espaces de travail",
     "New workspace":"Nouvel espace de travail",
     "Blank canvas":"Canevas vide",
+    "click to remove":"cliquez pour retirer",
+    "tap twice to remove":"touchez deux fois pour retirer",
     "This workspace is empty":"Cet espace de travail est vide",
     "Start from a node, an example, or the starter sample.":"Commencez par un nœud, un exemple ou l’exemple de départ.",
     "Try the starter sample":"Essayer l’exemple de départ",
@@ -4073,6 +4077,8 @@ const I18N = {
     "Workspaces":"Arbeitsbereiche",
     "New workspace":"Neuer Arbeitsbereich",
     "Blank canvas":"Leere Fläche",
+    "click to remove":"zum Entfernen klicken",
+    "tap twice to remove":"zum Entfernen zweimal tippen",
     "This workspace is empty":"Dieser Arbeitsbereich ist leer",
     "Start from a node, an example, or the starter sample.":"Starte mit einem Node, einem Beispiel oder dem Starter-Beispiel.",
     "Try the starter sample":"Starter-Beispiel ausprobieren",
@@ -4886,6 +4892,8 @@ const I18N = {
     "Workspaces":"Espaços de trabalho",
     "New workspace":"Novo espaço de trabalho",
     "Blank canvas":"Tela em branco",
+    "click to remove":"clique para remover",
+    "tap twice to remove":"toque duas vezes para remover",
     "This workspace is empty":"Este espaço de trabalho está vazio",
     "Start from a node, an example, or the starter sample.":"Comece com um nó, um exemplo ou a amostra inicial.",
     "Try the starter sample":"Experimente a amostra inicial",
@@ -5699,6 +5707,8 @@ const I18N = {
     "Workspaces":"ワークスペース",
     "New workspace":"新しいワークスペース",
     "Blank canvas":"空白のキャンバス",
+    "click to remove":"クリックで削除",
+    "tap twice to remove":"2回タップで削除",
     "This workspace is empty":"このワークスペースは空です",
     "Start from a node, an example, or the starter sample.":"ノード、サンプル、またはスターターのサンプルから始めましょう。",
     "Try the starter sample":"スターターのサンプルを試す",
@@ -13021,6 +13031,10 @@ let dropAutoWirePreview = null;
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
+  // Say what the gesture actually is (handleWireTap): a mouse click snips at once; a touch
+  // arms first and the second tap snips. The old fixed "tap to remove" was wrong on desktop
+  // and English-only in every language.
+  const wireTip = esc(t(matchMedia("(pointer:coarse)").matches ? "tap twice to remove" : "click to remove"));
   for(const l of graph.links){
     if(l.id===draggingLinkId) continue;   // lifted off its input and following the cursor — drawn as the temp wire instead
     const a = document.querySelector(`.port[data-node=${JSON.stringify(String(l.from.node))}][data-port=${JSON.stringify(String(l.from.port))}][data-dir="out"]`);
@@ -13030,7 +13044,7 @@ function redraw(){
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
     const linkId = esc(l.id);
-    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>tap to remove</title></path>`;
+    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>${wireTip}</title></path>`;
     html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${linkId}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
