@@ -2425,6 +2425,8 @@ const I18N = {
     "Workspaces":"Espacios de trabajo",
     "New workspace":"Nuevo espacio de trabajo",
     "Blank canvas":"Lienzo en blanco",
+    "click to remove":"haz clic para quitar",
+    "tap twice to remove":"toca dos veces para quitar",
     "Text to image":"Texto a imagen",
     "Ask a model":"Preguntar a un modelo",
     "Browse Examples":"Ver ejemplos",
@@ -3234,6 +3236,8 @@ const I18N = {
     "Workspaces":"Espaces de travail",
     "New workspace":"Nouvel espace de travail",
     "Blank canvas":"Canevas vide",
+    "click to remove":"cliquez pour retirer",
+    "tap twice to remove":"touchez deux fois pour retirer",
     "Text to image":"Texte vers image",
     "Ask a model":"Interroger un modèle",
     "Browse Examples":"Parcourir les exemples",
@@ -4043,6 +4047,8 @@ const I18N = {
     "Workspaces":"Arbeitsbereiche",
     "New workspace":"Neuer Arbeitsbereich",
     "Blank canvas":"Leere Fläche",
+    "click to remove":"zum Entfernen klicken",
+    "tap twice to remove":"zum Entfernen zweimal tippen",
     "Text to image":"Text zu Bild",
     "Ask a model":"Ein Modell fragen",
     "Browse Examples":"Beispiele durchsuchen",
@@ -4852,6 +4858,8 @@ const I18N = {
     "Workspaces":"Espaços de trabalho",
     "New workspace":"Novo espaço de trabalho",
     "Blank canvas":"Tela em branco",
+    "click to remove":"clique para remover",
+    "tap twice to remove":"toque duas vezes para remover",
     "Text to image":"Texto para imagem",
     "Ask a model":"Perguntar a um modelo",
     "Browse Examples":"Ver exemplos",
@@ -5661,6 +5669,8 @@ const I18N = {
     "Workspaces":"ワークスペース",
     "New workspace":"新しいワークスペース",
     "Blank canvas":"空白のキャンバス",
+    "click to remove":"クリックで削除",
+    "tap twice to remove":"2回タップで削除",
     "Text to image":"テキストから画像",
     "Ask a model":"モデルに聞く",
     "Browse Examples":"例を見る",
@@ -12976,6 +12986,10 @@ let dropAutoWirePreview = null;
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
+  // Say what the gesture actually is (handleWireTap): a mouse click snips at once; a touch
+  // arms first and the second tap snips. The old fixed "tap to remove" was wrong on desktop
+  // and English-only in every language.
+  const wireTip = esc(t(matchMedia("(pointer:coarse)").matches ? "tap twice to remove" : "click to remove"));
   for(const l of graph.links){
     if(l.id===draggingLinkId) continue;   // lifted off its input and following the cursor — drawn as the temp wire instead
     const a = document.querySelector(`.port[data-node=${JSON.stringify(String(l.from.node))}][data-port=${JSON.stringify(String(l.from.port))}][data-dir="out"]`);
@@ -12985,7 +12999,7 @@ function redraw(){
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
     const linkId = esc(l.id);
-    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>tap to remove</title></path>`;
+    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>${wireTip}</title></path>`;
     html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${linkId}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
