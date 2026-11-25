@@ -16067,6 +16067,21 @@ function markDemoResult(n){
   // of the sketch starter (vision + LLM + image + video + speech) to be labeled.
   if(!NODE_TYPES[n.type] || !NODE_TYPES[n.type].modelKind) return;
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
+  // The sample film is the arc's payoff — play it the moment it lands instead of
+  // leaving it parked at 0:00 behind a play button most strangers never press
+  // (initial-moment Cycles 1–6: narration + film both sat silent after every
+  // measured run, and the 60 s after the payoff showed nothing moving at all).
+  // Muted, because muted is the only autoplay every browser grants and the clip
+  // loops at 5 s; the native controls stay for unmuting / replaying. Demo-only
+  // by construction: markDemoResult runs solely on canned results (ctx.demo),
+  // so a real run's clips keep the visitor's own play press. The narration is
+  // deliberately NOT autoplayed — 42 s of speech is a press-play choice.
+  const film = r.querySelector("video");
+  if(film){
+    film.muted = true;
+    const p = film.play();
+    if(p && p.catch) p.catch(()=>{});   // a browser that still refuses leaves the poster + play button, exactly as before
+  }
 }
 // mode: 'exact' (pristine starter) | 'shape' (same topology, field tweaks) | 'video' (starter + an
 // appended Image→Video node) | null (not sampleable).
