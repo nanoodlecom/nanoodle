@@ -17169,7 +17169,17 @@ function applyPollSettlement(s, r, _refunded){
   if(typeof refreshBalance==="function") refreshBalance(true);
   return false;
 }
-function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
+// #status is the auth slot borrowed for a moment. One timer owns the hand-back, so a
+// second flash isn't cut short by the first one's timer. On narrow screens #status lives
+// inside the closed ⋯ menu, so the same words also go to the toast, the one channel that's
+// always visible — otherwise "nothing to run", "Stop first" and friends say nothing at all.
+let flashT=null;
+function flash(msg){
+  const el = $("status"); if(!el) return;
+  el.textContent = t(msg);
+  clearTimeout(flashT); flashT = setTimeout(renderAuth, 2200);
+  if(!el.getClientRects().length) toast(msg);
+}
 let toastT=null;
 function toast(msg, kind){
   const el=$("toast"); if(!el) return;
