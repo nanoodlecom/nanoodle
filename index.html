@@ -615,6 +615,16 @@
     .node[data-status=run]{ box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent), 0 10px 30px #0006 }
   }
   #canvashint[hidden], #connecthint[hidden]{ display:none }
+  /* empty-canvas state: a blank workspace says what to do instead of showing a dark void */
+  #emptycanvas[hidden]{ display:none }
+  #emptycanvas{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:2; padding:1rem }
+  #emptycanvas .ec-card{ pointer-events:auto; display:flex; flex-direction:column; align-items:center; gap:.55rem; text-align:center;
+                         max-width:min(420px, 100%); padding:1.1rem 1.2rem; border:1px dashed var(--line); border-radius:.8rem; background:color-mix(in srgb, var(--panel) 85%, transparent) }
+  #emptycanvas .ec-title{ font-size:1rem; font-weight:600; color:var(--ink) }
+  #emptycanvas .ec-sub{ font-size:.8rem; color:var(--dim); line-height:1.4 }
+  #emptycanvas .ec-actions{ display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem; margin:.25rem 0 }
+  #emptycanvas .ec-actions button{ min-height:40px; padding:.45rem .8rem; border-radius:.55rem; font-size:.88rem; cursor:pointer }
+  #emptycanvas #ecadd{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; border:none; font-weight:600 }
   #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:min(calc(100% - 1.5rem), 640px);
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
@@ -1631,6 +1641,18 @@
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP. <a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="emptycanvas" hidden>
+    <div class="ec-card" role="group" aria-label="This workspace is empty">
+      <div class="ec-title">This workspace is empty</div>
+      <div class="ec-sub">Start from a node, an example, or the starter sample.</div>
+      <div class="ec-actions">
+        <button type="button" id="ecadd">＋ <span>Add a node</span></button>
+        <button type="button" id="ecexamples">📚 <span>Examples</span></button>
+        <button type="button" id="ecstarter">Try the starter sample</button>
+      </div>
+      <div class="ec-sub">or describe what you want in the box below ↓</div>
+    </div>
+  </div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -2427,6 +2449,10 @@ const I18N = {
     "Blank canvas":"Lienzo en blanco",
     "click to remove":"haz clic para quitar",
     "tap twice to remove":"toca dos veces para quitar",
+    "This workspace is empty":"Este espacio de trabajo está vacío",
+    "Start from a node, an example, or the starter sample.":"Empieza con un nodo, un ejemplo o el ejemplo inicial.",
+    "Try the starter sample":"Prueba el ejemplo inicial",
+    "or describe what you want in the box below ↓":"o describe lo que quieres en el cuadro de abajo ↓",
     "Text to image":"Texto a imagen",
     "Ask a model":"Preguntar a un modelo",
     "Browse Examples":"Ver ejemplos",
@@ -3238,6 +3264,10 @@ const I18N = {
     "Blank canvas":"Canevas vide",
     "click to remove":"cliquez pour retirer",
     "tap twice to remove":"touchez deux fois pour retirer",
+    "This workspace is empty":"Cet espace de travail est vide",
+    "Start from a node, an example, or the starter sample.":"Commencez par un nœud, un exemple ou l’exemple de départ.",
+    "Try the starter sample":"Essayer l’exemple de départ",
+    "or describe what you want in the box below ↓":"ou décrivez ce que vous voulez dans le champ ci-dessous ↓",
     "Text to image":"Texte vers image",
     "Ask a model":"Interroger un modèle",
     "Browse Examples":"Parcourir les exemples",
@@ -4049,6 +4079,10 @@ const I18N = {
     "Blank canvas":"Leere Fläche",
     "click to remove":"zum Entfernen klicken",
     "tap twice to remove":"zum Entfernen zweimal tippen",
+    "This workspace is empty":"Dieser Arbeitsbereich ist leer",
+    "Start from a node, an example, or the starter sample.":"Starte mit einem Node, einem Beispiel oder dem Starter-Beispiel.",
+    "Try the starter sample":"Starter-Beispiel ausprobieren",
+    "or describe what you want in the box below ↓":"oder beschreibe unten im Feld, was du willst ↓",
     "Text to image":"Text zu Bild",
     "Ask a model":"Ein Modell fragen",
     "Browse Examples":"Beispiele durchsuchen",
@@ -4860,6 +4894,10 @@ const I18N = {
     "Blank canvas":"Tela em branco",
     "click to remove":"clique para remover",
     "tap twice to remove":"toque duas vezes para remover",
+    "This workspace is empty":"Este espaço de trabalho está vazio",
+    "Start from a node, an example, or the starter sample.":"Comece com um nó, um exemplo ou a amostra inicial.",
+    "Try the starter sample":"Experimente a amostra inicial",
+    "or describe what you want in the box below ↓":"ou descreva o que você quer na caixa abaixo ↓",
     "Text to image":"Texto para imagem",
     "Ask a model":"Perguntar a um modelo",
     "Browse Examples":"Ver exemplos",
@@ -5671,6 +5709,10 @@ const I18N = {
     "Blank canvas":"空白のキャンバス",
     "click to remove":"クリックで削除",
     "tap twice to remove":"2回タップで削除",
+    "This workspace is empty":"このワークスペースは空です",
+    "Start from a node, an example, or the starter sample.":"ノード、サンプル、またはスターターのサンプルから始めましょう。",
+    "Try the starter sample":"スターターのサンプルを試す",
+    "or describe what you want in the box below ↓":"または下の入力欄にやりたいことを書いてください ↓",
     "Text to image":"テキストから画像",
     "Ask a model":"モデルに聞く",
     "Browse Examples":"例を見る",
@@ -11182,6 +11224,9 @@ function addNode(type, x, y, fields){
   if(type==="endpoint" && !String(n.fields.url||"").trim()) n.fields.url = ENDPOINT_DEF_URL;
   graph.nodes.push(n);
   buildNodeEl(n);
+  // The empty-canvas card must leave as soon as a node exists, even on paths that add without a
+  // redraw (scripted adds, agents). typeof/try: check harnesses extract addNode() without the DOM.
+  try{ if(typeof syncEmptyCanvas==="function") syncEmptyCanvas(); }catch(_){}
   save();
   return n;
 }
@@ -13036,6 +13081,7 @@ function redraw(){
   svg.innerHTML = html;
   if(bridgeFocused) svg.querySelector(".na-dual-bridge-hit")?.focus({preventScroll:true});
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
+  syncEmptyCanvas();
   svg.querySelectorAll("path[data-link]").forEach(p=>{
     // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
     // On coarse pointers a tap ARMS first (turns the wire red + shows the snip), a second tap removes —
@@ -14039,6 +14085,18 @@ function fitUseful(){
   return scale < f*0.5;   // <0.5 keeps it hidden right after a hintPad() boot-fit (pad caps at 45% of the viewport) while still catching a genuinely lost zoom-out
 }
 function syncFitBtn(){ const el=$("fit"); if(el) el.disabled = !fitUseful(); }
+// A workspace with no nodes (closed last tab, Blank canvas, everything deleted) used to be a
+// dark void: Run only flashed "nothing to run", and returning visitors whose last tab was
+// emptied never saw the starter again. Show the three ways in right on the canvas.
+function syncEmptyCanvas(){
+  const el = $("emptycanvas"); if(!el) return;
+  // Not before boot has put its first graph down: a first visit is empty for the length of the
+  // noodle-graph.json fetch, and flashing "This workspace is empty" over the incoming starter
+  // would cost the first impression it's meant to protect.
+  const empty = el.dataset.ready==="1" && !(graph && graph.nodes && graph.nodes.length);
+  if(el.hidden === !empty) return;
+  el.hidden = !empty;
+}
 // A node's box can also change OUTSIDE applyWorld/redraw — an image result landing, a textarea
 // stretch, the demo ghost growing the output node after the boot fit (on a slow network that
 // growth is the LAST thing to happen, so nothing else re-judges ⊡). One shared observer over
@@ -17183,7 +17241,17 @@ function applyPollSettlement(s, r, _refunded){
   if(typeof refreshBalance==="function") refreshBalance(true);
   return false;
 }
-function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
+// #status is the auth slot borrowed for a moment. One timer owns the hand-back, so a
+// second flash isn't cut short by the first one's timer. On narrow screens #status lives
+// inside the closed ⋯ menu, so the same words also go to the toast, the one channel that's
+// always visible — otherwise "nothing to run", "Stop first" and friends say nothing at all.
+let flashT=null;
+function flash(msg){
+  const el = $("status"); if(!el) return;
+  el.textContent = t(msg);
+  clearTimeout(flashT); flashT = setTimeout(renderAuth, 2200);
+  if(!el.getClientRects().length) toast(msg);
+}
 let toastT=null;
 function toast(msg, kind){
   const el=$("toast"); if(!el) return;
@@ -23550,6 +23618,10 @@ $("demosignin").onclick = ()=> signIn().catch(signInErr);
 $("demostarter").onclick = ()=>{ $("demopop").hidden = true; chooseWorkspace("starter"); };   // the wall names the starter — this makes the name a way back to it
 $("demopaste").onclick = ()=>{ $("demopop").hidden = true; $("pastebtn").onclick(); };   // reuse the paste flow (opens #keyrow + clipboard fill)
 $("demox").onclick = ()=> $("demopop").hidden = true;
+// empty-canvas state — each button reuses the toolbar/chooser path it stands in for
+$("ecadd").onclick = (e)=>{ e.stopPropagation(); $("addbtn").click(); };
+$("ecexamples").onclick = ()=> $("examples").click();
+$("ecstarter").onclick = ()=> chooseWorkspace("starter");
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("demopop").hidden) $("demopop").hidden = true; });
 addEventListener("keydown", e=>{ if(e.key==="Escape" && $("keyrow").classList.contains("open")){ e.preventDefault(); $("keyrow").classList.remove("open"); } });
 $("keyx").onclick = ()=> $("keyrow").classList.remove("open");   // touch-dismissable ✕ (phones have no Escape key)
@@ -23671,6 +23743,7 @@ $("signout").onclick = ()=> setKey(null);
     finishInitialCanvas({fresh:freshStart});
     renderWorkspaces();
   }catch(_){}
+  try{ $("emptycanvas").dataset.ready = "1"; syncEmptyCanvas(); }catch(_){}
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
@@ -25056,7 +25129,14 @@ RULES for the diff:
   window.captureDescribeVersions = captureDescribeState;
   window.restoreDescribeVersions = restoreDescribeState;
   window.describeChangeBusy = ()=>busy;
-  window.resetDescribeVersions = ()=>restoreDescribeState(null);
+  // Every wholesale workflow swap (tab switch/close/reopen, Load, Examples, share link, a
+  // different-flow describe) calls this. The sample-run pill (#demopop) talks about "results
+  // below" from the workflow that was just replaced, so it goes too — left up, it sat over an
+  // empty canvas and under the undo-close notice. Undo/redo inside one workflow doesn't call this.
+  window.resetDescribeVersions = ()=>{
+    try{ const dp = document.getElementById("demopop"); if(dp) dp.hidden = true; }catch(_){}
+    restoreDescribeState(null);
+  };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
