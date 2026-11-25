@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="nanoodle-build" content="dev" /><!-- stamped with the deploy commit sha7 by scripts/stamp-sw.mjs; read by scripts/smoke-live.mjs -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>nanoodle — AI workflows and MCP tools</title>
-<meta name="description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<title>nanoodle — build workflows, give your agents new abilities</title>
+<meta name="description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
-<meta property="og:title" content="nanoodle — AI workflows and MCP tools" />
-<meta property="og:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<meta property="og:title" content="nanoodle — build workflows, give your agents new abilities" />
+<meta property="og:description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 <meta property="og:url" content="https://nanoodle.com/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -20,8 +20,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="nanoodle — AI workflows and MCP tools" />
-<meta name="twitter:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<meta name="twitter:title" content="nanoodle — build workflows, give your agents new abilities" />
+<meta name="twitter:description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -54,7 +54,7 @@
       "url": "https://nanoodle.com/",
       "name": "nanoodle",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP.",
+      "description": "Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP.",
       "sameAs": [
         "https://x.com/nanosapien1",
         "https://github.com/nanoodlecom",
@@ -71,7 +71,7 @@
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Connect text, image, video, audio and other AI models in a visual workflow editor. Run saved graphs from JavaScript, Python, or Rust. Call hosted workflows from your agent over the Model Context Protocol (MCP).",
+      "description": "Build workflows and give your agents new abilities: connect text, image, video, audio and other AI models in a visual workflow editor. Run saved graphs from JavaScript, Python, or Rust. Call hosted workflows from your agent over the Model Context Protocol (MCP).",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "sameAs": [
         "https://x.com/nanosapien1",
@@ -1360,8 +1360,8 @@
 <body>
 
 <header id="top">
-  <h1 class="vh">nanoodle — AI workflows and MCP tools</h1>
-  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
+  <h1 class="vh">nanoodle — build workflows, give your agents new abilities</h1>
+  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt="" width="32" height="32"><span><span class="nano">nano</span>odle</span></div>
   <div id="agentmenu">
     <button id="agentbtn" type="button" aria-label="Connect to MCP" title="Connect to MCP" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Connect to MCP</span><span class="compact" data-no-i18n>MCP</span></button>
     <div id="agentpop" hidden role="dialog" aria-labelledby="agenttitle">
@@ -1370,6 +1370,14 @@
       <a class="ap-hosted" href="https://mcp.nanoodle.com/" target="_blank" rel="noopener">
         <span class="ap-hosted-title"><span data-no-i18n>mcp.nanoodle.com</span><span aria-hidden="true">↗</span></span>
         <span>Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.</span>
+      </a>
+      <a class="ap-hosted" href="https://nano.nanoodle.com/" target="_blank" rel="noopener">
+        <span class="ap-hosted-title"><span data-no-i18n>nano.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+        <span>Pay per run in Nano over x402.</span>
+      </a>
+      <a class="ap-hosted" href="https://near.nanoodle.com/" target="_blank" rel="noopener">
+        <span class="ap-hosted-title"><span data-no-i18n>near.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+        <span>Pay per run in NEAR or USDC on NEAR.</span>
       </a>
       <details id="agentskill">
         <summary>Run a workflow as a skill</summary>
@@ -19500,7 +19508,7 @@ function refreshAppButton(){
 }
 function updateTitle(){
   const {title} = editorAppState(savedEditorApps());
-  document.title = pendingAppId ? `nanoodle - ${title || "app"} app` : "nanoodle — AI workflows and MCP tools";
+  document.title = pendingAppId ? `nanoodle - ${title || "app"} app` : "nanoodle — build workflows, give your agents new abilities";
   refreshAppButton();
 }
 /* WORKSPACES-BEGIN

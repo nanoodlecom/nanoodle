@@ -474,7 +474,7 @@ try {
       assert.equal(await page.locator("#makeapp").isVisible(), false, "the second entry is inside Share workflow");
       const mcp = page.getByRole("button", {name:"Connect to MCP"});
       await mcp.press("Enter");
-      const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted");
+      const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted").first();
       await hosted.waitFor();
       assert.equal(await hosted.getAttribute("href"), "https://mcp.nanoodle.com/");
       assert.equal(await hosted.evaluate(el => el === document.activeElement), true);
