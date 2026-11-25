@@ -25052,7 +25052,14 @@ RULES for the diff:
   window.captureDescribeVersions = captureDescribeState;
   window.restoreDescribeVersions = restoreDescribeState;
   window.describeChangeBusy = ()=>busy;
-  window.resetDescribeVersions = ()=>restoreDescribeState(null);
+  // Every wholesale workflow swap (tab switch/close/reopen, Load, Examples, share link, a
+  // different-flow describe) calls this. The sample-run pill (#demopop) talks about "results
+  // below" from the workflow that was just replaced, so it goes too — left up, it sat over an
+  // empty canvas and under the undo-close notice. Undo/redo inside one workflow doesn't call this.
+  window.resetDescribeVersions = ()=>{
+    try{ const dp = document.getElementById("demopop"); if(dp) dp.hidden = true; }catch(_){}
+    restoreDescribeState(null);
+  };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
