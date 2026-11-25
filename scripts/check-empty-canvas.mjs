@@ -38,6 +38,7 @@ ok(/<div id="emptycanvas" hidden>/.test(main), "#emptycanvas is inside the canva
 ok(IDX.indexOf('id="emptycanvas"') < IDX.indexOf("I18N-MAPS-BEGIN"), "it sits before the main script (translated at boot)");
 
 ok(/syncFitBtn\(\);[^\n]*\n\s*syncEmptyCanvas\(\);/.test(extractFn("redraw")), "redraw() re-judges the empty state");
+ok(/buildNodeEl\(n\);[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*try\{ if\(typeof syncEmptyCanvas==="function"\) syncEmptyCanvas\(\); \}catch\(_\)\{\}/.test(extractFn("addNode")), "addNode() hides the card itself — scripted adds skip redraw()");
 const fn = extractFn("syncEmptyCanvas");
 const el = { hidden: true, dataset: {} };
 const ctx = { $: (id) => (id === "emptycanvas" ? el : null), graph: { nodes: [] } };

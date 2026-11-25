@@ -11214,6 +11214,9 @@ function addNode(type, x, y, fields){
   if(type==="endpoint" && !String(n.fields.url||"").trim()) n.fields.url = ENDPOINT_DEF_URL;
   graph.nodes.push(n);
   buildNodeEl(n);
+  // The empty-canvas card must leave as soon as a node exists, even on paths that add without a
+  // redraw (scripted adds, agents). typeof/try: check harnesses extract addNode() without the DOM.
+  try{ if(typeof syncEmptyCanvas==="function") syncEmptyCanvas(); }catch(_){}
   save();
   return n;
 }
