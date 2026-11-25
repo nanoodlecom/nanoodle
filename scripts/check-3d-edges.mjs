@@ -3,8 +3,8 @@
 // That PR shipped catalog labels, drop routing, CSP drop, sample.glb parse,
 // Create-app copy, NJS_TYPES omission, stripInjectedMedia remote/examples/..,
 // and the model_url → model.url → video.url chain.
-// This file pins the other half: 32 MB IDB cap, serialize stub (name/size, no
-// bytes), share blanking, data:/blob: teaching samples stripped, http preview
+// This file pins the other half: 32 MB IDB cap, workspace references, portable
+// backups, share blanking, data:/blob: teaching samples stripped, http preview
 // refused, spanning-catalog run estimate is never "exact", play.html has no 3D
 // runtime, and Create-app resume still wins over the 3D block (without burning
 // the one-shot nudge). Offline, zero API spend. New file so it does not collide
@@ -22,7 +22,7 @@ let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else console.log("  ✓ " + m); };
 
 function extractFn(src, name) {
-  const at = src.search(new RegExp("function " + name + "\\("));
+  const at = src.search(new RegExp("(?:async )?function " + name + "\\("));
   if (at < 0) throw new Error(name + "() not found");
   let depth = 0;
   for (let j = src.indexOf("{", at); j < src.length; j++) {
@@ -39,13 +39,12 @@ const grab = (src, re, what) => {
 
 ok(grab(IDX, /const GLB_CAP = 32 \* 1024 \* 1024;/, "GLB_CAP") === "const GLB_CAP = 32 * 1024 * 1024;",
   "GLB_CAP is 32 MB");
-ok(/if\(buf\.byteLength > GLB_CAP\)[\s\S]{0,180}return;[\s\S]{0,40}n\._glbBytes = buf/.test(IDX),
+ok(/if\(buf\.byteLength > GLB_CAP\)[\s\S]{0,180}return;[\s\S]{0,40}storeUploadedModel\(n, buf, name\)/.test(IDX),
   "putGlbBytes refuses oversize before storing bytes");
-ok(/if\(bytes\.byteLength <= GLB_CAP\)[\s\S]{0,80}node\._glbBytes = bytes/.test(IDX),
+ok(/if\(bytes\.byteLength <= GLB_CAP\)[\s\S]{0,80}storeUploadedModel\(node, bytes,/.test(IDX),
   "serializeGraph only inlines a data: GLB that fits the cap");
-ok(IDX.includes('fields.modelFile = { name:n._glbName, size:n._glbSize }')
-  || IDX.includes("fields.modelFile = { name:n._glbName, size:n._glbSize}"),
-  "the graph keeps a {name, size} stub, not the bytes");
+ok(IDX.includes("fields.modelFile = { name:n._glbName, size:n._glbSize, key }"),
+  "workspace snapshots keep a per-upload file reference without model bytes");
 ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON snapshot"),
   "serializeGraph comment still forbids bytes in the snapshot");
 
@@ -72,12 +71,12 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
   ok(!blobSample.fields.sample, "a blob: teaching sample is stripped");
 
   const shared = priv.shareableGraph({
-    nodes: [{ type: "mupload", fields: { model: "data:model/gltf-binary;base64,AAAA", modelFile: { name: "cup.glb", size: 12 } } }],
+    nodes: [{ type: "mupload", fields: { model: "data:model/gltf-binary;base64,AAAA", modelFile: { name: "cup.glb", size: 12, key: "file:private" } } }],
     links: [],
   });
   ok(shared.nodes[0].fields.model === "", "shareableGraph blanks the mupload model field");
-  ok(shared.nodes[0].fields.modelFile && shared.nodes[0].fields.modelFile.name === "cup.glb",
-    "shareableGraph keeps the {name, size} stub (no bytes to leak)");
+  ok(shared.nodes[0].fields.modelFile?.name === "cup.glb" && shared.nodes[0].fields.modelFile.key === null,
+    "shareableGraph keeps the filename and clears the private file reference");
 
   ok(priv.glbPreviewUrl("http://cdn.example/a.glb", { allowRemote: true }) === "",
     "http is refused even when remote preview is allowed");
@@ -140,19 +139,33 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
 }
 
 {
+  const db = new Map(), downloads = [];
+  let lastUUID = 0;
   const ser = {
     graph: { nodes: [] },
     nid: 2, lid: 1, panX: 0, panY: 0, scale: 1,
     GLB_CAP: 32 * 1024 * 1024,
+    crypto: { randomUUID: () => "fixture-" + (++lastUUID) },
     dataUrlToBytes(url) {
-      return url.includes("huge") ? new ArrayBuffer(32 * 1024 * 1024 + 1) : new ArrayBuffer(128);
+      if (url.includes("huge")) return new ArrayBuffer(32 * 1024 * 1024 + 1);
+      const bytes = new Uint8Array(128);
+      bytes[0] = url.includes("other") ? 2 : 1;
+      return bytes.buffer;
     },
-    URL: { createObjectURL() { return "blob:test"; }, revokeObjectURL() {} },
-    Blob,
-    idbPutGlb() {},
+    URL: { createObjectURL(blob) { if (blob.type === "application/json") downloads.push(blob); return "blob:test"; }, revokeObjectURL() {} },
+    Blob, btoa,
+    idbPutGlb(key, record) { db.set(key, record); },
+    async idbGetGlb(key) { return db.get(key) || null; },
+    byId(id) { return ser.graph.nodes.find(n => n.id === id); },
+    document: { createElement() { return { click() {} }; } },
+    setTimeout() {}, toast() {}, t: text => text,
   };
   vm.createContext(ser);
-  vm.runInContext(extractFn(IDX, "uploadedModelName") + "\n" + extractFn(IDX, "modelFileMime") + "\n" + extractFn(IDX, "serializeGraph") + "\nglobalThis.serializeGraph=serializeGraph;", ser);
+  vm.runInContext([
+    "uploadedModelName", "modelFileMime", "newModel3dOutKey", "storeUploadedModel",
+    "readUploadedModel", "restoreUploadedModel", "serializeGraph", "saveFile", "contentBytesToDataUrl",
+  ].map(name => extractFn(IDX, name)).join("\n") +
+    "\nObject.assign(globalThis, { serializeGraph, restoreUploadedModel, saveFile });", ser);
 
   ser.graph.nodes = [{
     id: "n1", type: "mupload", x: 0, y: 0, w: 200,
@@ -163,8 +176,37 @@ ok(IDX.includes("GLB bytes live in IndexedDB / n._glbBytes, never in the JSON sn
     "serializeGraph lifts a small data: GLB into IndexedDB-backed bytes");
   ok(small.nodes[0].fields.model === "" && small.nodes[0].fields.modelFile
     && small.nodes[0].fields.modelFile.name === "cup.glb" && small.nodes[0].fields.modelFile.size === 128,
-    "serialized mupload is a {name, size} stub with a blank model field");
+    "workspace serialize preserves mupload metadata with a blank model field");
   ok(small.nodes[0]._glbBytes == null, "serialized JSON does not carry the GLB bytes");
+
+  ser.graph.nodes = [{
+    ...small.nodes[0], fields: { model: "data:model/gltf-binary;base64,other", modelFile: { name: "cup.glb", size: 128 } },
+  }];
+  const other = ser.serializeGraph();
+  const original = JSON.parse(JSON.stringify(small.nodes[0]));
+  const replacement = JSON.parse(JSON.stringify(other.nodes[0]));
+  await ser.restoreUploadedModel(original);
+  await ser.restoreUploadedModel(replacement);
+  ok(original.fields.modelFile.key !== replacement.fields.modelFile.key &&
+    new Uint8Array(original._glbBytes)[0] === 1 && new Uint8Array(replacement._glbBytes)[0] === 2,
+    "matching node IDs, filenames and sizes keep separate uploaded bytes");
+
+  ser.graph.nodes = [JSON.parse(JSON.stringify(small.nodes[0]))];
+  await ser.saveFile();
+  const backup = JSON.parse(await downloads[0].text());
+  const saved = backup.nodes[0].fields;
+  ok(saved.model.startsWith("data:model/gltf-binary;base64,") &&
+    Buffer.from(saved.model.split(",")[1], "base64")[0] === 1 && !saved.modelFile.key &&
+    ser.graph.nodes[0].fields.model === "",
+    "Save-file reads unloaded bytes from IndexedDB and includes them without changing the workspace snapshot");
+
+  db.set("n1", { name:"cup.glb", bytes:original._glbBytes });
+  const legacy = { id:"n1", fields:{ modelFile:{ name:"cup.glb", size:128 } } };
+  const shared = { id:"n1", fields:{ modelFile:{ name:"cup.glb", size:128, key:null } } };
+  await ser.restoreUploadedModel(legacy);
+  await ser.restoreUploadedModel(shared);
+  ok(new Uint8Array(legacy._glbBytes)[0] === 1 && !shared._glbBytes,
+    "legacy local records still restore and public references need a new upload");
 
   ser.graph.nodes = [{
     id: "n2", type: "mupload", x: 0, y: 0, w: 200,

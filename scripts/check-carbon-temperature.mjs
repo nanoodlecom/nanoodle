@@ -14,7 +14,7 @@ for (const file of ["index.html","play.html"]) {
     return {ok:true,json:async()=>({choices:[{message:{content:"fixture"}}]})};
   };
   const ctx = vm.createContext({fetch,apiFetch:fetch,send:fetch,CHAT_ENDPOINT:"fixture",
-    withLocale:x=>x,authHeaders:()=>({}),runSignal:()=>undefined,
+    withLocale:x=>x,getKey:()=>"fixture-key",authHeaders:()=>({}),runSignal:()=>undefined,
     accrue:()=>{},onCost:()=>{},costWithHeaders:()=>0});
   const client = vm.runInContext("({"+method+"})",ctx);
   for (const temperature of [undefined,"",0,0.8,2]) {

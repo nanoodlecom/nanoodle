@@ -20,6 +20,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEngine } from "./play-engine.mjs";
 import vm from "node:vm";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -84,6 +85,7 @@ function inert() {
   return p;
 }
 
+const NODE_TYPES = loadEngine().NODE_TYPES;
 function buildExport(graph) {
   const code = prepare(extractBundlerScript(readFileSync(PLAY, "utf8")));
   const doc = inert();
@@ -94,6 +96,7 @@ function buildExport(graph) {
   };
   const ctx = {
     document: doc,
+    NoodleApp: { NODE_TYPES },
     localStorage,
     sessionStorage: localStorage,
     location: { origin: "", pathname: "", hash: "", href: "", replace() {} },
@@ -195,7 +198,7 @@ try {
   assertStandalone(buildExport({
     nodes: [
       { id: "u1", type: "upload", fields: { image: "data:image/png;base64,AAAA" } },
-      { id: "p1", type: "prompt", fields: { text: "Describe {{u1}}" } },
+      { id: "p1", type: "text", fields: { text: "Describe {{u1}}" } },
     ],
     links: [{ from: "u1", to: "p1" }],
   }), failures);
@@ -220,6 +223,16 @@ try {
     ],
     links: [],
   });
+  const opaqueExport = buildExport({
+    nodes: [{ id: "future", type: "future-node", x: 40, y: 60,
+      fields: { prompt: "FUTUREPRIVATEPROMPT", media: "FUTUREPRIVATEMEDIA" },
+      out: { video: "FUTUREPRIVATERESULT" }, metadata: { token: "FUTUREPRIVATEMETADATA" } }],
+    links: [],
+  });
+  if (!opaqueExport.includes('"id":"future","type":"future-node"'))
+    failures.push("export dropped the unsupported node's identity");
+  if (/FUTUREPRIVATE/.test(opaqueExport))
+    failures.push("export includes opaque fields or results from an unsupported node");
   for (const [what, marker] of Object.entries(MEDIA_LEAKS)) {
     if (mediaExport.includes(marker)) failures.push(`export leaks the ${what} — shareableGraph did not strip it from the exported graph`);
   }
@@ -227,7 +240,7 @@ try {
   // Adversarial graph: a field value that tries to break out of the <script>
   // and a line/paragraph separator that would corrupt an unescaped JS string.
   const evil = { id: "p1", text: "</script><img src=x onerror=alert(1)>   & <b>ok</b>" };
-  const advExport = buildExport({ nodes: [{ id: "p1", type: "prompt", fields: { text: evil.text } }], links: [] });
+  const advExport = buildExport({ nodes: [{ id: "p1", type: "text", fields: { text: evil.text } }], links: [] });
   assertStandalone(advExport, failures);
   assertInlineJsParses(advExport, failures, tmp);
   assertGraphRoundTrips(advExport, evil, failures);

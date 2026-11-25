@@ -4,7 +4,7 @@
  *
  * Exported apps use play.html RUNTIME. Keep the audio→tts alias, migrate
  * legacy music/tts wires, keep unsupported dependencies for run preflight,
- * and prune links whose endpoints are absent.
+ * and retain links whose endpoints are absent for diagnostics.
  *
  * Does NOT pin media-placeholder scrub — play RUNTIME still does not scrub
  * (library/njs are pinned in check-media-placeholders.mjs).
@@ -66,8 +66,8 @@ else ok("decide-branch → decide with branch routing");
 
 if (!links.some((l) => l.id === "l3")) fail("a link to a retained unsupported node must be preserved");
 else ok("link to unsupported node survives");
-if (links.some((l) => l.id === "l10")) fail("a link with an absent endpoint must be pruned");
-else ok("dangling link to absent node is pruned");
+if (!links.some((l) => l.id === "l10" && l.from.node === "absent")) fail("a link with an absent endpoint must survive for preflight");
+else ok("dangling link to absent node is retained");
 
 const l1 = links.find((l) => l.id === "l1");
 const l2 = links.find((l) => l.id === "l2");

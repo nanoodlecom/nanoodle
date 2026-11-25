@@ -35,7 +35,16 @@ function extractFn(src, name) {
   throw new Error(`could not brace-match ${name}()`);
 }
 const runGroupSrc = extractAsyncFn(SRC, "runGroup");
+const malformedNodeRecordErrorSrc = extractFn(SRC, "malformedNodeRecordError");
+const declaresWireOutputSrc = extractFn(SRC, "declaresWireOutput");
+const declaresWireInputSrc = extractFn(SRC, "declaresWireInput");
+const invalidWireMessageSrc = extractFn(SRC, "invalidWireMessage");
+const inputConflictSrc = ["competingInputMessage", "guaranteedWireOutput", "unconditionalInputConflict"]
+  .map(name => extractFn(SRC, name)).join("\n");
+const wireInputFieldsSrc = SRC.match(/^const WIRE_INPUT_FIELDS = \{[\s\S]*?^};/m)[0];
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
+const assertRunCredentialSrc = extractFn(SRC, "assertRunCredential");
+const paidOutputCredentialsSrc = SRC.match(/^const paidOutputCredentials = new WeakMap\(\);/m)[0];
 const ancestorsSrc = extractFn(SRC, "ancestors");
 const topoOrderSrc = extractFn(SRC, "topoOrder");
 const groupBusySrc = extractFn(SRC, "groupBusy");
@@ -144,14 +153,16 @@ function bindWorld(world, opts = {}) {
     paintRunLive: () => {},
     refreshRunEstimate: () => {},
     flash: () => {},
-    setStatus: (n, s) => { n.el.dataset.status = s; n._st = s; },
+    setStatus: (n, s, message) => { n.el.dataset.status = s; n._st = s; n._message = message; },
     setStopped: (n) => { n.el.dataset.status = "idle"; n._st = "stopped"; },
     setSkipped: (n) => { n.el.dataset.status = "skip"; n._st = "skip"; },
     byId: (id) => world.nodes[id],
-    NODE_TYPES: world.NODE_TYPES,
+    NODE_TYPES: Object.fromEntries(Object.entries(world.NODE_TYPES).map(([type, spec]) =>
+      [type, { outputs: [{ name: "image", type: "image" }], ...spec }])),
+    AUDIO_PARAMS: {},
     graph: { links: world.links, nodes: Object.values(world.nodes) },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
-    nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
+    nodeSig: opts.nodeSig || (() => 0), isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
     // prompt-length caps (PROMPT LENGTH CAPS): identity here — this harness is about stale inputs
     // reaching a paid call, not about how long the prompt that reaches it is.
     withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
@@ -161,7 +172,9 @@ function bindWorld(world, opts = {}) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   new vm.Script(
-    isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
+    wireInputFieldsSrc + "\n" + declaresWireOutputSrc + "\n" + declaresWireInputSrc + "\n" + invalidWireMessageSrc + "\n" +
+    inputConflictSrc + "\n" + malformedNodeRecordErrorSrc + "\n" +
+    isPaidNanoTypeSrc + "\n" + assertRunCredentialSrc + "\n" + paidOutputCredentialsSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
     groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
     dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
     "\nglobalThis.runGroup = runGroup;" +
@@ -182,6 +195,77 @@ async function run(world, seed, opts = {}) {
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else console.log("  ✓ " + m); };
+
+for(const held of [true, false]){
+  const w = makeWorld(2, false);
+  w.nodes.n0.type = "image";
+  const began = Promise.withResolvers(), release = Promise.withResolvers();
+  const paid = [];
+  w.NODE_TYPES.image = { inputs: [], async run(_node, _inp, ctx) {
+    const owner = ctx.getRunCredential();
+    paid.push(["source", owner]);
+    if(owner === "first"){
+      began.resolve();
+      if(held) await release.promise;
+    }
+    return {image:owner + " result"};
+  } };
+  w.NODE_TYPES.edit.run = async (_node, inp, ctx) => {
+    paid.push(["consumer", ctx.getRunCredential(), inp.image]);
+    return {image:inp.image};
+  };
+  let key = "first";
+  const ctx = bindWorld(w);
+  ctx.getKey = () => key;
+  const firstRun = ctx.runGroup([held ? "n1" : "n0"]);
+  await began.promise;
+  if(!held) await firstRun;
+  key = "second";
+  release.resolve();
+  if(held){
+    await firstRun;
+    ok(paid.length === 1 && w.nodes.n0.out.image === "STALE_PRIOR_RUN" && w.nodes.n1._st === "skip",
+      "replacing a key mid-run prevents old result publication and downstream debit");
+    ok(w.nodes.n0._message.includes("account changed"), "the old account's run receives a clear key change message");
+  }
+  await ctx.runGroup(["n1"]);
+  ok(JSON.stringify(paid) === JSON.stringify([["source","first"],["source","second"],["consumer","second","second result"]]),
+    "a new account executes its own ancestors and never forwards the old account's cached output");
+  await ctx.runGroup(["n1"]);
+  ok(paid.filter(([node]) => node === "source").length === 2,
+    "a repeat with the same key continues to reuse a succeeded ancestor");
+}
+
+{
+  const w = makeWorld(2, false);
+  w.links[0].from.port = "obsoletePort";
+  await run(w, "n1");
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "an undeclared output stops the editor before either node runs");
+  ok(w.nodes.n1._st === "error" && w.nodes.n1._message.includes('Node "n0" has no output port "obsoletePort"'),
+    "the editor identifies the bad source port on the selected node");
+}
+
+{
+  const w = makeWorld(3, false);
+  w.links[0].to.node = "n2";
+  await run(w, "n2");
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "competing wires stop the editor before any source or consumer runs");
+  ok(w.nodes.n2._st === "error" && w.nodes.n2._message.includes('competing wires for input "image"'),
+    "the editor identifies the competing input on the selected node");
+}
+
+for (const [endpoint, edit, expected] of [
+  ["from", { node:"absent" }, "missing source node"],
+  ["to", { port:"iamge" }, 'no input port "iamge"'],
+  ["to", { node:"absent" }, "missing target node"],
+]) {
+  const w = makeWorld(2, false);
+  Object.assign(w.links[0][endpoint], edit);
+  const seed = edit.node === "absent" && endpoint === "to" ? "n0" : "n1";
+  await run(w, seed);
+  ok(Object.keys(w.runs).length === 0 && w.paid.length === 0, "a malformed wire blocks the selected editor run before node work");
+  ok(w.nodes[seed]._st === "error" && w.nodes[seed]._message.includes(expected), "editor diagnoses " + expected);
+}
 
 // 1) Upstream failure → direct dependent is skipped, never charged.
 {
@@ -236,6 +320,15 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(!(w.demoBadged || []).length, `no sample badge on a graph we refused to fake (badged=${JSON.stringify(w.demoBadged || [])})`);
 }
 
+{
+  const w = makeWorld(1, false);
+  w.nodes.n0.type = "model3d";
+  w.NODE_TYPES.model3d = w.NODE_TYPES.img;
+  await run(w, "n0", { signedOut: true, customGraph: true });
+  ok(!w.runs.n0 && w.demoPopOpened && w.demoPopMode === null,
+    "the signed-out editor asks for a key before starting a paid 3D model");
+}
+
 // 5b) Signed out on the starter SHAPE with field tweaks → still free-samples (canned results),
 //     but the pill uses "shape" mode so the UI can warn that edits aren't reflected yet.
 {
@@ -256,13 +349,13 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
 //    present); n2 is the retried target. n1 is a PAID edit node, so a reuse miss would re-charge it.
 {
   const w = makeWorld(3, false);
-  w.nodes.n0._sig = 0;                                   // nodeSig() stub is ()=>0, so _sig=0 == "unchanged"
-  w.nodes.n1._sig = 0; w.nodes.n1.out = { image: "PRIOR_EDIT_n1" };   // n1 succeeded on the prior run
-  // n2.out stays {} — it's the node being retried
-  await run(w, "n2");                                    // Run targeting only n2 (per-node retry on the failed node)
+  const ctx = bindWorld(w);
+  await ctx.runGroup(["n1"]);                           // n0 and n1 succeeded under the same real-run context
+  delete w.runs.n0; delete w.runs.n1; w.paid.length = 0;
+  await ctx.runGroup(["n2"]);                           // Run targeting only n2 (per-node retry on the failed node)
   ok(!w.runs.n0 && !w.runs.n1, `succeeded upstream REUSED, not re-executed on retry (n0=${w.runs.n0 || 0}, n1=${w.runs.n1 || 0})`);
   ok(w.runs.n2 === 1, `the explicitly targeted (retried) node re-executes (run count=${w.runs.n2})`);
-  ok(w.paid.length === 1 && w.paid[0] === "n2<=PRIOR_EDIT_n1", `only the target charged, on the REUSED upstream output (paid=${JSON.stringify(w.paid)})`);
+  ok(w.paid.length === 1 && w.paid[0] === "n2<=EDITED_n1", `only the target charged, on the REUSED upstream output (paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.n1._st === "done", `reused upstream node shown 'done' (status=${w.nodes.n1._st})`);
 }
 
@@ -336,6 +429,32 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(w.paid.filter((x) => x === "nA").length === 1, `paid A charged once (paid=${JSON.stringify(w.paid)})`);
   ok(w.nodes.nB.out.image === "EDITED_nB" && w.nodes.nC.out.image === "EDITED_nC",
     "both siblings produced output from the shared A result");
+}
+
+// A new sibling must use the edited upstream prompt even when its older request is still in flight.
+{
+  const w = makeWorld(3, false);
+  w.links[1].from.node = "n0";
+  w.nodes.n0.fields.prompt = "older prompt";
+  const began = Promise.withResolvers(), release = Promise.withResolvers();
+  const upstream = [];
+  w.NODE_TYPES.img.run = async n => {
+    const prompt = n.fields.prompt;
+    upstream.push(prompt);
+    if (prompt === "older prompt") { began.resolve(); await release.promise; }
+    return {image:prompt};
+  };
+  const ctx = bindWorld(w, {nodeSig:(n, inp) => JSON.stringify([n.type,n.fields,inp])});
+  const first = ctx.runGroup(["n1"]);
+  await began.promise;
+  w.nodes.n0.fields.prompt = "edited prompt";
+  const second = ctx.runGroup(["n2"]);
+  release.resolve();
+  await Promise.all([first,second]);
+  ok(JSON.stringify(upstream) === JSON.stringify(["older prompt","edited prompt"]),
+    "edited sibling starts another upstream request");
+  ok(JSON.stringify(w.paid) === JSON.stringify(["n1<=older prompt","n2<=edited prompt"]),
+    "each sibling pays for its own upstream input");
 }
 
 // 9) Stop on B does not abort C. Shared A already finished; C is mid-run.

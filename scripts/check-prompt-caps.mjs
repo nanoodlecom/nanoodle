@@ -191,7 +191,7 @@ vm.runInContext([
     "…and only for a request actually sent: the announcement sits after the seed/reuse skips");
   check(/friendlyRunError\(err, n\)/.test(IDX), "the editor hands the node to friendlyRunError so an unknown cap can be learned against its model");
 
-  const playLoop = PLAY.slice(PLAY.indexOf("let rn = Object.keys(fieldOverrides).length"));
+  const playLoop = PLAY.slice(PLAY.indexOf("async function runGraph(graph, opts)"));
   const pFit = playLoop.indexOf("await withFittedPrompt(rn, n)");
   const pSig = playLoop.indexOf("const sig = nodeSig(rn, inp)");
   check(pFit > -1 && pSig > -1 && pFit < pSig,

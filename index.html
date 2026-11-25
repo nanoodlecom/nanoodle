@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="nanoodle-build" content="dev" /><!-- stamped with the deploy commit sha7 by scripts/stamp-sw.mjs; read by scripts/smoke-live.mjs -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>nanoodle — AI workflows and MCP tools</title>
-<meta name="description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<title>nanoodle — build workflows, give your agents new abilities</title>
+<meta name="description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
-<meta property="og:title" content="nanoodle — AI workflows and MCP tools" />
-<meta property="og:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<meta property="og:title" content="nanoodle — build workflows, give your agents new abilities" />
+<meta property="og:description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 <meta property="og:url" content="https://nanoodle.com/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -20,8 +20,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="nanoodle — AI workflows and MCP tools" />
-<meta name="twitter:description" content="Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP." />
+<meta name="twitter:title" content="nanoodle — build workflows, give your agents new abilities" />
+<meta name="twitter:description" content="Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -54,7 +54,7 @@
       "url": "https://nanoodle.com/",
       "name": "nanoodle",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Build visual workflows with NanoGPT, run saved graphs from JavaScript, Python, or Rust, or call hosted workflows over MCP.",
+      "description": "Build workflows and give your agents new abilities: connect text, image, video, audio and 3D models in a visual editor, run graphs from JavaScript, Python or Rust, or call hosted workflows over MCP.",
       "sameAs": [
         "https://x.com/nanosapien1",
         "https://github.com/nanoodlecom",
@@ -71,7 +71,7 @@
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web",
       "inLanguage": ["en", "es", "fr", "de", "pt", "ja"],
-      "description": "Connect text, image, video, audio and other AI models in a visual workflow editor. Run saved graphs from JavaScript, Python, or Rust. Call hosted workflows from your agent over the Model Context Protocol (MCP).",
+      "description": "Build workflows and give your agents new abilities: connect text, image, video, audio and other AI models in a visual workflow editor. Run saved graphs from JavaScript, Python, or Rust. Call hosted workflows from your agent over the Model Context Protocol (MCP).",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "sameAs": [
         "https://x.com/nanosapien1",
@@ -618,6 +618,16 @@
     .node[data-status=run]{ box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent), 0 10px 30px #0006 }
   }
   #canvashint[hidden], #connecthint[hidden]{ display:none }
+  /* empty-canvas state: a blank workspace says what to do instead of showing a dark void */
+  #emptycanvas[hidden]{ display:none }
+  #emptycanvas{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:2; padding:1rem }
+  #emptycanvas .ec-card{ pointer-events:auto; display:flex; flex-direction:column; align-items:center; gap:.55rem; text-align:center;
+                         max-width:min(420px, 100%); padding:1.1rem 1.2rem; border:1px dashed var(--line); border-radius:.8rem; background:color-mix(in srgb, var(--panel) 85%, transparent) }
+  #emptycanvas .ec-title{ font-size:1rem; font-weight:600; color:var(--ink) }
+  #emptycanvas .ec-sub{ font-size:.8rem; color:var(--dim); line-height:1.4 }
+  #emptycanvas .ec-actions{ display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem; margin:.25rem 0 }
+  #emptycanvas .ec-actions button{ min-height:40px; padding:.45rem .8rem; border-radius:.55rem; font-size:.88rem; cursor:pointer }
+  #emptycanvas #ecadd{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; border:none; font-weight:600 }
   #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:min(calc(100% - 1.5rem), 640px);
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
@@ -1363,8 +1373,8 @@
 <body>
 
 <header id="top">
-  <h1 class="vh">nanoodle — AI workflows and MCP tools</h1>
-  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt=""><span><span class="nano">nano</span>odle</span></div>
+  <h1 class="vh">nanoodle — build workflows, give your agents new abilities</h1>
+  <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt="" width="32" height="32"><span><span class="nano">nano</span>odle</span></div>
   <div id="agentmenu">
     <button id="agentbtn" type="button" aria-label="Connect to MCP" title="Connect to MCP" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Connect to MCP</span><span class="compact" data-no-i18n>MCP</span></button>
     <div id="agentpop" hidden role="dialog" aria-labelledby="agenttitle">
@@ -1373,6 +1383,14 @@
       <a class="ap-hosted" href="https://mcp.nanoodle.com/" target="_blank" rel="noopener">
         <span class="ap-hosted-title"><span data-no-i18n>mcp.nanoodle.com</span><span aria-hidden="true">↗</span></span>
         <span>Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.</span>
+      </a>
+      <a class="ap-hosted" href="https://nano.nanoodle.com/" target="_blank" rel="noopener">
+        <span class="ap-hosted-title"><span data-no-i18n>nano.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+        <span>Pay per run in Nano over x402.</span>
+      </a>
+      <a class="ap-hosted" href="https://near.nanoodle.com/" target="_blank" rel="noopener">
+        <span class="ap-hosted-title"><span data-no-i18n>near.nanoodle.com</span><span aria-hidden="true">↗</span></span>
+        <span>Pay per run in NEAR or USDC on NEAR.</span>
       </a>
       <details id="agentskill">
         <summary>Run a workflow as a skill</summary>
@@ -1627,6 +1645,18 @@
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP. <a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="emptycanvas" hidden>
+    <div class="ec-card" role="group" aria-label="This workspace is empty">
+      <div class="ec-title">This workspace is empty</div>
+      <div class="ec-sub">Start from a node, an example, or the starter sample.</div>
+      <div class="ec-actions">
+        <button type="button" id="ecadd">＋ <span>Add a node</span></button>
+        <button type="button" id="ecexamples">📚 <span>Examples</span></button>
+        <button type="button" id="ecstarter">Try the starter sample</button>
+      </div>
+      <div class="ec-sub">or describe what you want in the box below ↓</div>
+    </div>
+  </div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -2309,6 +2339,7 @@ const I18N = {
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— pago por uso, sin suscripción; tu clave se queda en este navegador.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"no se pudo leer tu portapapeles — haz clic en el campo de clave y pulsa Ctrl+V para pegar",
     "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"esa clave tiene un carácter que no se puede enviar — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",
+    "NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again":"NanoGPT rechazó tu clave API (HTTP {status}) — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"clave guardada — pero nano-gpt.com no se puede alcanzar ahora mismo (¿bloqueador de anuncios, VPN o red?), así que las ejecuciones pueden fallar",
     "key saved — you're ready to run":"clave guardada — listo para ejecutar",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"el saldo {bal} podría no cubrir esta ejecución de ~{usd} — recarga en nano-gpt.com",
@@ -2422,6 +2453,12 @@ const I18N = {
     "Workspaces":"Espacios de trabajo",
     "New workspace":"Nuevo espacio de trabajo",
     "Blank canvas":"Lienzo en blanco",
+    "click to remove":"haz clic para quitar",
+    "tap twice to remove":"toca dos veces para quitar",
+    "This workspace is empty":"Este espacio de trabajo está vacío",
+    "Start from a node, an example, or the starter sample.":"Empieza con un nodo, un ejemplo o el ejemplo inicial.",
+    "Try the starter sample":"Prueba el ejemplo inicial",
+    "or describe what you want in the box below ↓":"o describe lo que quieres en el cuadro de abajo ↓",
     "Text to image":"Texto a imagen",
     "Ask a model":"Preguntar a un modelo",
     "Browse Examples":"Ver ejemplos",
@@ -3119,6 +3156,7 @@ const I18N = {
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— paiement à l'usage, sans abonnement ; votre clé reste dans ce navigateur.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"impossible de lire votre presse-papiers — cliquez dans le champ de la clé et appuyez sur Ctrl+V pour coller",
     "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"cette clé contient un caractère qui ne peut pas être envoyé — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",
+    "NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again":"NanoGPT a rejeté votre clé API (HTTP {status}) — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"clé enregistrée — mais nano-gpt.com est actuellement injoignable (bloqueur de pub, VPN ou réseau ?), les exécutions peuvent donc échouer",
     "key saved — you're ready to run":"clé enregistrée — prêt à exécuter",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"le solde {bal} pourrait ne pas couvrir cette exécution de ~{usd} — rechargez sur nano-gpt.com",
@@ -3232,6 +3270,12 @@ const I18N = {
     "Workspaces":"Espaces de travail",
     "New workspace":"Nouvel espace de travail",
     "Blank canvas":"Canevas vide",
+    "click to remove":"cliquez pour retirer",
+    "tap twice to remove":"touchez deux fois pour retirer",
+    "This workspace is empty":"Cet espace de travail est vide",
+    "Start from a node, an example, or the starter sample.":"Commencez par un nœud, un exemple ou l’exemple de départ.",
+    "Try the starter sample":"Essayer l’exemple de départ",
+    "or describe what you want in the box below ↓":"ou décrivez ce que vous voulez dans le champ ci-dessous ↓",
     "Text to image":"Texte vers image",
     "Ask a model":"Interroger un modèle",
     "Browse Examples":"Parcourir les exemples",
@@ -3929,6 +3973,7 @@ const I18N = {
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— nutzungsbasiert, kein Abo nötig; dein Schlüssel bleibt in diesem Browser.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"dein Zwischenspeicher konnte nicht gelesen werden — klicke ins Schlüsselfeld und drücke Strg+V zum Einfügen",
     "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"dieser Schlüssel enthält ein Zeichen, das nicht gesendet werden kann — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",
+    "NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again":"NanoGPT hat deinen API-Schlüssel abgelehnt (HTTP {status}) — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"Schlüssel gespeichert — aber nano-gpt.com ist gerade nicht erreichbar (Werbeblocker, VPN oder Netzwerk?), Ausführungen könnten fehlschlagen",
     "key saved — you're ready to run":"Schlüssel gespeichert — bereit zum Ausführen",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"Guthaben {bal} deckt diese ~{usd}-Ausführung möglicherweise nicht — bei nano-gpt.com aufladen",
@@ -4042,6 +4087,12 @@ const I18N = {
     "Workspaces":"Arbeitsbereiche",
     "New workspace":"Neuer Arbeitsbereich",
     "Blank canvas":"Leere Fläche",
+    "click to remove":"zum Entfernen klicken",
+    "tap twice to remove":"zum Entfernen zweimal tippen",
+    "This workspace is empty":"Dieser Arbeitsbereich ist leer",
+    "Start from a node, an example, or the starter sample.":"Starte mit einem Node, einem Beispiel oder dem Starter-Beispiel.",
+    "Try the starter sample":"Starter-Beispiel ausprobieren",
+    "or describe what you want in the box below ↓":"oder beschreibe unten im Feld, was du willst ↓",
     "Text to image":"Text zu Bild",
     "Ask a model":"Ein Modell fragen",
     "Browse Examples":"Beispiele durchsuchen",
@@ -4739,6 +4790,7 @@ const I18N = {
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— pague pelo uso, sem assinatura; sua chave fica neste navegador.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"não foi possível ler sua área de transferência — clique no campo da chave e pressione Ctrl+V para colar",
     "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"essa chave tem um caractere que não pode ser enviado — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",
+    "NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again":"O NanoGPT rejeitou sua chave de API (HTTP {status}) — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"chave salva — mas o nano-gpt.com não pôde ser alcançado agora (bloqueador de anúncios, VPN ou rede?), então as execuções podem falhar",
     "key saved — you're ready to run":"chave salva — pronto para executar",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"o saldo {bal} pode não cobrir esta execução de ~{usd} — recarregue em nano-gpt.com",
@@ -4852,6 +4904,12 @@ const I18N = {
     "Workspaces":"Espaços de trabalho",
     "New workspace":"Novo espaço de trabalho",
     "Blank canvas":"Tela em branco",
+    "click to remove":"clique para remover",
+    "tap twice to remove":"toque duas vezes para remover",
+    "This workspace is empty":"Este espaço de trabalho está vazio",
+    "Start from a node, an example, or the starter sample.":"Comece com um nó, um exemplo ou a amostra inicial.",
+    "Try the starter sample":"Experimente a amostra inicial",
+    "or describe what you want in the box below ↓":"ou descreva o que você quer na caixa abaixo ↓",
     "Text to image":"Texto para imagem",
     "Ask a model":"Perguntar a um modelo",
     "Browse Examples":"Ver exemplos",
@@ -5549,6 +5607,7 @@ const I18N = {
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— 従量課金制、サブスクリプション不要。キーはこのブラウザに保存されます。",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"クリップボードを読み取れませんでした — キー欄をクリックしてCtrl+Vで貼り付けてください",
     "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"そのキーには送信できない文字が含まれています — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください",
+    "NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again":"NanoGPTにAPIキーが拒否されました (HTTP {status}) — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"キーを保存しました — ただし現在nano-gpt.comに接続できません（広告ブロッカー、VPN、ネットワークの可能性）。実行が失敗するかもしれません",
     "key saved — you're ready to run":"キーを保存しました — 実行の準備ができました",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"残高{bal}ではこの~{usd}の実行を賄えない可能性があります — nano-gpt.comでチャージしてください",
@@ -5662,6 +5721,12 @@ const I18N = {
     "Workspaces":"ワークスペース",
     "New workspace":"新しいワークスペース",
     "Blank canvas":"空白のキャンバス",
+    "click to remove":"クリックで削除",
+    "tap twice to remove":"2回タップで削除",
+    "This workspace is empty":"このワークスペースは空です",
+    "Start from a node, an example, or the starter sample.":"ノード、サンプル、またはスターターのサンプルから始めましょう。",
+    "Try the starter sample":"スターターのサンプルを試す",
+    "or describe what you want in the box below ↓":"または下の入力欄にやりたいことを書いてください ↓",
     "Text to image":"テキストから画像",
     "Ask a model":"モデルに聞く",
     "Browse Examples":"例を見る",
@@ -11173,6 +11238,9 @@ function addNode(type, x, y, fields){
   if(type==="endpoint" && !String(n.fields.url||"").trim()) n.fields.url = ENDPOINT_DEF_URL;
   graph.nodes.push(n);
   buildNodeEl(n);
+  // The empty-canvas card must leave as soon as a node exists, even on paths that add without a
+  // redraw (scripted adds, agents). typeof/try: check harnesses extract addNode() without the DOM.
+  try{ if(typeof syncEmptyCanvas==="function") syncEmptyCanvas(); }catch(_){}
   save();
   return n;
 }
@@ -11188,13 +11256,14 @@ const portRowHTML = (nodeId, p, dir)=>
 
 // Rebuild a node's output port column after its dynamic-port count changes, then drop
 // any wires that fed from a port that no longer exists.
-function refreshFramePorts(n){
+function refreshFramePorts(n, preserveWires=false){
   if(!n.el || typeof NODE_TYPES[n.type].outputs !== "function") return;
   const ports = outputsOf(n);
   const col = n.el.querySelector(".col.out");
   if(!col) return;
   col.innerHTML = ports.map(p=> portRowHTML(n.id, p, "out")).join("");
   col.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
+  if(preserveWires){ refreshPortFills(); redraw(); return; }
   const names = new Set(ports.map(p=>p.name));
   const before = graph.links.length;
   // Downstream nodes that lose a frame link would otherwise keep a hole in their
@@ -11209,8 +11278,14 @@ function refreshFramePorts(n){
   if(graph.links.length !== before) save();
 }
 
+function unsupportedNodeMessage(n){
+  return 'Unsupported node type "' + n._unsupportedNode.type + '" (node ' + n.id + '). Open the workflow in a version of nanoodle that supports it.';
+}
 function buildNodeEl(n){
-  const t = NODE_TYPES[n.type];
+  const t = n._unsupportedNode ? {
+    ...NODE_TYPES.comment, em:"⚠️", title:"Unsupported node", mount:null,
+    body:()=> '<p class="err" role="status" data-no-i18n>' + esc(unsupportedNodeMessage(n)) + '</p>',
+  } : NODE_TYPES[n.type];
   const isNote = !!t.note;   // a sticky note: no ports, no run/status chrome, no result panel
   const hidePlay = isNote || isInputKind(n.type);   // input/source kinds have no ▶ — playing them is meaningless
   const el = document.createElement("div");
@@ -11352,15 +11427,24 @@ function buildNodeEl(n){
 // Keep a node's image ports contiguous (img1, img2, …) after one is unwired — without this,
 // removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
 // links in place, preserving order. Safe no-op for nodes without image inputs.
+function compactInputSlots(links, name){
+  const ports = new Map();
+  for(const link of links){
+    const port = link.to.port;
+    // Routed alternatives and malformed overlaps both retain their shared slot.
+    if(!ports.has(port)) ports.set(port, name(ports.size+1));
+    link.to.port = ports.get(port);
+  }
+}
 function recompactImageLinks(n){
   const s = imgSpec(n); if(!s) return;
   // NOT for role-ordered models: there the slot IS the meaning (image = person, image2 = garment),
   // so re-packing after unwiring slot 1 would silently promote the garment into the person slot and
   // ship a wrong-but-plausible paid render. Leave the hole; edit.run() refuses to send with one.
   if(s.roles) return;
-  graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
-    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port))
-    .forEach((l,i)=>{ l.to.port = s.name(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
+    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port));
+  compactInputSlots(links, s.name);
 }
 
 // Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
@@ -11388,16 +11472,16 @@ function refreshImageInputs(n){
 // Re-pack vid1..vidN after a disconnect so there's never a hole (mirror of recompactImageLinks).
 function recompactVideoLinks(n){
   if(!n || !NODE_TYPES[n.type]?.videoInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "vid"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && VID_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"vid"+i);
 }
 // Re-pack ref1..refN after a disconnect so there's never a hole (mirror of recompactVideoLinks).
 function recompactRefLinks(n){
   if(!n || !NODE_TYPES[n.type]?.refInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "ref"+(i+1); });
+  const links = graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)));
+  compactInputSlots(links, i=>"ref"+i);
 }
 // Render the Combine node's dynamic clip input ports. Idempotent — safe after connect,
 // disconnect, or graph load. Shows every wired clip plus one empty trailing slot.
@@ -11930,7 +12014,7 @@ function endpointWiredField(n, port){
   // Shared with run-cost / node price chips (wiredFieldValue) — Choice path/mode/url + model.
   return wiredFieldValue(n, port);
 }
-function refreshEndpointUI(n){
+function refreshEndpointUI(n, preserveWires=false){
   if(!n.el || n.type!=="endpoint") return;
   const urlW = endpointWiredField(n, "url");
   const modeW = endpointWiredField(n, "mode");
@@ -11969,7 +12053,7 @@ function refreshEndpointUI(n){
     req.textContent = JSON.stringify(endpointRequestBody(mode, liveN, inp), null, 2);
   }
   if(res) res.textContent = JSON.stringify(endpointExpectedReturn(mode), null, 2);
-  refreshFramePorts(n);
+  refreshFramePorts(n, preserveWires);
 }
 function mountEndpoint(n){
   refreshEndpointUI(n);
@@ -12314,6 +12398,15 @@ function glbDownloadUrl(n){
   }
   return (typeof n.fields.model==="string" && n.fields.model) ? n.fields.model : "";
 }
+function storeUploadedModel(n, bytes, name){
+  n._glbBytes = bytes;
+  n._glbName = name || "model.glb";
+  n._glbSize = bytes.byteLength;
+  const key = "file:" + newModel3dOutKey();
+  n.fields.model = "";
+  n.fields.modelFile = { name:n._glbName, size:n._glbSize, key };
+  idbPutGlb(key, { name:n._glbName, bytes });
+}
 function putGlbBytes(n, bytes, name){
   const buf = bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset+bytes.byteLength);
   const host = n.el && n.el.querySelector("[data-glb-in]");
@@ -12321,27 +12414,31 @@ function putGlbBytes(n, bytes, name){
     if(host) host.innerHTML = `<div class="glb-err">${esc(t("that 3D file is over 32 MB — try a smaller .glb"))}</div>`;
     return;
   }
-  n._glbBytes = buf;
-  n._glbName = name || "model.glb";
-  n._glbSize = buf.byteLength;
+  storeUploadedModel(n, buf, name);
   if(n._glbBlob){ try{ URL.revokeObjectURL(n._glbBlob); }catch(_){} }
   n._glbBlob = URL.createObjectURL(new Blob([buf], {type:modelFileMime(n._glbName)}));
-  n.fields.model = "";
-  n.fields.modelFile = { name:n._glbName, size:n._glbSize };
   delete n._sig;
   if(host) showUploadedModel(n, host, buf);
   const acts = n.el && n.el.querySelector("[data-macts]");
   if(acts) acts.hidden = false;
-  idbPutGlb(n.id, { name:n._glbName, bytes:buf });
   if(typeof refreshSliceOutputs==="function") refreshSliceOutputs(n);
   save();
+}
+async function readUploadedModel(id, stub){
+  if(!stub?.name) return null;
+  // A shared graph carries a filename for re-upload, with an explicit empty
+  // reference. Older local workflows fall back to their original node-ID key.
+  if(Object.hasOwn(stub, "key") && (typeof stub.key!=="string" || !stub.key)) return null;
+  const rec = await idbGetGlb(stub.key ?? id);
+  if(!rec?.bytes?.byteLength || (rec.name && rec.name !== stub.name) ||
+     (stub.size && rec.bytes.byteLength !== stub.size)) return null;
+  return rec;
 }
 async function restoreUploadedModel(n){
   const stub = n.fields.modelFile;
   if(n._glbBytes || !stub?.name) return;
-  const rec = await idbGetGlb(n.id);
-  if(n._glbBytes || n.fields.modelFile !== stub || !rec?.bytes?.byteLength) return;
-  if((rec.name && rec.name !== stub.name) || (stub.size && rec.bytes.byteLength !== stub.size)) return;
+  const rec = await readUploadedModel(n.id, stub);
+  if(n._glbBytes || n.fields.modelFile !== stub || !rec) return;
   n._glbBytes = rec.bytes;
   n._glbName = rec.name || stub.name;
   n._glbSize = rec.bytes.byteLength;
@@ -12948,16 +13045,21 @@ let dropAutoWirePreview = null;
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
+  // Say what the gesture actually is (handleWireTap): a mouse click snips at once; a touch
+  // arms first and the second tap snips. The old fixed "tap to remove" was wrong on desktop
+  // and English-only in every language.
+  const wireTip = esc(t(matchMedia("(pointer:coarse)").matches ? "tap twice to remove" : "click to remove"));
   for(const l of graph.links){
     if(l.id===draggingLinkId) continue;   // lifted off its input and following the cursor — drawn as the temp wire instead
-    const a = document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`);
-    const b = document.querySelector(`.port[data-node="${l.to.node}"][data-port="${l.to.port}"][data-dir="in"]`);
+    const a = document.querySelector(`.port[data-node=${JSON.stringify(String(l.from.node))}][data-port=${JSON.stringify(String(l.from.port))}][data-dir="out"]`);
+    const b = document.querySelector(`.port[data-node=${JSON.stringify(String(l.to.node))}][data-port=${JSON.stringify(String(l.to.port))}][data-dir="in"]`);
     if(!a||!b) continue;
     const p1 = portCenter(a), p2 = portCenter(b);
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
-    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>tap to remove</title></path>`;
-    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
+    const linkId = esc(l.id);
+    html += `<path class="hit" data-link="${linkId}" d="${d}"><title>${wireTip}</title></path>`;
+    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${linkId}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
@@ -12993,6 +13095,7 @@ function redraw(){
   svg.innerHTML = html;
   if(bridgeFocused) svg.querySelector(".na-dual-bridge-hit")?.focus({preventScroll:true});
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
+  syncEmptyCanvas();
   svg.querySelectorAll("path[data-link]").forEach(p=>{
     // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
     // On coarse pointers a tap ARMS first (turns the wire red + shows the snip), a second tap removes —
@@ -13066,10 +13169,12 @@ function refreshPortFills(){
   // model picker is the visible control for modelKind nodes — restore it when the model port is free
   document.querySelectorAll(".modelpick").forEach(mp=>{ mp.hidden=false; mp.disabled=false; });
   for(const l of graph.links){
-    document.querySelector(`.port[data-node="${l.to.node}"][data-port="${l.to.port}"][data-dir="in"]`)?.classList.add("filled");
-    document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`)?.classList.add("filled");
+    const target = `[data-node=${JSON.stringify(String(l.to.node))}][data-port=${JSON.stringify(String(l.to.port))}]`;
+    const source = `[data-node=${JSON.stringify(String(l.from.node))}][data-port=${JSON.stringify(String(l.from.port))}]`;
+    document.querySelector(`.port${target}[data-dir="in"]`)?.classList.add("filled");
+    document.querySelector(`.port${source}[data-dir="out"]`)?.classList.add("filled");
     // a wired text field is driven by the connection — lock its textarea
-    const fp = document.querySelector(`.fieldport[data-node="${l.to.node}"][data-port="${l.to.port}"]`);
+    const fp = document.querySelector(`.fieldport${target}`);
     const ta = fp?.parentElement.querySelector("textarea[data-f],textarea[data-pf],input[data-f],select[data-f]");
     if(ta){
       ta.classList.add("wired"); ta.disabled=true;
@@ -13475,14 +13580,24 @@ function wouldCycle(fromNode, toNode, toPort){
   return false;
 }
 
+function allocateLinkId(reserved){
+  let id;
+  do{
+    id = "l"+lid;
+    lid = lid < Number.MAX_SAFE_INTEGER ? lid+1 : 1;
+  }while(reserved.has(id));
+  return id;
+}
+
 // Returns true when the wire was made. A cycle (or self-link) is refused with a notice and
 // nothing mutates — the graph must stay a feed-forward DAG (topoOrder is the run-time backstop).
 function connect(fromNode, fromPort, toNode, toPort){
   if(wouldCycle(fromNode, toNode, toPort)){ toast("that wire would make a loop — workflows flow one way", "warn"); return false; }
   pushUndo();   // after the loop guard, so a refused drop doesn't snapshot
+  const id = allocateLinkId(new Set(graph.links.map(l=>l.id)));
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
-  graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
+  graph.links.push({ id, from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
   const tn = byId(toNode);
   refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
@@ -13984,6 +14099,18 @@ function fitUseful(){
   return scale < f*0.5;   // <0.5 keeps it hidden right after a hintPad() boot-fit (pad caps at 45% of the viewport) while still catching a genuinely lost zoom-out
 }
 function syncFitBtn(){ const el=$("fit"); if(el) el.disabled = !fitUseful(); }
+// A workspace with no nodes (closed last tab, Blank canvas, everything deleted) used to be a
+// dark void: Run only flashed "nothing to run", and returning visitors whose last tab was
+// emptied never saw the starter again. Show the three ways in right on the canvas.
+function syncEmptyCanvas(){
+  const el = $("emptycanvas"); if(!el) return;
+  // Not before boot has put its first graph down: a first visit is empty for the length of the
+  // noodle-graph.json fetch, and flashing "This workspace is empty" over the incoming starter
+  // would cost the first impression it's meant to protect.
+  const empty = el.dataset.ready==="1" && !(graph && graph.nodes && graph.nodes.length);
+  if(el.hidden === !empty) return;
+  el.hidden = !empty;
+}
 // A node's box can also change OUTSIDE applyWorld/redraw — an image result landing, a textarea
 // stretch, the demo ghost growing the output node after the boot fit (on a slow network that
 // growth is the LAST thing to happen, so nothing else re-judges ⊡). One shared observer over
@@ -14246,6 +14373,7 @@ const runningNodes = new Set();   // nodes in an in-flight subgraph (delete/undo
 const seedRuns = new Set();       // seeds of in-flight per-node Plays — their ▶ becomes ■ Stop
 const seedCtl = new Map();        // seed id → that Play's AbortController (Stop on B does not abort C)
 const nodeWork = new Map();       // node id → in-flight exec promise (sibling Plays await, never re-charge)
+const paidOutputCredentials = new WeakMap();  // paid results keep their owner across in-memory undo/workspace snapshots
 const runLockCount = new Map();   // node id → # of in-flight groups holding it (shared ancestor A)
 const liveAborts = new Set();     // every group's controller; toolbar Stop aborts them all
 let runAbort = null;              // last-started controller (runSignal fallback when only one group is live)
@@ -14451,7 +14579,7 @@ function isSeeded(n){ const s = nodeSeed(n); return s!=null && String(s).trim()!
 function sigHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
 function nodeSig(n, inp){
   const f = {...n.fields}; delete f.sel; delete f.brush; delete f.model3dOutKey;   // display-only knobs (variation pick, inpaint brush radius) + persistence id don't change the output
-  return sigHash(JSON.stringify({ t:n.type, f, inp }));
+  return JSON.stringify({ t:n.type, f, inp });
 }
 /* =====================================================================
    nanoodle-js DELEGATION (default ON) — replace-prep Phase F.
@@ -14523,7 +14651,8 @@ function njsCatalogs(){
 // adds auth to API calls only, so media CDN downloads never see the key.
 function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   const {video:PENDING_VIDEO, audio:PENDING_AUDIO} = jobs;
-  const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
+  const request = (u,o)=>{ assertRunCredential(key); return contentFetchForEngine(u, o); };
+  const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch:request });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
   // throws without saying the job was saved; video and audio add that only
@@ -14534,7 +14663,7 @@ function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
       apiKey: key,
       authHeaders: key ? { Authorization:"Bearer " + key } : {},
       signal: opts && opts.signal,
-      fetch: function(u, init){ return contentFetchForEngine(u, init); }
+      fetch:request,
     });
   };
   // library cost objects ({usd, balance}) → accrue(): spend meter + live balance; a null usd
@@ -14554,7 +14683,12 @@ function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   }, signal: (n && n._runCtl && n._runCtl.signal) || runSignal() };
   const runMedia = (jobs, sig, idField, run)=> E.runResumableMedia({
     jobs, key:n.id, sig, idField, signal:io.signal, run,
-    resolve: url=> client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); }),
+    resolve: async url=>{
+      assertRunCredential(key);
+      const resolved = await client.resolveContentUrl(url, {signal:io.signal}).catch(e=>{ throw opaqueContentError(e, true); });
+      assertRunCredential(key);
+      return resolved;
+    },
     onTerminalFailure: ()=>{ if(key===getKey() && typeof refreshBalance==="function") refreshBalance(true); },
   });
   return {
@@ -14700,7 +14834,7 @@ function njsRunFor(type, rn, inp, n){
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
-    if(key!==getKey()) throw new DOMException("API key changed", "AbortError");
+    assertRunCredential(key);
     return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
@@ -14713,11 +14847,178 @@ function njsRunFor(type, rn, inp, n){
 // Multiple groups run concurrently because callers don't await each other.
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
+// These checks are about the wire's declared source port. A declared output
+// may be absent in an individual run, e.g. Render 3D's unused media kind.
+function declaresWireOutput(n, port, routed){
+  if(typeof port!=="string") return false;
+  if(n.type==="vframes") return /^frame[1-9]\d*$/.test(port) && Number(port.slice(5))<=MAX_FRAMES;
+  if(n.type==="endpoint"){
+    // Endpoint routes can arrive through either field, including a mode prefix on the URL.
+    if(routed) return /^(text|image|images|audio|video)$/.test(port);
+    const mode = endpointResolveTarget(n).mode;
+    const name = endpointOutPort({fields:{mode}}).name;
+    return port===name || (port==="images" && name==="image");
+  }
+  if(n.type==="decide" && (port==="decision" || (n.fields?.branch===true && /^(yes|no)$/.test(port)))) return true;
+  // Shared and older workflow JSON can wire the secondary values emitted by these runners.
+  if(port==="images" && /^(image|edit|inpaint)$/.test(n.type)) return true;
+  if(port==="layers" && /^(edit|inpaint)$/.test(n.type)) return true;
+  const outputs = NODE_TYPES[n.type].outputs;
+  const ports = typeof outputs==="function" ? outputs(n) : outputs;
+  return (ports || []).some(p=>p.name===port);
+}
+// Known field overrides, including runtime settings in hand-authored workflows
+// that do not have an inline socket in every canvas view.
+const WIRE_INPUT_FIELDS = {
+  text:"text", choice:"options selected", upload:"image", aupload:"audio", vupload:"video", mupload:"model",
+  join:"sep", llm:"model prompt system temperature maxTokens format reasoningEffort showThinking",
+  vision:"model q", decide:"model mode question options levels gate",
+  image:"model prompt size aspect variations seed customCivitaiAir negativePrompt steps guidance promptExpansion modelOpts loras loraUrl loraStrength",
+  edit:"model prompt size aspect seed modelOpts loras loraUrl loraStrength",
+  inpaint:"model prompt size aspect seed modelOpts loras loraUrl loraStrength",
+  model3d:"model prompt modelOpts",
+  tvideo:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+  ivideo:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+  vedit:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+  lipsync:"model prompt duration aspect resolution modelOpts loras loraUrl loraStrength",
+  music:"model prompt extraJson",
+  remix:"model prompt extraJson",
+  tts:"model prompt extraJson",
+  transcribe:"model language", cleanvoice:"model url",
+  vframes:"frames gap dir stride startSec endSec", resize:"mode width height",
+  combine:"dedup", soundtrack:"loop", trim:"start length", extractaudio:"start length",
+  "slice-3d":"preset clip frames slices resolution palette outline upAxis",
+  "sprite-stack-render":"yaw pitch spacing scale turntable duration fps yawStart yawEnd",
+  render3d:"mode width height azimuth elevation distance background isolate explode clipAxis clipPos animClip animTime fps duration turntable clipSweep",
+  endpoint:"url mode model prompt system size auth",
+};
+function declaresWireInput(n, port){
+  if(typeof port!=="string" || !port) return false;
+  const t = NODE_TYPES[n.type];
+  if(t.inputs?.some(p=>p.name===port)) return true;
+  if(t.imageInputs && (n.type==="edit" ? EDIT_IMG_RE : IMG_PORT_RE).test(port)) return true;
+  if(t.videoInputs && VID_PORT_RE.test(port)) return true;
+  if(t.refInputs && REF_PORT_RE.test(port)) return true;
+  if(t.audioInput && port==="audio") return true;
+  if(t.videoInput && port==="video") return true;
+  if(t.endFrame && port==="endframe") return true;
+  if(t.charInput && port==="image") return true;
+  if(Object.hasOwn(AUDIO_PARAMS, n.type) && AUDIO_PARAMS[n.type].some(p=>p.id===port)) return true;
+  return Object.hasOwn(WIRE_INPUT_FIELDS, n.type) && WIRE_INPUT_FIELDS[n.type].split(" ").includes(port);
+}
+function invalidWireMessage(links, byId, ids){
+  if(!links?.length) return null;
+  const routed = new Set(links.filter(l=>l.to.port==="mode" || l.to.port==="url").map(l=>l.to.node));
+  for(const {from,to} of links){
+    const source = from.node!=null && byId(from.node);
+    const target = to.node!=null && byId(to.node);
+    // A dangling incoming wire belongs to its consumer. With no consumer,
+    // the source identifies its scope; a whole-workflow run checks all wires.
+    if(ids && !(target ? ids.has(to.node) : source && ids.has(from.node))) continue;
+    const src = from.node ?? "(missing)", dst = to.node ?? "(missing)";
+    if(!source) return 'Wire to node "' + dst + '" references missing source node "' + src + '". Reconnect or remove the wire.';
+    if(!target) return 'Wire from node "' + src + '" references missing target node "' + dst + '". Reconnect or remove the wire.';
+    if(Object.hasOwn(NODE_TYPES, source.type) && !declaresWireOutput(source, from.port, routed.has(source.id))){
+      const port = typeof from.port==="string" && from.port ? from.port : "(missing)";
+      return 'Node "' + src + '" has no output port "' + port + '". Reconnect its wire to node "' + dst + '".';
+    }
+    if(Object.hasOwn(NODE_TYPES, target.type) && !declaresWireInput(target, to.port)){
+      const port = typeof to.port==="string" && to.port ? to.port : "(missing)";
+      return 'Node "' + dst + '" has no input port "' + port + '". Reconnect its wire from node "' + src + '".';
+    }
+  }
+  return null;
+}
+function competingInputMessage(links, include){
+  const destinations = new Map();
+  for(const link of links){
+    if(!include(link)) continue;
+    const {from, to} = link;
+    let ports = destinations.get(to.node);
+    if(!ports) destinations.set(to.node, ports = new Map());
+    const first = ports.get(to.port);
+    if(!first){ ports.set(to.port, from); continue; }
+    if(first.node===from.node && first.port===from.port) continue;
+    const sources = [first.node + "." + first.port, from.node + "." + from.port].sort().join(" and ");
+    return 'Node "' + to.node + '" has competing wires for input "' + to.port + '" (' + sources + '). Leave one active wire for this input.';
+  }
+  return null;
+}
+function guaranteedWireOutput(link, byId){
+  const source = byId(link.from.node);
+  if(!source || !Object.hasOwn(NODE_TYPES, source.type)) return false;
+  const port = link.from.port;
+  if(/^(endpoint|render3d|vframes)$/.test(source.type)) return false;
+  if(source.type==="sprite-stack-render") return port==="image";
+  if(source.type==="decide") return port==="text" || port==="decision";
+  const outputs = NODE_TYPES[source.type].outputs;
+  return Array.isArray(outputs) && outputs.some(p=>p.name===port);
+}
+function unconditionalInputConflict(links, byId, ids){
+  if(!links?.length) return null;
+  const inScope = l=> (!ids || ids.has(l.to.node)) && guaranteedWireOutput(l, byId);
+  const conflict = competingInputMessage(links, inScope);
+  if(!conflict) return null;
+  // A routed or gated consumer may not run, even with ordinary inbound wires.
+  const wiredModes = new Set(), wiredGates = new Set(), outgoing = new Map();
+  for(const {from,to} of links){
+    if(to.port==="mode") wiredModes.add(to.node);
+    if(to.port==="gate") wiredGates.add(to.node);
+    if(!outgoing.has(from.node)) outgoing.set(from.node, []);
+    outgoing.get(from.node).push(to.node);
+  }
+  const pending = [];
+  for(const {from,to} of links){
+    const node = byId(from.node);
+    if(node?.type!=="decide") continue;
+    const f = node.fields || {};
+    const controls = f.branch===true ? (from.port==="yes" || from.port==="no")
+      : (f.gate===true || f.gate==="true" || wiredGates.has(node.id)) && (f.mode==="yesno" || wiredModes.has(node.id));
+    if(controls) pending.push(to.node);
+  }
+  if(!pending.length) return conflict;
+  const conditional = new Set();
+  while(pending.length){
+    const id = pending.pop();
+    if(conditional.has(id)) continue;
+    conditional.add(id);
+    for(const target of outgoing.get(id) || []) pending.push(target);
+  }
+  return competingInputMessage(links, l=> !conditional.has(l.to.node) && inScope(l));
+}
 function isPaidNanoType(type){
+  if(type==="model3d") return true;   // 3D generation is available in the editor.
   return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
+function assertRunCredential(credential){
+  if(credential===getKey()) return;
+  throw Object.assign(new Error("The NanoGPT account changed while this request was running. Run again with the intended account."),
+    { code:"credential-changed", status:409 });
+}
+function malformedNodeRecordError(nodes){
+  if(!Array.isArray(nodes)) return null;
+  for(const [index, node] of nodes.entries()){
+    const position = "node at position " + (index+1);
+    let message;
+    if(!node || typeof node!=="object" || Array.isArray(node)) message = position + " must be an object";
+    else if(!Object.hasOwn(node, "id") || !(typeof node.id==="string" && node.id.trim() || Number.isFinite(node.id)))
+      message = position + " has a missing or invalid id (expected a non-empty string or finite number)";
+    else if(!Object.hasOwn(node, "type") || typeof node.type!=="string" || !node.type.trim())
+      message = position + " has a missing or invalid type (expected a non-empty string)";
+    else continue;
+    const error = new Error(message);
+    error.code = "invalid-node-record";
+    return error;
+  }
+  return null;
+}
 async function runGroup(seedIds, ctx){
-  ctx = ctx || (getKey() ? CTX : DEMO_CTX);
+  const malformed = malformedNodeRecordError(graph.nodes);
+  if(malformed){ toast(malformed.message, "err"); return; }
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
+  const credential = getKey();
+  ctx = ctx || (credential ? CTX : DEMO_CTX);
   if(ctx.demo){
     // A custom-endpoint-only branch never talks to NanoGPT — don't wall it behind a key.
     const previewIds = ancestors(seedIds);
@@ -14738,12 +15039,17 @@ async function runGroup(seedIds, ctx){
     if(!mode) return;
     }
   }
+  const runCtx = ctx===CTX ? Object.assign(Object.create(ctx), {
+    getRunCredential(){ assertRunCredential(credential); return credential; },
+  }) : ctx;
   const seedSet = new Set(seedIds.filter(id=> byId(id)));   // the node(s) the user explicitly targeted → always re-roll (never reuse) unless already in-flight
   if(!seedSet.size) return;
   // A second Play on the same seed is Stop (handled by the click handler). Don't start a twin.
   if([...seedSet].some(id=> seedRuns.has(id))) return;
   const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
   if(!ids.size) return;
+  const invalidWire = invalidWireMessage(graph.links, byId, ids) || unconditionalInputConflict(graph.links, byId, ids);
+  if(invalidWire){ seedSet.forEach(id=> setStatus(byId(id), "error", invalidWire)); return; }
   // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
   const lock = ids;
   seedSet.forEach(id=> seedRuns.add(id));
@@ -14800,12 +15106,20 @@ async function runGroup(seedIds, ctx){
         // Stop on this Play's seed: don't start (or re-roll) the seed itself.
         // Shared ancestors keep going when another Play still holds them.
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
-        const activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
+        let activeLinks = branches ? branches.activeLinks(id, src=> failed.has(src) ? null : byId(src)?.out) : graph.links;
         if(activeLinks===null){ setSkipped(n, false, true); return; }
         const activeDeps = branches ? activeLinks.map(l=> l.from.node) : deps;
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
         if(activeDeps.some(d=> failed.has(d))){ failed.add(id); const byGate = activeDeps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
+        const paid = ctx===CTX && isPaidNanoType(n.type);
+        if(paid){
+          try{ assertRunCredential(credential); }
+          catch(error){ failed.add(id); setStatus(n, "error", error.message); return; }
+        }
+        activeLinks = activeLinks.filter(l=> l.to.node===id && byId(l.from.node)?.out?.[l.from.port]!=null);
+        const conflict = competingInputMessage(activeLinks, ()=>true);
+        if(conflict){ failed.add(id); setStatus(n, "error", conflict); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = activeLinks.find(x=> x.to.node===id && x.to.port===port.name);
@@ -14874,11 +15188,13 @@ async function runGroup(seedIds, ctx){
         // describes what actually goes out — switch the Image node to a tighter model and the run
         // correctly re-rolls instead of reusing a result the new model would have rejected.
         const fitted = withFittedPrompt(rn0, n);
-        const rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
+        let rn = n.type==="vframes" ? withWiredFrameCount(fitted.rn, graph.links) : fitted.rn;
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
-        if(isSeeded(rn) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        const reusable = n._sig===sig && n.out && Object.keys(n.out).length &&
+          (!paid || paidOutputCredentials.get(n.out)===credential);
+        if(isSeeded(rn) && reusable){ showResult(n); setStatus(n, "done"); return; }
         // Retry reuse: an ANCESTOR the user did NOT explicitly target this run (not in seedSet) that
         // already SUCCEEDED (has output) with an unchanged signature is surfaced as-is — re-executing
         // it would just re-charge for a byte-identical result. This is what stops a Run-again after a
@@ -14886,21 +15202,39 @@ async function runGroup(seedIds, ctx){
         // it, even when that node has no visible seed (LLM, video). The explicitly targeted node(s)
         // still re-roll (excluded here); poison-propagation already ran above, so a failed upstream
         // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
-        if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
-        // In-flight share: another Play already started this node (usually shared upstream A).
-        // Await that promise — never a second paid run. Registered synchronously below so two
-        // Plays that reach A in the same turn can't both slip through.
-        if(typeof nodeWork!=="undefined" && nodeWork.has(id)){
-          const w = nodeWork.get(id); if(w.holders) seedSet.forEach(s=> w.holders.add(s));
-          try{ await w; }catch(_){}
-          if(ctl.signal.aborted && !(w.holders && w.holders.size)){ setStopped(n); return; }
-          // w.ok is THIS run succeeding. Leftover n.out from a prior success must not
-          // count — Play C joining a failing A would otherwise bill C on stale input
-          // (PR #391 class, across sibling Plays).
-          if(w.ok && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        if(!ctx.demo && !seedSet.has(id) && reusable){ showResult(n); setStatus(n, "done"); return; }
+        // A sibling Play can join the same request. If its inputs changed while
+        // this node was running, wait for the old owner before taking the node.
+        let priorWork;
+        while(typeof nodeWork!=="undefined" && (priorWork = nodeWork.get(id))){
+          const sameRequest = priorWork.sig===sig && priorWork.credential===credential && priorWork.ctx===ctx;
+          if(sameRequest){
+            if(priorWork.holders) seedSet.forEach(seed=> priorWork.holders.add(seed));
+          }else{
+            if(rn===n) rn = { ...n, fields:{ ...n.fields } };
+            // The early holder registration keeps matching siblings alive on Stop.
+            // A request with changed inputs does not need to hold this older job.
+            if(priorWork.holders){
+              seedSet.forEach(seed=> priorWork.holders.delete(seed));
+              if(!priorWork.holders.size) priorWork.ctl?.abort();
+            }
+          }
+          try{ await priorWork; }catch(_){}
+          if(ctl.signal.aborted && (!sameRequest || !priorWork.holders?.size)){
+            failed.add(id);
+            if(sameRequest) setStopped(n);
+            return;
+          }
+          if(paid){
+            try{ assertRunCredential(credential); }
+            catch(error){ failed.add(id); setStatus(n, "error", error.message); return; }
+          }
+          if(!sameRequest) continue;
+          // A joined failure must never feed a dependent a previous .out.
+          if(priorWork.ok && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
           if(!seedSet.has(id)){
             failed.add(id);
-            if(n.el?.dataset.status !== "error") setSkipped(n);   // keep the owner's error; just poison this Play
+            if(n.el?.dataset.status !== "error") setSkipped(n);
             return;
           }
         }
@@ -14919,15 +15253,17 @@ async function runGroup(seedIds, ctx){
           work.holders = new Set(seedSet);
           work.ctl = new AbortController();
           work.ok = false;   // joiners wait on success of THIS run, not leftover n.out
+          Object.assign(work, {sig, credential, ctx});
           nodeWork.set(id, work);
         }
         n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
         try{
           const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
-          try{ const out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
+          try{ const out = await (njsR ? njsR() : t.run(rn, inp, runCtx)) || {};
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
             if(workCancelled || seedAlone){ failed.add(id); setStopped(n); return; }   // Stop invalidates this output for dependents too
+            if(paid){ assertRunCredential(credential); paidOutputCredentials.set(out, credential); }
             n.out = out;
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
@@ -14999,7 +15335,13 @@ function warnGifUnknownCost(){
 // Run every idle group at once (busy ones keep going untouched).
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
+  const malformed = malformedNodeRecordError(graph.nodes);
+  if(malformed){ toast(malformed.message, "err"); return; }
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
+  const unsupported = graph.nodes.find(n=>n._unsupportedNode);
+  if(unsupported){ toast(unsupportedNodeMessage(unsupported), "err"); return; }
+  const invalidWire = invalidWireMessage(graph.links, byId) || unconditionalInputConflict(graph.links, byId);
+  if(invalidWire){ flash(invalidWire); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
   warnGifUnknownCost();
@@ -15209,13 +15551,14 @@ const CTX = {
   // single url back, unchanged. Some models (midjourney/higgsfield) ALWAYS return 4 regardless of n —
   // multi callers surface all of them so the user doesn't silently pay for 3 discarded images.
   async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+    const key = this?.getRunCredential?.() ?? getKey();
     opts = opts || {};
     const body = { model, size, n: opts.n||1, response_format:"b64_json" };
     if(prompt) body.prompt = prompt;                     // omit when blank — upscalers run with no instruction; every other path guarantees a non-empty prompt before reaching here
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
-    const headers = authHeaders();
+    const headers = authHeaders(key);
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
@@ -15228,10 +15571,11 @@ const CTX = {
     // GIF output is token-settled: never invent a still sizePrices amount when settlement is absent.
     const gifOut = !!(extra && typeof extra==="object" && String(extra.output_format||"").toLowerCase()==="gif");
     const unit = gifOut ? null : imageUnitUsd(model, size);
-    accrue(j, unit!=null ? unit*rawUrls.length : null, r);
+    accrue(j, unit!=null ? unit*rawUrls.length : null, r, key);
     const urls = [];
     for(const u of rawUrls){
-      try{ urls.push(await resolveContentMedia(u)); }
+      assertRunCredential(key);
+      try{ urls.push(await resolveContentMedia(u, undefined, key)); }
       catch(e){ throw opaqueContentError(e, false); }
     }
     if(opts.items){
@@ -15244,6 +15588,7 @@ const CTX = {
     return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
+    const key = this?.getRunCredential?.() ?? getKey();
     opts = opts || {};
     // withLocale injects "respond in <UI language>" so prose output matches the editor language.
     // Skip it for JSON/structured mode: a "respond in Spanish" directive corrupts json_object output
@@ -15253,11 +15598,11 @@ const CTX = {
     if(opts.max_tokens != null) body.max_tokens = opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(model!=="google/gemini-4-carbon" && opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-    const headers = authHeaders();
+    const headers = authHeaders(key);
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
-    accrue(j, undefined, r);
+    accrue(j, undefined, r, key);
     const msg = j.choices?.[0]?.message || {};
     const txt = msg.content;
     if(txt==null) throw new Error("no text in response");
@@ -15269,19 +15614,20 @@ const CTX = {
   // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The real
   // price rides usage.cost (input tokens only — decision models generate nothing), so accrue that.
   async genDecision(body){
-    const headers = authHeaders();
+    const key = this?.getRunCredential?.() ?? getKey();
+    const headers = authHeaders(key);
     const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers, body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r, headers["x-api-key"]); }
     const j = await r.json();
     const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
-    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r);
+    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r, key);
     return j;
   },
   // Submit, then poll /api/video/status for the accepted job.
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-    const key = getKey();
+    const key = this?.getRunCredential?.() ?? getKey();
     const PENDING_VIDEO = pendingMediaJobs(key).video;
     const headers = authHeaders(key);
     const body = { model };
@@ -15377,6 +15723,7 @@ const CTX = {
       while(true){
         await sleep(Math.min(5000, remainingPollTime()));
         remainingPollTime();
+        assertRunCredential(key);
         let pr, s;
         try{
           pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers, signal:pollSignal});
@@ -15432,7 +15779,7 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
-    const key = getKey();
+    const key = this?.getRunCredential?.() ?? getKey();
     const PENDING_AUDIO = pendingMediaJobs(key).audio;
     const headers = authHeaders(key);
     const signal = runSignal(runKey);
@@ -15518,6 +15865,7 @@ const CTX = {
   // speech→text: multipart upload to /api/v1/audio/transcriptions (audio file + model + language).
   // The in-graph audio is a blob/data URL, so we re-fetch its bytes and post them as a file.
   async transcribe(model, audioUrl, language){
+    const k = this?.getRunCredential?.() ?? getKey();
     let blob;
     try{ blob = await (await fetch(audioUrl, {signal:runSignal()})).blob(); }
     catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(audioUrl, e); }
@@ -15528,7 +15876,7 @@ const CTX = {
     fd.append("file", blob, `audio.${ext}`);    // the endpoint is OpenAI-compatible: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
     fd.append("model", model);
     if(language) fd.append("language", language);
-    const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
+    assertRunCredential(k);   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
     if(!r.ok){ await throwHttp(r, k); }
@@ -15539,7 +15887,7 @@ const CTX = {
     const mUsd = j?.metadata?.cost, dur = +j?.duration;
     const perMin = catItem("audio", model)?.pricing?.per_minute;
     const estUsd = (isFinite(dur) && perMin!=null && isFinite(+perMin)) ? (dur/60)*(+perMin) : null;
-    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd, r);
+    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd, r, k);
     const txt = j.transcription ?? j.text ?? j.data?.transcription ?? j.data?.text;
     if(txt==null) throw new Error("no transcription in response");
     return txt;
@@ -15985,9 +16333,11 @@ async function deliverResolvedMedia(map, runKey, entry, url, signal, key){
   if(runKey && map) map.set(runKey, entry);
   var resolved;
   signal?.throwIfAborted();
+  assertRunCredential(key);
   try{ resolved = await resolveContentMedia(url, signal, key); }
   catch(e){ throw opaqueContentError(e, true); }
   signal?.throwIfAborted();
+  assertRunCredential(key);
   if(runKey && map && map.get(runKey)===entry) map.delete(runKey);
   return resolved;
 }
@@ -16715,6 +17065,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig, sig, PENDING_AUD
   while(Date.now()-t0 < 300000){
     await sleep(3000);
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
+    assertRunCredential(key);
     let pr, s;
     try{
       pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers, signal:sig});
@@ -16808,6 +17159,12 @@ function friendlyRunError(err, n){
     if(cap) return t("{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.")
       .replace("{model}", (n && modelLabel(n)) || t("this model")).replace("{cap}", String(cap));
   }
+  // The built-in engine words its auth rejection for terminal/agent users ("check your NanoGPT
+  // key / NANOGPT_API_KEY") — a browser user pasted a key and has no env var to check. Translate
+  // it here, at the one place run errors land, to the browser fix: re-copy and paste again.
+  const authRej = /^API key rejected \(HTTP (\d+)\)/.exec(m);
+  if(authRej) return t("NanoGPT rejected your API key (HTTP {status}) — re-copy it from nano-gpt.com → Settings → API and paste it again")
+    .replace("{status}", authRej[1]);
   // TypeError gate is load-bearing: our own thrown "STATUS: body" errors relay API bodies
   // verbatim, and a body saying "Invalid value" must NOT wipe a perfectly good key —
   // browser-internal header/network failures are always TypeErrors, ours never are.
@@ -16898,7 +17255,17 @@ function applyPollSettlement(s, r, _refunded){
   if(typeof refreshBalance==="function") refreshBalance(true);
   return false;
 }
-function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
+// #status is the auth slot borrowed for a moment. One timer owns the hand-back, so a
+// second flash isn't cut short by the first one's timer. On narrow screens #status lives
+// inside the closed ⋯ menu, so the same words also go to the toast, the one channel that's
+// always visible — otherwise "nothing to run", "Stop first" and friends say nothing at all.
+let flashT=null;
+function flash(msg){
+  const el = $("status"); if(!el) return;
+  el.textContent = t(msg);
+  clearTimeout(flashT); flashT = setTimeout(renderAuth, 2200);
+  if(!el.getClientRects().length) toast(msg);
+}
 let toastT=null;
 function toast(msg, kind){
   const el=$("toast"); if(!el) return;
@@ -18363,25 +18730,21 @@ function serializeGraph(){
       try{
         const bytes = dataUrlToBytes(model);
         if(bytes.byteLength <= GLB_CAP){
-          node._glbBytes = bytes;
-          node._glbName = uploadedModelName(node.fields);
-          node._glbSize = bytes.byteLength;
+          storeUploadedModel(node, bytes, uploadedModelName(node.fields));
           if(typeof URL!=="undefined" && URL.createObjectURL){
             if(node._glbBlob){ try{ URL.revokeObjectURL(node._glbBlob); }catch(_){} }
             node._glbBlob = URL.createObjectURL(new Blob([bytes], {type:modelFileMime(node._glbName)}));
           }
-          idbPutGlb(node.id, { name:node._glbName, bytes });
         }
       }catch(_){}
     }
     node.fields.model = "";
-    if(node._glbName) node.fields.modelFile = { name:node._glbName, size:node._glbSize||0 };
   }
-  return {
-    v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
-    links: graph.links, nid, lid, view:{panX,panY,scale}
-  };
+  const nodes = graph.nodes.map(n=>({id:n.id,type:n.type==="decide" && n.fields.branch===true ? "decide-branch" : n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})}));
+  graph.nodes.forEach((n,i)=>{
+    if(n._unsupportedNode) nodes[i] = {...n._unsupportedNode, x:n.x, y:n.y, w:n.w, sizes:n.sizes};
+  });
+  return { v:1, nodes, links:graph.links, nid, lid, view:{panX,panY,scale} };
 }
 // A graph for handing off to others: uploaded media inputs are the sharer's own
 // data, so blank them out of share links and exported apps. (Local autosave AND the
@@ -18392,7 +18755,15 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
   g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     if(n.type==="endpoint") return {...n, fields:{...n.fields, auth:""}};   // optional Authorization — never ride a share card / export
-    return UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
+    if(n.type==="mupload" && n.fields.modelFile){
+      const {name,size} = n.fields.modelFile;
+      return {...n, fields:{...n.fields, model:"", modelFile:{name,size,key:null}}};
+    }
+    if(Object.hasOwn(UPLOAD_FIELD, n.type)) return {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}};
+    if(n.type==="audio" || n.type==="decide-branch" || Object.hasOwn(NODE_TYPES, n.type)) return n;
+    // An unsupported schema may contain private media or results anywhere in its record.
+    const {id,type,name,x,y,w} = n;
+    return {id,type,name,x,y,w,fields:{}};
   });
   return g;
 }
@@ -18418,6 +18789,8 @@ function stripInjectedMedia(n){
     delete n.fields.sample;
 }
 function applyGraphData(d, opts){
+  const malformed = malformedNodeRecordError(d?.nodes);
+  if(malformed) throw malformed;
   try{ clearRunFailPort(); }catch(_){}
   // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
   // version-jump, describe-apply). serializeGraph() never persists n.out/n._sig, so without this
@@ -18441,32 +18814,62 @@ function applyGraphData(d, opts){
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
   const ALIAS = { audio:"tts", "decide-branch":"decide" };
   for(const sn of (d.nodes||[])){
-    const type = ALIAS[sn.type] || sn.type;
-    if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
-    if(type==="decide"){
+    const id = String(sn.id);
+    const type = Object.hasOwn(ALIAS, sn.type) ? ALIAS[sn.type] : sn.type;
+    const unsupported = !Object.hasOwn(NODE_TYPES, type);
+    // Keep the authored record for backups. The card receives only inert layout and identity.
+    const n = unsupported ? {
+      id, type:"comment", name:typeof sn.name==="string" ? sn.name : undefined,
+      x:sn.x, y:sn.y, w:sn.w, sizes:sn.sizes, fields:{}, out:{}, el:null,
+    } : { ...sn, id, type, out:{}, el:null };
+    Object.defineProperty(n, "_unsupportedNode", {value:unsupported ? sn : null});
+    stripInjectedMedia(n);
+    if(!unsupported && type==="decide"){
       n.fields = { ...n.fields, model:decideModelId(n.fields?.model) || DECIDE_DEFAULT_MODEL };
       if(sn.type==="decide-branch") n.fields.branch = true;
     }
-    if(prevById){
+    if(!unsupported && prevById){
       const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
       if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
     }
     graph.nodes.push(n); buildNodeEl(n);
   }
-  // keep only links whose endpoints survived
-  const ids = new Set(graph.nodes.map(n=>n.id));
-  graph.links = (d.links||[]).filter(l=> ids.has(l.from?.node) && ids.has(l.to?.node));
-  // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
+  // Keep broken wires for diagnostics and a faithful save/share round trip.
+  graph.links = (d.links||[]).map(l=>({ ...l, from:{...l?.from}, to:{...l?.to} }));
+  // Reserve every usable ID before repairing missing or repeated IDs. Keep the first occurrence.
+  const reservedLinkIds = new Set(graph.links.map(l=>l.id).filter(id=>
+    typeof id==="string" && id.trim() && !/[\u0000\r]/.test(id)));
+  const unseenLinkIds = new Set(reservedLinkIds);
+  let highestLinkNumber = 0;
+  for(const id of reservedLinkIds){
+    if(!/^l[1-9]\d*$/.test(id)) continue;
+    const linkNumber = Number(id.slice(1));
+    if(Number.isSafeInteger(linkNumber)) highestLinkNumber = Math.max(highestLinkNumber, linkNumber);
+  }
+  const savedLinkCounter = Number.isSafeInteger(d.lid) && d.lid>0 ? d.lid : 1;
+  lid = Math.max(savedLinkCounter, highestLinkNumber < Number.MAX_SAFE_INTEGER ? highestLinkNumber+1 : 1);
   for(const l of graph.links){
+    if(Number.isFinite(l.from.node)) l.from.node = String(l.from.node);
+    if(Number.isFinite(l.to.node)) l.to.node = String(l.to.node);
+    if(!unseenLinkIds.delete(l.id)){
+      l.id = allocateLinkId(reservedLinkIds);
+      reservedLinkIds.add(l.id);
+    }
+    // migrate: music/tts main input moved from a header "text" port to the inline "prompt" field port
     const tn = byId(l.to.node);
     if(tn && (tn.type==="music"||tn.type==="tts") && l.to.port==="text") l.to.port="prompt";
   }
-  // rebuild id counters so new nodes/links never collide with loaded ones
+  // rebuild the node counter so new nodes never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
-  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
+  // A future node's wires keep their authored slots until it can be rendered.
+  const unsupportedIds = new Set(graph.nodes.filter(n=>n._unsupportedNode).map(n=>n.id));
+  const unsupportedTargets = new Set(graph.links.filter(l=>unsupportedIds.has(l.from.node)).map(l=>l.to.node));
+  graph.nodes.forEach(n=>{
+    if(!unsupportedTargets.has(n.id)){ recompactImageLinks(n); recompactVideoLinks(n); }
+    refreshImageInputs(n); refreshVideoInputs(n);
+    if(n.type==="model3d") refreshModel3dPorts(n);
+  });
   // Restore frame ports required by existing links. An explicit field edit can still remove them.
   for(const n of graph.nodes){
     if(n.type!=="vframes") continue;
@@ -18477,7 +18880,7 @@ function applyGraphData(d, opts){
   // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
   redraw(); refreshPortFills(); refreshAllPrices();
-  graph.nodes.forEach(n=>{ if(n.type==="endpoint") refreshEndpointUI(n); });
+  graph.nodes.forEach(n=>{ if(n.type==="endpoint") refreshEndpointUI(n, true); });
   // Paid 3D URLs live in noodle_model3d_out (serializeGraph never writes n.out). Rehydrate
   // by the node's own model3dOutKey BEFORE showResult so a 📂 Load of the user's backup
   // brings the GLB back — load() used to be the only caller, so Save→Load wiped it.
@@ -18633,7 +19036,14 @@ function load(){
     try{ restoreModel3dOuts({legacy:true}); }catch(_){}
     if(typeof wsRememberRecoveryCanvas==="function") wsRememberRecoveryCanvas(raw);
     return true;
-  }catch{ return false; }
+  }catch(error){
+    if(error?.code==="invalid-node-record"){
+      // Leave the saved record in place for recovery and skip the starter overlay.
+      if(typeof claimInitialCanvas==="function") claimInitialCanvas();
+      toast(error.message, "err");
+    }
+    return false;
+  }
 }
 let _starterData = null;   // the shipped starter graph (noodle-graph.json), fetched once and reused as the demo baseline
 async function starterGraphData(){   // the shipped starter's data, or null on file:// where the fetch is blocked (caller falls back to the built-in seed)
@@ -18652,20 +19062,30 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
   return true;
 }
-function saveFile(){
-  // FULL fidelity: this is the user's own local backup, not a hand-off — serializeGraph()
-  // keeps their uploaded photos/audio/video + inpaint masks so 📂 Load restores everything.
-  // (Share links / exported apps still go through shareableGraph() to blank that private media.)
-  const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
+async function saveFile(){
+  // A local backup includes uploads, including the 3D bytes normally kept in IndexedDB.
+  const name = typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json";
+  const backup = JSON.parse(JSON.stringify(serializeGraph()));
+  const missing = await Promise.all(backup.nodes.map(async n=>{
+    const stub = n.type==="mupload" ? n.fields.modelFile : null;
+    if(!stub?.name) return false;
+    const bytes = byId(n.id)?._glbBytes || (await readUploadedModel(n.id, stub))?.bytes;
+    if(!bytes) return stub.key !== null;
+    n.fields.model = contentBytesToDataUrl(bytes, modelFileMime(stub.name));
+    n.fields.modelFile = { name:stub.name, size:bytes.byteLength };
+    return false;
+  }));
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
-  toast(t("Saved {name}").replace("{name}", ()=>a.download));   // a browser download alone is easy to miss — confirm on the page too
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  const message = t("Saved {name}").replace("{name}", ()=>a.download);
+  if(missing.some(Boolean)) toast(message + " · Re-drop missing 3D files to include them in a backup.", "warn");
+  else toast(message);
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
   if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   if(!file) return;
-  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
   r.onload = ()=>{
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
@@ -18673,10 +19093,13 @@ function loadFile(file){
     try{ parsed = JSON.parse(r.result); }
     catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); return; }
     // Reject a bad file before parking undo or clearing the canvas.
+    const malformed = malformedNodeRecordError(parsed?.nodes);
+    if(malformed){ alert(t("Couldn’t load that file:")+" "+malformed.message); return; }
     if(typeof graphPayloadOk==="function" && !graphPayloadOk(parsed)){
       alert(t("Couldn’t load that file:")+" invalid graph");
       return;
     }
+    if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
     const had = graph.nodes.length > 0;
     let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null, describeShot = null;
     try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
@@ -19181,7 +19604,7 @@ function refreshAppButton(){
 }
 function updateTitle(){
   const {title} = editorAppState(savedEditorApps());
-  document.title = pendingAppId ? `nanoodle - ${title || "app"} app` : "nanoodle — AI workflows and MCP tools";
+  document.title = pendingAppId ? `nanoodle - ${title || "app"} app` : "nanoodle — build workflows, give your agents new abilities";
   refreshAppButton();
 }
 /* WORKSPACES-BEGIN
@@ -20403,21 +20826,21 @@ function workspaceRollback(shot, extra){
 function graphPayloadOk(g){
   if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
   if(g.links!=null && !Array.isArray(g.links)) return false;
+  if(malformedNodeRecordError(g.nodes)) return false;
   const ids = new Set();
   for(const n of g.nodes){
-    if(!n || typeof n!=="object" || Array.isArray(n)) return false;
-    if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
     if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
-    if(ids.has(n.id)) return false;
-    ids.add(n.id);
+    const id = String(n.id);
+    if(ids.has(id)) return false;
+    ids.add(id);
   }
   for(const l of (g.links||[])){
     if(!l || typeof l!=="object" || Array.isArray(l)) return false;
     const a = l.from, b = l.to;
     if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
-    if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
-    if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
-    if(!ids.has(a.node) || !ids.has(b.node)) return false;
+    if(!(typeof a.node==="string" || Number.isFinite(a.node)) || typeof a.port!=="string" || !a.port) return false;
+    if(!(typeof b.node==="string" || Number.isFinite(b.node)) || typeof b.port!=="string" || !b.port) return false;
+    if(!ids.has(String(a.node)) || !ids.has(String(b.node))) return false;
   }
   return true;
 }
@@ -20660,6 +21083,12 @@ function switchWorkspace(id){
   if(raw && !destObj){
     restoreResults(leaving.id, shot.res);
     wsStorageError("switch");
+    return;
+  }
+  const malformed = malformedNodeRecordError(destObj?.nodes);
+  if(malformed){
+    restoreResults(leaving.id, shot.res);
+    toast(malformed.message, "err");
     return;
   }
   const destJson = destObj ? raw : JSON.stringify(blankGraph());
@@ -21523,30 +21952,18 @@ async function loadFromHash(){
   let incoming = null;
   try{ incoming = JSON.parse(json); }catch{ return false; }
   const graphData = ga ? incoming && incoming.graph : incoming;
-  // Shape of every node and every link, before a tab is added or the canvas cleared.
-  // {nodes:[null]} and a link to a missing id used to pass the array check.
-  const payloadOk = (typeof graphPayloadOk==="function") ? graphPayloadOk : function(g){
-    if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
-    if(g.links!=null && !Array.isArray(g.links)) return false;
-    const ids = new Set();
-    for(const n of g.nodes){
-      if(!n || typeof n!=="object" || Array.isArray(n)) return false;
-      if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
-      if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
-      if(ids.has(n.id)) return false;
-      ids.add(n.id);
+  // Validate before parking the previous canvas or adding a workspace tab.
+  const malformed = malformedNodeRecordError(graphData?.nodes);
+  if(malformed){ toast(malformed.message, "err"); return false; }
+  if(!graphPayloadOk(graphData)) return false;
+  // Older public links carried a filename and size without an IndexedDB key.
+  // Keep the label, but stop those stubs falling back to this browser's node-ID records.
+  if(!ga) for(const node of graphData.nodes){
+    if(node.type==="mupload" && node.fields?.modelFile){
+      const {name,size} = node.fields.modelFile;
+      node.fields.modelFile = {name,size,key:null};
     }
-    for(const l of (g.links||[])){
-      if(!l || typeof l!=="object" || Array.isArray(l)) return false;
-      const a = l.from, b = l.to;
-      if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
-      if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
-      if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
-      if(!ids.has(a.node) || !ids.has(b.node)) return false;
-    }
-    return true;
-  };
-  if(!payloadOk(graphData)) return false;
+  }
   if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed() &&
       typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
@@ -21722,9 +22139,10 @@ let appReturnFocus = null;
 // Trim to match serializeGraph/displayName.
 function appHandoffSig(g, appOverride){
   g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
+  const nodes = (g.nodes||[]).map(n=> g===graph && n._unsupportedNode ? n._unsupportedNode : n);
   return JSON.stringify({
     app: appOverride!==undefined ? appOverride : (pendingAppId || ""),   // override for the demo baseline: the shipped starter is never app-bound
-    nodes: (g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
+    nodes: nodes.map(n=>({ id:n.id, type:n.type, name:typeof n.name==="string" ? n.name.trim() : "", fields:n.fields })),
     links: (g.links||[]).map(l=>({ f:l.from, t:l.to }))
   });
 }
@@ -23230,6 +23648,10 @@ $("demosignin").onclick = ()=> signIn().catch(signInErr);
 $("demostarter").onclick = ()=>{ $("demopop").hidden = true; chooseWorkspace("starter"); };   // the wall names the starter — this makes the name a way back to it
 $("demopaste").onclick = ()=>{ $("demopop").hidden = true; $("pastebtn").onclick(); };   // reuse the paste flow (opens #keyrow + clipboard fill)
 $("demox").onclick = ()=> $("demopop").hidden = true;
+// empty-canvas state — each button reuses the toolbar/chooser path it stands in for
+$("ecadd").onclick = (e)=>{ e.stopPropagation(); $("addbtn").click(); };
+$("ecexamples").onclick = ()=> $("examples").click();
+$("ecstarter").onclick = ()=> chooseWorkspace("starter");
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("demopop").hidden) $("demopop").hidden = true; });
 addEventListener("keydown", e=>{ if(e.key==="Escape" && $("keyrow").classList.contains("open")){ e.preventDefault(); $("keyrow").classList.remove("open"); } });
 $("keyx").onclick = ()=> $("keyrow").classList.remove("open");   // touch-dismissable ✕ (phones have no Escape key)
@@ -23351,6 +23773,7 @@ $("signout").onclick = ()=> setKey(null);
     finishInitialCanvas({fresh:freshStart});
     renderWorkspaces();
   }catch(_){}
+  try{ $("emptycanvas").dataset.ready = "1"; syncEmptyCanvas(); }catch(_){}
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
@@ -24736,7 +25159,14 @@ RULES for the diff:
   window.captureDescribeVersions = captureDescribeState;
   window.restoreDescribeVersions = restoreDescribeState;
   window.describeChangeBusy = ()=>busy;
-  window.resetDescribeVersions = ()=>restoreDescribeState(null);
+  // Every wholesale workflow swap (tab switch/close/reopen, Load, Examples, share link, a
+  // different-flow describe) calls this. The sample-run pill (#demopop) talks about "results
+  // below" from the workflow that was just replaced, so it goes too — left up, it sat over an
+  // empty canvas and under the undo-close notice. Undo/redo inside one workflow doesn't call this.
+  window.resetDescribeVersions = ()=>{
+    try{ const dp = document.getElementById("demopop"); if(dp) dp.hidden = true; }catch(_){}
+    restoreDescribeState(null);
+  };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
