@@ -472,7 +472,7 @@ try {
       const workspaceApp = page.locator("#workspaces").getByRole("button", {name:"Create app", exact:true});
       assert.equal(await workspaceApp.isVisible(), true, "Create app is available directly from the workspace");
       assert.equal(await page.locator("#makeapp").isVisible(), false, "the second entry is inside Share workflow");
-      const mcp = page.getByRole("button", {name:"Connect to MCP"});
+      const mcp = page.getByRole("button", {name:"Use in agents"});
       await mcp.press("Enter");
       const hosted = page.getByRole("dialog", {name:"Run workflows from your agent"}).locator(".ap-hosted").first();
       await hosted.waitFor();
