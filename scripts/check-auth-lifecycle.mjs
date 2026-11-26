@@ -135,12 +135,13 @@ try {
     "withLocale", "runSignal", "endpointApiMessage", "offerRefuel",
     // prompt-cap collaborators friendlyRunError reaches for: learning a cap and repainting the
     // node chrome are someone else's invariant (scripts/check-prompt-caps.mjs), not this one's.
-    "learnPromptCap", "refreshPromptCaps", "modelLabel", "NODE_TYPES", program
+    "learnPromptCap", "refreshPromptCaps", "modelLabel", "NODE_TYPES",
+    "renderAuth", "refreshBalance", "refreshRunEstimate", program
   );
   build = (stubs) => factory(
     stubs.getKey, stubs.setKey, stubs.flash, stubs.t, stubs.toast, stubs.$, stubs.fetch, stubs.CHAT_ENDPOINT,
     msgs => msgs, () => undefined, () => null, stubs.offerRefuel,
-    () => false, () => {}, () => "the model", {}
+    () => false, () => {}, () => "the model", {}, stubs.renderAuth, () => {}, () => {}
   );
 } catch (e) {
   process.stderr.write("✗ auth-lifecycle: could not lift the shipped functions — the state machine moved or was renamed:\n  " + (e && e.message ? e.message : e) + "\n");
@@ -150,6 +151,7 @@ try {
 // ---- mutable harness state shared with the extracted functions via param wrappers ----
 let setKeyCalls = [];         // every setKey(...) argument, in order
 let toastCalls = [];          // every toast(msg, kind) call
+let renderedKeys = [];
 let storedKey = null;
 let refuelCalls = 0;
 let currentFetch = async () => { throw new Error("no fetch stub installed"); };
@@ -170,6 +172,7 @@ const api = build({
   flash: () => {},
   t: (s) => s,                                   // identity — we only assert on branch behaviour, not copy
   toast: (msg, kind) => { toastCalls.push({ msg, kind }); },
+  renderAuth: () => { renderedKeys.push(storedKey); },
   $: (id) => dom[id] || (dom[id] = el()),
   fetch: (...a) => currentFetch(...a),           // delegate so probeKey sees per-test responses
   CHAT_ENDPOINT: "https://nano-gpt.com/api/v1/chat/completions",
@@ -177,7 +180,7 @@ const api = build({
 });
 
 const reset = (inputVal) => {
-  setKeyCalls = []; toastCalls = []; storedKey = "fixture-key"; refuelCalls = 0; freshDom(inputVal);
+  setKeyCalls = []; toastCalls = []; renderedKeys = []; storedKey = "fixture-key"; refuelCalls = 0; freshDom(inputVal);
 };
 
 // ======================================================================
@@ -372,6 +375,22 @@ for (const [status, body, want, why] of [
     expect(setKeyCalls.length === 1 && setKeyCalls[0] === "sk-nano-offline-key",
       "#keysave REFUSED a good key because nano-gpt was unreachable — an offline user can never save a key");
   })();
+
+  for (const status of [400, 401]) {
+    reset("old-typed-key");
+    storedKey = null;
+    dom.keyrow.classList.add("open");
+    const probe = Promise.withResolvers();
+    currentFetch = () => probe.promise;
+    const save = api.keysaveHandler();
+    storedKey = "new-peer-key";
+    probe.resolve({ status });
+    await save;
+    expect(storedKey === "new-peer-key" && setKeyCalls.length === 0, `a stale HTTP ${status} probe rewrote the peer account`);
+    expect(toastCalls.length === 0 && renderedKeys[0] === "new-peer-key", `a stale HTTP ${status} probe misreported the current auth state`);
+    expect(!dom.keyrow.classList.contains("open") && dom.keyinput.value === "" && !dom.keysave.disabled,
+      `a stale HTTP ${status} probe left the old paste control active`);
+  }
 }
 
 // ======================================================================
