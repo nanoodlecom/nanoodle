@@ -1,5 +1,5 @@
-/* data-hash=397fe773e7c8752b */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-e91c497b3215 (35 modules) */
+/* data-hash=21720365741a6446 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-6ca5f20ba248 (35 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -4037,7 +4037,10 @@ async function urlBytes(url, fetchFn, signal) {
 
 async function writeInput(dir, name, url, fetchFn, signal) {
   await ensureNodeDeps();
-  const bytes = await urlBytes(url, fetchFn, signal);
+  return writeInputBytes(dir, name, url, await urlBytes(url, fetchFn, signal));
+}
+
+async function writeInputBytes(dir, name, url, bytes) {
   // preserve a sensible extension so ffmpeg picks the demuxer
   let ext = ".bin";
   if (/^data:/i.test(String(typeof url === "object" ? url.url : url))) {
@@ -4655,13 +4658,14 @@ async function trimAudioToWav(url, start, len, rate = 16000, { fetch: fetchFn, w
     }
   }
 
-  return trimAudioToWavFfmpeg(url, start, len, rate, { fetch: fetchFn, wholeIfBlank, signal });
+  // The format check already loaded the input. Decode those same bytes if PCM trimming is unavailable.
+  return trimAudioToWavFfmpeg(url, bytes, start, len, rate, { wholeIfBlank, signal });
 }
 
-async function trimAudioToWavFfmpeg(url, start, len, rate = 16000, { fetch: fetchFn, wholeIfBlank = false, signal } = {}) {
+async function trimAudioToWavFfmpeg(url, bytes, start, len, rate, { wholeIfBlank, signal }) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
-    const inPath = await writeInput(dir, "in", url, fetchFn, signal);
+    const inPath = await writeInputBytes(dir, "in", url, bytes);
     const outPath = join(dir, "out.wav");
     const s = Math.max(0, Number(start) || 0);
 
@@ -9283,5 +9287,5 @@ function posedPositions(mesh, nodeMatrix, weights, jointMatrices) {
 __x.sceneNodes = sceneNodes; __x.readSkin = readSkin; __x.skinInfluences = skinInfluences; __x.skinMatrices = skinMatrices; __x.posedPositions = posedPositions;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-e91c497b3215";
+  window.NanoodleEngine.version = "src-6ca5f20ba248";
 })();
