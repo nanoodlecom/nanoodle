@@ -23689,9 +23689,16 @@ $("keysave").onclick = async ()=>{
   const k=cleanKey($("keyinput").value); if(!k) return;
   if(!keySendable(k)){ $("keyinput").focus();
     toast("that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again", "err"); return; }
+  const priorKey = getKey();
   const btn=$("keysave"), label=btn.textContent; btn.disabled=true; btn.textContent=t("checking…");
   const probe = await probeKey(k);
   btn.disabled=false; btn.textContent=label;
+  // A peer tab may have finished sign-in while this key was being checked.
+  if(getKey()!==priorKey){
+    $("keyrow").classList.remove("open"); $("keyinput").value = "";
+    renderAuth(); refreshBalance(); refreshRunEstimate();
+    return;
+  }
   if(probe==="bad"){ $("keyrow").classList.add("open"); $("keyinput").focus(); flash("that key was rejected — paste a valid nano-gpt.com key");
     toast("that key was rejected — paste a valid nano-gpt.com key", "err"); return; }   // #status relocates into ⋯ on narrow screens; the toast is the one channel that's always visible
   setKey(k); $("keyrow").classList.remove("open");      // validated → store + close (renderAuth shows the real "ready ✓")

@@ -10454,9 +10454,12 @@ window.NoodleApp = (function () {
   const abortError = ()=> new DOMException("canceled", "AbortError");
   const isAbort = (e)=> e && (e.name==="AbortError" || runAborted());
   const getKey = ()=> localStorage.getItem("ngpt_key");
-  const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
+  function refreshStandaloneInputs(){
     refreshOutputPlaceholder();   // pre-run empty card baked a "needs a key" line (or its absence) — keep it truthful both ways
-    if(k && typeof STATE!=="undefined" && STATE) fillModelLists(); };   // standalone: a pasted/OAuth key fills the model dropdowns
+    if(getKey() && typeof STATE!=="undefined" && STATE) fillModelLists();   // a pasted/OAuth key fills the model dropdowns
+  }
+  const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
+    refreshStandaloneInputs(); };
   const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
   // Only the rejected key still in this standalone app can sign it out. The embedded
   // runtime never manages the key because the parent proxies its requests.
@@ -18320,8 +18323,10 @@ const PROMPT_CAPS = {
           statusLine("__auth__","error",t("that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again"));
           $("auth-keyinput").focus(); return;
         }
+        const priorKey = getKey();
         const sb=$("auth-keysave"); sb.disabled=true; sb.textContent=t("checking…");
         const probe = await probeKey(k);                 // 401/403 → reject; 200/400 → keep; offline → keep but say so
+        if(getKey()!==priorKey){ renderAuth(); refreshStandaloneInputs(); return; }
         if(probe==="bad"){
           sb.disabled=false; sb.textContent=t("save");      // keep the row OPEN, never store → no false "signed in ✓"
           statusLine("__auth__","error",t("that key was rejected by NanoGPT — check you copied the whole key"));
@@ -21787,9 +21792,15 @@ $("keysave").addEventListener("click", async ()=>{
   if(!k) return;
   if(!keySendable(k)){ $("keyinput").focus();
     toast("that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again","err"); return; }
+  const priorKey = getKey();
   const btn=$("keysave"); btn.disabled=true; btn.textContent="checking…";
   const probe = await probeKey(k);                       // 401/403 → reject; 200/400 → keep; offline → keep but say so
   btn.disabled=false; btn.textContent="save key";
+  if(getKey()!==priorKey){
+    $("key").style.display="none"; $("keyinput").value="";
+    finishSignIn();
+    return;
+  }
   if(probe==="bad"){                                     // rejected → keep the row OPEN, never show "signed in ✓"
     $("keyinput").focus();
     toast("that key was rejected by NanoGPT — check you copied the whole key","err");

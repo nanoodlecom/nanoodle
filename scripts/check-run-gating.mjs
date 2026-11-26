@@ -365,6 +365,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
       renderOutputPlaceholder: extractFn(html, "renderOutputPlaceholder"),
       clearOutputPlaceholder: extractFn(html, "clearOutputPlaceholder"),
       refreshOutputPlaceholder: extractFn(html, "refreshOutputPlaceholder"),
+      refreshStandaloneInputs: extractFn(html, "refreshStandaloneInputs"),
       wireParentBridge: extractFn(html, "wireParentBridge"),
       setKey: extractRuntimeSetKey(html),
     };
@@ -414,7 +415,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   const program2 =
     preamble2 + "\n" + lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" +
     lift2.primaryOutputPort + "\n" + lift2.outputKinds + "\n" + lift2.renderOutputPlaceholder + "\n" +
-    lift2.clearOutputPlaceholder + "\n" + lift2.refreshOutputPlaceholder + "\n" +
+    lift2.clearOutputPlaceholder + "\n" + lift2.refreshOutputPlaceholder + "\n" + lift2.refreshStandaloneInputs + "\n" +
     lift2.wireParentBridge + "\n" + lift2.setKey + "\n" + epilogue2;
   const ctx2 = { globalThis: null };
   ctx2.globalThis = ctx2;
