@@ -14643,7 +14643,13 @@ function njsCatalogs(){
 // adds auth to API calls only, so media CDN downloads never see the key.
 function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
   const {video:PENDING_VIDEO, audio:PENDING_AUDIO} = jobs;
-  const request = (u,o)=>{ assertRunCredential(key); return contentFetchForEngine(u, o); };
+  let submitStatus;
+  const request = async (u,o)=>{
+    assertRunCredential(key);
+    const response = await contentFetchForEngine(u, o);
+    if(o?.method==="POST") submitStatus = response.status;
+    return response;
+  };
   const client = new E.NanoClient({ apiKey: key, baseUrl: NANOGPT, fetch:request });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
@@ -14684,6 +14690,15 @@ function njsCtx(E, n, key = getKey(), jobs = pendingMediaJobs(key)){
     onTerminalFailure: ()=>{ if(key===getKey() && typeof refreshBalance==="function") refreshBalance(true); },
   });
   return {
+    async runNode(run){
+      try{ return await run(); }
+      catch(error){
+        // The SDK classifies platform challenges separately. Polls and downloads
+        // can reject access to an accepted job without invalidating the key.
+        if(submitStatus && error?.code==="auth" && error.status===submitStatus) flagAuth({status:submitStatus}, key);
+        throw error;
+      }
+    },
     // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
     // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
     chat: (messages, model, opts)=> client.chat((opts && opts.response_format) ? messages : withLocale(messages), model, opts, io),
@@ -14827,7 +14842,7 @@ function njsRunFor(type, rn, inp, n){
       };
     }
     assertRunCredential(key);
-    return E.RUNNERS[type](rn, inp2, ctx);
+    return ctx.runNode(()=> E.RUNNERS[type](rn, inp2, ctx));
   };
 }
 

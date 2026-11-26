@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1834,
-  "occurrencesIndexHtml": 1928,
-  "occurrencesPlayHtml": 1990,
-  "digest": "05a39d519d98a98ff5b613db98269f4c",
+  "count": 1835,
+  "occurrencesIndexHtml": 1929,
+  "occurrencesPlayHtml": 1991,
+  "digest": "6e5380301b6e00d168482aaf58528c9a",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -1019,6 +1019,7 @@
     "8dceb6774a191812 1 1 - - const mode = endpointResolveTarget(n).mode;",
     "8ddd71ef184daf61 1 1 - - const hdlr = fullbox(\"hdlr\", 0, 0, u32(0), enc(t.kind===\"video\"?\"vide\":\"soun\"), new Uint8Array(12), hdlrName);",
     "8de1bb09628823ce 1 1 92e6b1defc6c4f78 92e6b1defc6c4f78 var vb = { model:model, prompt:endpointPrompt(n, inp) };",
+    "8e21f56d25458e3a 1 1 - - return ctx.runNode(()=> E.RUNNERS[type](rn, inp2, ctx));",
     "8e26a947bb81cfd9 1 1 - - const q = $(\"mpicksearch\").value.trim().toLowerCase();",
     "8e964e9535fa85b4 1 1 - - let out = typeof txt===\"string\" ? txt : txt.map(p=>p.text||\"\").join(\"\");",
     "8ec92739f4fa1c42 1 1 - - function declaresWireOutput(n, port, routed){",

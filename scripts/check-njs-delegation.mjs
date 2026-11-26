@@ -249,6 +249,27 @@ function flaggedEngine(on, spy) {
   return app;
 }
 
+for (const [status, scenario] of [[401, "current"], [403, "current"], [401, "replacement"], [403, "challenge"]]) {
+  let key = "submitted-key";
+  const app = loadEngine(ctx => {
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.NanoodleEngine = ENGINE;
+    ctx.localStorage.getItem = name => name === "ngpt_key" ? key : null;
+    ctx.localStorage.removeItem = name => { if (name === "ngpt_key") key = null; };
+    ctx.fetch = (url, opts) => {
+      if (opts?.method !== "POST") return recordingFetch(url, opts);
+      if (scenario === "replacement") key = "new-key";
+      if (scenario === "challenge") return new Response("<!doctype html><title>Vercel Security Checkpoint</title>", { status });
+      return Response.json({ error: "invalid fixture key" }, { status });
+    };
+  });
+  const n = node("auth", "llm", { model: "x", prompt: "test" });
+  const delegate = app.__njs.runFor(n.type, n, {}, n.id);
+  await assert.rejects(() => delegate(n, {}, () => {}, n.id), { code: scenario === "challenge" ? "blocked" : "auth", status });
+  assert.equal(key, scenario === "current" ? null : scenario === "replacement" ? "new-key" : "submitted-key");
+}
+console.log("✓ player only clears the currently used credential after its submission is rejected");
+
 // Use the real bundled client with a mock provider. Only an explicit terminal
 // status lets the same input submit another paid job.
 for (const [type, kind, statusPath, idParam] of [
@@ -260,6 +281,7 @@ for (const [type, kind, statusPath, idParam] of [
   const media = `https://cdn.example/fixture.${kind === "video" ? "mp4" : "mp3"}`;
   const app = loadEngine(ctx => {
     ctx.URLSearchParams = URLSearchParams;
+    ctx.localStorage.removeItem = () => assert.fail("a paid job's status response cannot invalidate credentials");
     ctx.NanoodleEngine = { ...ENGINE, NanoClient: class extends ENGINE.NanoClient {
       constructor(opts) { super({ ...opts, pollIntervals: { [kind]: 1 } }); }
     } };
