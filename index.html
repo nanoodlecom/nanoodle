@@ -642,7 +642,7 @@
   #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
   /* Keep the starter's advanced controls and field hints folded until the
      first-visit banner is dismissed. Imported and restored graphs use the full editor. */
-  body:has(#canvashint:not([hidden])) #world.starter-resting .node :is(.adv,.fhint){ display:none }
+  body:has(#canvashint:not([hidden])) #world.starter-resting .node :is(.adv,.fhint,.capnote){ display:none }
   /* Phone widths: the right-anchored control bar and the left-hand corner pills share the bottom
      band. On narrow screens a full ↺↻⊡ + pill row could meet the pills mid-screen, so lift the whole
      bar above their row — it clears the corner pills and the Terms/Privacy link. */
@@ -1373,7 +1373,7 @@
   <h1 class="vh">nanoodle — build workflows, give your agents new abilities</h1>
   <div class="logo" aria-hidden="true"><img src="/favicon-32.png" alt="" width="32" height="32"><span><span class="nano">nano</span>odle</span></div>
   <div id="agentmenu">
-    <button id="agentbtn" type="button" aria-label="Connect to MCP" title="Connect to MCP" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Connect to MCP</span><span class="compact" data-no-i18n>MCP</span></button>
+    <button id="agentbtn" type="button" aria-label="Use in agents" title="Use in agents" aria-haspopup="dialog" aria-controls="agentpop" aria-expanded="false"><span class="lbl">Use in agents</span><span class="compact" data-no-i18n>Agents</span></button>
     <div id="agentpop" hidden role="dialog" aria-labelledby="agenttitle">
       <h2 id="agenttitle">Run workflows from your agent</h2>
       <p class="ap-note">Connect over the Model Context Protocol (MCP) to use hosted workflows as tools.</p>
@@ -1389,6 +1389,7 @@
         <span class="ap-hosted-title"><span data-no-i18n>near.nanoodle.com</span><span aria-hidden="true">↗</span></span>
         <span>Pay per run in NEAR or USDC on NEAR.</span>
       </a>
+      <p class="ap-note"><a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a></p>
       <details id="agentskill">
         <summary>Run a workflow as a skill</summary>
         <p class="ap-note">Install the skill to design and run workflows from your terminal using your NanoGPT key.</p>
@@ -1640,7 +1641,7 @@
   <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP. <a class="script-guide" href="/guide/run-headless" target="_blank" rel="noopener">Run a workflow in JavaScript, Python, or Rust</a>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
+  <div id="canvashint" hidden><span class="ht">Build with NanoGPT. Run hosted workflows over MCP.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span>Edit anything</span> → <button id="hintrun" class="link">▶ Run</button></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
   <div id="emptycanvas" hidden>
     <div class="ec-card" role="group" aria-label="This workspace is empty">
       <div class="ec-title">This workspace is empty</div>
@@ -2506,6 +2507,7 @@ const I18N = {
     "Made an app from one?":"¿Hiciste una app con uno?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrina. Todas las apps que hay siguen siendo nuestras; haz que la tuya sea la primera que no lo sea. Una línea.",
     "Connect to MCP":"Conectar con MCP",
+    "Use in agents":"Usar en agentes",
     "Run workflows from your agent":"Ejecuta flujos desde tu agente",
     "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Consulta el precio y paga por ejecución en Nano, NEAR o USDC en la red NEAR.",
     "Run a workflow as a skill":"Ejecutar un flujo como skill",
@@ -3321,6 +3323,7 @@ const I18N = {
     "Made an app from one?":"Vous en avez fait une app ?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— la vitrine. Toutes les apps qui s’y trouvent sont encore les nôtres ; faites de la vôtre la première qui ne l’est pas. Une ligne.",
     "Connect to MCP":"Se connecter à MCP",
+    "Use in agents":"Utiliser dans des agents",
     "Run workflows from your agent":"Exécutez des workflows depuis votre agent",
     "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Obtenez un devis et payez à chaque exécution en Nano, en NEAR ou en USDC sur le réseau NEAR.",
     "Run a workflow as a skill":"Exécuter un workflow avec une skill",
@@ -4136,6 +4139,7 @@ const I18N = {
     "Made an app from one?":"Daraus eine App gebaut?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— das Schaufenster. Alle Apps darin sind noch unsere eigenen; mach deine zur ersten, die es nicht ist. Eine Zeile.",
     "Connect to MCP":"Mit MCP verbinden",
+    "Use in agents":"In Agenten verwenden",
     "Run workflows from your agent":"Workflows aus deinem Agenten starten",
     "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Hol ein Preisangebot ein und zahle pro Ausführung in Nano, NEAR oder USDC im NEAR-Netzwerk.",
     "Run a workflow as a skill":"Einen Workflow als Skill ausführen",
@@ -4951,6 +4955,7 @@ const I18N = {
     "Made an app from one?":"Fez um app a partir de um deles?",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— a vitrine. Todos os apps nela ainda são nossos; faça o seu ser o primeiro que não é. Uma linha.",
     "Connect to MCP":"Conectar ao MCP",
+    "Use in agents":"Usar em agentes",
     "Run workflows from your agent":"Execute fluxos a partir do seu agente",
     "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"Receba uma cotação e pague por execução em Nano, NEAR ou USDC na rede NEAR.",
     "Run a workflow as a skill":"Executar um fluxo como skill",
@@ -5766,6 +5771,7 @@ const I18N = {
     "Made an app from one?":"そこからアプリを作りましたか？",
     "— the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.":"— ショーケースです。今あるアプリはまだ全部わたしたちのもの。最初の1つは、あなたのアプリに。追加は1行です。",
     "Connect to MCP":"MCP に接続",
+    "Use in agents":"エージェントで使う",
     "Run workflows from your agent":"エージェントからワークフローを実行",
     "Get a quote and pay per run in Nano, NEAR, or USDC on NEAR.":"実行ごとに料金を確認し、Nano、NEAR、または NEAR ネットワーク上の USDC で支払えます。",
     "Run a workflow as a skill":"スキルでワークフローを実行する",
@@ -23783,7 +23789,18 @@ $("signout").onclick = ()=> setKey(null);
   // Reconcile once the fresh catalog lands: resize cards, backfill default models, refresh prices/panels
   // and redraw wires to the new port positions. For a returning visitor this is a no-op-ish nudge; for a
   // brand-new visitor (empty cache) it's what turns the first paint's placeholder cards into final ones.
-  catalogReady.then(res=>{ if(res.some(Boolean)){ refreshAllPrices(); redraw(); refreshPortFills(); } });
+  // The fresh starter is framed at first paint, before the catalog lands — cards then grow to
+  // final size (models, prices, the demo ghost) and at short viewports the frame that fit
+  // quietly overflows the fold (measured: 61px past the bottom at 1512×851). Once things
+  // settle, re-frame the starter — only if the visitor hasn't taken the view over (any
+  // pan/zoom/drag starts with pointerdown/wheel on the editor) and it actually fell out of
+  // frame. (initial-moment, 2026-11-26)
+  let starterViewTouched = false;
+  editor.addEventListener("pointerdown", ()=>{ starterViewTouched = true; }, true);
+  editor.addEventListener("wheel", ()=>{ starterViewTouched = true; }, {capture:true, passive:true});
+  const refitFreshStarter = ()=>{ if(freshStart && !starterViewTouched && !graphFitsViewport(8)) fitView(hintPad()); };
+  catalogReady.then(res=>{ if(res.some(Boolean)){ refreshAllPrices(); redraw(); refreshPortFills(); } refitFreshStarter(); });
+  setTimeout(refitFreshStarter, 1200);   // the demo ghost + webfonts also land after the first fit
   maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up, which was shown before the fit above)
   // Brand-new visitors land straight on a simple working flow (the default graph).
   renderAuth();   // paint the signed-out chrome first: a handleRedirect() failure below must not be overwritten by this
