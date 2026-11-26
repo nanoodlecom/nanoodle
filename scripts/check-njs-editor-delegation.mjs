@@ -497,6 +497,19 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   console.log("✓ drifted model id blocked by mdl() preflight before any paid request");
 }
 
+for (const [status, challenge] of [[401, false], [403, false], [403, true]]) {
+  const on = makeCtx({ flagOn: true, key: "submitted-key" });
+  const rejected = [];
+  on.flagAuth = (response, key) => rejected.push([response.status, key]);
+  on.fetch = (url, opts) => opts?.method !== "POST" ? fakeFetch(url, opts) : challenge
+    ? new Response("<!doctype html><title>Vercel Security Checkpoint</title>", { status })
+    : Response.json({ error: "invalid fixture key" }, { status });
+  const node = { id: "auth", type: "llm", fields: { model: "x", prompt: "test" } };
+  await assert.rejects(on.njsRunFor(node.type, node, {}, node), { code: challenge ? "blocked" : "auth", status });
+  assert.deepEqual(rejected, challenge ? [] : [[status, "submitted-key"]]);
+}
+console.log("✓ editor routes delegated submission auth errors to the owning key's sign-in controls");
+
 // vetoes: per-run shapes the library doesn't yet match must stay on the built-in path
 {
   const on = makeCtx({ flagOn: true });
@@ -558,7 +571,8 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
         video(m, p, o, i, io) { io.onRunId("job-1"); return Promise.reject(err); }
         audio(m, input, extra, io) { io.onRunId({ runId: "job-1", cost: 0.25 }); return Promise.reject(err); }
       } }, { id: "n1" });
-      await assert.rejects(() => ctx[kind]("m", "p", {}), (e) => e === err);
+      on.flagAuth = () => assert.fail("a pending job error cannot invalidate credentials");
+      await assert.rejects(() => ctx.runNode(() => ctx[kind]("m", "p", {})), (e) => e === err);
       assert.equal(jobs.has("n1"), expectKept, `${kind} ${label}: expected pending entry=${expectKept}`);
     }
   }

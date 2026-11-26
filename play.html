@@ -14591,9 +14591,12 @@ const PROMPT_CAPS = {
   // adds auth to API calls only, so media CDN downloads never see the key.
   function njsCtx(E, onCost, runKey, note, credential){
     const { video:PENDING_VIDEO, audio:PENDING_AUDIO } = accountRunState(credential);
-    const send = (url, opts)=>{
+    let submitStatus;
+    const send = async (url, opts)=>{
       checkCredential(credential);
-      return contentFetchForEngine(url, opts);
+      const response = await contentFetchForEngine(url, opts);
+      if(opts?.method==="POST") submitStatus = response.status;
+      return response;
     };
     const client = new E.NanoClient({ apiKey: credential, baseUrl: NANOGPT, fetch: send });
     // The bundled resolver follows redirect:manual and reads Location. Browsers hide
@@ -14631,6 +14634,14 @@ const PROMPT_CAPS = {
       onTerminalFailure: ()=>{ if(credential===currentCredential()) refreshPlayBalance(true); },
     });
     return {
+      async runNode(run){
+        try{ return await run(); }
+        catch(error){
+          // Only a generation submission rejected by the SDK's auth classifier.
+          if(submitStatus && error?.code==="auth" && error.status===submitStatus) flagAuth(submitStatus, credential);
+          throw error;
+        }
+      },
       // built-in genChat twin: inject the "respond in <app language>" directive (the library is
       // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
       chat: (messages, model, opts)=> client.chat((opts && opts.response_format) ? messages : withLocale(messages), model, opts, io),
@@ -14748,7 +14759,7 @@ const PROMPT_CAPS = {
           return _sendImage(Object.assign({}, args, { extra: extra }));
         };
       }
-      return E.RUNNERS[type](rn, inp2, ctx);
+      return ctx.runNode(()=> E.RUNNERS[type](rn, inp2, ctx));
     };
   }
 
