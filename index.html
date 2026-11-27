@@ -15042,8 +15042,16 @@ async function runGroup(seedIds, ctx){
     const mode = (typeof demoMode === "function")
       ? demoMode()
       : (demoStarterSig && appHandoffSig() === demoStarterSig ? "exact" : null);
-    openDemoPop(mode);
-    if(!mode) return;
+    if(!mode){ openDemoPop(mode); return; }   // the wall is the whole message — nothing runs behind it, so the pitch can't wait for a result that will never land
+    // A sample WILL run: don't lead with the pitch. The pop used to fire at
+    // +0.10 s, before the first result, so the relay's first second was spent
+    // reading a sign-in pitch instead of watching the sketch get read
+    // (initial-moment Cycles 1–7). The per-result badges keep every canned
+    // result honest from the moment it lands; the pop now follows the wow —
+    // markDemoResult flushes it when the painting lands, and runGroup
+    // flushes any remainder when the group settles. typeof guard: check
+    // harnesses extract runGroup alone, without the pop-timing helpers.
+    if(typeof deferDemoPop === "function") deferDemoPop(mode); else openDemoPop(mode);
     }
   }
   const runCtx = ctx===CTX ? Object.assign(Object.create(ctx), {
@@ -15309,6 +15317,7 @@ async function runGroup(seedIds, ctx){
       })();
     }
     await Promise.all(order.map(id=> done[id]));
+    if(typeof flushDemoPop === "function") flushDemoPop();   // a sample run with no painting (single-node run, stopped, errored) still gets its pop — at the end instead of never
   } finally {
     seedSet.forEach(id=>{ seedRuns.delete(id); if(seedCtl.get(id)===ctl) seedCtl.delete(id); if(typeof dropWorkHolder==="function") dropWorkHolder(id, false); });
     unlockRunIds(lock);
@@ -16088,6 +16097,10 @@ function markDemoResult(n){
   // of the sketch starter (vision + LLM + image + video + speech) to be labeled.
   if(!NODE_TYPES[n.type] || !NODE_TYPES[n.type].modelKind) return;
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
+  // The painting is the arc's first wow — the deferred sample pop follows it
+  // (see runGroup's deferral; wall pops never defer). typeof guard for
+  // harnesses that extract this fn alone.
+  if(NODE_TYPES[n.type] && NODE_TYPES[n.type].modelKind === "image" && typeof flushDemoPop === "function") flushDemoPop();
   // The sample film is the arc's payoff — play it the moment it lands instead of
   // leaving it parked at 0:00 behind a play button most strangers never press
   // (initial-moment Cycles 1–6: narration + film both sat silent after every
@@ -16103,6 +16116,19 @@ function markDemoResult(n){
     const p = film.play();
     if(p && p.catch) p.catch(()=>{});   // a browser that still refuses leaves the poster + play button, exactly as before
   }
+}
+// The sample pop, deferred (initial-moment Cycle 9): runGroup stashes the
+// mode here instead of opening the pop at Run; flushDemoPop opens it when
+// the painting lands (markDemoResult) or when the run group settles,
+// whichever comes first. A visitor who signs in mid-deferral never gets a
+// stale "sign in" pitch.
+let pendingDemoPopMode;
+function deferDemoPop(mode){ pendingDemoPopMode = mode; }
+function flushDemoPop(){
+  if(pendingDemoPopMode === undefined) return;
+  const mode = pendingDemoPopMode; pendingDemoPopMode = undefined;
+  try{ if(getKey()) return; }catch(_){}
+  openDemoPop(mode);
 }
 // mode: 'exact' (pristine starter) | 'shape' (same topology, field tweaks) | 'video' (starter + an
 // appended Image→Video node) | null (not sampleable).
