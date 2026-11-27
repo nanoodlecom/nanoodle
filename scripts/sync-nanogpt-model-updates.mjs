@@ -29,8 +29,8 @@
 // browser (--dump-dom) rather than silently no-op — a NanoGPT deploy must not
 // stop the cron.
 //
-// State: scripts/nanogpt-model-updates-seen.json tracks every (date, slug) and
-// API id we've already turned into a nanoodle changelog line, so reruns never
+// State: scripts/nanogpt-model-updates-seen.json tracks API ids and fallback
+// keys for cards already covered in the nanoodle changelog, so reruns never
 // double-add (an id: key also survives a title edit). Existing chat date|slug
 // keys are kept. The first run that understands media/retired/pricing only
 // ingests those cards with date >= 2026-08-01 (the chat path stays as-is,
@@ -141,7 +141,7 @@ async function loadCards(seen) {
   try {
     const cards = await fetchApiUpdates(fetch, {
       url: API_URL,
-      shouldStop: (all) => shouldStopFetching(all, seen),
+      shouldStop: (all, batch) => shouldStopFetching(all, seen, batch),
     });
     if (cards.length) {
       log(`fetched ${cards.length} card(s) from ${API_URL}`);
@@ -174,8 +174,8 @@ function saveSeen(seenSet, keptKeys) {
   // the walk-stop point, not a full permanent audit log (git history has that).
   const merged = [...keptKeys, ...seenSet].filter((k, i, a) => a.indexOf(k) === i).slice(0, 500);
   writeFileSync(SEEN_FILE, JSON.stringify({
-    _comment: "Tracks NanoGPT /updates entries already folded into ../updates.json: " +
-      "date|slug for each model link, plus id:<api-id> so a title edit does not double-post. " +
+    _comment: "Tracks NanoGPT /updates entries already folded into ../updates.json. " +
+      "Uses id:<api-id> plus date|slug for launches and date|intent|title for price and retirement events. " +
       "See scripts/sync-nanogpt-model-updates.mjs. Do not hand-edit unless backfilling/correcting history.",
     seen: merged,
   }, null, 2) + "\n");

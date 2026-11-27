@@ -43,21 +43,46 @@ function lineFor(card, seen = []) {
 
 console.log("sync-nanogpt-model-updates (fixture)");
 
-// The bounded seen history is a pagination checkpoint. Once a retained ID is
-// reached, older pages containing pruned September IDs must not be fetched.
+// A recent hand-written card can be seen ahead of both a missing price event
+// and the older sync checkpoint. Pruned history past that overlap stays out.
 {
   const latest = { id: "latest", date: "2026-11-10" };
+  const manual = { id: "manual", date: "2026-11-09" };
+  const missing = { id: "missing", date: "2026-11-08" };
   const checkpoint = { id: "retained", date: "2026-11-05" };
   const pruned = { id: "pruned-september", date: "2026-09-02" };
   const offsets = [];
-  const seen = ["id:retained"];
+  const seen = ["id:manual", "id:retained"];
+  const pages = [[latest, manual], [missing, checkpoint], [pruned]];
   const cards = await fetchApiUpdates(async url => {
     const offset = Number(new URL(url).searchParams.get("offset"));
     offsets.push(offset);
-    return { ok: true, json: async () => ({ updates: offset ? [pruned] : [latest, checkpoint], hasMore: true }) };
-  }, { limit: 2, shouldStop: all => shouldStopFetching(all, seen) });
-  check("retained checkpoint stops before pruned history", offsets.length === 1 && offsets[0] === 0);
+    return { ok: true, json: async () => ({ updates: pages[offset / 2] || [], hasMore: true }) };
+  }, { limit: 2, shouldStop: (all, batch) => shouldStopFetching(all, seen, batch) });
+  check("a page-one seen ID does not hide missing cards on page two", cards.some(card => card.id === missing.id));
+  check("retained checkpoint stops before pruned history", offsets.join(",") === "0,2");
   check("pruned history cannot enter this pending batch", !cards.some(card => card.id === pruned.id));
+}
+
+{
+  const date = "2026-11-23";
+  const text = "[Sample](https://nano-gpt.com/conversation?model=sample) now has a different price.";
+  const launch = { id: "launch", title: "Sample", date, text };
+  const firstPrice = { id: "price1", title: "Price update for Sample", date, text };
+  const secondPrice = { id: "price2", title: "Sample cached input price", date, text };
+  const retirement = { id: "retired", title: "Sample retired", date, text };
+  const seen = [...classifyCard(launch).keys, ...classifyCard(firstPrice).keys];
+  const cards = [retirement, secondPrice, firstPrice, launch];
+  check("a same-day launch and price card cannot hide distinct pricing or retirement events",
+    selectPending(cards, seen).map(card => card.id).join(",") === "retired,price2");
+  check("two API price events may have the same date and title",
+    selectPending([{ ...firstPrice, id: "price3" }], seen)[0]?.id === "price3");
+  check("a seen price still deduplicates its ID-free HTML counterpart",
+    selectPending([{ ...firstPrice, id: null }], seen).length === 0);
+  check("Studio image template cards do not announce a new model", classifyCard({
+    id: "studio-templates", title: "25 new image templates", date,
+    text: "[Image templates](https://nano-gpt.com/studio/image?model=sample) in Studio include new presets.",
+  }).skip);
 }
 
 // (a) a video /media card becomes "New video model"
@@ -162,8 +187,8 @@ console.log("sync-nanogpt-model-updates (fixture)");
     line
   );
   check(
-    "linked-subject retirement records the retired slug only",
-    info.keys.includes("2026-09-10|yi-lightning") && !info.keys.includes("2026-09-10|gemma-4-12b-it"),
+    "linked-subject retirement records the retirement event key",
+    info.keys.includes("2026-09-10|retired|yi-lightning-retired") && info.keys.length === 2,
     JSON.stringify(info.keys)
   );
 }
